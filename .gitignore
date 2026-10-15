@@ -1,0 +1,71 @@
+# dependencies
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+
+# build & cache
+.next/
+out/
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+
+# expo & react native mobile
+.expo/
+.expo-shared/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+*.apk
+*.aab
+
+# environment & secrets
+.env
+.env.*
+.env*.local
+!.env.example
+
+# database & backups
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sql.gz
+*.tar.gz
+backups/
+dump.rdb
+
+# logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# testing & coverage
+coverage/
+.nyc_output/
+
+# ide & editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# system
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini

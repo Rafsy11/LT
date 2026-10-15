@@ -1,0 +1,19 @@
+{
+  "name": "isp-ops-monorepo",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "db:generate": "pnpm --filter @repo/database run db:generate",
+    "db:push": "pnpm --filter @repo/database run db:push",
+    "db:seed": "pnpm --filter @repo/database run db:seed"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.4",
+    "typescript": "^5.7.3",
+    "prettier": "^3.5.2"
+  },
+  "packageManager": "pnpm@12.11.2"
+}

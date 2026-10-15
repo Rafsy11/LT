@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserType {
+  SUPER_ADMIN
+  ADMIN
+  TECHNICIAN
+}
+
+enum TicketType {
+  PSB
+  MAINTENANCE
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum CustomerStatus {
+  PENDING_INSTALL
+  ACTIVE
+  ISOLATED
+  DISMANTLED
+}
+
+// 1. ROLES & RBAC MATRIX
+model Role {
+  id             String   @id @default(uuid())
+  name           String   @unique
+  permissions    Json     // Array of permission strings: ["ticket:read", "ticket:create", ...]
+  hierarchyLevel Int      @map("hierarchy_level") // Super Admin: 100, Admin NOC: 50, Teknisi: 10
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  users          User[]
+
+  @@map("roles")
+}
+
+// 2. USERS
+model User {
+  id               String               @id @default(uuid())
+  username         String               @unique
+  fullName         String               @map("full_name")
+  passwordHash     String               @map("password_hash")
+  roleId           String               @map("role_id")
+  role             Role                 @relation(fields: [roleId], references: [id])
+  userType         UserType             @map("user_type")
+  isActive         Boolean              @default(true) @map("is_active")
+  assignedClusters String[]             @map("assigned_clusters") // Array cluster codes for RLS Scoping
+  createdAt        DateTime             @default(now()) @map("created_at")
+
+  sessions         UserSession[]
+  assignedTickets  Ticket[]             @relation("AssignedTech")
+  createdTickets   Ticket[]             @relation("CreatedAdmin")
+  attenuations     AttenuationHistory[]
+  activityLogs     ActivityLog[]
+  clientErrors     ClientErrorLog[]
+
+  @@index([roleId])
+  @@index([isActive])
+  @@map("users")
+}
+
+// 3. USER SESSIONS & DEVICE BINDING
+model UserSession {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash String    @map("refresh_token_hash")
+  deviceId         String    @map("device_id")
+  deviceModel      String?   @map("device_model")
+  appVersion       String?   @map("app_version")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+
+  @@index([userId])
+  @@index([deviceId])
+  @@index([revokedAt])
+  @@map("user_sessions")
+}
+
+// 4. NETWORK CLUSTERS
+model NetworkCluster {
+  id          String            @id @default(uuid())
+  clusterCode String            @unique @map("cluster_code")
+  name        String
+  centerLat   Decimal           @map("center_lat") @db.Decimal(10, 7)
+  centerLng   Decimal           @map("center_lng") @db.Decimal(10, 7)
+  isActive    Boolean           @default(true) @map("is_active")
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  splitters   NetworkSplitter[]
+  customers   Customer[]
+
+  @@index([clusterCode])
+  @@index([isActive])
+  @@map("network_clusters")
+}
+
+// 5. NETWORK SPLITTERS (ODP)
+model NetworkSplitter {
+  id           String               @id @default(uuid())
+  clusterId    String               @map("cluster_id")
+  cluster      NetworkCluster       @relation(fields: [clusterId], references: [id])
+  splitterCode String               @unique @map("splitter_code")
+  lat          Decimal              @db.Decimal(10, 7)
+  lng          Decimal              @db.Decimal(10, 7)
+  maxPorts     Int                  @default(16) @map("max_ports") // 8 or 16 ports
+  isActive     Boolean              @default(true) @map("is_active")
+  createdAt    DateTime             @default(now()) @map("created_at")
+
+  customers    Customer[]
+  attenuations AttenuationHistory[]
+
+  @@index([clusterId])
+  @@index([splitterCode])
+  @@index([isActive])
+  @@map("network_splitters")
+}
+
+// 6. CUSTOMERS (MASTER DATA PELANGGAN)
+model Customer {
+  id                 String               @id @default(uuid())
+  siaNumber          String               @unique @map("sia_number")
+  fullName           String               @map("full_name")
+  address            String
+  lat                Decimal?             @db.Decimal(10, 7)
+  lng                Decimal?             @db.Decimal(10, 7)
+  clusterId          String               @map("cluster_id")
+  cluster            NetworkCluster       @relation(fields: [clusterId], references: [id])
+  splitterId         String?              @map("splitter_id")
+  splitter           NetworkSplitter?     @relation(fields: [splitterId], references: [id])
+  portNumber         Int?                 @map("port_number")
+  currentAttenuation Decimal?             @map("current_attenuation") @db.Decimal(6, 2)
+  status             CustomerStatus       @default(PENDING_INSTALL)
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at")
+
+  tickets            Ticket[]
+  attenuations       AttenuationHistory[]
+
+  @@index([siaNumber])
+  @@index([clusterId])
+  @@index([splitterId, portNumber])
+  @@index([status])
+  @@map("customers")
+}
+
+// 7. TICKETS (WORK ORDERS)
+model Ticket {
+  id               String               @id @default(uuid())
+  ticketNumber     String               @unique @map("ticket_number")
+  ticketType       TicketType           @map("ticket_type")
+  customerId       String               @map("customer_id")
+  customer         Customer             @relation(fields: [customerId], references: [id])
+  assignedTechId   String?              @map("assigned_tech_id")
+  assignedTech     User?                @relation("AssignedTech", fields: [assignedTechId], references: [id])
+  createdByAdminId String               @map("created_by_admin_id")
+  createdByAdmin   User                 @relation("CreatedAdmin", fields: [createdByAdminId], references: [id])
+  status           TicketStatus         @default(OPEN)
+  adminNotes       String?              @map("admin_notes")
+  assignedAt       DateTime?            @map("assigned_at")
+  completedAt      DateTime?            @map("completed_at")
+  createdAt        DateTime             @default(now()) @map("created_at")
+
+  attenuations     AttenuationHistory[]
+
+  @@index([ticketNumber])
+  @@index([status])
+  @@index([assignedTechId])
+  @@index([customerId])
+  @@index([createdByAdminId])
+  @@index([createdAt])
+  @@map("tickets")
+}
+
+// 8. ATTENUATION HISTORIES (APPEND-ONLY)
+model AttenuationHistory {
+  id                   String          @id @default(uuid())
+  submissionId         String          @unique @map("submission_id") // UUID v4 Idempotency Key
+  ticketId             String          @map("ticket_id")
+  ticket               Ticket          @relation(fields: [ticketId], references: [id])
+  customerId           String          @map("customer_id")
+  customer             Customer        @relation(fields: [customerId], references: [id])
+  techId               String          @map("tech_id")
+  tech                 User            @relation(fields: [techId], references: [id])
+  oldAttenuation       Decimal?        @map("old_attenuation") @db.Decimal(6, 2)
+  newAttenuation       Decimal         @map("new_attenuation") @db.Decimal(6, 2)
+  splitterId           String          @map("splitter_id")
+  splitter             NetworkSplitter @relation(fields: [splitterId], references: [id])
+  portNumber           Int             @map("port_number")
+  photoObjectKey       String          @map("photo_object_key") // MinIO S3 Object Key
+  submittedLat         Decimal         @map("submitted_lat") @db.Decimal(10, 7)
+  submittedLng         Decimal         @map("submitted_lng") @db.Decimal(10, 7)
+  distanceToSplitterM  Decimal?        @map("distance_to_splitter_m") @db.Decimal(8, 2)
+  isLocationFlagged    Boolean         @default(false) @map("is_location_flagged")
+  clientRecordedAt     DateTime?       @map("client_recorded_at")
+  createdAt            DateTime        @default(now()) @map("created_at") // Server Timestamp Only
+
+  @@index([submissionId])
+  @@index([ticketId])
+  @@index([customerId])
+  @@index([techId])
+  @@index([createdAt])
+  @@map("attenuation_histories")
+}
+
+// 9. ACTIVITY LOGS (APPEND-ONLY AUDIT TRAIL)
+model ActivityLog {
+  id           String   @id @default(uuid())
+  actorUserId  String   @map("actor_user_id")
+  actorUser    User     @relation(fields: [actorUserId], references: [id])
+  actorRole    String   @map("actor_role")
+  actionType   String   @map("action_type")
+  targetEntity String   @map("target_entity")
+  targetId     String   @map("target_id")
+  oldPayload   Json?    @map("old_payload")
+  newPayload   Json?    @map("new_payload")
+  ipAddress    String?  @map("ip_address")
+  createdAt    DateTime @default(now()) @map("created_at") // Server Timestamp Only
+
+  @@index([actorUserId])
+  @@index([actionType])
+  @@index([targetEntity, targetId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// 10. CLIENT ERROR LOGS
+model ClientErrorLog {
+  id           String   @id @default(uuid())
+  userId       String?  @map("user_id")
+  user         User?    @relation(fields: [userId], references: [id])
+  appVersion   String?  @map("app_version")
+  deviceInfo   String?  @map("device_info")
+  errorMessage String   @map("error_message")
+  stackTrace   String?  @map("stack_trace")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("client_error_logs")
+}
