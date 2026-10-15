@@ -1,4 +1,5 @@
 import { SubmitTicketInput, ApiResponse } from '@repo/shared';
+import { uploadToPresignedPutUrl } from '../camera/opmCamera';
 
 export interface OfflineTicketSubmission {
   id: string;
@@ -19,6 +20,14 @@ export type SubmissionSender = (
 ) => Promise<ApiResponse<unknown>>;
 
 export type PhotoUploader = (localUri: string, objectKey: string) => Promise<string>;
+
+export interface MobileApiClientLike {
+  request: <T = unknown>(
+    endpoint: string,
+    options?: RequestInit,
+    customHeaders?: Record<string, string>
+  ) => Promise<ApiResponse<T>>;
+}
 
 /**
  * Interface for pluggable mobile storage (MMKV, expo-sqlite, or AsyncStorage).
@@ -51,14 +60,20 @@ export class OfflineQueueManager {
   private isProcessing = false;
   private sender?: SubmissionSender;
   private uploader?: PhotoUploader;
+  private apiClient?: MobileApiClientLike;
 
   constructor(storage?: StorageAdapter) {
     this.storage = storage || new InMemoryStorageAdapter();
   }
 
-  public configure(sender: SubmissionSender, uploader?: PhotoUploader): void {
-    this.sender = sender;
-    this.uploader = uploader;
+  public configure(config: {
+    apiClient?: MobileApiClientLike;
+    sender?: SubmissionSender;
+    uploader?: PhotoUploader;
+  }): void {
+    if (config.apiClient) this.apiClient = config.apiClient;
+    if (config.sender) this.sender = config.sender;
+    if (config.uploader) this.uploader = config.uploader;
   }
 
   /**
@@ -113,13 +128,12 @@ export class OfflineQueueManager {
 
   /**
    * Flushes offline submissions sequentially when NetInfo detects active internet.
+   * 1. If photo hasn't been uploaded, requests Presigned PUT URL from /api/v1/tech/upload-url
+   * 2. Uploads binary directly to MinIO via Presigned URL
+   * 3. Sends ticket submission to POST /api/v1/tech/tickets/[id]/submit with X-Idempotency-Key
    */
   public async flush(): Promise<{ processed: number; failed: number }> {
     if (this.isProcessing) return { processed: 0, failed: 0 };
-    if (!this.sender) {
-      console.warn('[OfflineQueue] Sender callback is not configured.');
-      return { processed: 0, failed: 0 };
-    }
 
     this.isProcessing = true;
     let processed = 0;
@@ -131,15 +145,74 @@ export class OfflineQueueManager {
 
       for (const item of queue) {
         try {
-          // 1. If photo hasn't been uploaded to MinIO yet, upload now
-          if (this.uploader && !item.payload.photoObjectKey) {
-            const objectKey = `proofs/${item.ticketId}_${item.submissionId}.jpg`;
-            await this.uploader(item.localPhotoUri, objectKey);
-            item.payload.photoObjectKey = objectKey;
+          // 1. Photo Upload to MinIO (Presigned URL)
+          if (item.localPhotoUri && !item.payload.photoObjectKey) {
+            let uploadedKey: string | null = null;
+
+            if (this.apiClient) {
+              // Request Presigned PUT URL from Next.js server
+              const urlRes = await this.apiClient.request<{
+                uploadUrl: string;
+                objectKey: string;
+              }>('/api/v1/tech/upload-url', {
+                method: 'POST',
+                body: JSON.stringify({
+                  ticketId: item.ticketId,
+                  submissionId: item.submissionId,
+                }),
+              });
+
+              if (!urlRes.success) {
+                throw new Error(
+                  urlRes.error?.message || 'Gagal meminta Presigned PUT URL dari server'
+                );
+              }
+
+              if (!urlRes.data?.uploadUrl) {
+                throw new Error('Presigned upload URL tidak ditemukan dalam respon server');
+              }
+
+              const { uploadUrl, objectKey } = urlRes.data;
+
+              // Upload photo binary directly to MinIO
+              const ok = await uploadToPresignedPutUrl(uploadUrl, item.localPhotoUri);
+              if (!ok) {
+                throw new Error('Gagal mengunggah foto bukti ke MinIO Object Storage');
+              }
+
+              uploadedKey = objectKey;
+            } else if (this.uploader) {
+              const defaultKey = `proofs/${item.ticketId}_${item.submissionId}.jpg`;
+              uploadedKey = await this.uploader(item.localPhotoUri, defaultKey);
+            }
+
+            if (uploadedKey) {
+              item.payload.photoObjectKey = uploadedKey;
+              item.photoObjectKey = uploadedKey;
+            }
           }
 
-          // 2. Transmit to Next.js API using immutable idempotency key
-          const res = await this.sender(item.ticketId, item.payload, item.submissionId);
+          // 2. Transmit ticket submission to API with immutable UUID v4 Idempotency Key
+          let res: ApiResponse<unknown>;
+
+          if (this.sender) {
+            res = await this.sender(item.ticketId, item.payload, item.submissionId);
+          } else if (this.apiClient) {
+            res = await this.apiClient.request<unknown>(
+              `/api/v1/tech/tickets/${item.ticketId}/submit`,
+              {
+                method: 'POST',
+                body: JSON.stringify(item.payload),
+              },
+              {
+                'X-Idempotency-Key': item.submissionId,
+                'Idempotency-Key': item.submissionId,
+              }
+            );
+          } else {
+            console.warn('[OfflineQueue] Neither sender nor apiClient configured.');
+            break;
+          }
 
           if (res.success || ('meta' in res && Boolean((res as any).meta?.alreadyProcessed))) {
             successfullyProcessedIds.add(item.submissionId);
@@ -156,7 +229,9 @@ export class OfflineQueueManager {
         }
       }
 
-      const remainingQueue = queue.filter((item) => !successfullyProcessedIds.has(item.submissionId));
+      const remainingQueue = queue.filter(
+        (item) => !successfullyProcessedIds.has(item.submissionId)
+      );
       await this.saveQueue(remainingQueue);
     } finally {
       this.isProcessing = false;
@@ -177,6 +252,7 @@ export class OfflineQueueManager {
       const isOnline = Boolean(state.isConnected);
       if (isOnline && !wasConnected) {
         // Connection restored: automatically flush offline queue
+        console.log('[OfflineQueue] Connection restored. Flushing pending queue...');
         void this.flush();
       }
       wasConnected = isOnline;
@@ -189,13 +265,7 @@ export class OfflineQueueManager {
  * POST /api/v1/tech/tickets/[id]/submit
  */
 export function createDefaultSubmissionSender(
-  apiClient: {
-    request: (
-      endpoint: string,
-      options: RequestInit,
-      headers?: Record<string, string>
-    ) => Promise<ApiResponse<unknown>>;
-  }
+  apiClient: MobileApiClientLike
 ): SubmissionSender {
   return async (ticketId: string, payload: SubmitTicketInput, idempotencyKey: string) => {
     return apiClient.request(
@@ -205,6 +275,7 @@ export function createDefaultSubmissionSender(
         body: JSON.stringify(payload),
       },
       {
+        'X-Idempotency-Key': idempotencyKey,
         'Idempotency-Key': idempotencyKey,
       }
     );
@@ -212,4 +283,3 @@ export function createDefaultSubmissionSender(
 }
 
 export const offlineQueue = new OfflineQueueManager();
-
