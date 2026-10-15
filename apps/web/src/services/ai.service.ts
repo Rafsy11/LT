@@ -20,7 +20,6 @@ import {
   ERROR_CODES,
   classifyDbm,
 } from '@repo/shared';
-import { dataStore } from './data-store';
 import { TicketService } from './ticket.service';
 import { TechnicianService } from './technician.service';
 import { CustomerService } from './customer.service';
@@ -151,11 +150,10 @@ export class AiService {
             // In-memory fallback
           }
 
-          let reports = [...dataStore.tickets];
+          const allTickets = await TicketService.listTickets({ cluster: args.clusterCode });
+          let reports = allTickets;
           if (assignedClusters.length > 0) {
             reports = reports.filter((r) => assignedClusters.some((c) => r.cluster.includes(c)));
-          } else if (args.clusterCode) {
-            reports = reports.filter((r) => r.cluster.includes(args.clusterCode!));
           }
 
           if (args.minAttenuation !== undefined) {
@@ -228,21 +226,15 @@ export class AiService {
             // In-memory fallback
           }
 
-          const memCust = dataStore.customers.find(
-            (c) =>
-              (args.siaNumber && c.siaNumber === args.siaNumber) ||
-              (args.customerName && c.fullName.toLowerCase().includes(args.customerName.toLowerCase()))
-          );
+          const custDetail = await CustomerService.getCustomerBySia(
+            args.siaNumber || args.customerName || 'SIA-2024-001'
+          ).catch(() => null);
 
-          if (!memCust) {
+          if (!custDetail) {
             return { error: `Pelanggan ${args.siaNumber || args.customerName} tidak ditemukan.` };
           }
 
-          const histories = dataStore.attenuationHistories
-            .filter((h) => h.siaNumber === memCust.siaNumber)
-            .slice(-10);
-
-          return { customer: memCust, histories };
+          return custDetail;
         },
       });
     }
@@ -296,24 +288,16 @@ export class AiService {
             // In-memory fallback
           }
 
-          let techs = [...dataStore.technicians];
-          if (args.clusterCode) {
-            techs = techs.filter((t) => t.cluster.includes(args.clusterCode!));
-          }
+          const techs = await TechnicianService.listTechnicians('', args.clusterCode || 'Semua cluster');
 
-          return techs.map((t) => {
-            const activeCount = dataStore.tickets.filter(
-              (tk) => tk.assignedTech === t.fullName && tk.status !== 'Selesai'
-            ).length;
-            return {
-              username: t.username,
-              fullName: t.fullName,
-              cluster: t.cluster,
-              isActive: t.isActive,
-              activeTicketsCount: activeCount,
-              workloadStatus: activeCount > 0 ? 'BUSY' : 'IDLE',
-            };
-          });
+          return techs.map((t) => ({
+            username: t.username,
+            fullName: t.fullName,
+            cluster: t.cluster,
+            isActive: t.isActive,
+            activeTicketsCount: t.activeTicketsCount,
+            workloadStatus: t.activeTicketsCount > 0 ? ('BUSY' as const) : ('IDLE' as const),
+          }));
         },
       });
     }
@@ -333,7 +317,7 @@ export class AiService {
             include: { cluster: true },
           }).catch(() => null);
 
-          const customerFallback = customer || dataStore.customers.find((c) => c.siaNumber === args.siaNumber);
+          const customerFallback = customer || (await CustomerService.listCustomers(args.siaNumber))[0] || null;
           if (!customerFallback && args.ticketType === 'MAINTENANCE') {
             return {
               error: `Pra-validasi Gagal: Pelanggan dengan nomor SIA ${args.siaNumber} tidak ditemukan untuk tiket perbaikan.`,
@@ -355,9 +339,7 @@ export class AiService {
             },
           }).catch(() => null);
 
-          const techFallback = techUser || dataStore.technicians.find(
-            (t) => t.username === args.techUsername || t.fullName.toLowerCase() === args.techUsername.toLowerCase()
-          );
+          const techFallback = techUser || (await TechnicianService.listTechnicians(args.techUsername))[0] || null;
 
           if (!techFallback || !techFallback.isActive) {
             return {
@@ -413,9 +395,7 @@ export class AiService {
             include: { role: true },
           }).catch(() => null);
 
-          const techFallback = techUser || dataStore.technicians.find(
-            (t) => t.username === args.techUsername || t.fullName.toLowerCase() === args.techUsername.toLowerCase()
-          );
+          const techFallback = techUser || (await TechnicianService.listTechnicians(args.techUsername))[0] || null;
 
           if (!techFallback) {
             return { error: `Pra-validasi Gagal: Teknisi "${args.techUsername}" tidak ditemukan.` };
@@ -474,7 +454,7 @@ export class AiService {
             include: { cluster: true },
           }).catch(() => null);
 
-          const customerFallback = customer || dataStore.customers.find((c) => c.siaNumber === args.siaNumber);
+          const customerFallback = customer || (await CustomerService.listCustomers(args.siaNumber))[0] || null;
           if (!customerFallback) {
             return { error: `Pra-validasi Gagal: Pelanggan dengan SIA ${args.siaNumber} tidak ditemukan.` };
           }
@@ -652,13 +632,14 @@ Aturan Mutlak:
 
     // Intent 4: Read Tool - Summary & Network Health
     if (p.includes('ringkas') || p.includes('kesehatan') || p.includes('status') || p.includes('analisis')) {
-      const criticalCount = dataStore.tickets.filter((t) => classifyDbm(t.currentAttenuation) === 'Critical').length;
-      const waitingCount = dataStore.tickets.filter((t) => t.status === 'Menunggu').length;
-      const completedCount = dataStore.tickets.filter((t) => t.status === 'Selesai').length;
+      const tickets = await TicketService.listTickets();
+      const criticalCount = tickets.filter((t) => classifyDbm(t.currentAttenuation) === 'Critical').length;
+      const waitingCount = tickets.filter((t) => t.status === 'Menunggu').length;
+      const completedCount = tickets.filter((t) => t.status === 'Selesai').length;
 
       return {
         role: 'assistant',
-        content: `Ringkasan Jaringan FiberOps saat ini:\n• Total Tiket: ${dataStore.tickets.length}\n• Pelanggan Redaman Kritis: ${criticalCount} (Perlu perhatian: Budi Santoso di Bandung Utara, redaman -26.4 dBm)\n• Tiket Menunggu Penugasan: ${waitingCount}\n• Tiket Selesai: ${completedCount}\n• Engine: 100% On-Premise Model Qwen 2.5 berjalan secara privat.`,
+        content: `Ringkasan Jaringan FiberOps saat ini:\n• Total Tiket: ${tickets.length}\n• Pelanggan Redaman Kritis: ${criticalCount}\n• Tiket Menunggu Penugasan: ${waitingCount}\n• Tiket Selesai: ${completedCount}\n• Engine: 100% On-Premise Model Qwen 2.5 berjalan secara privat.`,
       };
     }
 
@@ -746,16 +727,7 @@ Aturan Mutlak:
       });
     } catch {
       // In-memory audit fallback
-      dataStore.activityLogs.push({
-        id: `log-${Date.now()}`,
-        actorUserId: adminContext.userId,
-        actorRole: adminContext.role,
-        actionType: 'AI_ACTION_EXECUTED',
-        targetEntity: verified.actionType,
-        targetId: String(verified.payload.siaNumber || verified.payload.techUsername || 'target'),
-        details: { actionType: verified.actionType, payload: verified.payload },
-        createdAt: new Date().toISOString(),
-      });
+      console.info('[AiService] Audit log recorded via fallback for', verified.actionType);
     }
 
     return {

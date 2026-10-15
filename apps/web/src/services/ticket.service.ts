@@ -10,8 +10,68 @@ import {
   ERROR_CODES,
   UserSessionContext,
 } from '@repo/shared';
-import { dataStore, DbTicket } from './data-store';
 import { sseBroadcaster } from './sse.service';
+
+export interface DbTicket {
+  id: string;
+  ticketNumber: string;
+  customerName: string;
+  siaNumber: string;
+  ticketType: 'Pasang baru' | 'Maintenance';
+  cluster: string;
+  assignedTech: string;
+  techInitials: string;
+  status: 'Menunggu' | 'Dalam proses' | 'Selesai' | 'Dibatalkan';
+  currentAttenuation: number;
+  adminNotes?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+const FALLBACK_TICKETS: DbTicket[] = [
+  {
+    id: 't-1',
+    ticketNumber: 'TKT-2024-001',
+    customerName: 'Budi Santoso',
+    siaNumber: 'SIA-2024-001',
+    ticketType: 'Pasang baru',
+    cluster: 'Bandung Utara',
+    assignedTech: 'Andi Pratama',
+    techInitials: 'AP',
+    status: 'Menunggu',
+    currentAttenuation: -18.5,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 't-2',
+    ticketNumber: 'TKT-2024-002',
+    customerName: 'Siti Aminah',
+    siaNumber: 'SIA-2024-002',
+    ticketType: 'Maintenance',
+    cluster: 'Bandung Utara',
+    assignedTech: 'Andi Pratama',
+    techInitials: 'AP',
+    status: 'Dalam proses',
+    currentAttenuation: -24.8,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 't-3',
+    ticketNumber: 'TKT-2024-003',
+    customerName: 'Ahmad Dahlan',
+    siaNumber: 'SIA-2024-003',
+    ticketType: 'Maintenance',
+    cluster: 'Bandung Selatan',
+    assignedTech: 'Budi Darmawan',
+    techInitials: 'BD',
+    status: 'Selesai',
+    currentAttenuation: -27.3,
+    createdAt: new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+  },
+];
+
+const inMemoryProcessedSubmissions = new Set<string>();
 
 /**
  * Calculates great-circle distance between two GPS coordinates using Haversine formula (returns meters).
@@ -142,7 +202,7 @@ export class TicketService {
     }
 
     // Fallback: In-memory store
-    let result = [...dataStore.tickets];
+    let result = [...FALLBACK_TICKETS];
 
     if (userContext && userContext.userType !== 'SUPER_ADMIN' && userContext.assignedClusters.length > 0) {
       result = result.filter((t) =>
@@ -221,7 +281,7 @@ export class TicketService {
       // Fallback below
     }
 
-    const cached = dataStore.tickets.find((t) => t.id === id || t.ticketNumber === id);
+    const cached = FALLBACK_TICKETS.find((t) => t.id === id || t.ticketNumber === id);
     if (!cached) {
       throw new Error(`Tiket dengan ID ${id} tidak ditemukan`);
     }
@@ -232,16 +292,10 @@ export class TicketService {
    * Creates a new ticket dispatched by an Admin (PSB or Maintenance).
    */
   public static async createTicket(input: CreateTicketInput, adminId = 'superadmin') {
-    const techUser = dataStore.technicians.find(
-      (t) =>
-        t.username === input.assignedTechUsername ||
-        t.fullName.toLowerCase() === input.assignedTechUsername.toLowerCase()
-    );
+    const techName = input.assignedTechUsername;
+    const techInitials = getInitials(techName);
 
-    const techName = techUser ? techUser.fullName : input.assignedTechUsername;
-    const techInitials = techUser ? techUser.initials : getInitials(techName);
-
-    const nextNumber = `WO-2025-0${843 + dataStore.tickets.length - 4}`;
+    const nextNumber = `WO-2025-0${843 + FALLBACK_TICKETS.length}`;
     const newTicket: DbTicket = {
       id: `t-${Date.now()}`,
       ticketNumber: nextNumber,
@@ -257,19 +311,8 @@ export class TicketService {
       createdAt: new Date().toISOString(),
     };
 
-    // Update in-memory data store
-    dataStore.tickets.unshift(newTicket);
-
-    dataStore.activityLogs.push({
-      id: `log-${Date.now()}`,
-      actorUserId: adminId,
-      actorRole: 'Admin',
-      actionType: 'TICKET_CREATED',
-      targetEntity: 'ticket',
-      targetId: newTicket.id,
-      details: { ticketNumber: newTicket.ticketNumber, type: newTicket.ticketType },
-      createdAt: new Date().toISOString(),
-    });
+    // Update in-memory fallback store
+    FALLBACK_TICKETS.unshift(newTicket);
 
     // Broadcast live event via Redis and SSE
     const liveItem: ActivityFeedItem = {
@@ -375,8 +418,8 @@ export class TicketService {
       }
     } catch {
       // Check in-memory processed submissions
-      if (dataStore.processedSubmissions.has(input.submissionId)) {
-        const cachedTicket = dataStore.tickets.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
+      if (inMemoryProcessedSubmissions.has(input.submissionId)) {
+        const cachedTicket = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
         return {
           alreadyProcessed: true,
           ticket: cachedTicket,
@@ -421,19 +464,14 @@ export class TicketService {
         isLocationFlagged = distanceMeters > MAX_GEOFENCE_RADIUS_METERS;
       }
     } catch {
-      // In-memory fallback for splitter coordinates
-      const memCluster = dataStore.clusters.find(
-        (c) => c.splitterCode === input.splitterId || c.name.toLowerCase().includes('bandung')
+      // In-memory fallback for splitter coordinates (Bandung default)
+      distanceMeters = calculateHaversineDistance(
+        input.submittedLat,
+        input.submittedLng,
+        -6.914744,
+        107.60981
       );
-      if (memCluster) {
-        distanceMeters = calculateHaversineDistance(
-          input.submittedLat,
-          input.submittedLng,
-          memCluster.lat,
-          memCluster.lng
-        );
-        isLocationFlagged = distanceMeters > MAX_GEOFENCE_RADIUS_METERS;
-      }
+      isLocationFlagged = distanceMeters > MAX_GEOFENCE_RADIUS_METERS;
     }
 
     // ------------------------------------------------------------------
@@ -599,32 +637,12 @@ export class TicketService {
     // ------------------------------------------------------------------
     // e. IN-MEMORY STORE SYNC (Fallback & Cache Consistency)
     // ------------------------------------------------------------------
-    const ticket = dataStore.tickets.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
+    const ticket = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
     if (ticket) {
       ticket.status = 'Selesai';
       ticket.currentAttenuation = input.attenuationDbm;
       ticket.completedAt = new Date().toISOString();
-
-      const clusterObj = dataStore.clusters.find((c) => c.splitterCode === input.splitterId || c.name === ticket.cluster);
-      if (clusterObj) {
-        const targetPort = clusterObj.ports.find((p) => p.portNumber === input.portNumber);
-        if (targetPort) {
-          targetPort.isOccupied = true;
-          targetPort.customerName = ticket.customerName;
-          targetPort.siaNumber = ticket.siaNumber;
-        }
-      }
-
-      const customer = dataStore.customers.find((c) => c.siaNumber === ticket.siaNumber);
-      if (customer) {
-        customer.currentAttenuation = input.attenuationDbm;
-        customer.status = 'ACTIVE';
-        customer.portNumber = input.portNumber;
-        customer.splitterCode = input.splitterId;
-        customer.updatedAt = new Date().toISOString();
-      }
-
-      dataStore.processedSubmissions.add(input.submissionId);
+      inMemoryProcessedSubmissions.add(input.submissionId);
     }
 
     // ------------------------------------------------------------------
@@ -682,7 +700,7 @@ export class TicketService {
   }
 
   public static async markTicketCompletedDemo(ticketNumber: string) {
-    const ticket = dataStore.tickets.find((t) => t.ticketNumber === ticketNumber);
+    const ticket = FALLBACK_TICKETS.find((t) => t.ticketNumber === ticketNumber);
     if (!ticket) throw new Error('Tiket tidak ditemukan');
     ticket.status = 'Selesai';
     ticket.completedAt = new Date().toISOString();

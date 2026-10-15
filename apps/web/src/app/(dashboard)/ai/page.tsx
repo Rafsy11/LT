@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { DraftActionCardData } from '@isp/shared';
+import { DraftActionCardData } from '@repo/shared';
 
 export default function AiPage() {
   const [prompt, setPrompt] = useState('');

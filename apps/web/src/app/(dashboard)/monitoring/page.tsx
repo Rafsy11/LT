@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { classifyDbm, dbmTone } from '@isp/shared';
+import { classifyDbm, dbmTone } from '@repo/shared';
 import { TicketDetailModal } from '@/components/modals/TicketDetailModal';
 
 export default function MonitoringPage() {

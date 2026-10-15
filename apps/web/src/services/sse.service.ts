@@ -1,4 +1,4 @@
-import { ActivityFeedItem } from '@isp/shared';
+import { ActivityFeedItem } from '@repo/shared';
 
 type ClientListener = (data: ActivityFeedItem) => void;
 

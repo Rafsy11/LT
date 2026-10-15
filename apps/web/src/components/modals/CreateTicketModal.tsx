@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CreateTicketInput } from '@isp/shared';
+import { CreateTicketInput } from '@repo/shared';
 
 interface CreateTicketModalProps {
   isOpen: boolean;

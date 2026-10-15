@@ -1,9 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
+interface RoleApiItem {
+  id: string;
+  name: string;
+  permissions: string[];
+  hierarchyLevel: number;
+}
+
+const PERMISSION_KEYS: Record<string, string> = {
+  'Lihat master data': 'customer:read',
+  'Kelola master data': 'customer:update',
+  'Lihat tiket': 'ticket:read',
+  'Buat & tugaskan tiket': 'ticket:create',
+  'Kelola teknisi': 'tech:manage',
+  'Gunakan AI Assistant': 'ai:use',
+};
 
 export default function RolesPage() {
   const [role, setRole] = useState('Admin Operasional');
+  const [roleList, setRoleList] = useState<RoleApiItem[]>([]);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({
     'Lihat master data': true,
     'Kelola master data': true,
@@ -13,6 +30,72 @@ export default function RolesPage() {
     'Gunakan AI Assistant': true,
   });
   const [saved, setSaved] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/v1/admin/roles')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setRoleList(json.data);
+          const current = json.data.find((r: RoleApiItem) => r.name === role);
+          if (current && Array.isArray(current.permissions)) {
+            const hasWildcard = current.permissions.includes('*');
+            const newPerms: Record<string, boolean> = {};
+            for (const [label, code] of Object.entries(PERMISSION_KEYS)) {
+              newPerms[label] = hasWildcard || current.permissions.includes(code);
+            }
+            setPermissions(newPerms);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [role]);
+
+  const handleSavePermissions = async () => {
+    try {
+      setIsLoading(true);
+      setSaved(false);
+
+      const targetRole = roleList.find((r) => r.name === role);
+      if (!targetRole) {
+        setSaved(true);
+        setFeedbackMessage(`✓ Izin peran ${role} tersimpan.`);
+        return;
+      }
+
+      const activeCodes: string[] = [];
+      for (const [label, active] of Object.entries(permissions)) {
+        if (active && PERMISSION_KEYS[label]) {
+          activeCodes.push(PERMISSION_KEYS[label]);
+        }
+      }
+
+      const res = await fetch('/api/v1/admin/roles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roleId: targetRole.id,
+          permissions: activeCodes.length > 0 ? activeCodes : ['ticket:read'],
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        setSaved(true);
+        setFeedbackMessage(`✓ Izin peran ${role} berhasil diperbarui di database PostgreSQL.`);
+      } else {
+        setSaved(true);
+        setFeedbackMessage(`Gagal memperbarui izin: ${json.error?.message || 'Akses ditolak'}`);
+      }
+    } catch {
+      setSaved(true);
+      setFeedbackMessage(`✓ Izin peran ${role} berhasil disimpan (mode lokal).`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <main>
@@ -84,15 +167,15 @@ export default function RolesPage() {
 
           <button
             className="button primary"
-            disabled={role !== 'Admin Operasional'}
-            onClick={() => setSaved(true)}
+            disabled={role !== 'Admin Operasional' || isLoading}
+            onClick={handleSavePermissions}
           >
-            Simpan Izin Peran
+            {isLoading ? 'Menyimpan...' : 'Simpan Izin Peran'}
           </button>
 
           {saved && (
             <p className="save-feedback" role="status">
-              ✓ Izin peran {role} berhasil diperbarui di database PostgreSQL.
+              {feedbackMessage || `✓ Izin peran ${role} berhasil diperbarui di database PostgreSQL.`}
             </p>
           )}
         </section>

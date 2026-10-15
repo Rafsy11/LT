@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "FiberOps Technician",
+    "slug": "fiberops-technician",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fiberops.technician",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Aplikasi membutuhkan akses kamera untuk mengambil foto bukti fisik pengukuran Optical Power Meter (OPM) dan nomor port splitter.",
+        "NSLocationWhenInUseUsageDescription": "Aplikasi membutuhkan izin GPS akurat untuk memvalidasi posisi teknisi terhadap ODP target dan mencegah manipulasi Fake GPS.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Aplikasi membutuhkan izin GPS akurat untuk memvalidasi posisi teknisi terhadap ODP target."
+      }
+    },
+    "android": {
+      "package": "com.fiberops.technician",
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Aplikasi membutuhkan akses kamera untuk mengambil foto bukti fisik pengukuran Optical Power Meter (OPM)."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Aplikasi membutuhkan izin GPS akurat untuk memvalidasi posisi teknisi terhadap ODP target dan mencegah Fake GPS."
+        }
+      ]
+    ]
+  }
+}

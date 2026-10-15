@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
-import { dbmTone } from '@isp/shared';
+import { dbmTone } from '@repo/shared';
 import { CreateTicketModal } from '@/components/modals/CreateTicketModal';
 import { TicketDetailModal } from '@/components/modals/TicketDetailModal';
 

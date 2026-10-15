@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { dbmTone } from '@isp/shared';
+import { dbmTone } from '@repo/shared';
 
 interface TicketDetailModalProps {
   ticket: any | null;

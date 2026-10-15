@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
-import { DraftActionCardData } from '@isp/shared';
+import { DraftActionCardData } from '@repo/shared';
 
 export function AiChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
