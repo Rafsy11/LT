@@ -1,13 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
-import { DraftActionCardData } from '@repo/shared';
+import { DraftActionCardData, sanitizeUiErrorMessage } from '@repo/shared';
+import { useToast } from '@/components/ui/ToastProvider';
 
 export function AiChatWidget() {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
+  const [executingToken, setExecutingToken] = useState<string | null>(null);
+  const [executedTokens, setExecutedTokens] = useState<string[]>([]);
+  const executingRef = useRef(false);
+  const { showSuccess, showError } = useToast();
+
+  if (pathname === '/') return null;
+
   const [messages, setMessages] = useState<
     Array<{ role: 'user' | 'assistant'; text: string; draft?: DraftActionCardData }>
   >([
@@ -45,22 +55,42 @@ export function AiChatWidget() {
           },
         ]);
       } else {
+        // Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
+        const sanitized = sanitizeUiErrorMessage(json.error);
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', text: `Error: ${json.error?.message || 'Gagal memproses pesan'}` },
+          { role: 'assistant', text: `Perhatian: ${sanitized.message}` },
         ]);
+        showError(json.error);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
+      const sanitized = sanitizeUiErrorMessage(err);
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', text: `Gagal terhubung ke AI service: ${err.message}` },
+        { role: 'assistant', text: `Perhatian: ${sanitized.message}` },
       ]);
+      showError(err);
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * Eksekusi Draft Action Card dengan Debounce & Kunci 1-Milidetik (Requirement 2).
+   * Kunci tombol (disabled={isSubmitting}) tepat pada milidetik klik pertama
+   * sebelum request jaringan selesai guna melengkapi Idempotency Key.
+   */
   const handleApproveAction = async (draft: DraftActionCardData) => {
+    // 1. Debounce guard cepat: tolak jika sudah ada aksi aktif atau sudah pernah dieksekusi
+    if (executingRef.current || executedTokens.includes(draft.actionToken)) {
+      return;
+    }
+
+    // 2. Kunci instan tepat pada milidetik klik pertama
+    executingRef.current = true;
+    setExecutingToken(draft.actionToken);
+
     try {
       const res = await fetch('/api/v1/admin/ai/confirm-action', {
         method: 'POST',
@@ -71,14 +101,23 @@ export function AiChatWidget() {
           payload: draft.payload,
         }),
       });
+
       const json = await res.json();
       if (json.success) {
-        setExecutedFeedback(`Aksi "${draft.title}" berhasil disetujui & dieksekusi ke database.`);
+        setExecutedTokens((prev) => [...prev, draft.actionToken]);
+        const msg = `Aksi "${draft.title}" berhasil disetujui & dieksekusi ke PostgreSQL.`;
+        setExecutedFeedback(msg);
+        showSuccess(msg);
       } else {
-        alert(`Gagal mengeksekusi aksi: ${json.error?.message}`);
+        // Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
+        showError(json.error);
       }
-    } catch (err: any) {
-      alert(`Kesalahan server: ${err.message}`);
+    } catch (err: unknown) {
+      // Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
+      showError(err);
+    } finally {
+      executingRef.current = false;
+      setExecutingToken(null);
     }
   };
 
@@ -105,33 +144,52 @@ export function AiChatWidget() {
           </div>
 
           <div className="chat-body">
-            {messages.map((m, idx) => (
-              <div key={idx} className={m.role === 'user' ? 'user-message' : 'assistant-message'}>
-                <p style={{ whiteSpace: 'pre-wrap' }}>{m.text}</p>
+            {messages.map((m, idx) => {
+              const isCardExecuted = m.draft ? executedTokens.includes(m.draft.actionToken) : false;
+              const isCardExecuting = m.draft ? executingToken === m.draft.actionToken : false;
 
-                {m.draft && (
-                  <div className="draft-card" style={{ marginTop: '12px' }}>
-                    <span className="badge blue">MENUNGGU KONFIRMASI ADMIN</span>
-                    <h3>{m.draft.title}</h3>
-                    <p>{m.draft.summary}</p>
-                    <div className="heading-actions" style={{ marginTop: '14px' }}>
-                      <button
-                        className="button primary"
-                        onClick={() => handleApproveAction(m.draft!)}
-                      >
-                        Approve & Execute
-                      </button>
-                      <button
-                        className="button"
-                        onClick={() => setExecutedFeedback('Aksi dibatalkan oleh Admin.')}
-                      >
-                        Batalkan
-                      </button>
+              return (
+                <div key={idx} className={m.role === 'user' ? 'user-message' : 'assistant-message'}>
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{m.text}</p>
+
+                  {m.draft && (
+                    <div className="draft-card" style={{ marginTop: '12px' }}>
+                      <span className={`badge ${isCardExecuted ? 'green' : 'blue'}`}>
+                        {isCardExecuted ? '✓ AKSI TELAH DIEKSEKUSI' : 'MENUNGGU KONFIRMASI ADMIN'}
+                      </span>
+                      <h3>{m.draft.title}</h3>
+                      <p>{m.draft.summary}</p>
+
+                      <div className="heading-actions" style={{ marginTop: '14px' }}>
+                        {isCardExecuted ? (
+                          <div className="badge green" style={{ padding: '6px 12px' }}>
+                            ✓ Transaksi database telah tercatat di Audit Log
+                          </div>
+                        ) : (
+                          <>
+                            {/* State disabled & Debounce pada Tombol Kritis (Requirement 2) */}
+                            <button
+                              className="button primary"
+                              disabled={isCardExecuting}
+                              onClick={() => handleApproveAction(m.draft!)}
+                            >
+                              {isCardExecuting ? 'Mengeksekusi...' : 'Setujui & Eksekusi'}
+                            </button>
+                            <button
+                              className="button"
+                              disabled={isCardExecuting}
+                              onClick={() => setExecutedFeedback('Aksi dibatalkan oleh Admin.')}
+                            >
+                              Batalkan
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
 
             {loading && (
               <div className="assistant-message">

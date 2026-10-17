@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
       });
 
-      activeTickets = tickets.map((t) => ({
+      activeTickets = tickets.map((t: any) => ({
         id: t.id,
         ticketNumber: t.ticketNumber,
         ticketType: t.ticketType,
@@ -146,10 +146,10 @@ export async function GET(request: NextRequest) {
       });
 
       if (splitters.length > 0) {
-        splittersData = splitters.map((s) => {
+        splittersData = splitters.map((s: any) => {
           const occupiedPorts = s.customers
-            .map((c) => c.portNumber)
-            .filter((p): p is number => p !== null);
+            .map((c: any) => c.portNumber)
+            .filter((p: any): p is number => p !== null);
 
           const availablePorts: number[] = [];
           for (let p = 1; p <= s.maxPorts; p++) {

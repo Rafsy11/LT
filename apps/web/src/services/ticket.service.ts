@@ -17,11 +17,12 @@ export interface DbTicket {
   ticketNumber: string;
   customerName: string;
   siaNumber: string;
-  ticketType: 'Pasang baru' | 'Maintenance';
+  ticketType: 'Pasang baru' | 'Perbaikan' | 'Maintenance' | 'Instalasi';
   cluster: string;
   assignedTech: string;
   techInitials: string;
   status: 'Menunggu' | 'Dalam proses' | 'Selesai' | 'Dibatalkan';
+  priority?: 'Normal' | 'High' | 'Low';
   currentAttenuation: number;
   adminNotes?: string;
   createdAt: string;
@@ -31,43 +32,74 @@ export interface DbTicket {
 const FALLBACK_TICKETS: DbTicket[] = [
   {
     id: 't-1',
-    ticketNumber: 'TKT-2024-001',
+    ticketNumber: 'TK-2024-001',
     customerName: 'Budi Santoso',
-    siaNumber: 'SIA-2024-001',
+    siaNumber: 'SLA-100244-001',
     ticketType: 'Pasang baru',
     cluster: 'Bandung Utara',
     assignedTech: 'Andi Pratama',
     techInitials: 'AP',
     status: 'Menunggu',
+    priority: 'Normal',
     currentAttenuation: -18.5,
     createdAt: new Date().toISOString(),
   },
   {
     id: 't-2',
-    ticketNumber: 'TKT-2024-002',
-    customerName: 'Siti Aminah',
-    siaNumber: 'SIA-2024-002',
-    ticketType: 'Maintenance',
-    cluster: 'Bandung Utara',
-    assignedTech: 'Andi Pratama',
-    techInitials: 'AP',
+    ticketNumber: 'TK-2024-002',
+    customerName: 'PT. Maju Jaya',
+    siaNumber: 'SLA-100243-002',
+    ticketType: 'Perbaikan',
+    cluster: 'Cimahi',
+    assignedTech: 'Rizky Maulana',
+    techInitials: 'RM',
     status: 'Dalam proses',
+    priority: 'High',
     currentAttenuation: -24.8,
     createdAt: new Date().toISOString(),
   },
   {
     id: 't-3',
-    ticketNumber: 'TKT-2024-003',
-    customerName: 'Ahmad Dahlan',
-    siaNumber: 'SIA-2024-003',
+    ticketNumber: 'TK-2024-003',
+    customerName: 'IndoTech Solusi',
+    siaNumber: 'SLA-100242-003',
     ticketType: 'Maintenance',
-    cluster: 'Bandung Selatan',
-    assignedTech: 'Budi Darmawan',
-    techInitials: 'BD',
+    cluster: 'Bandung Barat',
+    assignedTech: 'Fajar Hidayat',
+    techInitials: 'FH',
+    status: 'Dalam proses',
+    priority: 'Normal',
+    currentAttenuation: -21.2,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 't-4',
+    ticketNumber: 'TK-2024-004',
+    customerName: 'Toko Sejahtera',
+    siaNumber: 'SLA-100241-004',
+    ticketType: 'Perbaikan',
+    cluster: 'Rancaekek',
+    assignedTech: 'Dedi Kurniawan',
+    techInitials: 'DK',
     status: 'Selesai',
-    currentAttenuation: -27.3,
+    priority: 'Low',
+    currentAttenuation: -19.4,
     createdAt: new Date().toISOString(),
     completedAt: new Date().toISOString(),
+  },
+  {
+    id: 't-5',
+    ticketNumber: 'TK-2024-005',
+    customerName: 'Hotel Grand Prima',
+    siaNumber: 'SLA-100240-005',
+    ticketType: 'Instalasi',
+    cluster: 'Cimahi',
+    assignedTech: 'Agus Setiawan',
+    techInitials: 'AS',
+    status: 'Menunggu',
+    priority: 'High',
+    currentAttenuation: -26.1,
+    createdAt: new Date().toISOString(),
   },
 ];
 

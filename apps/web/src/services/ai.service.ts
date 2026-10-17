@@ -127,10 +127,10 @@ export class AiService {
             if (histories.length > 0) {
               let filtered = histories;
               if (args.minAttenuation !== undefined) {
-                filtered = filtered.filter((h) => Number(h.newAttenuation) <= args.minAttenuation!);
+                filtered = filtered.filter((h: any) => Number(h.newAttenuation) <= args.minAttenuation!);
               }
 
-              return filtered.map((h) => ({
+              return filtered.map((h: any) => ({
                 id: h.id,
                 submissionId: h.submissionId,
                 ticketNumber: h.ticket.ticketNumber,

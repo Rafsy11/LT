@@ -75,9 +75,8 @@ export default function MonitoringPage() {
     <main>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">MONITORING REDAMAN REAL-TIME</div>
-          <h1>Live Monitoring</h1>
-          <p>Aliran sinyal redaman optik masuk dari teknisi lapangan melalui Server-Sent Events (SSE).</p>
+          <h1>Live Monitoring Redaman</h1>
+          <p>Aliran sinyal redaman optik masuk dari teknisi lapangan secara real-time melalui Server-Sent Events (SSE).</p>
         </div>
       </div>
 
@@ -89,18 +88,18 @@ export default function MonitoringPage() {
         </article>
         <article className="stat">
           <div className="stat-top">Normal (-15 s/d -22 dBm)</div>
-          <div className="stat-value" style={{ color: '#25a47b' }}>{normalCount}</div>
+          <div className="stat-value" style={{ color: '#059669', fontWeight: 800 }}>{normalCount}</div>
           <span className="demo-note">Kualitas optik optimal</span>
         </article>
         <article className="stat">
           <div className="stat-top">Warning (-22.1 s/d -25 dBm)</div>
-          <div className="stat-value" style={{ color: '#d6a25b' }}>{warningCount}</div>
+          <div className="stat-value" style={{ color: '#d97706', fontWeight: 800 }}>{warningCount}</div>
           <span className="demo-note">Perlu pemantauan lanjutan</span>
         </article>
         <article className="stat">
           <div className="stat-top">Critical (&lt; -25 dBm)</div>
-          <div className="stat-value" style={{ color: '#db837d' }}>{criticalCount}</div>
-          <span className="demo-note">Peringatan otomatis aktif</span>
+          <div className="stat-value" style={{ color: '#dc2626', fontWeight: 800 }}>{criticalCount}</div>
+          <span className="demo-note">Sorotan darurat aktif</span>
         </article>
       </section>
 

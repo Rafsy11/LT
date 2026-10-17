@@ -69,3 +69,15 @@ coverage/
 ehthumbs.db
 Thumbs.db
 [Dd]esktop.ini
+
+# AI Agent tool caches & vendor skills
+.agent/
+.agents/
+.codex/
+.cursor/
+.gemini/
+.impeccable/
+.kiro/
+.opencode/
+.qoder/
+skills-lock.json

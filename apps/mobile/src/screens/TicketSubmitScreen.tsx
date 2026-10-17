@@ -1,10 +1,16 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { ApiClient } from '../api/client';
 import { acquireVerifiedLocation, LocationGuardResult } from '../security/locationGuard';
 import { uploadToPresignedPutUrl, ImageManipulatorResult } from '../camera/opmCamera';
 import { offlineQueue } from '../sync/offlineQueue';
 import { MobileTicketItem, SplitterItem } from './TicketListScreen';
-import { SubmitTicketInput, MAX_GEOFENCE_RADIUS_METERS } from '@repo/shared';
+import {
+  SubmitTicketInput,
+  MAX_GEOFENCE_RADIUS_METERS,
+  sanitizeUiErrorMessage,
+  classifyDbm,
+  OUTDOOR_CONTRAST_TOKENS,
+} from '@repo/shared';
 
 export interface TicketSubmitScreenProps {
   ticket: MobileTicketItem;
@@ -62,8 +68,9 @@ export function TicketSubmitScreen({
   const [photoEvidence, setPhotoEvidence] = useState<ImageManipulatorResult | null>(null);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
-  // 3. Execution status
+  // 3. Execution status & Debounce Guard (Requirement 2)
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const selectedSplitter = splitters.find(
@@ -86,8 +93,9 @@ export function TicketSubmitScreen({
       setLocationResult(result);
       return result;
     } catch (err) {
-      const msg = (err as Error).message;
-      setErrorMessage(msg);
+      // Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
+      const sanitized = sanitizeUiErrorMessage(err);
+      setErrorMessage(sanitized.message);
       throw err;
     } finally {
       setIsVerifyingLocation(false);
@@ -104,8 +112,14 @@ export function TicketSubmitScreen({
 
   /**
    * Submits ticket work order either directly online or queued into MMKV/SQLite offline queue.
+   * State disabled & Debounce pada Tombol Kritis (Requirement 2):
+   * Kunci tombol tepat pada milidetik klik pertama sebelum request jaringan selesai.
    */
   const handleSubmit = async () => {
+    // 1. Debounce guard cepat: tolak jika tombol sedang aktif atau terkunci
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+
     try {
       setIsSubmitting(true);
       setErrorMessage(null);
@@ -222,11 +236,25 @@ export function TicketSubmitScreen({
         });
       }
     } catch (err) {
-      setErrorMessage((err as Error).message);
+      // Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
+      const sanitized = sanitizeUiErrorMessage(err);
+      setErrorMessage(sanitized.message);
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   };
+
+  // 4. Visibilitas Lapangan (Outdoor UX - Requirement 4)
+  const dbmStatus = classifyDbm(attenuationInput);
+  const outdoorTokens =
+    OUTDOOR_CONTRAST_TOKENS[dbmStatus.toUpperCase() as keyof typeof OUTDOOR_CONTRAST_TOKENS] ||
+    OUTDOOR_CONTRAST_TOKENS.NORMAL;
+  const isMockBlocked = Boolean(locationResult?.isMockLocation);
+  const isGeofenceWarning = Boolean(
+    locationResult?.distanceToSplitterMeters !== undefined &&
+      locationResult.distanceToSplitterMeters > MAX_GEOFENCE_RADIUS_METERS
+  );
 
   return {
     state: {
@@ -243,6 +271,11 @@ export function TicketSubmitScreen({
       isSubmitting,
       errorMessage,
       maxGeofenceMeters: MAX_GEOFENCE_RADIUS_METERS,
+      // Outdoor UX Contrast & Integrity indicators
+      dbmStatus,
+      outdoorTokens,
+      isMockBlocked,
+      isGeofenceWarning,
     },
     actions: {
       setSelectedSplitterId,

@@ -5,6 +5,9 @@ import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { AiChatWidget } from '@/components/ai/AiChatWidget';
+import { AuthProvider } from '@/lib/auth-context';
+import { ToastProvider } from '@/components/ui/ToastProvider';
+import { RoleSwitcherBar } from '@/components/ui/RoleSwitcherBar';
 
 const pageTitleMap: Record<string, string> = {
   '/': 'Overview',
@@ -12,10 +15,11 @@ const pageTitleMap: Record<string, string> = {
   '/tickets': 'Tiket & Work Order',
   '/network': 'Master Jaringan',
   '/customers': 'Pelanggan',
-  '/technicians': 'Teknisi',
-  '/roles': 'Role & Akses',
+  '/technicians': 'Teknisi Lapangan',
+  '/roles': 'Role & Akses (RBAC)',
   '/settings': 'Pengaturan',
   '/ai': 'AI Assistant',
+  '/field-simulator': 'Field Simulator (Outdoor UX)',
 };
 
 export default function DashboardLayout({
@@ -39,20 +43,25 @@ export default function DashboardLayout({
   }, [pathname]);
 
   return (
-    <div className="app">
-      <Sidebar ticketCount={ticketCount} />
-      <div className="main">
-        <Header pageTitle={title} />
-        {children}
-        <footer>
-          <span>© 2025 Fiberops. All rights reserved.</span>
-          <span>
-            <i className="green-dot" />
-            Seluruh layanan tersedia <span className="footer-divider">|</span> Versi 1.0.0 (On-Premise)
-          </span>
-        </footer>
-      </div>
-      <AiChatWidget />
-    </div>
+    <AuthProvider>
+      <ToastProvider>
+        <div className="app">
+          <Sidebar ticketCount={ticketCount} />
+          <div className="main">
+            <Header pageTitle={title} />
+            <RoleSwitcherBar pageTitle={title} />
+            {children}
+            <footer>
+              <span>© 2025 Fiberops. All rights reserved. Single Source of Truth FTTH.</span>
+              <span>
+                <i className="green-dot" />
+                Seluruh layanan tersedia <span className="footer-divider">|</span> Versi 1.0.0 (On-Premise)
+              </span>
+            </footer>
+          </div>
+          <AiChatWidget />
+        </div>
+      </ToastProvider>
+    </AuthProvider>
   );
 }

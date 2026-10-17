@@ -1,12 +1,18 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/components/ui/ToastProvider';
 
 export default function TechniciansPage() {
   const [search, setSearch] = useState('');
   const [cluster, setCluster] = useState('Semua cluster');
   const [technicians, setTechnicians] = useState<any[]>([]);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [togglingTech, setTogglingTech] = useState<string | null>(null);
+  const toggleRef = useRef<boolean>(false);
+
+  const { canManageTech } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   const fetchTechs = () => {
     fetch('/api/v1/admin/technicians')
@@ -14,28 +20,50 @@ export default function TechniciansPage() {
       .then((json) => {
         if (json.success) setTechnicians(json.data);
       })
-      .catch(console.error);
+      .catch((err) => showError(err));
   };
 
   useEffect(() => {
     fetchTechs();
   }, []);
 
+  /**
+   * Force Logout & Instant Session Revocation (PRD Section 2.2).
+   * Dilindungi Permission Matrix (tech:manage) & Debounce 1-milidetik.
+   */
   const handleToggle = async (username: string) => {
+    // 1. Permission Matrix Guard (Requirement 3)
+    if (!canManageTech) {
+      showError({
+        code: 'FORBIDDEN',
+        message: 'Akses Ditolak: Anda tidak memiliki izin tech:manage untuk melakukan Force Logout teknisi.',
+      });
+      return;
+    }
+
+    // 2. Debounce guard 1-milidetik (Requirement 2)
+    if (toggleRef.current) return;
+    toggleRef.current = true;
+    setTogglingTech(username);
+
     try {
       const res = await fetch(`/api/v1/admin/technicians/${username}/toggle`, {
         method: 'POST',
       });
       const json = await res.json();
       if (json.success) {
-        setFeedback(json.message);
+        showSuccess(json.message || `Status akun teknisi ${username} berhasil diperbarui.`);
         fetchTechs();
-        setTimeout(() => setFeedback(null), 4000);
       } else {
-        alert(json.error?.message);
+        // 3. Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
+        showError(json.error);
       }
-    } catch (e: any) {
-      alert(`Gagal: ${e.message}`);
+    } catch (e: unknown) {
+      // 3. Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
+      showError(e);
+    } finally {
+      toggleRef.current = false;
+      setTogglingTech(null);
     }
   };
 
@@ -57,15 +85,27 @@ export default function TechniciansPage() {
     <main>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">MANAJEMEN PETUGAS LAPANGAN</div>
           <h1>Teknisi Lapangan</h1>
-          <p>Pantau beban kerja tiket aktif dan kendali status akun teknisi (Force Logout / Instant Session Revocation).</p>
+          <p>Pantau beban kerja tiket aktif dan kendali status sesi perangkat (Force Logout & Token Revocation).</p>
         </div>
       </div>
 
-      {feedback && (
-        <div className="info-strip" style={{ background: '#eaf7f1', borderColor: '#c8eedd', color: '#258d64' }}>
-          ✓ {feedback}
+      {!canManageTech && (
+        <div
+          className="info-strip"
+          style={{
+            background: '#fffbeb',
+            borderColor: '#fde68a',
+            color: '#92400e',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <span>🔒</span>
+          <span>
+            <b>Mode Peninjauan (Read-Only):</b> Akun Anda tidak memiliki izin <code>tech:manage</code>. Tombol Force Logout dinonaktifkan secara kondisional.
+          </span>
         </div>
       )}
 
@@ -117,34 +157,56 @@ export default function TechniciansPage() {
         </div>
 
         <div className="network-grid">
-          {scoped.map((tech) => (
-            <article className="network-card" key={tech.username}>
-              <div className="work-card-top">
-                <span className="tech-avatar">{tech.initials}</span>
-                <span className={`badge ${tech.isActive ? 'green' : 'neutral'}`}>
-                  {tech.isActive ? 'Aktif' : 'Nonaktif'}
-                </span>
-              </div>
-              <h3>{tech.fullName}</h3>
-              <p>Teknisi Lapangan · {tech.cluster}</p>
-              <div className="tech-metrics">
-                <div>
-                  <b>{tech.activeTicketsCount}</b>
-                  <small>Tiket aktif</small>
+          {scoped.map((tech) => {
+            const isToggling = togglingTech === tech.username;
+
+            return (
+              <article className="network-card" key={tech.username}>
+                <div className="work-card-top">
+                  <span className="tech-avatar">{tech.initials}</span>
+                  <span className={`badge ${tech.isActive ? 'green' : 'neutral'}`}>
+                    {tech.isActive ? 'Aktif' : 'Nonaktif'}
+                  </span>
                 </div>
-                <div>
-                  <b>{tech.completedTicketsCount}</b>
-                  <small>Tiket selesai</small>
+                <h3>{tech.fullName}</h3>
+                <p>Teknisi Lapangan · {tech.cluster}</p>
+                <div className="tech-metrics">
+                  <div>
+                    <b>{tech.activeTicketsCount}</b>
+                    <small>Tiket aktif</small>
+                  </div>
+                  <div>
+                    <b>{tech.completedTicketsCount}</b>
+                    <small>Tiket selesai</small>
+                  </div>
                 </div>
-              </div>
-              <button
-                className={`button ${tech.isActive ? '' : 'primary'}`}
-                onClick={() => handleToggle(tech.username)}
-              >
-                {tech.isActive ? 'Nonaktifkan Akun (Force Logout)' : 'Aktifkan Akun'}
-              </button>
-            </article>
-          ))}
+
+                {/* Conditional Rendering Berdasarkan Permission Matrix (Requirement 3) */}
+                {canManageTech ? (
+                  <button
+                    className={`button ${tech.isActive ? '' : 'primary'}`}
+                    disabled={isToggling}
+                    onClick={() => handleToggle(tech.username)}
+                  >
+                    {isToggling
+                      ? 'Memproses Sesi...'
+                      : tech.isActive
+                        ? 'Nonaktifkan Akun (Force Logout)'
+                        : 'Aktifkan Akun'}
+                  </button>
+                ) : (
+                  <button
+                    className="button disabled"
+                    disabled
+                    title="Izin tech:manage diperlukan untuk Force Logout"
+                    style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                  >
+                    🔒 Force Logout (Perlu Izin)
+                  </button>
+                )}
+              </article>
+            );
+          })}
         </div>
       </section>
     </main>

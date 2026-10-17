@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { CreateTicketModal } from '@/components/modals/CreateTicketModal';
 import { TicketDetailModal } from '@/components/modals/TicketDetailModal';
+import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/components/ui/ToastProvider';
 
 export default function TicketsPage() {
   const [tab, setTab] = useState('Semua');
@@ -13,13 +15,16 @@ export default function TicketsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
 
+  const { canCreateTicket } = useAuth();
+  const { showError } = useToast();
+
   const fetchTickets = () => {
     fetch('/api/v1/admin/tickets')
       .then((res) => res.json())
       .then((json) => {
         if (json.success) setTickets(json.data);
       })
-      .catch(console.error);
+      .catch((err) => showError(err));
   };
 
   useEffect(() => {
@@ -33,7 +38,7 @@ export default function TicketsPage() {
       body: JSON.stringify(data),
     });
     const json = await res.json();
-    if (!json.success) throw new Error(json.error?.message);
+    if (!json.success) throw json.error;
     fetchTickets();
   };
 
@@ -64,15 +69,26 @@ export default function TicketsPage() {
     <main>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">WORK ORDER & PENUGASAN LAPANGAN</div>
           <h1>Tiket & Work Order</h1>
-          <p>Disposisi pekerjaan pasang baru (PSB) dan pemeliharaan (Maintenance) ke teknisi.</p>
+          <p>Disposisi pekerjaan pasang baru (PSB) dan pemeliharaan (Maintenance) ke teknisi lapangan.</p>
         </div>
         <div className="heading-actions">
-          <button className="button primary" onClick={() => setModalOpen(true)}>
-            <Icon name="plus" size={17} />
-            Buat tiket baru
-          </button>
+          {/* Conditional Rendering Berdasarkan Permission Matrix (Requirement 3) */}
+          {canCreateTicket ? (
+            <button className="button primary" onClick={() => setModalOpen(true)}>
+              <Icon name="plus" size={17} />
+              Buat tiket baru
+            </button>
+          ) : (
+            <button
+              className="button disabled"
+              disabled
+              title="Izin ticket:create diperlukan untuk membuat tiket baru"
+              style={{ opacity: 0.5, cursor: 'not-allowed' }}
+            >
+              🔒 Buat tiket (Perlu Izin)
+            </button>
+          )}
         </div>
       </div>
 

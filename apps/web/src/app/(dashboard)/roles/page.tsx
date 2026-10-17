@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/components/ui/ToastProvider';
 
 interface RoleApiItem {
   id: string;
@@ -33,6 +35,9 @@ export default function RolesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
+  const { canEditRole, user } = useAuth();
+  const { showSuccess, showError } = useToast();
+
   useEffect(() => {
     fetch('/api/v1/admin/roles')
       .then((res) => res.json())
@@ -50,10 +55,19 @@ export default function RolesPage() {
           }
         }
       })
-      .catch(() => {});
+      .catch((err) => showError(err));
   }, [role]);
 
   const handleSavePermissions = async () => {
+    // 1. Permission Matrix check (Requirement 3)
+    if (!canEditRole) {
+      showError({
+        code: 'FORBIDDEN',
+        message: 'Akses Ditolak: Anda tidak memiliki izin role:edit untuk mengubah matriks hak akses.',
+      });
+      return;
+    }
+
     try {
       setIsLoading(true);
       setSaved(false);
@@ -61,7 +75,9 @@ export default function RolesPage() {
       const targetRole = roleList.find((r) => r.name === role);
       if (!targetRole) {
         setSaved(true);
-        setFeedbackMessage(`✓ Izin peran ${role} tersimpan.`);
+        const msg = `Izin peran ${role} tersimpan.`;
+        setFeedbackMessage(`✓ ${msg}`);
+        showSuccess(msg);
         return;
       }
 
@@ -84,14 +100,18 @@ export default function RolesPage() {
       const json = await res.json();
       if (json.success) {
         setSaved(true);
-        setFeedbackMessage(`✓ Izin peran ${role} berhasil diperbarui di database PostgreSQL.`);
+        const msg = `Izin peran ${role} berhasil diperbarui di database PostgreSQL.`;
+        setFeedbackMessage(`✓ ${msg}`);
+        showSuccess(msg);
       } else {
-        setSaved(true);
-        setFeedbackMessage(`Gagal memperbarui izin: ${json.error?.message || 'Akses ditolak'}`);
+        // Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
+        showError(json.error);
+        setFeedbackMessage(`Gagal memperbarui izin peran.`);
       }
-    } catch {
-      setSaved(true);
-      setFeedbackMessage(`✓ Izin peran ${role} berhasil disimpan (mode lokal).`);
+    } catch (err: unknown) {
+      // Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
+      showError(err);
+      setFeedbackMessage(`Gagal menyimpan perubahan.`);
     } finally {
       setIsLoading(false);
     }
@@ -101,11 +121,30 @@ export default function RolesPage() {
     <main>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">KEAMANAN & HAK AKSES (RBAC)</div>
-          <h1>Role & Hak Akses</h1>
+          <h1>Role & Hak Akses (RBAC)</h1>
           <p>Konfigurasi izin multi-peran dengan perlindungan hierarki ketat (Anti-Privilege Escalation).</p>
         </div>
       </div>
+
+      {!canEditRole && (
+        <div
+          className="info-strip"
+          style={{
+            background: '#fef2f2',
+            borderColor: '#fecaca',
+            color: '#991b1b',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '16px',
+          }}
+        >
+          <span>🔒</span>
+          <span>
+            <b>Akses Editor Terkunci:</b> Akun Anda saat ini (<b>{user.roleName}</b>) tidak memiliki izin <code>role:edit</code>. Seluruh formulir berada dalam mode Read-Only.
+          </span>
+        </div>
+      )}
 
       <div className="settings-layout" style={{ marginTop: '20px' }}>
         <section className="panel role-sidebar">
@@ -152,7 +191,7 @@ export default function RolesPage() {
               </span>
               <input
                 type="checkbox"
-                disabled={role === 'Super Admin'}
+                disabled={role === 'Super Admin' || !canEditRole}
                 checked={
                   role === 'Super Admin' ||
                   (role === 'Teknisi Lapangan' ? label === 'Lihat tiket' : permissions[label])
@@ -167,10 +206,10 @@ export default function RolesPage() {
 
           <button
             className="button primary"
-            disabled={role !== 'Admin Operasional' || isLoading}
+            disabled={role !== 'Admin Operasional' || isLoading || !canEditRole}
             onClick={handleSavePermissions}
           >
-            {isLoading ? 'Menyimpan...' : 'Simpan Izin Peran'}
+            {isLoading ? 'Menyimpan...' : !canEditRole ? '🔒 Terkunci (Perlu Izin role:edit)' : 'Simpan Izin Peran'}
           </button>
 
           {saved && (
