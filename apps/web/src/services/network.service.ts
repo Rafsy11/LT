@@ -5,6 +5,8 @@ export interface SplitterPortState {
   isOccupied: boolean;
   customerName?: string;
   siaNumber?: string;
+  attenuation?: number;
+  status?: string;
 }
 
 export interface ClusterListItem {
@@ -30,13 +32,13 @@ const FALLBACK_CLUSTERS: ClusterListItem[] = [
     lat: -6.914744,
     lng: 107.60981,
     ports: [
-      { portNumber: 1, isOccupied: true, customerName: 'Rudi Hermawan', siaNumber: 'SIA-2024-004' },
-      { portNumber: 2, isOccupied: true, customerName: 'Dewi Lestari', siaNumber: 'SIA-2024-005' },
-      { portNumber: 3, isOccupied: true, customerName: 'Budi Santoso', siaNumber: 'SIA-2024-001' },
+      { portNumber: 1, isOccupied: true, customerName: 'Rudi Hermawan', siaNumber: 'SIA-2024-004', attenuation: -18.4, status: 'ACTIVE' },
+      { portNumber: 2, isOccupied: true, customerName: 'Dewi Lestari', siaNumber: 'SIA-2024-005', attenuation: -19.2, status: 'ACTIVE' },
+      { portNumber: 3, isOccupied: true, customerName: 'Budi Santoso', siaNumber: 'SIA-2024-001', attenuation: -17.8, status: 'ACTIVE' },
       { portNumber: 4, isOccupied: false },
-      { portNumber: 5, isOccupied: true, customerName: 'Siti Aminah', siaNumber: 'SIA-2024-002' },
+      { portNumber: 5, isOccupied: true, customerName: 'Siti Aminah', siaNumber: 'SIA-2024-002', attenuation: -20.1, status: 'ACTIVE' },
       { portNumber: 6, isOccupied: false },
-      { portNumber: 7, isOccupied: true, customerName: 'Hendro Wijaya', siaNumber: 'SIA-2024-006' },
+      { portNumber: 7, isOccupied: true, customerName: 'Hendro Wijaya', siaNumber: 'SIA-2024-006', attenuation: -21.4, status: 'ACTIVE' },
       { portNumber: 8, isOccupied: false },
     ],
   },
@@ -45,16 +47,76 @@ const FALLBACK_CLUSTERS: ClusterListItem[] = [
     clusterCode: 'BDG-02',
     name: 'Bandung Selatan',
     splitterCode: 'ODP-BDG-03',
-    usedPorts: 4,
+    usedPorts: 7,
     maxPorts: 16,
     lat: -6.953245,
     lng: 107.628912,
-    ports: Array.from({ length: 16 }, (_, i) => ({
-      portNumber: i + 1,
-      isOccupied: i < 4,
-      customerName: i === 1 ? 'Ahmad Dahlan' : undefined,
-      siaNumber: i === 1 ? 'SIA-2024-003' : undefined,
-    })),
+    ports: Array.from({ length: 16 }, (_, i) => {
+      const pNum = i + 1;
+      const occupied = [1, 2, 3, 5, 7, 9, 12].includes(pNum);
+      const names: Record<number, string> = {
+        1: 'Ahmad Dahlan',
+        2: 'Farida Nur',
+        3: 'Iwan Fals',
+        5: 'Rina Nose',
+        7: 'Agus Salim',
+        9: 'Dedi Kusnandar',
+        12: 'Citra Kirana',
+      };
+      const atts: Record<number, number> = {
+        1: -18.9, 2: -19.5, 3: -22.4, 5: -17.6, 7: -23.1, 9: -18.2, 12: -20.8
+      };
+      return {
+        portNumber: pNum,
+        isOccupied: occupied,
+        customerName: occupied ? names[pNum] || `Pelanggan Port ${pNum}` : undefined,
+        siaNumber: occupied ? `SIA-2024-${String(pNum).padStart(3, '0')}` : undefined,
+        attenuation: occupied ? atts[pNum] : undefined,
+        status: occupied ? 'ACTIVE' : undefined,
+      };
+    }),
+  },
+  {
+    id: 'cluster-3',
+    clusterCode: 'BDG-03',
+    name: 'Bandung Timur',
+    splitterCode: 'ODP-BDG-05',
+    usedPorts: 10,
+    maxPorts: 16,
+    lat: -6.924812,
+    lng: 107.662145,
+    ports: Array.from({ length: 16 }, (_, i) => {
+      const pNum = i + 1;
+      const occupied = pNum <= 10;
+      return {
+        portNumber: pNum,
+        isOccupied: occupied,
+        customerName: occupied ? `Pelanggan BT-${pNum}` : undefined,
+        siaNumber: occupied ? `SIA-2024-BT${String(pNum).padStart(2, '0')}` : undefined,
+        attenuation: occupied ? -18.5 - (pNum * 0.3) : undefined,
+        status: occupied ? 'ACTIVE' : undefined,
+      };
+    }),
+  },
+  {
+    id: 'cluster-4',
+    clusterCode: 'BDG-04',
+    name: 'Bandung Barat',
+    splitterCode: 'ODP-BDG-08',
+    usedPorts: 3,
+    maxPorts: 8,
+    lat: -6.892341,
+    lng: 107.567812,
+    ports: [
+      { portNumber: 1, isOccupied: true, customerName: 'Ferry Salim', siaNumber: 'SIA-2024-BB01', attenuation: -17.5, status: 'ACTIVE' },
+      { portNumber: 2, isOccupied: false },
+      { portNumber: 3, isOccupied: true, customerName: 'Gita Gutawa', siaNumber: 'SIA-2024-BB02', attenuation: -19.0, status: 'ACTIVE' },
+      { portNumber: 4, isOccupied: false },
+      { portNumber: 5, isOccupied: true, customerName: 'Haris Munandar', siaNumber: 'SIA-2024-BB03', attenuation: -18.2, status: 'ACTIVE' },
+      { portNumber: 6, isOccupied: false },
+      { portNumber: 7, isOccupied: false },
+      { portNumber: 8, isOccupied: false },
+    ],
   },
 ];
 
@@ -73,7 +135,7 @@ export class NetworkService {
             include: {
               customers: {
                 where: { status: 'ACTIVE' },
-                select: { portNumber: true, fullName: true, siaNumber: true },
+                select: { portNumber: true, fullName: true, siaNumber: true, currentAttenuation: true, status: true },
               },
             },
           },
@@ -86,12 +148,14 @@ export class NetworkService {
 
         for (const c of clusters) {
           for (const s of c.splitters) {
-            const customerMap = new Map<number, { fullName: string; siaNumber: string }>();
+            const customerMap = new Map<number, { fullName: string; siaNumber: string; attenuation?: number; status?: string }>();
             for (const cust of s.customers) {
               if (cust.portNumber) {
                 customerMap.set(cust.portNumber, {
                   fullName: cust.fullName,
                   siaNumber: cust.siaNumber,
+                  attenuation: cust.currentAttenuation ? Number(cust.currentAttenuation) : undefined,
+                  status: cust.status,
                 });
               }
             }
@@ -104,6 +168,8 @@ export class NetworkService {
                 isOccupied: Boolean(custInfo),
                 customerName: custInfo?.fullName,
                 siaNumber: custInfo?.siaNumber,
+                attenuation: custInfo?.attenuation,
+                status: custInfo?.status,
               });
             }
 

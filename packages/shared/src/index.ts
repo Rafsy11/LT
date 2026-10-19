@@ -7,3 +7,4 @@ export * from './schemas/network.schema';
 export * from './schemas/tech.schema';
 export * from './schemas/role.schema';
 export * from './schemas/ai.schema';
+export * from './schemas/system.schema';

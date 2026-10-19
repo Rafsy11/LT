@@ -16,7 +16,7 @@ export function AiChatWidget() {
   const executingRef = useRef(false);
   const { showSuccess, showError } = useToast();
 
-  if (pathname === '/') return null;
+  if (pathname === '/' || pathname === '/ai') return null;
 
   const [messages, setMessages] = useState<
     Array<{ role: 'user' | 'assistant'; text: string; draft?: DraftActionCardData }>

@@ -1,13 +1,50 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="80" viewBox="0 0 1600 80" preserveAspectRatio="none">
   <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D8EEFF"/><stop offset="0.48" stop-color="#C6E4FC"/><stop offset="1" stop-color="#B8DDF8"/></linearGradient>
-    <linearGradient id="waveA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5FBFF" stop-opacity=".9"/><stop offset=".52" stop-color="#DDF0FF" stop-opacity=".35"/><stop offset="1" stop-color="#8EC9F2" stop-opacity=".27"/></linearGradient>
-    <linearGradient id="waveB" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#EAF7FF" stop-opacity=".7"/><stop offset=".53" stop-color="#A6D7F8" stop-opacity=".35"/><stop offset="1" stop-color="#D8EEFF" stop-opacity=".35"/></linearGradient>
+    <!-- Authentic Sky Gradient from Lintasarta Sky Dashboard -->
+    <linearGradient id="headerSkyBase" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b8defe"/>
+      <stop offset="35%" stop-color="#cbe6fd"/>
+      <stop offset="70%" stop-color="#e1f1fe"/>
+      <stop offset="100%" stop-color="#e8f5fe"/>
+    </linearGradient>
+
+    <!-- Horizontal Atmospheric Variation -->
+    <linearGradient id="headerSkyHorizontal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#d7edfe" stop-opacity="0.9"/>
+      <stop offset="18%" stop-color="#b4dcfe" stop-opacity="0.95"/>
+      <stop offset="42%" stop-color="#e8f5fe" stop-opacity="0.85"/>
+      <stop offset="58%" stop-color="#e8f5fe" stop-opacity="0.85"/>
+      <stop offset="82%" stop-color="#b6dcfe" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#d2ebfe" stop-opacity="0.9"/>
+    </linearGradient>
+
+    <!-- Luminous Cloud Center Behind Search Input -->
+    <radialGradient id="searchCloudGlow" cx="50%" cy="45%" r="40%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.88"/>
+      <stop offset="55%" stop-color="#f2f9ff" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#d4ebfd" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Translucent Diagonal Wave Ribbons from Top Right -->
+    <linearGradient id="diagWaveA" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b0dbfd" stop-opacity="0.6"/>
+      <stop offset="60%" stop-color="#d8edfe" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
   </defs>
-  <rect width="1600" height="80" fill="url(#sky)"/>
-  <path d="M0 0H1600V0C1490 18 1412 62 1288 72C1156 82 1073 40 964 18C836 -8 758 13 663 39C557 68 470 78 360 53C249 28 181 14 0 37Z" fill="url(#waveA)"/>
-  <path d="M0 0H1600V0C1448 13 1360 40 1258 59C1138 81 1052 65 958 32C863 -1 790 2 700 31C595 65 486 77 376 53C265 30 174 8 0 22Z" fill="#EAF7FF" opacity=".36"/>
-  <path d="M0 0H1600V7C1454 32 1394 78 1250 79C1108 80 1024 37 935 15C820 -14 743 11 649 41C532 79 423 72 309 48C202 25 114 17 0 42Z" fill="url(#waveB)"/>
-  <path d="M480 0C588 20 628 58 747 66C879 75 967 25 1082 11C1185 -1 1260 16 1327 42C1399 70 1480 75 1600 36V80H0V0Z" fill="#EFF8FF" opacity=".25"/>
-  <path d="M0 70C210 47 323 77 453 72C588 67 665 22 787 19C925 15 1013 62 1137 68C1308 76 1411 24 1600 10" fill="none" stroke="#FFFFFF" stroke-opacity=".28" stroke-width="1.4"/>
+
+  <!-- Base Sky Fill -->
+  <rect width="1600" height="80" fill="url(#headerSkyBase)"/>
+  <rect width="1600" height="80" fill="url(#headerSkyHorizontal)"/>
+
+  <!-- Search Bar Cloud Highlight -->
+  <ellipse cx="800" cy="38" rx="420" ry="34" fill="url(#searchCloudGlow)"/>
+
+  <!-- Soft Diagonal Sky Curves (matching reference) -->
+  <path d="M960 0 C1140 18, 1320 48, 1600 58 L1600 0 Z" fill="url(#diagWaveA)"/>
+  <path d="M0 0 C240 22, 420 45, 680 48 L680 0 Z" fill="#ffffff" opacity="0.22"/>
+
+  <!-- Gentle Cloud Outline -->
+  <path d="M0 68 C380 48, 620 62, 980 50 C1240 40, 1420 58, 1600 44" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1.6"/>
+  <path d="M0 79 L1600 79" stroke="#c8e0f4" stroke-opacity="0.75" stroke-width="1"/>
 </svg>

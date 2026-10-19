@@ -7,19 +7,17 @@ import { Header } from '@/components/layout/Header';
 import { AiChatWidget } from '@/components/ai/AiChatWidget';
 import { AuthProvider } from '@/lib/auth-context';
 import { ToastProvider } from '@/components/ui/ToastProvider';
-import { RoleSwitcherBar } from '@/components/ui/RoleSwitcherBar';
 
 const pageTitleMap: Record<string, string> = {
   '/': 'Overview',
   '/monitoring': 'Live Monitoring',
   '/tickets': 'Tiket & Work Order',
   '/network': 'Master Jaringan',
-  '/customers': 'Pelanggan',
+  '/customers': 'Master Pelanggan (SIA)',
   '/technicians': 'Teknisi Lapangan',
-  '/roles': 'Role & Akses (RBAC)',
+  '/roles': 'Role-Based Access Control',
   '/settings': 'Pengaturan',
   '/ai': 'AI Assistant',
-  '/field-simulator': 'Field Simulator (Outdoor UX)',
 };
 
 export default function DashboardLayout({
@@ -49,7 +47,6 @@ export default function DashboardLayout({
           <Sidebar ticketCount={ticketCount} />
           <div className="main">
             <Header pageTitle={title} />
-            <RoleSwitcherBar pageTitle={title} />
             {children}
             <footer>
               <span>© 2025 Fiberops. All rights reserved. Single Source of Truth FTTH.</span>

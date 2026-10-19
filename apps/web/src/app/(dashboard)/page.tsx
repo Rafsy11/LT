@@ -8,6 +8,7 @@ import { CreateTicketModal } from '@/components/modals/CreateTicketModal';
 import { TicketDetailModal } from '@/components/modals/TicketDetailModal';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/ToastProvider';
+import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
 
 export default function OverviewPage() {
   const [cluster, setCluster] = useState('Semua cluster');
@@ -528,11 +529,6 @@ export default function OverviewPage() {
                     </div>
                     <p className="feed-stream-subtitle">{item.clusterLine}</p>
                     <p className="feed-stream-subtitle muted-line">{item.customerLine}</p>
-                    <div className="feed-stream-tags">
-                      <span className={`badge-feed-tag ${item.tagType}`}>
-                        ● {item.tag}
-                      </span>
-                    </div>
                   </div>
                 </div>
               ))}
@@ -606,10 +602,20 @@ export default function OverviewPage() {
               </thead>
               <tbody>
                 {filteredTickets.map((r) => {
-                  const priority = r.priority || 'Normal';
-                  const isHigh = priority === 'High';
-                  const isLow = priority === 'Low';
-                  const priorityClass = isHigh ? 'red' : isLow ? 'neutral' : 'green';
+                  const priorityMap: Record<string, string> = {
+                    High: 'Tinggi',
+                    Normal: 'Normal',
+                    Low: 'Rendah',
+                    Critical: 'Kritis',
+                    high: 'Tinggi',
+                    normal: 'Normal',
+                    low: 'Rendah',
+                    critical: 'Kritis',
+                    Tinggi: 'Tinggi',
+                    Rendah: 'Rendah',
+                    Kritis: 'Kritis',
+                  };
+                  const priorityLabel = priorityMap[r.priority] || r.priority || 'Normal';
 
                   return (
                     <tr key={r.id || r.ticketNumber} onClick={() => setSelectedTicket(r)}>
@@ -635,8 +641,8 @@ export default function OverviewPage() {
                       </td>
                       <td className="cluster-text">{r.cluster}</td>
                       <td>
-                        <div className="tech-cell">
-                          <span className="tech-avatar">{r.techInitials}</span>
+                        <div className="tech-cell" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <DefaultAvatar size={24} name={r.assignedTech} />
                           <span className="tech-name">{r.assignedTech}</span>
                         </div>
                       </td>
@@ -655,9 +661,8 @@ export default function OverviewPage() {
                         </span>
                       </td>
                       <td>
-                        <span className={`priority-cell ${priorityClass}`}>
-                          <i className="priority-dot" />
-                          {priority}
+                        <span style={{ fontSize: '12.5px', color: '#475569', fontWeight: 500 }}>
+                          {priorityLabel}
                         </span>
                       </td>
                       <td className="attenuation-cell">

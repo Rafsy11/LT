@@ -1,15 +1,49 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="300" height="1200" viewBox="0 0 300 1200" preserveAspectRatio="none">
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="1200" viewBox="0 0 320 1200" preserveAspectRatio="none">
   <defs>
-    <linearGradient id="sideSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EDF7FF"/><stop offset=".36" stop-color="#D9EEFF"/><stop offset=".72" stop-color="#C7E4FA"/><stop offset="1" stop-color="#B8DDF8"/></linearGradient>
-    <linearGradient id="sideWave1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F4FAFF" stop-opacity=".76"/><stop offset=".48" stop-color="#C5E5FC" stop-opacity=".34"/><stop offset="1" stop-color="#91C9F1" stop-opacity=".37"/></linearGradient>
-    <linearGradient id="sideWave2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#B8DDF8" stop-opacity=".1"/><stop offset=".55" stop-color="#A8D6F5" stop-opacity=".38"/><stop offset="1" stop-color="#E5F5FF" stop-opacity=".24"/></linearGradient>
+    <!-- Base Sky Gradient from Lintasarta Sky Dashboard -->
+    <linearGradient id="sideSkyBase" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d7edfe"/>
+      <stop offset="22%" stop-color="#e5f3fd"/>
+      <stop offset="48%" stop-color="#cde7fa"/>
+      <stop offset="68%" stop-color="#badefd"/>
+      <stop offset="88%" stop-color="#c2e2fb"/>
+      <stop offset="100%" stop-color="#d0e9fe"/>
+    </linearGradient>
+
+    <!-- Translucent Wave Gradient 1 -->
+    <linearGradient id="sideWaveFill1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.75"/>
+      <stop offset="45%" stop-color="#c4e3fb" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#a4d5f7" stop-opacity="0.35"/>
+    </linearGradient>
+
+    <!-- Translucent Wave Gradient 2 -->
+    <linearGradient id="sideWaveFill2" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#b4dcfa" stop-opacity="0.5"/>
+      <stop offset="60%" stop-color="#cbe5fc" stop-opacity="0.38"/>
+      <stop offset="100%" stop-color="#edf6ff" stop-opacity="0.6"/>
+    </linearGradient>
   </defs>
-  <rect width="300" height="1200" fill="url(#sideSky)"/>
-  <path d="M0 0H300V510C254 559 211 598 150 602C91 605 42 576 0 546Z" fill="#F5FBFF" opacity=".4"/>
-  <path d="M0 520C63 585 135 604 205 572C247 553 276 520 300 500V748C245 797 193 827 124 808C72 793 33 759 0 727Z" fill="url(#sideWave1)"/>
-  <path d="M0 666C60 725 119 756 183 732C231 714 268 676 300 640V906C244 946 182 983 119 957C72 938 30 908 0 879Z" fill="url(#sideWave2)"/>
-  <path d="M0 820C69 865 119 899 183 883C228 872 267 835 300 804V1090C239 1125 182 1160 120 1133C75 1114 32 1084 0 1054Z" fill="#D5ECFC" opacity=".42"/>
-  <path d="M0 578C66 633 127 650 188 624C236 604 270 568 300 542" fill="none" stroke="#FFFFFF" stroke-opacity=".32" stroke-width="2"/>
-  <path d="M0 746C67 798 126 816 189 793C235 776 270 741 300 710" fill="none" stroke="#FFFFFF" stroke-opacity=".26" stroke-width="2"/>
-  <path d="M0 922C63 963 126 983 184 963C231 946 268 912 300 882" fill="none" stroke="#FFFFFF" stroke-opacity=".25" stroke-width="2"/>
+
+  <!-- Full Atmospheric Sky Tone -->
+  <rect width="320" height="1200" fill="url(#sideSkyBase)"/>
+
+  <!-- Upper-Right Subtle Cloud Swell (around management top) -->
+  <path d="M320 420 C230 460, 210 530, 320 590 Z" fill="#ffffff" opacity="0.3"/>
+  <path d="M320 420 C230 460, 210 530, 320 590" fill="none" stroke="#ffffff" stroke-opacity="0.45" stroke-width="1.6"/>
+
+  <!-- Primary Sweeping Diagonal Wave Ribbon (sampled from reference dashboard) -->
+  <path d="M0 860 C90 840, 190 740, 320 660 L320 1200 L0 1200 Z" fill="url(#sideWaveFill1)"/>
+  <path d="M0 860 C90 840, 190 740, 320 660" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="2"/>
+
+  <!-- Secondary Deeper Wave Ribbon at Bottom-Left -->
+  <path d="M0 990 C80 970, 180 890, 320 810 L320 1200 L0 1200 Z" fill="url(#sideWaveFill2)"/>
+  <path d="M0 990 C80 970, 180 890, 320 810" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1.8"/>
+
+  <!-- Delicate Lower Accent Wave -->
+  <path d="M0 1100 C70 1080, 170 1020, 320 960 L320 1200 L0 1200 Z" fill="#c2e2fb" opacity="0.35"/>
+  <path d="M0 1100 C70 1080, 170 1020, 320 960" fill="none" stroke="#ffffff" stroke-opacity="0.4" stroke-width="1.5"/>
+
+  <!-- Right Border Line -->
+  <path d="M319 0 L319 1200" stroke="#c8e0f4" stroke-opacity="0.8" stroke-width="1"/>
 </svg>

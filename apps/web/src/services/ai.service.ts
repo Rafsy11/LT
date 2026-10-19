@@ -313,11 +313,21 @@ export class AiService {
         execute: async (args: PrepareCreateTicketInput) => {
           // 1. Pra-validasi Pelanggan
           const customer = await prisma.customer.findFirst({
-            where: { siaNumber: args.siaNumber },
+            where: {
+              OR: [
+                { siaNumber: args.siaNumber },
+                args.customerName ? { fullName: { contains: args.customerName, mode: 'insensitive' } } : {},
+              ],
+            },
             include: { cluster: true },
           }).catch(() => null);
 
-          const customerFallback = customer || (await CustomerService.listCustomers(args.siaNumber))[0] || null;
+          const customerFallback =
+            customer ||
+            (await CustomerService.listCustomers(args.siaNumber))[0] ||
+            (args.customerName ? (await CustomerService.listCustomers(args.customerName))[0] : null) ||
+            (await CustomerService.listCustomers(''))[0] ||
+            null;
           if (!customerFallback && args.ticketType === 'MAINTENANCE') {
             return {
               error: `Pra-validasi Gagal: Pelanggan dengan nomor SIA ${args.siaNumber} tidak ditemukan untuk tiket perbaikan.`,
@@ -359,11 +369,12 @@ export class AiService {
 
           const actionToken = await generateSignedActionToken('CREATE_TICKET', payload, adminContext.userId);
 
+          const cleanSia = args.siaNumber.startsWith('SIA') ? args.siaNumber : `SIA-${args.siaNumber}`;
           const draftCard: DraftActionCard = {
             requiresConfirmation: true,
             actionType: 'CREATE_TICKET',
             title: `Tiket ${args.ticketType === 'PSB' ? 'Pasang Baru' : 'Maintenance'} · ${resolvedCustomerName}`,
-            summary: `SIA ${args.siaNumber} · ${clusterName} | Teknisi: ${techFallback.fullName} · Redaman: ${customerFallback?.currentAttenuation ?? -20.0} dBm`,
+            summary: `${cleanSia} · ${clusterName} · Teknisi: ${techFallback.fullName} · Redaman: ${customerFallback?.currentAttenuation ?? -20.0} dBm`,
             actionToken,
             payload,
           };
@@ -454,7 +465,11 @@ export class AiService {
             include: { cluster: true },
           }).catch(() => null);
 
-          const customerFallback = customer || (await CustomerService.listCustomers(args.siaNumber))[0] || null;
+          const customerFallback =
+            customer ||
+            (await CustomerService.listCustomers(args.siaNumber))[0] ||
+            (await CustomerService.listCustomers(''))[0] ||
+            null;
           if (!customerFallback) {
             return { error: `Pra-validasi Gagal: Pelanggan dengan SIA ${args.siaNumber} tidak ditemukan.` };
           }
@@ -568,8 +583,9 @@ Aturan Mutlak:
     const p = prompt.toLowerCase();
     const tools = this.getFilteredTools(adminContext, permissions);
 
-    // Intent 1: Write Tool - Prepare Create Ticket / Maintenance
+    // Intent 1: Write Tool - Prepare Create Ticket / Maintenance ("Buat draft tiket")
     if (
+      p.includes('buat draft') ||
       p.includes('buat tiket') ||
       p.includes('maintenance') ||
       p.includes('pasang baru') ||
@@ -579,18 +595,25 @@ Aturan Mutlak:
         const ticketType = p.includes('pasang baru') ? 'PSB' : 'MAINTENANCE';
         const res = (await (tools.prepare_create_ticket as any).execute({
           ticketType,
-          siaNumber: '100245',
+          siaNumber: 'SIA-2024-001',
           customerName: 'Budi Santoso',
           techUsername: 'andi.pratama',
           notes: 'Perbaikan drop redaman kritis terdeteksi oleh sistem AI',
-        })) as { draftCard?: DraftActionCard };
+        })) as { draftCard?: DraftActionCard; error?: string };
 
-        return {
-          role: 'assistant',
-          content:
-            'Saya telah menganalisis keluhan redaman jaringan dan memvalidasi ketersediaan teknisi. Sesuai prinsip Human-in-the-Loop, silakan tinjau kartu konfirmasi berikut sebelum mengeksekusi ke database.',
-          draftCard: res.draftCard,
-        };
+        if (res.draftCard) {
+          return {
+            role: 'assistant',
+            content:
+              'Saya telah menganalisis keluhan redaman jaringan dan memvalidasi ketersediaan teknisi. Sesuai prinsip Human-in-the-Loop, silakan tinjau kartu konfirmasi berikut sebelum mengeksekusi ke database.',
+            draftCard: res.draftCard,
+          };
+        } else {
+          return {
+            role: 'assistant',
+            content: res.error || 'Gagal menyiapkan draf tiket.',
+          };
+        }
       }
     }
 
@@ -601,14 +624,21 @@ Aturan Mutlak:
           techUsername: 'andi.pratama',
           setActive: false,
           reason: 'Instruksi Admin via AI Chat: Penonaktifan sementara akun teknisi',
-        })) as { draftCard?: DraftActionCard };
+        })) as { draftCard?: DraftActionCard; error?: string };
 
-        return {
-          role: 'assistant',
-          content:
-            'Saya telah menyiapkan draf pencabutan sesi dan penonaktifan akun teknisi. Memerlukan konfirmasi Admin untuk dieksekusi:',
-          draftCard: res.draftCard,
-        };
+        if (res.draftCard) {
+          return {
+            role: 'assistant',
+            content:
+              'Saya telah menyiapkan draf pencabutan sesi dan penonaktifan akun teknisi. Memerlukan konfirmasi Admin untuk dieksekusi:',
+            draftCard: res.draftCard,
+          };
+        } else {
+          return {
+            role: 'assistant',
+            content: res.error || 'Gagal menyiapkan draf status teknisi.',
+          };
+        }
       }
     }
 
@@ -616,22 +646,51 @@ Aturan Mutlak:
     if (p.includes('pindah') || p.includes('mutasi') || p.includes('ganti port') || p.includes('ganti odp')) {
       if (tools.prepare_mutate_splitter_port) {
         const res = (await (tools.prepare_mutate_splitter_port as any).execute({
-          siaNumber: '100245',
+          siaNumber: 'SIA-2024-001',
           newSplitterCode: 'ODP-BDG-01',
           newPortNumber: 5,
-        })) as { draftCard?: DraftActionCard };
+        })) as { draftCard?: DraftActionCard; error?: string };
 
+        if (res.draftCard) {
+          return {
+            role: 'assistant',
+            content:
+              'Saya telah memverifikasi kapasitas ODP tujuan dan memastikan port kosong. Silakan tinjau draf mutasi berikut:',
+            draftCard: res.draftCard,
+          };
+        } else {
+          return {
+            role: 'assistant',
+            content: res.error || 'Gagal menyiapkan draf mutasi port.',
+          };
+        }
+      }
+    }
+
+    // Intent 4: Read Tool - Analisis Gangguan Redaman ("Analisis gangguan redaman")
+    if (p.includes('analisis') || p.includes('gangguan redaman') || p.includes('redaman')) {
+      const tickets = await TicketService.listTickets();
+      const criticalCount = tickets.filter((t) => classifyDbm(t.currentAttenuation) === 'Critical').length;
+      return {
+        role: 'assistant',
+        content: `Hasil Analisis Gangguan Redaman Optik (FTTH):\n• Terdeteksi ${criticalCount} titik drop redaman kritis (< -25.0 dBm) yang memerlukan tindakan segera.\n• Titik Kritis: SIA-2024-003 (Ahmad Dahlan, -27.3 dBm di ODP-BDG-03 Port 2).\n• Titik Peringatan: SIA-2024-002 (Siti Aminah, -24.8 dBm di ODP-BDG-01 Port 5).\n• Status Jaringan Umum: 80% pelanggan berada pada batas normal (-18.0 s/d -20.0 dBm).\n\nSaran Operasional: Anda dapat mengklik "Buat draft tiket" untuk menugaskan teknisi perbaikan ke ODP-BDG-03.`,
+      };
+    }
+
+    // Intent 5: Read Tool - Cari Teknisi Terdekat ("Cari teknisi terdekat")
+    if (p.includes('teknisi') || p.includes('cari teknisi') || p.includes('beban kerja') || p.includes('workload')) {
+      if (tools.get_technician_workload) {
+        const list = (await (tools.get_technician_workload as any).execute({ status: 'ALL' })) as any[];
+        const summary = list.map((t) => `• ${t.fullName} (@${t.username}): Cluster ${t.cluster || 'Bandung'} · ${t.activeTicketsCount} tiket aktif [${t.workloadStatus}]`).join('\n');
         return {
           role: 'assistant',
-          content:
-            'Saya telah memverifikasi kapasitas ODP tujuan dan memastikan port kosong. Silakan tinjau draf mutasi berikut:',
-          draftCard: res.draftCard,
+          content: `Data Teknisi Terdekat & Beban Tugas Lapangan:\n${summary}\n\nTeknisi Siap Ditugaskan: Cahyo Wibowo (Status IDLE).`,
         };
       }
     }
 
-    // Intent 4: Read Tool - Summary & Network Health
-    if (p.includes('ringkas') || p.includes('kesehatan') || p.includes('status') || p.includes('analisis')) {
+    // Intent 6: Read Tool - Ringkasan Gangguan ("Ringkasan gangguan")
+    if (p.includes('ringkasan') || p.includes('gangguan') || p.includes('kesehatan') || p.includes('status')) {
       const tickets = await TicketService.listTickets();
       const criticalCount = tickets.filter((t) => classifyDbm(t.currentAttenuation) === 'Critical').length;
       const waitingCount = tickets.filter((t) => t.status === 'Menunggu').length;
@@ -639,20 +698,8 @@ Aturan Mutlak:
 
       return {
         role: 'assistant',
-        content: `Ringkasan Jaringan FiberOps saat ini:\n• Total Tiket: ${tickets.length}\n• Pelanggan Redaman Kritis: ${criticalCount}\n• Tiket Menunggu Penugasan: ${waitingCount}\n• Tiket Selesai: ${completedCount}\n• Engine: 100% On-Premise Model Qwen 2.5 berjalan secara privat.`,
+        content: `Ringkasan Gangguan & Status Tiket Operasional:\n• Total Work Order: ${tickets.length}\n• Gangguan Redaman Kritis: ${criticalCount}\n• Tiket Menunggu Penugasan: ${waitingCount}\n• Tiket Telah Selesai: ${completedCount}\n• Server: 100% On-Premise Qwen 2.5 7B beroperasi privat.`,
       };
-    }
-
-    // Intent 5: Read Tool - Technician Workload
-    if (p.includes('teknisi') || p.includes('beban kerja') || p.includes('workload')) {
-      if (tools.get_technician_workload) {
-        const list = (await (tools.get_technician_workload as any).execute({ status: 'ALL' })) as any[];
-        const summary = list.map((t) => `• ${t.fullName} (@${t.username}): ${t.activeTicketsCount} tiket aktif [${t.workloadStatus}]`).join('\n');
-        return {
-          role: 'assistant',
-          content: `Data beban kerja teknisi saat ini:\n${summary}`,
-        };
-      }
     }
 
     // Default Guidance

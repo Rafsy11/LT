@@ -27,6 +27,10 @@ export interface DbTicket {
   adminNotes?: string;
   createdAt: string;
   completedAt?: string;
+  splitterCode?: string;
+  portNumber?: number;
+  distanceToSplitterM?: number;
+  isLocationFlagged?: boolean;
 }
 
 const FALLBACK_TICKETS: DbTicket[] = [
@@ -43,6 +47,10 @@ const FALLBACK_TICKETS: DbTicket[] = [
     priority: 'Normal',
     currentAttenuation: -18.5,
     createdAt: new Date().toISOString(),
+    splitterCode: 'ODP-BDG-01',
+    portNumber: 1,
+    distanceToSplitterM: 18,
+    isLocationFlagged: false,
   },
   {
     id: 't-2',
@@ -57,6 +65,10 @@ const FALLBACK_TICKETS: DbTicket[] = [
     priority: 'High',
     currentAttenuation: -24.8,
     createdAt: new Date().toISOString(),
+    splitterCode: 'ODP-CMH-01',
+    portNumber: 3,
+    distanceToSplitterM: 24,
+    isLocationFlagged: false,
   },
   {
     id: 't-3',
@@ -71,6 +83,10 @@ const FALLBACK_TICKETS: DbTicket[] = [
     priority: 'Normal',
     currentAttenuation: -21.2,
     createdAt: new Date().toISOString(),
+    splitterCode: 'ODP-BDG-03',
+    portNumber: 2,
+    distanceToSplitterM: 15,
+    isLocationFlagged: false,
   },
   {
     id: 't-4',
@@ -86,6 +102,10 @@ const FALLBACK_TICKETS: DbTicket[] = [
     currentAttenuation: -19.4,
     createdAt: new Date().toISOString(),
     completedAt: new Date().toISOString(),
+    splitterCode: 'ODP-RCK-01',
+    portNumber: 4,
+    distanceToSplitterM: 32,
+    isLocationFlagged: false,
   },
   {
     id: 't-5',
@@ -100,6 +120,10 @@ const FALLBACK_TICKETS: DbTicket[] = [
     priority: 'High',
     currentAttenuation: -26.1,
     createdAt: new Date().toISOString(),
+    splitterCode: 'ODP-CMH-02',
+    portNumber: 7,
+    distanceToSplitterM: 142,
+    isLocationFlagged: true,
   },
 ];
 
@@ -227,6 +251,8 @@ export class TicketService {
           adminNotes: t.adminNotes || undefined,
           createdAt: t.createdAt.toISOString(),
           completedAt: t.completedAt ? t.completedAt.toISOString() : undefined,
+          splitterCode: t.customer.splitter?.splitterCode,
+          portNumber: t.customer.portNumber || undefined,
         }));
       }
     } catch {

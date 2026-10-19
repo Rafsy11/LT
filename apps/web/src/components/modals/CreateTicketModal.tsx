@@ -9,9 +9,10 @@ interface CreateTicketModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: CreateTicketInput) => Promise<void> | void;
+  initialValues?: Partial<CreateTicketInput>;
 }
 
-export function CreateTicketModal({ isOpen, onClose, onSubmit }: CreateTicketModalProps) {
+export function CreateTicketModal({ isOpen, onClose, onSubmit, initialValues }: CreateTicketModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const { showSuccess, showError } = useToast();
@@ -76,22 +77,42 @@ export function CreateTicketModal({ isOpen, onClose, onSubmit }: CreateTicketMod
         <form className="modal-body" onSubmit={handleSubmit}>
           <label>
             Nama pelanggan
-            <input name="customerName" required placeholder="Nama lengkap pelanggan" disabled={!canCreateTicket || submitting} />
+            <input
+              name="customerName"
+              required
+              defaultValue={initialValues?.customerName || ''}
+              placeholder="Nama lengkap pelanggan"
+              disabled={!canCreateTicket || submitting}
+            />
           </label>
           <label>
             Nomor SIA
-            <input name="siaNumber" required placeholder="Contoh: 100246" disabled={!canCreateTicket || submitting} />
+            <input
+              name="siaNumber"
+              required
+              defaultValue={initialValues?.siaNumber || ''}
+              placeholder="Contoh: 100246"
+              disabled={!canCreateTicket || submitting}
+            />
           </label>
           <label>
             Tipe pekerjaan
-            <select name="ticketType" disabled={!canCreateTicket || submitting}>
+            <select
+              name="ticketType"
+              defaultValue={initialValues?.ticketType || 'PSB'}
+              disabled={!canCreateTicket || submitting}
+            >
               <option value="PSB">PSB · Pasang baru</option>
               <option value="MAINTENANCE">MAINTENANCE · Perbaikan redaman/gangguan</option>
             </select>
           </label>
           <label>
             Cluster target
-            <select name="clusterCode" disabled={!canCreateTicket || submitting}>
+            <select
+              name="clusterCode"
+              defaultValue={initialValues?.clusterCode || 'Bandung Utara'}
+              disabled={!canCreateTicket || submitting}
+            >
               <option value="Bandung Utara">Bandung Utara (CL-01)</option>
               <option value="Bandung Timur">Bandung Timur (CL-02)</option>
               <option value="Bandung Barat">Bandung Barat (CL-03)</option>
@@ -100,7 +121,11 @@ export function CreateTicketModal({ isOpen, onClose, onSubmit }: CreateTicketMod
           </label>
           <label>
             Tugaskan ke teknisi
-            <select name="assignedTechUsername" disabled={!canCreateTicket || submitting}>
+            <select
+              name="assignedTechUsername"
+              defaultValue={initialValues?.assignedTechUsername || 'Andi Pratama'}
+              disabled={!canCreateTicket || submitting}
+            >
               <option value="Andi Pratama">Andi Pratama (Bandung Utara)</option>
               <option value="Rizky Maulana">Rizky Maulana (Bandung Timur)</option>
               <option value="Fajar Hidayat">Fajar Hidayat (Bandung Barat)</option>
@@ -109,7 +134,12 @@ export function CreateTicketModal({ isOpen, onClose, onSubmit }: CreateTicketMod
           </label>
           <label>
             Catatan admin (opsional)
-            <input name="adminNotes" placeholder="Instruksi khusus untuk teknisi..." disabled={!canCreateTicket || submitting} />
+            <input
+              name="adminNotes"
+              defaultValue={initialValues?.adminNotes || ''}
+              placeholder="Instruksi khusus untuk teknisi..."
+              disabled={!canCreateTicket || submitting}
+            />
           </label>
           <button className="button primary" disabled={submitting || !canCreateTicket} type="submit">
             {submitting ? 'Memproses Transaksi...' : 'Buat & Tugaskan Tiket'}
