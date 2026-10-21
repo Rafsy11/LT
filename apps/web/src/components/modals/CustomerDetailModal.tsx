@@ -127,18 +127,27 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                 Status Layanan
               </div>
               <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span
-                  style={{
-                    fontSize: '11.5px',
-                    fontWeight: 600,
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    background: customer.status === 'ACTIVE' ? '#f0fdf4' : '#fffbeb',
-                    border: `1px solid ${customer.status === 'ACTIVE' ? '#bbf7d0' : '#fde68a'}`,
-                    color: customer.status === 'ACTIVE' ? '#166534' : '#92400e',
-                  }}
-                >
-                  {customer.status}
+                <span className="customer-status-badge">
+                  <span
+                    className={`customer-status-dot ${
+                      customer.status === 'ACTIVE'
+                        ? 'active'
+                        : customer.status === 'PENDING_INSTALL'
+                        ? 'pending'
+                        : customer.status === 'ISOLATED'
+                        ? 'isolated'
+                        : 'inactive'
+                    }`}
+                  />
+                  <span>
+                    {customer.status === 'ACTIVE'
+                      ? 'Aktif'
+                      : customer.status === 'PENDING_INSTALL'
+                      ? 'Menunggu PSB'
+                      : customer.status === 'ISOLATED'
+                      ? 'Terisolir'
+                      : 'Nonaktif'}
+                  </span>
                 </span>
               </div>
             </div>
@@ -169,9 +178,44 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
           </div>
 
           {/* Alamat & Catatan Lokasi */}
-          <div style={{ fontSize: '12px', color: '#475569', lineHeight: '1.5' }}>
-            <span style={{ color: '#64748b', fontWeight: 500 }}>Alamat Instalasi: </span>
-            {customer.address}
+          <div
+            style={{
+              fontSize: '12px',
+              color: '#475569',
+              lineHeight: '1.5',
+              background: '#f8fafc',
+              padding: '10px 12px',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', fontWeight: 600, color: '#1e3a5f' }}>
+              <Icon name="pin" size={13} />
+              <span>Detail Wilayah &amp; Alamat Instalasi</span>
+            </div>
+            <div>
+              <span style={{ color: '#64748b', fontWeight: 500 }}>Alamat Lengkap: </span>
+              {customer.address}
+            </div>
+            {(customer.kecamatan || customer.kelurahan || customer.street) && (
+              <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '11.5px', color: '#334155', flexWrap: 'wrap' }}>
+                {customer.street && (
+                  <span>
+                    <b>Jalan:</b> {customer.street}
+                  </span>
+                )}
+                {customer.kelurahan && (
+                  <span>
+                    <b>Kelurahan:</b> {customer.kelurahan}
+                  </span>
+                )}
+                {customer.kecamatan && (
+                  <span>
+                    <b>Kecamatan:</b> {customer.kecamatan}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Attenuation History Section (Append-Only per PRD 5.1 & Law 2) */}

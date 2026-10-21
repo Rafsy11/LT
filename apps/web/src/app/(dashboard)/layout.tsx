@@ -50,10 +50,7 @@ export default function DashboardLayout({
             {children}
             <footer>
               <span>© 2025 Fiberops. All rights reserved. Single Source of Truth FTTH.</span>
-              <span>
-                <i className="green-dot" />
-                Seluruh layanan tersedia <span className="footer-divider">|</span> Versi 1.0.0 (On-Premise)
-              </span>
+              <span style={{ paddingRight: '120px' }}>Versi 1.0.0 (On-Premise)</span>
             </footer>
           </div>
           <AiChatWidget />

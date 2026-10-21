@@ -592,26 +592,27 @@ export default function TechniciansPage() {
                     transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                   }}
                 >
-                  {/* Card Header: Avatar, Name, Cluster & Unified Status Pill */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {/* Card Header: Avatar, Name & Username, Last Active & Unified Status Pill */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                       <DefaultAvatar size={38} name={tech.fullName} />
-                      <div>
-                        <h3 style={{ margin: 0, fontSize: '13.5px', fontWeight: 600, color: '#0f172a', lineHeight: 1.3 }}>
-                          {tech.fullName}
-                        </h3>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
+                          <h3 style={{ margin: 0, fontSize: '13.5px', fontWeight: 600, color: '#0f172a', lineHeight: 1.3 }}>
+                            {tech.fullName}
+                          </h3>
                           <span style={{ fontSize: '11px', color: '#64748b', fontFamily: 'monospace' }}>
                             @{tech.username}
                           </span>
-                          <span style={{ color: '#cbd5e1', fontSize: '11px' }}>·</span>
-                          <span style={{ fontSize: '11px', color: '#475569' }}>{tech.cluster}</span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {tech.lastActiveAt ? `Sesi online terakhir ${tech.lastActiveAt}` : 'Belum ada riwayat sesi'}
                         </div>
                       </div>
                     </div>
 
                     {/* Single Unified Status Pill */}
-                    <div>
+                    <div style={{ flexShrink: 0 }}>
                       {!tech.isActive ? (
                         <span
                           style={{
@@ -683,68 +684,6 @@ export default function TechniciansPage() {
                     </div>
                   </div>
 
-                  {/* Device Telemetry Box */}
-                  <div
-                    style={{
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '6px',
-                      padding: '10px 12px',
-                      fontSize: '11.5px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '7px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#64748b', fontSize: '11px' }}>Perangkat Terikat</span>
-                      <span style={{ fontWeight: 600, color: '#1e293b' }}>
-                        {tech.deviceModel ? tech.deviceModel.split('(')[0].trim() : 'Belum Terikat'}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#64748b', fontSize: '11px' }}>Device ID / App</span>
-                      <span style={{ fontFamily: 'monospace', color: '#0f172a', fontSize: '11px' }}>
-                        {tech.deviceId || 'DEV-N/A'}{' '}
-                        <span style={{ color: '#cbd5e1' }}>·</span>{' '}
-                        <span style={{ color: '#475569', fontWeight: 500 }}>{tech.appVersion || 'v1.0.0'}</span>
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#64748b', fontSize: '11px' }}>Integritas Lapangan</span>
-                      {tech.isMockLocationDetected ? (
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 500,
-                            color: '#b91c1c',
-                            background: '#fef2f2',
-                            border: '1px solid #fecaca',
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                        >
-                          <Icon name="alert" size={11} />
-                          Fake GPS Terdeteksi!
-                        </span>
-                      ) : (
-                        <span style={{ color: '#475569', fontWeight: 500, fontSize: '11px' }}>
-                          GPS Valid (Normal)
-                        </span>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px', borderTop: '1px dashed #e2e8f0' }}>
-                      <span style={{ color: '#94a3b8', fontSize: '10.5px' }}>Sesi Terakhir</span>
-                      <span style={{ color: '#64748b', fontSize: '10.5px' }}>{tech.lastActiveAt || 'Tidak ada catatan'}</span>
-                    </div>
-                  </div>
-
                   {/* Work Order Info Strip */}
                   <div
                     style={{
@@ -760,6 +699,19 @@ export default function TechniciansPage() {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span
+                        style={{
+                          fontSize: '10.5px',
+                          fontWeight: 500,
+                          color: '#334155',
+                          background: '#f1f5f9',
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        {tech.cluster}
+                      </span>
+                      <span style={{ color: '#cbd5e1' }}>·</span>
                       <span style={{ fontWeight: 600, color: '#0f172a' }}>{tech.activeTicketsCount}</span>
                       <span>Tiket Aktif</span>
                       <span style={{ color: '#cbd5e1' }}>·</span>

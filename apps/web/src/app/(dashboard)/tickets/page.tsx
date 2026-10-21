@@ -8,6 +8,24 @@ import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/ToastProvider';
 import { CreateTicketInput } from '@repo/shared';
 
+export interface DbTicketPendingSubmission {
+  submissionId: string;
+  splitterId: string;
+  splitterCode: string;
+  portNumber: number;
+  attenuationDbm: number;
+  photoObjectKey: string;
+  submittedLat: number;
+  submittedLng: number;
+  distanceToSplitterM: number;
+  isLocationFlagged: boolean;
+  clientRecordedAt?: string;
+  technicianNotes?: string;
+  submittedAt: string;
+  techUsername: string;
+  techFullName: string;
+}
+
 export interface TicketItem {
   id: string;
   ticketNumber: string;
@@ -17,11 +35,16 @@ export interface TicketItem {
   cluster: string;
   assignedTech: string;
   techInitials: string;
-  status: 'Menunggu' | 'Dalam proses' | 'Selesai' | 'Dibatalkan';
+  status: 'Menunggu' | 'Dalam proses' | 'Menunggu verifikasi' | 'Selesai' | 'Dibatalkan';
   currentAttenuation: number;
   adminNotes?: string;
   createdAt: string;
   completedAt?: string;
+  splitterCode?: string;
+  portNumber?: number;
+  distanceToSplitterM?: number;
+  isLocationFlagged?: boolean;
+  pendingSubmission?: DbTicketPendingSubmission;
 }
 
 export default function TicketsPage() {
@@ -33,6 +56,7 @@ export default function TicketsPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null);
+  const [simulating, setSimulating] = useState(false);
 
   const { canCreateTicket } = useAuth();
   const { showError, showSuccess } = useToast();
@@ -70,10 +94,36 @@ export default function TicketsPage() {
     await fetchTickets();
   };
 
+  const handleSimulateSubmission = async () => {
+    try {
+      setSimulating(true);
+      const res = await fetch('/api/v1/admin/tickets/simulate-submission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showSuccess('Data hasil ukur teknisi mobile berhasil diterima untuk diverifikasi.');
+        await fetchTickets();
+        setTab('Semua');
+      } else {
+        showError(json.error || 'Gagal mensimulasikan data teknisi.');
+      }
+    } catch (err) {
+      showError(err);
+    } finally {
+      setSimulating(false);
+    }
+  };
+
   // Scoped tickets by Cluster and Search query
   const scoped = tickets.filter((r) => {
-    const matchesCluster = cluster === 'Semua cluster' || r.cluster.toLowerCase().includes(cluster.replace('Bandung ', '').toLowerCase());
-    const matchesType = typeFilter === 'Semua tipe' || r.ticketType.toLowerCase().includes(typeFilter.toLowerCase());
+    const matchesCluster =
+      cluster === 'Semua cluster' ||
+      r.cluster.toLowerCase().includes(cluster.replace('Bandung ', '').toLowerCase());
+    const matchesType =
+      typeFilter === 'Semua tipe' || r.ticketType.toLowerCase().includes(typeFilter.toLowerCase());
     const matchesSearch =
       search.trim() === '' ||
       r.customerName.toLowerCase().includes(search.toLowerCase()) ||
@@ -88,6 +138,7 @@ export default function TicketsPage() {
 
   const waitingCount = scoped.filter((r) => r.status === 'Menunggu').length;
   const inProgressCount = scoped.filter((r) => r.status === 'Dalam proses').length;
+  const pendingApprovalCount = scoped.filter((r) => r.status === 'Menunggu verifikasi').length;
   const completedCount = scoped.filter((r) => r.status === 'Selesai').length;
 
   const getDbmBadge = (att: number | undefined) => {
@@ -111,11 +162,23 @@ export default function TicketsPage() {
           <div className="eyebrow">WORK ORDER & FIELD DISPATCH MANAGEMENT</div>
           <h1 className="overview-greeting">Tiket & Penugasan Lapangan</h1>
           <p className="overview-subtitle">
-            Disposisi pekerjaan Pasang Baru (PSB) dan Pemeliharaan (Maintenance) ke teknisi lapangan sesuai PRD Section 3.2.
+            Disposisi pekerjaan Pasang Baru (PSB) dan Pemeliharaan (Maintenance) ke teknisi lapangan.
           </p>
         </div>
 
         <div className="overview-toolbar">
+          <button
+            className="button secondary"
+            onClick={handleSimulateSubmission}
+            disabled={simulating}
+            type="button"
+            title="Terima data terbaru yang dikirim teknisi dari mobile app"
+            style={{ fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Icon name="activity" size={14} />
+            <span>{simulating ? 'Menerima Data...' : '+ Terima Data Teknisi (Mobile)'}</span>
+          </button>
+
           {canCreateTicket ? (
             <button
               className="button primary"
@@ -150,8 +213,12 @@ export default function TicketsPage() {
         </div>
       </div>
 
-      {/* 4 Telemetry Metrics Grid matching Overview & Network */}
-      <section className="tickets-stats-grid" aria-label="Statistik Penugasan Tiket">
+      {/* 3 Telemetry Metrics Grid */}
+      <section
+        className="tickets-stats-grid"
+        aria-label="Statistik Penugasan Tiket"
+        style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}
+      >
         <article className="stat-card">
           <div className="stat-card-inner">
             <div className="stat-card-top">
@@ -181,8 +248,7 @@ export default function TicketsPage() {
               </div>
             </div>
             <div className="stat-card-footer">
-              <span className="highlight-pill yellow-pill">Menunggu</span>
-              <span className="caption">Respon teknisi lapangan</span>
+              <span className="caption">Menunggu konfirmasi lapangan</span>
             </div>
           </div>
         </article>
@@ -195,36 +261,19 @@ export default function TicketsPage() {
               </span>
               <div className="stat-card-text">
                 <span className="stat-card-label">Dalam Pengerjaan</span>
-                <div className="stat-card-value" style={{ color: '#2563eb' }}>{inProgressCount}</div>
+                <div className="stat-card-value" style={{ color: '#2563eb' }}>
+                  {inProgressCount}
+                </div>
               </div>
             </div>
             <div className="stat-card-footer">
-              <span className="highlight-pill blue-pill">Di Lapangan</span>
-              <span className="caption">Pengerjaan di lokasi fisik</span>
-            </div>
-          </div>
-        </article>
-
-        <article className="stat-card">
-          <div className="stat-card-inner">
-            <div className="stat-card-top">
-              <span className="stat-card-icon-round positive">
-                <Icon name="check" size={17} />
-              </span>
-              <div className="stat-card-text">
-                <span className="stat-card-label">Selesai Diverifikasi</span>
-                <div className="stat-card-value" style={{ color: '#16a34a' }}>{completedCount}</div>
-              </div>
-            </div>
-            <div className="stat-card-footer">
-              <span className="highlight-pill green-pill">Selesai</span>
-              <span className="caption">Laporan & redaman valid</span>
+              <span className="caption">Pengerjaan fisik berlangsung</span>
             </div>
           </div>
         </article>
       </section>
 
-      {/* Filter Toolbar & Anti-Circumvention Guard */}
+      {/* Filter Toolbar without Clutter Pills */}
       <section className="tickets-toolbar">
         <div className="tickets-filter-group">
           <div className="tickets-search-input">
@@ -269,20 +318,14 @@ export default function TicketsPage() {
             </select>
           </div>
         </div>
-
-        <div className="network-integrity-pill" title="Sesuai PRD Section 3.2: Teknisi tidak dapat menginput atau mengubah data tanpa adanya tiket penugasan aktif dari Admin">
-          <Icon name="shield" size={13} />
-          <span>Strict Workflow: Teknisi Terikat Tiket (PRD 3.2)</span>
-        </div>
       </section>
 
-      {/* Segmented Status Tabs Bar */}
+      {/* Segmented Status Tabs Bar (3 Clean Tabs: Semua, Menunggu, Dalam proses) */}
       <div className="tickets-tabs-bar" role="tablist" aria-label="Filter Status Tiket">
         {[
           { label: 'Semua', count: scoped.length },
           { label: 'Menunggu', count: waitingCount },
           { label: 'Dalam proses', count: inProgressCount },
-          { label: 'Selesai', count: completedCount },
         ].map((item) => (
           <button
             key={item.label}
@@ -303,16 +346,30 @@ export default function TicketsPage() {
           Memuat daftar work order...
         </div>
       ) : filtered.length === 0 ? (
-        <div style={{ padding: '48px', textAlign: 'center', background: '#ffffff', borderRadius: '12px', border: '1px solid #dce7f0' }}>
-          <p style={{ fontWeight: 600, color: '#0f172a' }}>Tidak ada tiket yang cocok dengan filter pencarian.</p>
-          <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Coba ubah kata kunci atau pilih tab status yang lain.</p>
+        <div
+          style={{
+            padding: '48px',
+            textAlign: 'center',
+            background: '#ffffff',
+            borderRadius: '12px',
+            border: '1px solid #dce7f0',
+          }}
+        >
+          <p style={{ fontWeight: 600, color: '#0f172a' }}>
+            Tidak ada tiket yang cocok dengan filter pencarian.
+          </p>
+          <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+            Coba ubah kata kunci atau pilih tab status yang lain.
+          </p>
         </div>
       ) : (
         <div className="tickets-cards-grid">
           {filtered.map((r) => {
-            const att = getDbmBadge(r.currentAttenuation);
             const isCompleted = r.status === 'Selesai';
             const isInProgress = r.status === 'Dalam proses';
+            const isPendingApproval = r.status === 'Menunggu verifikasi';
+            const displayAttenuation = r.pendingSubmission?.attenuationDbm ?? r.currentAttenuation;
+            const att = getDbmBadge(displayAttenuation);
 
             return (
               <article
@@ -333,7 +390,14 @@ export default function TicketsPage() {
                 <div className="ticket-card-header">
                   <span className="ticket-number-tag">{r.ticketNumber}</span>
                   <div className="ticket-badges-group">
-                    <span className={`badge ${r.ticketType.includes('Pasang') || r.ticketType === 'PSB' ? 'blue' : 'neutral'}`} style={{ fontSize: '10.5px' }}>
+                    <span
+                      className={`badge ${
+                        r.ticketType.includes('Pasang') || r.ticketType === 'PSB'
+                          ? 'blue'
+                          : 'neutral'
+                      }`}
+                      style={{ fontSize: '10.5px' }}
+                    >
                       {r.ticketType}
                     </span>
                     <span
@@ -342,7 +406,7 @@ export default function TicketsPage() {
                           ? 'green'
                           : isInProgress
                           ? 'blue'
-                          : 'yellow'
+                          : 'neutral'
                       }`}
                       style={{ fontSize: '10.5px' }}
                     >
@@ -355,22 +419,70 @@ export default function TicketsPage() {
                 <div className="ticket-card-body">
                   <h3 className="ticket-customer-name">{r.customerName}</h3>
                   <div className="ticket-meta-row">
-                    <code style={{ background: '#f1f5f9', padding: '1px 5px', borderRadius: '4px', fontSize: '11px' }}>
+                    <code
+                      style={{
+                        background: '#f1f5f9',
+                        padding: '1px 5px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                      }}
+                    >
                       {r.siaNumber}
                     </code>
                     <span>·</span>
                     <span>{r.cluster}</span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>Redaman:</span>
-                    <span className={att.cls} style={{ fontSize: '10.5px', padding: '2px 6px' }}>{att.label}</span>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      marginTop: '2px',
+                    }}
+                  >
+                    <span style={{ fontSize: '11px', color: '#64748b' }}>
+                      {isPendingApproval ? 'Hasil Ukur Diajukan:' : 'Redaman:'}
+                    </span>
+                    <span
+                      className={att.cls}
+                      style={{ fontSize: '10.5px', padding: '2px 6px' }}
+                    >
+                      {att.label}
+                    </span>
                   </div>
 
-                  {r.adminNotes && (
-                    <div className="ticket-notes-box">
-                      {r.adminNotes}
+                  {/* Super Admin Review Callout on Card without AI Slop Icons and Yellow Colors */}
+                  {isPendingApproval && (
+                    <div
+                      style={{
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '6px',
+                        padding: '8px 10px',
+                        fontSize: '11px',
+                        color: '#334155',
+                        marginTop: '4px',
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                        Verifikasi Persetujuan Admin
+                      </div>
+                      <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: '2px' }}>
+                        ODP:{' '}
+                        <strong style={{ color: '#0f172a' }}>
+                          {r.pendingSubmission?.splitterCode || r.splitterCode || 'ODP'}
+                        </strong>{' '}
+                        · Port:{' '}
+                        <strong style={{ color: '#0f172a' }}>
+                          {r.pendingSubmission?.portNumber || r.portNumber || 1}
+                        </strong>
+                      </div>
                     </div>
+                  )}
+
+                  {r.adminNotes && !isPendingApproval && (
+                    <div className="ticket-notes-box">{r.adminNotes}</div>
                   )}
                 </div>
 
@@ -381,7 +493,7 @@ export default function TicketsPage() {
                     <span>{r.assignedTech}</span>
                   </div>
                   <span className="ticket-action-hint">
-                    Detail <Icon name="arrow" size={12} />
+                    {isPendingApproval ? 'Tinjau' : 'Detail'} <Icon name="arrow" size={12} />
                   </span>
                 </div>
               </article>
@@ -401,6 +513,7 @@ export default function TicketsPage() {
       <TicketDetailModal
         ticket={selectedTicket}
         onClose={() => setSelectedTicket(null)}
+        onTicketUpdated={fetchTickets}
       />
     </main>
   );

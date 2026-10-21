@@ -9,6 +9,28 @@ import type { CustomerListItem } from '@/services/customer.service';
 
 type CustomerStatusTab = 'all' | 'ACTIVE' | 'PENDING_INSTALL' | 'critical' | 'ISOLATED';
 
+function SignalStrengthBars({ status }: { status: 'normal' | 'warning' | 'critical' | 'neutral' }) {
+  const activeColor =
+    status === 'normal' ? '#16a34a' : status === 'warning' ? '#d97706' : status === 'critical' ? '#dc2626' : '#cbd5e1';
+  const activeBars = status === 'normal' ? 4 : status === 'warning' ? 2 : status === 'critical' ? 1 : 0;
+
+  return (
+    <svg
+      width="14"
+      height="13"
+      viewBox="0 0 14 13"
+      fill="none"
+      style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '6px' }}
+      aria-label={`Kualitas redaman: ${status}`}
+    >
+      <rect x="0.5" y="9.5" width="2" height="3.5" rx="0.5" fill={activeBars >= 1 ? activeColor : '#e2e8f0'} />
+      <rect x="4" y="6.5" width="2" height="6.5" rx="0.5" fill={activeBars >= 2 ? activeColor : '#e2e8f0'} />
+      <rect x="7.5" y="3.5" width="2" height="9.5" rx="0.5" fill={activeBars >= 3 ? activeColor : '#e2e8f0'} />
+      <rect x="11" y="0.5" width="2" height="12.5" rx="0.5" fill={activeBars >= 4 ? activeColor : '#e2e8f0'} />
+    </svg>
+  );
+}
+
 export default function CustomersPage() {
   const [search, setSearch] = useState('');
   const [cluster, setCluster] = useState('Semua cluster');
@@ -16,6 +38,12 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem | null>(null);
+
+  // Filter Spesifikasi Wilayah: Kecamatan, Kelurahan, Jalan
+  const [kecamatan, setKecamatan] = useState('Semua kecamatan');
+  const [kelurahan, setKelurahan] = useState('Semua kelurahan');
+  const [jalan, setJalan] = useState('Semua jalan');
+  const [isWilayahFilterOpen, setIsWilayahFilterOpen] = useState(false);
 
   const fetchCustomers = async () => {
     try {
@@ -36,22 +64,117 @@ export default function CustomersPage() {
     fetchCustomers();
   }, []);
 
-  // Filtered by Cluster and Search
+  // Distinct Options for Cluster Navigation Tabs
+  const availableClusters = useMemo(() => {
+    const defaultList = ['Bandung Utara', 'Bandung Selatan', 'Bandung Timur', 'Bandung Barat', 'Cimahi', 'Rancaekek'];
+    const set = new Set<string>(defaultList);
+    customers.forEach((c) => {
+      if (c.cluster) set.add(c.cluster);
+    });
+    return Array.from(set);
+  }, [customers]);
+
+  const clusterCounts = useMemo(() => {
+    const map: Record<string, number> = { 'Semua cluster': customers.length };
+    customers.forEach((c) => {
+      const match = availableClusters.find(
+        (cl) =>
+          c.cluster.toLowerCase().trim() === cl.toLowerCase().trim() ||
+          c.cluster.toLowerCase().includes(cl.toLowerCase().replace('bandung ', '').trim())
+      );
+      if (match) {
+        map[match] = (map[match] || 0) + 1;
+      }
+    });
+    return map;
+  }, [customers, availableClusters]);
+
+  // Distinct Options for Wilayah Filters
+  const availableKecamatans = useMemo(() => {
+    const set = new Set<string>();
+    customers.forEach((c) => {
+      if (c.kecamatan) set.add(c.kecamatan);
+    });
+    return Array.from(set).sort();
+  }, [customers]);
+
+  const availableKelurahans = useMemo(() => {
+    const set = new Set<string>();
+    customers.forEach((c) => {
+      if (c.kelurahan) {
+        if (kecamatan === 'Semua kecamatan' || c.kecamatan?.toLowerCase() === kecamatan.toLowerCase()) {
+          set.add(c.kelurahan);
+        }
+      }
+    });
+    return Array.from(set).sort();
+  }, [customers, kecamatan]);
+
+  const availableJalans = useMemo(() => {
+    const set = new Set<string>();
+    customers.forEach((c) => {
+      if (c.street) {
+        const matchKec = kecamatan === 'Semua kecamatan' || c.kecamatan?.toLowerCase() === kecamatan.toLowerCase();
+        const matchKel = kelurahan === 'Semua kelurahan' || c.kelurahan?.toLowerCase() === kelurahan.toLowerCase();
+        if (matchKec && matchKel) {
+          set.add(c.street);
+        }
+      }
+    });
+    return Array.from(set).sort();
+  }, [customers, kecamatan, kelurahan]);
+
+  const activeWilayahCount = useMemo(() => {
+    return (
+      (kecamatan !== 'Semua kecamatan' ? 1 : 0) +
+      (kelurahan !== 'Semua kelurahan' ? 1 : 0) +
+      (jalan !== 'Semua jalan' ? 1 : 0)
+    );
+  }, [kecamatan, kelurahan, jalan]);
+
+  const resetWilayahFilters = () => {
+    setKecamatan('Semua kecamatan');
+    setKelurahan('Semua kelurahan');
+    setJalan('Semua jalan');
+  };
+
+  // Filtered by Cluster, Wilayah (Kecamatan, Kelurahan, Jalan), and Search
   const clusterScoped = useMemo(() => {
     return customers.filter((c) => {
       const matchesCluster =
         cluster === 'Semua cluster' ||
-        c.cluster.toLowerCase().includes(cluster.toLowerCase().replace('bandung ', ''));
+        c.cluster.toLowerCase().trim() === cluster.toLowerCase().trim() ||
+        c.cluster.toLowerCase().includes(cluster.toLowerCase().replace('bandung ', '').trim());
+
       const matchesSearch =
         search === '' ||
         c.fullName.toLowerCase().includes(search.toLowerCase()) ||
         c.siaNumber.toLowerCase().includes(search.toLowerCase()) ||
         c.address.toLowerCase().includes(search.toLowerCase()) ||
         c.splitterCode.toLowerCase().includes(search.toLowerCase()) ||
-        c.cluster.toLowerCase().includes(search.toLowerCase());
-      return matchesCluster && matchesSearch;
+        c.cluster.toLowerCase().includes(search.toLowerCase()) ||
+        Boolean(c.kecamatan && c.kecamatan.toLowerCase().includes(search.toLowerCase())) ||
+        Boolean(c.kelurahan && c.kelurahan.toLowerCase().includes(search.toLowerCase())) ||
+        Boolean(c.street && c.street.toLowerCase().includes(search.toLowerCase()));
+
+      const matchesKecamatan =
+        kecamatan === 'Semua kecamatan' ||
+        (c.kecamatan && c.kecamatan.toLowerCase() === kecamatan.toLowerCase()) ||
+        c.address.toLowerCase().includes(kecamatan.toLowerCase());
+
+      const matchesKelurahan =
+        kelurahan === 'Semua kelurahan' ||
+        (c.kelurahan && c.kelurahan.toLowerCase() === kelurahan.toLowerCase()) ||
+        c.address.toLowerCase().includes(kelurahan.toLowerCase());
+
+      const matchesJalan =
+        jalan === 'Semua jalan' ||
+        (c.street && c.street.toLowerCase() === jalan.toLowerCase()) ||
+        c.address.toLowerCase().includes(jalan.toLowerCase());
+
+      return matchesCluster && matchesSearch && matchesKecamatan && matchesKelurahan && matchesJalan;
     });
-  }, [customers, cluster, search]);
+  }, [customers, cluster, search, kecamatan, kelurahan, jalan]);
 
   // Telemetry Counts
   const activeCount = useMemo(
@@ -241,197 +364,406 @@ export default function CustomersPage() {
 
       {/* Main Panel */}
       <section className="panel" style={{ padding: '16px 20px 24px' }}>
-        {/* Toolbar: Search on Left, Cluster + Filter Tabs on Right */}
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            marginBottom: '16px',
-            paddingBottom: '14px',
-            borderBottom: '1px solid #f1f5f9',
-          }}
-        >
-          {/* Left: Clean Inline Search Box */}
+        {/* Cluster Tabs Navigation Bar */}
+        <div className="customer-cluster-tab-bar" role="tablist" aria-label="Filter Wilayah Cluster">
+          <button
+            type="button"
+            className={`customer-cluster-tab-btn ${cluster === 'Semua cluster' ? 'is-active' : ''}`}
+            onClick={() => setCluster('Semua cluster')}
+          >
+            <span>Semua Wilayah</span>
+            <span className="customer-tab-count-badge">{customers.length}</span>
+          </button>
+          {availableClusters.map((cName) => {
+            const count = clusterCounts[cName] || 0;
+            const isAct =
+              cluster === cName ||
+              (cluster !== 'Semua cluster' &&
+                cluster.toLowerCase().replace('bandung ', '').trim() ===
+                  cName.toLowerCase().replace('bandung ', '').trim());
+            return (
+              <button
+                key={cName}
+                type="button"
+                className={`customer-cluster-tab-btn ${isAct ? 'is-active' : ''}`}
+                onClick={() => setCluster(cName)}
+              >
+                <span>{cName}</span>
+                <span className="customer-tab-count-badge">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Secondary Toolbar: Search + Filter Wilayah on Left, Segmented Status Filter Tabs on Right */}
+        <div className="customer-sub-toolbar">
+          {/* Left: Search Box + Integrated Filter Wilayah */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="customer-search-box">
+              <span style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <Icon name="search" size={14} />
+              </span>
+              <input
+                aria-label="Cari pelanggan"
+                placeholder="Cari nama, nomor SIA, ODP, atau alamat..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="customer-search-input"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  aria-label="Hapus pencarian"
+                  className="customer-search-clear"
+                >
+                  <Icon name="x" size={13} />
+                </button>
+              )}
+            </div>
+
+            {/* Tombol Filter Wilayah (Kecamatan, Kelurahan, Jalan) */}
+            <button
+              type="button"
+              onClick={() => setIsWilayahFilterOpen(!isWilayahFilterOpen)}
+              title="Buka filter spesifikasi wilayah (Kecamatan, Kelurahan, Jalan)"
+              className={`btn-wilayah-toggle ${isWilayahFilterOpen || activeWilayahCount > 0 ? 'is-active' : ''}`}
+            >
+              <Icon name="filter" size={13} />
+              <span>Filter Wilayah</span>
+              {activeWilayahCount > 0 && (
+                <span className="wilayah-badge-count">
+                  {activeWilayahCount}
+                </span>
+              )}
+              <Icon
+                name="chevron"
+                size={12}
+                style={{
+                  transform: isWilayahFilterOpen ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.15s ease',
+                }}
+              />
+            </button>
+          </div>
+
+          {/* Right: Segmented Status Filter Tabs (Clean, NO cluster dropdown beside "Semua") */}
+          <div className="customer-status-segmented-tabs" role="tablist" aria-label="Filter Status Layanan">
+            <button
+              type="button"
+              onClick={() => setStatusTab('all')}
+              className={`customer-status-tab-btn ${statusTab === 'all' ? 'is-active' : ''}`}
+            >
+              <span>Semua</span>
+              <span className="customer-status-tab-count">({clusterScoped.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusTab('ACTIVE')}
+              className={`customer-status-tab-btn ${statusTab === 'ACTIVE' ? 'is-active' : ''}`}
+            >
+              <span className="status-dot-mini active" />
+              <span>Aktif</span>
+              <span className="customer-status-tab-count">({activeCount})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusTab('PENDING_INSTALL')}
+              className={`customer-status-tab-btn ${statusTab === 'PENDING_INSTALL' ? 'is-active' : ''}`}
+            >
+              <span className="status-dot-mini pending" />
+              <span>Pending PSB</span>
+              <span className="customer-status-tab-count">({pendingCount})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusTab('critical')}
+              className={`customer-status-tab-btn ${statusTab === 'critical' ? 'is-active' : ''}`}
+            >
+              <span className="status-dot-mini critical" />
+              <span>Kritis</span>
+              <span className="customer-status-tab-count">({criticalCount})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusTab('ISOLATED')}
+              className={`customer-status-tab-btn ${statusTab === 'ISOLATED' ? 'is-active' : ''}`}
+            >
+              <span className="status-dot-mini isolated" />
+              <span>Terisolir</span>
+              <span className="customer-status-tab-count">({isolatedCount})</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Panel Filter Spesifikasi Wilayah (Kecamatan, Kelurahan, Jalan) */}
+        {isWilayahFilterOpen && (
+          <div
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '14px 16px',
+              marginBottom: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: '#1e3a5f' }}>
+                <Icon name="pin" size={14} />
+                <span>Filter Spesifikasi Wilayah Pelanggan</span>
+              </div>
+              {activeWilayahCount > 0 && (
+                <button
+                  type="button"
+                  onClick={resetWilayahFilters}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#dc2626',
+                    fontSize: '11.5px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '2px 6px',
+                  }}
+                >
+                  <Icon name="x" size={11} />
+                  Reset Filter Wilayah
+                </button>
+              )}
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '12px',
+                alignItems: 'flex-end',
+              }}
+            >
+              {/* Filter Kecamatan */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                  Kecamatan
+                </label>
+                <select
+                  value={kecamatan}
+                  onChange={(e) => {
+                    setKecamatan(e.target.value);
+                    setKelurahan('Semua kelurahan');
+                    setJalan('Semua jalan');
+                  }}
+                  aria-label="Filter Kecamatan"
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    padding: '6px 10px',
+                    fontSize: '12px',
+                    color: '#0f172a',
+                    outline: 'none',
+                    height: '32px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option>Semua kecamatan</option>
+                  {availableKecamatans.map((k) => (
+                    <option key={k} value={k}>
+                      Kec. {k}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filter Kelurahan */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                  Kelurahan
+                </label>
+                <select
+                  value={kelurahan}
+                  onChange={(e) => {
+                    setKelurahan(e.target.value);
+                    setJalan('Semua jalan');
+                  }}
+                  aria-label="Filter Kelurahan"
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    padding: '6px 10px',
+                    fontSize: '12px',
+                    color: '#0f172a',
+                    outline: 'none',
+                    height: '32px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option>Semua kelurahan</option>
+                  {availableKelurahans.map((kl) => (
+                    <option key={kl} value={kl}>
+                      Kel. {kl}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filter Jalan */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                  Jalan / Alamat Spesifik
+                </label>
+                <select
+                  value={jalan}
+                  onChange={(e) => setJalan(e.target.value)}
+                  aria-label="Filter Jalan"
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    padding: '6px 10px',
+                    fontSize: '12px',
+                    color: '#0f172a',
+                    outline: 'none',
+                    height: '32px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option>Semua jalan</option>
+                  {availableJalans.map((j) => (
+                    <option key={j} value={j}>
+                      {j}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Active Wilayah Filter Badges */}
+        {activeWilayahCount > 0 && (
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              background: '#ffffff',
-              border: '1px solid #dce7f0',
+              gap: '6px',
+              flexWrap: 'wrap',
+              marginBottom: '14px',
+              padding: '6px 10px',
+              background: '#f0f9ff',
+              border: '1px solid #bae6fd',
               borderRadius: '6px',
-              padding: '6px 12px',
-              width: '320px',
-              color: '#64748b',
-              transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+              fontSize: '11.5px',
             }}
           >
-            <span style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-              <Icon name="search" size={14} />
+            <span style={{ color: '#0369a1', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <Icon name="filter" size={12} />
+              Filter Wilayah:
             </span>
-            <input
-              aria-label="Cari pelanggan"
-              placeholder="Cari nama, nomor SIA, ODP, atau alamat..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                outline: 'none',
-                width: '100%',
-                fontSize: '12.5px',
-                color: '#0f172a',
-                padding: 0,
-              }}
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                aria-label="Hapus pencarian"
+
+            {kecamatan !== 'Semua kecamatan' && (
+              <span
                 style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
-                  color: '#94a3b8',
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
+                  gap: '4px',
+                  background: '#ffffff',
+                  border: '1px solid #7dd3fc',
+                  color: '#0369a1',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  fontWeight: 500,
                 }}
               >
-                <Icon name="x" size={13} />
-              </button>
+                Kecamatan: <b>{kecamatan}</b>
+                <button
+                  type="button"
+                  onClick={() => setKecamatan('Semua kecamatan')}
+                  aria-label="Hapus filter kecamatan"
+                  style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: '#0369a1', display: 'flex' }}
+                >
+                  <Icon name="x" size={11} />
+                </button>
+              </span>
             )}
-          </div>
 
-          {/* Right: Cluster Dropdown + Segmented Filter Tabs */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <select
-              value={cluster}
-              onChange={(e) => setCluster(e.target.value)}
-              aria-label="Filter Cluster"
+            {kelurahan !== 'Semua kelurahan' && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: '#ffffff',
+                  border: '1px solid #7dd3fc',
+                  color: '#0369a1',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  fontWeight: 500,
+                }}
+              >
+                Kelurahan: <b>{kelurahan}</b>
+                <button
+                  type="button"
+                  onClick={() => setKelurahan('Semua kelurahan')}
+                  aria-label="Hapus filter kelurahan"
+                  style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: '#0369a1', display: 'flex' }}
+                >
+                  <Icon name="x" size={11} />
+                </button>
+              </span>
+            )}
+
+            {jalan !== 'Semua jalan' && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: '#ffffff',
+                  border: '1px solid #7dd3fc',
+                  color: '#0369a1',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  fontWeight: 500,
+                }}
+              >
+                Jalan: <b>{jalan}</b>
+                <button
+                  type="button"
+                  onClick={() => setJalan('Semua jalan')}
+                  aria-label="Hapus filter jalan"
+                  style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: '#0369a1', display: 'flex' }}
+                >
+                  <Icon name="x" size={11} />
+                </button>
+              </span>
+            )}
+
+            <button
+              type="button"
+              onClick={resetWilayahFilters}
               style={{
-                background: '#ffffff',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                padding: '5px 10px',
-                fontSize: '12px',
-                color: '#334155',
-                height: '31px',
+                background: 'none',
+                border: 'none',
+                color: '#dc2626',
                 cursor: 'pointer',
-                outline: 'none',
+                fontSize: '11px',
+                fontWeight: 500,
+                marginLeft: 'auto',
+                textDecoration: 'underline',
               }}
             >
-              <option>Semua cluster</option>
-              <option>Bandung Utara</option>
-              <option>Bandung Timur</option>
-              <option>Bandung Barat</option>
-              <option>Bandung Selatan</option>
-              <option>Cimahi</option>
-              <option>Rancaekek</option>
-            </select>
-
-            {/* Segmented Filter Tabs */}
-            <div
-              style={{
-                display: 'inline-flex',
-                background: '#f1f5f9',
-                padding: '3px',
-                borderRadius: '6px',
-                gap: '2px',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setStatusTab('all')}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  fontSize: '11.5px',
-                  fontWeight: statusTab === 'all' ? 600 : 500,
-                  background: statusTab === 'all' ? '#ffffff' : 'transparent',
-                  color: statusTab === 'all' ? '#0f172a' : '#64748b',
-                  boxShadow: statusTab === 'all' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                Semua ({clusterScoped.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusTab('ACTIVE')}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  fontSize: '11.5px',
-                  fontWeight: statusTab === 'ACTIVE' ? 600 : 500,
-                  background: statusTab === 'ACTIVE' ? '#ffffff' : 'transparent',
-                  color: statusTab === 'ACTIVE' ? '#0f172a' : '#64748b',
-                  boxShadow: statusTab === 'ACTIVE' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                Aktif ({activeCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusTab('PENDING_INSTALL')}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  fontSize: '11.5px',
-                  fontWeight: statusTab === 'PENDING_INSTALL' ? 600 : 500,
-                  background: statusTab === 'PENDING_INSTALL' ? '#ffffff' : 'transparent',
-                  color: statusTab === 'PENDING_INSTALL' ? '#0f172a' : '#64748b',
-                  boxShadow: statusTab === 'PENDING_INSTALL' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                Pending PSB ({pendingCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusTab('critical')}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  fontSize: '11.5px',
-                  fontWeight: statusTab === 'critical' ? 600 : 500,
-                  background: statusTab === 'critical' ? '#ffffff' : 'transparent',
-                  color: statusTab === 'critical' ? '#0f172a' : '#64748b',
-                  boxShadow: statusTab === 'critical' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                Kritis ({criticalCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusTab('ISOLATED')}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  fontSize: '11.5px',
-                  fontWeight: statusTab === 'ISOLATED' ? 600 : 500,
-                  background: statusTab === 'ISOLATED' ? '#ffffff' : 'transparent',
-                  color: statusTab === 'ISOLATED' ? '#0f172a' : '#64748b',
-                  boxShadow: statusTab === 'ISOLATED' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                Terisolir ({isolatedCount})
-              </button>
-            </div>
+              Hapus semua filter wilayah
+            </button>
           </div>
-        </div>
+        )}
 
         {/* High-Agency Enterprise Data Table */}
         <div className="table-scroll">
@@ -484,9 +816,17 @@ export default function CustomersPage() {
                       </div>
                     </td>
 
-                    <td style={{ padding: '12px 14px', color: '#475569', maxWidth: '280px' }}>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.address}>
-                        {c.address}
+                    <td style={{ padding: '12px 14px', color: '#475569', maxWidth: '300px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }} title={c.address}>
+                        <span style={{ fontWeight: 500, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {c.street || c.address.split(',')[0]}
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <Icon name="pin" size={11} />
+                          {c.kelurahan && c.kecamatan
+                            ? `Kel. ${c.kelurahan}, Kec. ${c.kecamatan}`
+                            : c.address}
+                        </span>
                       </div>
                     </td>
 
@@ -503,60 +843,49 @@ export default function CustomersPage() {
                     </td>
 
                     <td style={{ padding: '12px 14px' }}>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 500,
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          background:
+                      <span className="customer-status-badge">
+                        <span
+                          className={`customer-status-dot ${
                             c.status === 'ACTIVE'
-                              ? '#f0fdf4'
+                              ? 'active'
                               : c.status === 'PENDING_INSTALL'
-                              ? '#fffbeb'
-                              : '#fef2f2',
-                          border: `1px solid ${
-                            c.status === 'ACTIVE'
-                              ? '#bbf7d0'
-                              : c.status === 'PENDING_INSTALL'
-                              ? '#fde68a'
-                              : '#fecaca'
-                          }`,
-                          color:
-                            c.status === 'ACTIVE'
-                              ? '#166534'
-                              : c.status === 'PENDING_INSTALL'
-                              ? '#92400e'
-                              : '#991b1b',
-                        }}
-                      >
-                        {c.status === 'ACTIVE' && (
-                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#16a34a' }} />
-                        )}
-                        {c.status}
+                              ? 'pending'
+                              : c.status === 'ISOLATED'
+                              ? 'isolated'
+                              : 'inactive'
+                          }`}
+                        />
+                        <span>
+                          {c.status === 'ACTIVE'
+                            ? 'Aktif'
+                            : c.status === 'PENDING_INSTALL'
+                            ? 'Menunggu PSB'
+                            : c.status === 'ISOLATED'
+                            ? 'Terisolir'
+                            : 'Nonaktif'}
+                        </span>
                       </span>
                     </td>
 
                     <td style={{ padding: '12px 14px' }}>
-                      <div
-                        style={{
-                          fontWeight: 700,
-                          fontSize: '12.5px',
-                          color:
-                            tone === 'green'
-                              ? '#166534'
-                              : tone === 'orange'
-                              ? '#b45309'
-                              : '#be123c',
-                        }}
-                      >
-                        {c.currentAttenuation.toFixed(1)} dBm
+                      <div style={{ display: 'flex', alignItems: 'center', fontWeight: 600, fontSize: '12.5px', color: '#0f172a' }}>
+                        <span>{c.currentAttenuation.toFixed(1)} dBm</span>
+                        <SignalStrengthBars
+                          status={
+                            c.currentAttenuation >= -22.0 && c.currentAttenuation <= -15.0
+                              ? 'normal'
+                              : c.currentAttenuation < -22.0 && c.currentAttenuation >= -25.0
+                              ? 'warning'
+                              : 'critical'
+                          }
+                        />
                       </div>
                       <span style={{ fontSize: '10.5px', color: '#64748b' }}>
-                        {classifyDbm(c.currentAttenuation)}
+                        {c.currentAttenuation >= -22.0 && c.currentAttenuation <= -15.0
+                          ? 'Normal'
+                          : c.currentAttenuation < -22.0 && c.currentAttenuation >= -25.0
+                          ? 'Waspada'
+                          : 'Kritis'}
                       </span>
                     </td>
 

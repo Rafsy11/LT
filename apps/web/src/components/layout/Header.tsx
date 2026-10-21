@@ -1,7 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
+import { useAuth } from '@/lib/auth-context';
+import { PERMISSIONS } from '@repo/shared';
 
 interface HeaderProps {
   pageTitle: string;
@@ -10,10 +14,15 @@ interface HeaderProps {
 export function Header({ pageTitle }: HeaderProps) {
   const [notice, setNotice] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const pathname = usePathname();
+  const { hasPermission } = useAuth();
+
+  const canEditRole = hasPermission(PERMISSIONS.ROLE_EDIT);
+  const canUseAi = hasPermission(PERMISSIONS.AI_USE);
 
   return (
     <header className="app-global-header">
-      <div className="header-left-spacer" aria-hidden="true" />
+      {/* Search Bar - Shifted slightly towards the left */}
       <div className="header-search-wrap">
         <Icon name="search" size={16} className="header-search-icon" />
         <input
@@ -28,6 +37,52 @@ export function Header({ pageTitle }: HeaderProps) {
       </div>
 
       <div className="header-right">
+        {/* Management Quick Actions: AI Assistant, Role & Akses, Pengaturan */}
+        <div className="header-nav-actions" role="toolbar" aria-label="Menu Pengelolaan">
+          {canUseAi && (
+            <Link
+              href="/ai"
+              className={`icon-button header-action-btn ${pathname.startsWith('/ai') ? 'active' : ''}`}
+              title="AI Assistant Operasional"
+              aria-label="AI Assistant"
+            >
+              <Icon name="bot" size={19} />
+            </Link>
+          )}
+
+          {canEditRole ? (
+            <Link
+              href="/roles"
+              className={`icon-button header-action-btn ${pathname.startsWith('/roles') ? 'active' : ''}`}
+              title="Role & Akses (RBAC)"
+              aria-label="Role & Akses"
+            >
+              <Icon name="userCheck" size={19} />
+            </Link>
+          ) : (
+            <div
+              className="icon-button header-action-btn disabled"
+              title="Izin role:edit diperlukan untuk membuka menu ini"
+              aria-label="Role & Akses (Terkunci)"
+              style={{ opacity: 0.4, cursor: 'not-allowed' }}
+            >
+              <Icon name="userCheck" size={19} />
+            </div>
+          )}
+
+          <Link
+            href="/settings"
+            className={`icon-button header-action-btn ${pathname.startsWith('/settings') ? 'active' : ''}`}
+            title="Pengaturan Sistem"
+            aria-label="Pengaturan"
+          >
+            <Icon name="sliders" size={19} />
+          </Link>
+        </div>
+
+        <div className="header-divider" aria-hidden="true" />
+
+        {/* Notifikasi Lonceng */}
         <button
           className="icon-button notification"
           onClick={() => setNotice(!notice)}
@@ -38,6 +93,7 @@ export function Header({ pageTitle }: HeaderProps) {
           <i className="notification-dot" />
         </button>
 
+        {/* Profil Akun Tunggal */}
         <div className="header-user-profile" title="Profil Akun Aktif">
           <div className="header-avatar-circle" style={{ overflow: 'hidden', padding: 0 }}>
             <svg width="34" height="34" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">

@@ -6,6 +6,9 @@ export interface CustomerListItem {
   siaNumber: string;
   fullName: string;
   address: string;
+  kecamatan?: string;
+  kelurahan?: string;
+  street?: string;
   cluster: string;
   clusterCode: string;
   splitterCode: string;
@@ -15,13 +18,59 @@ export interface CustomerListItem {
   updatedAt: string;
 }
 
+export function parseCustomerAddress(address: string): { street: string; kelurahan: string; kecamatan: string } {
+  const lower = address.toLowerCase();
+  const street = address.split(',')[0]?.trim() || address;
+
+  let kecamatan = 'Bandung Wetan';
+  if (lower.includes('coblong') || lower.includes('dago') || lower.includes('cikutra')) {
+    kecamatan = 'Coblong';
+  } else if (lower.includes('sukajadi') || lower.includes('pasteur')) {
+    kecamatan = 'Sukajadi';
+  } else if (lower.includes('lengkong') || lower.includes('buah batu')) {
+    kecamatan = 'Lengkong';
+  } else if (lower.includes('arcamanik') || lower.includes('soekarno hatta') || lower.includes('sukamiskin')) {
+    kecamatan = 'Arcamanik';
+  } else if (lower.includes('cimahi') || lower.includes('baros')) {
+    kecamatan = 'Cimahi Tengah';
+  } else if (lower.includes('rancaekek')) {
+    kecamatan = 'Rancaekek';
+  } else if (lower.includes('riau') || lower.includes('bandung wetan') || lower.includes('citarum')) {
+    kecamatan = 'Bandung Wetan';
+  }
+
+  let kelurahan = 'Citarum';
+  if (lower.includes('dago')) {
+    kelurahan = 'Dago';
+  } else if (lower.includes('citarum') || lower.includes('riau')) {
+    kelurahan = 'Citarum';
+  } else if (lower.includes('sadangserang') || lower.includes('cikutra')) {
+    kelurahan = 'Sadangserang';
+  } else if (lower.includes('malabar') || lower.includes('buah batu')) {
+    kelurahan = 'Malabar';
+  } else if (lower.includes('sukamiskin') || lower.includes('soekarno hatta')) {
+    kelurahan = 'Sukamiskin';
+  } else if (lower.includes('pasteur')) {
+    kelurahan = 'Pasteur';
+  } else if (lower.includes('baros')) {
+    kelurahan = 'Baros';
+  } else if (lower.includes('rancaekek')) {
+    kelurahan = 'Rancaekek Kencana';
+  }
+
+  return { street, kelurahan, kecamatan };
+}
+
 // Fallback seed data if DB is temporarily empty during build/initialization
 const FALLBACK_CUSTOMERS: CustomerListItem[] = [
   {
     id: 'cust-1',
     siaNumber: 'SIA-2024-001',
     fullName: 'Budi Santoso',
-    address: 'Jl. Riau No. 45, Bandung',
+    address: 'Jl. Riau No. 45, Citarum, Kec. Bandung Wetan, Bandung',
+    kecamatan: 'Bandung Wetan',
+    kelurahan: 'Citarum',
+    street: 'Jl. Riau No. 45',
     cluster: 'Bandung Utara',
     clusterCode: 'BDG-01',
     splitterCode: 'ODP-BDG-01',
@@ -34,7 +83,10 @@ const FALLBACK_CUSTOMERS: CustomerListItem[] = [
     id: 'cust-2',
     siaNumber: 'SIA-2024-002',
     fullName: 'Siti Aminah',
-    address: 'Jl. Dago No. 112, Bandung',
+    address: 'Jl. Dago No. 112, Dago, Kec. Coblong, Bandung',
+    kecamatan: 'Coblong',
+    kelurahan: 'Dago',
+    street: 'Jl. Dago No. 112',
     cluster: 'Bandung Utara',
     clusterCode: 'BDG-01',
     splitterCode: 'ODP-BDG-01',
@@ -47,13 +99,96 @@ const FALLBACK_CUSTOMERS: CustomerListItem[] = [
     id: 'cust-3',
     siaNumber: 'SIA-2024-003',
     fullName: 'Ahmad Dahlan',
-    address: 'Jl. Buah Batu No. 78, Bandung',
+    address: 'Jl. Buah Batu No. 78, Malabar, Kec. Lengkong, Bandung',
+    kecamatan: 'Lengkong',
+    kelurahan: 'Malabar',
+    street: 'Jl. Buah Batu No. 78',
     cluster: 'Bandung Selatan',
     clusterCode: 'BDG-02',
     splitterCode: 'ODP-BDG-03',
     portNumber: 2,
     currentAttenuation: -27.3,
     status: 'ACTIVE',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'cust-4',
+    siaNumber: 'SIA-2024-004',
+    fullName: 'PT. Maju Jaya (Kantor Cabang)',
+    address: 'Jl. Soekarno Hatta No. 210, Sukamiskin, Kec. Arcamanik, Bandung',
+    kecamatan: 'Arcamanik',
+    kelurahan: 'Sukamiskin',
+    street: 'Jl. Soekarno Hatta No. 210',
+    cluster: 'Bandung Timur',
+    clusterCode: 'BDG-03',
+    splitterCode: 'ODP-BDG-04',
+    portNumber: 1,
+    currentAttenuation: -19.2,
+    status: 'ACTIVE',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'cust-5',
+    siaNumber: 'SIA-2024-005',
+    fullName: 'IndoTech Solusi',
+    address: 'Jl. Pasteur No. 34, Pasteur, Kec. Sukajadi, Bandung',
+    kecamatan: 'Sukajadi',
+    kelurahan: 'Pasteur',
+    street: 'Jl. Pasteur No. 34',
+    cluster: 'Bandung Barat',
+    clusterCode: 'BDG-04',
+    splitterCode: 'ODP-BDG-05',
+    portNumber: 4,
+    currentAttenuation: -21.4,
+    status: 'ACTIVE',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'cust-6',
+    siaNumber: 'SIA-2024-006',
+    fullName: 'Hotel Grand Prima',
+    address: 'Jl. Baros No. 12, Baros, Kec. Cimahi Tengah, Cimahi',
+    kecamatan: 'Cimahi Tengah',
+    kelurahan: 'Baros',
+    street: 'Jl. Baros No. 12',
+    cluster: 'Cimahi',
+    clusterCode: 'CMH-01',
+    splitterCode: 'ODP-CMH-01',
+    portNumber: 2,
+    currentAttenuation: -26.1,
+    status: 'ACTIVE',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'cust-7',
+    siaNumber: 'SIA-2024-007',
+    fullName: 'Toko Sejahtera',
+    address: 'Jl. Raya Rancaekek No. 89, Rancaekek Kencana, Kec. Rancaekek, Bandung',
+    kecamatan: 'Rancaekek',
+    kelurahan: 'Rancaekek Kencana',
+    street: 'Jl. Raya Rancaekek No. 89',
+    cluster: 'Rancaekek',
+    clusterCode: 'RCK-01',
+    splitterCode: 'ODP-RCK-01',
+    portNumber: 1,
+    currentAttenuation: -19.8,
+    status: 'ACTIVE',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'cust-8',
+    siaNumber: 'SIA-2024-008',
+    fullName: 'Agus Setiawan',
+    address: 'Jl. Cikutra Barat No. 15, Sadangserang, Kec. Coblong, Bandung',
+    kecamatan: 'Coblong',
+    kelurahan: 'Sadangserang',
+    street: 'Jl. Cikutra Barat No. 15',
+    cluster: 'Bandung Utara',
+    clusterCode: 'BDG-01',
+    splitterCode: 'ODP-BDG-02',
+    portNumber: 1,
+    currentAttenuation: -20.0,
+    status: 'PENDING_INSTALL',
     updatedAt: new Date().toISOString(),
   },
 ];
@@ -98,19 +233,25 @@ export class CustomerService {
       });
 
       if (customers.length > 0) {
-        return customers.map((c) => ({
-          id: c.id,
-          siaNumber: c.siaNumber,
-          fullName: c.fullName,
-          address: c.address,
-          cluster: c.cluster?.name || 'Bandung Utara',
-          clusterCode: c.cluster?.clusterCode || 'BDG-01',
-          splitterCode: c.splitter?.splitterCode || 'ODP-BDG-01',
-          portNumber: c.portNumber || 1,
-          currentAttenuation: c.currentAttenuation ? Number(c.currentAttenuation) : -18.5,
-          status: c.status,
-          updatedAt: c.updatedAt.toISOString(),
-        }));
+        return customers.map((c) => {
+          const parsed = parseCustomerAddress(c.address);
+          return {
+            id: c.id,
+            siaNumber: c.siaNumber,
+            fullName: c.fullName,
+            address: c.address,
+            kecamatan: parsed.kecamatan,
+            kelurahan: parsed.kelurahan,
+            street: parsed.street,
+            cluster: c.cluster?.name || 'Bandung Utara',
+            clusterCode: c.cluster?.clusterCode || 'BDG-01',
+            splitterCode: c.splitter?.splitterCode || 'ODP-BDG-01',
+            portNumber: c.portNumber || 1,
+            currentAttenuation: c.currentAttenuation ? Number(c.currentAttenuation) : -18.5,
+            status: c.status,
+            updatedAt: c.updatedAt.toISOString(),
+          };
+        });
       }
     } catch (err) {
       console.warn('[CustomerService] DB query failed, using fallback:', (err as Error).message);
@@ -311,6 +452,28 @@ export class CustomerService {
       }
       console.warn('[CustomerService] DB mutate failed:', (err as Error).message);
       throw err;
+    }
+  }
+
+  /**
+   * Updates customer master data in fallback store upon Super Admin approval (Law 1 & 2).
+   */
+  public static updateCustomerFromApproval(
+    siaNumber: string,
+    update: {
+      status?: string;
+      splitterCode?: string;
+      portNumber?: number;
+      currentAttenuation?: number;
+    }
+  ): void {
+    const customer = FALLBACK_CUSTOMERS.find((c) => c.siaNumber === siaNumber);
+    if (customer) {
+      if (update.status) customer.status = update.status;
+      if (update.splitterCode) customer.splitterCode = update.splitterCode;
+      if (update.portNumber !== undefined) customer.portNumber = update.portNumber;
+      if (update.currentAttenuation !== undefined) customer.currentAttenuation = update.currentAttenuation;
+      customer.updatedAt = new Date().toISOString();
     }
   }
 }

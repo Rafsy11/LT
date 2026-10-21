@@ -51,11 +51,13 @@ export const ticketQuerySchema = z.object({
     .enum([
       'OPEN',
       'IN_PROGRESS',
+      'PENDING_APPROVAL',
       'COMPLETED',
       'CANCELLED',
       'Semua',
       'Menunggu',
       'Dalam proses',
+      'Menunggu verifikasi',
       'Selesai',
     ])
     .optional(),

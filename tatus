@@ -1,0 +1,21 @@
+ Lintasarta FTTH Network Dashboard.png              |  Bin [31m0[m -> [32m1420563[m bytes
+ Network & ODP Infrastructure Dashboard.png         |  Bin [31m0[m -> [32m1391296[m bytes
+ apps/web/src/app/(dashboard)/customers/page.tsx    |  769 [32m++[m[31m--[m
+ apps/web/src/app/(dashboard)/layout.tsx            |    5 [32m+[m[31m-[m
+ apps/web/src/app/(dashboard)/network/page.tsx      | 1430 [32m+++++[m[31m--[m
+ apps/web/src/app/(dashboard)/technicians/page.tsx  |   98 [32m+[m[31m-[m
+ apps/web/src/app/(dashboard)/tickets/page.tsx      |  215 [32m+[m[31m-[m
+ .../app/api/v1/admin/tickets/[id]/approve/route.ts |   41 [32m+[m
+ .../app/api/v1/admin/tickets/[id]/reject/route.ts  |   48 [32m+[m
+ .../v1/admin/tickets/simulate-submission/route.ts  |   38 [32m+[m
+ apps/web/src/app/globals.css                       | 4058 [32m++++++++++++++[m[31m------[m
+ apps/web/src/components/layout/Header.tsx          |   58 [32m+[m[31m-[m
+ apps/web/src/components/layout/Sidebar.tsx         |   46 [32m+[m[31m-[m
+ .../src/components/modals/CustomerDetailModal.tsx  |   74 [32m+[m[31m-[m
+ .../src/components/modals/TicketDetailModal.tsx    |  671 [32m+++[m[31m-[m
+ apps/web/src/components/ui/Icon.tsx                |   15 [32m+[m[31m-[m
+ apps/web/src/services/customer.service.ts          |  195 [32m+[m[31m-[m
+ apps/web/src/services/network.service.ts           |  362 [32m+[m[31m-[m
+ apps/web/src/services/ticket.service.ts            |  456 [32m++[m[31m-[m
+ packages/shared/src/schemas/ticket.schema.ts       |    2 [32m+[m
+ 20 files changed, 6565 insertions(+), 2016 deletions(-)
