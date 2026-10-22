@@ -4,7 +4,6 @@ import React, { createContext, useContext, useState, useMemo } from 'react';
 import {
   PERMISSIONS,
   ROLE_PRESETS,
-  RolePreset,
   UserTypeEnum,
 } from '@repo/shared';
 
@@ -30,17 +29,6 @@ interface AuthContextType {
   canUseAi: boolean;
   availablePresets: typeof ROLE_PRESETS;
 }
-
-const defaultUser: AuthUser = {
-  id: 'usr-admin-01',
-  username: 'aditya.saputra',
-  fullName: 'Aditya Saputra',
-  userType: 'SUPER_ADMIN',
-  roleName: 'Super Admin',
-  hierarchyLevel: 100,
-  permissions: [PERMISSIONS.ALL],
-  assignedClusters: ['Bandung Utara', 'Bandung Timur', 'Bandung Barat', 'Bandung Selatan'],
-};
 
 const AuthContext = createContext<AuthContextType | null>(null);
 

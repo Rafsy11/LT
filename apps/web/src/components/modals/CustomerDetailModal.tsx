@@ -45,12 +45,6 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
   if (!customer) return null;
 
   const tone = dbmTone(customer.currentAttenuation);
-  const statusClass =
-    customer.status === 'ACTIVE'
-      ? 'status-active'
-      : customer.status === 'PENDING_INSTALL'
-      ? 'status-pending'
-      : 'status-neutral';
 
   return (
     <div className="overlay" onClick={onClose} role="dialog" aria-modal="true">

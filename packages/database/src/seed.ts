@@ -165,7 +165,7 @@ export async function seedDatabase() {
     },
   });
 
-  const odp4 = await prisma.networkSplitter.upsert({
+  await prisma.networkSplitter.upsert({
     where: { splitterCode: 'ODP-CL02-02' },
     update: {},
     create: {
@@ -213,7 +213,7 @@ export async function seedDatabase() {
     },
   });
 
-  const cust3 = await prisma.customer.upsert({
+  await prisma.customer.upsert({
     where: { siaNumber: '100243' },
     update: {},
     create: {
@@ -230,7 +230,7 @@ export async function seedDatabase() {
     },
   });
 
-  const cust4 = await prisma.customer.upsert({
+  await prisma.customer.upsert({
     where: { siaNumber: '100246' },
     update: {},
     create: {

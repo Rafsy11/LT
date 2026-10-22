@@ -8,10 +8,10 @@ import { useAuth } from '@/lib/auth-context';
 import { PERMISSIONS } from '@repo/shared';
 
 interface HeaderProps {
-  pageTitle: string;
+  pageTitle?: string;
 }
 
-export function Header({ pageTitle }: HeaderProps) {
+export function Header({ pageTitle: _pageTitle }: HeaderProps = {}) {
   const [notice, setNotice] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const pathname = usePathname();

@@ -9,7 +9,6 @@ export async function POST(request: NextRequest) {
     const validated = logoutRequestSchema.parse(body);
 
     const deviceId = validated.deviceId || request.headers.get('x-device-id');
-    const userId = request.headers.get('x-user-id');
 
     // 1. Invalidate device session in Redis & Postgres if mobile
     if (deviceId) {
@@ -37,13 +36,13 @@ export async function POST(request: NextRequest) {
     response.cookies.delete('session');
 
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'LOGOUT_ERROR',
-          message: error.message || 'Gagal melakukan logout',
+          message: (error as Error).message || 'Gagal melakukan logout',
         },
       },
       { status: 500 }

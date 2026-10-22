@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { classifyDbm, dbmTone, ATTENUATION_THRESHOLDS } from '@repo/shared';
+import { classifyDbm, dbmTone } from '@repo/shared';
 import { Icon } from '@/components/ui/Icon';
 import { TicketDetailModal } from '@/components/modals/TicketDetailModal';
 
@@ -184,14 +184,6 @@ export default function MonitoringPage() {
     };
   }, []);
 
-  // Extract unique technician and cluster lists for filter dropdowns
-  const availableClusters = useMemo(() => {
-    const set = new Set<string>();
-    reports.forEach((r) => {
-      if (r.cluster) set.add(r.cluster);
-    });
-    return Array.from(set).sort();
-  }, [reports]);
 
   const availableTechs = useMemo(() => {
     const set = new Set<string>();

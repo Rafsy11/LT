@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ApiClient, UpgradeRequiredDetails } from './src/api/client';
 import { offlineQueue } from './src/sync/offlineQueue';
 import { LoginScreen } from './src/screens/LoginScreen';

@@ -18,11 +18,8 @@ interface ChatMessage {
 export default function AiPage() {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
-  const [executingToken, setExecutingToken] = useState<string | null>(null);
-  const [executedTokens, setExecutedTokens] = useState<string[]>([]);
-  const executingRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { showSuccess, showError } = useToast();
+  const { showError } = useToast();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
@@ -97,41 +94,6 @@ export default function AiPage() {
     }
   };
 
-  /**
-   * State disabled & Debounce pada Tombol Kritis (Requirement 2 & Law 6).
-   * Kunci tombol [Setujui & Eksekusi] tepat pada milidetik klik pertama sebelum request jaringan selesai.
-   */
-  const handleApproveAction = async (draft: DraftActionCardData) => {
-    if (executingRef.current || executedTokens.includes(draft.actionToken)) {
-      return;
-    }
-
-    executingRef.current = true;
-    setExecutingToken(draft.actionToken);
-
-    try {
-      const res = await fetch('/api/v1/admin/ai/confirm-action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          actionToken: draft.actionToken,
-          actionType: draft.actionType,
-          payload: draft.payload,
-        }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setExecutedTokens((prev) => [...prev, draft.actionToken]);
-      } else {
-        showError(json.error);
-      }
-    } catch (e: unknown) {
-      showError(e);
-    } finally {
-      executingRef.current = false;
-      setExecutingToken(null);
-    }
-  };
 
   const handleClearChat = () => {
     setMessages([]);
@@ -351,11 +313,7 @@ export default function AiPage() {
             </button>
           </div>
 
-          {messages.map((m, i) => {
-            const isCardExecuted = m.draft ? executedTokens.includes(m.draft.actionToken) : false;
-            const isCardExecuting = m.draft ? executingToken === m.draft.actionToken : false;
-
-            return (
+          {messages.map((m, i) => (
               <div
                 key={i}
                 className={`message-row ${m.role === 'user' ? 'user' : 'assistant'}`}
@@ -462,8 +420,7 @@ export default function AiPage() {
                   <DefaultAvatar name="Aditya Saputra" size={32} />
                 )}
               </div>
-            );
-          })}
+            ))}
 
           {loading && (
             <div style={{ display: 'flex', gap: '12px', width: '100%', justifyContent: 'flex-start' }}>

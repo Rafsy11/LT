@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
-import { classifyDbm, dbmTone } from '@repo/shared';
+import { classifyDbm } from '@repo/shared';
 import { Icon } from '@/components/ui/Icon';
 import { CustomerDetailModal } from '@/components/modals/CustomerDetailModal';
 import type { CustomerListItem } from '@/services/customer.service';
@@ -780,9 +779,7 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {displayedCustomers.map((c) => {
-                const tone = dbmTone(c.currentAttenuation);
-                return (
+              {displayedCustomers.map((c) => (
                   <tr
                     key={c.siaNumber}
                     style={{
@@ -915,8 +912,7 @@ export default function CustomersPage() {
                       </button>
                     </td>
                   </tr>
-                );
-              })}
+                ))}
             </tbody>
           </table>
 

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 import { CustomerDetailModal } from '@/components/modals/CustomerDetailModal';
 import type { CustomerListItem } from '@/services/customer.service';
@@ -83,9 +82,8 @@ function SignalStrengthBars({ status }: { status: 'normal' | 'warning' | 'critic
 
 export default function NetworkPage() {
   const [search, setSearch] = useState('');
-  const [clusterFilter, setClusterFilter] = useState('Semua cluster');
-  const [portStatusFilter, setPortStatusFilter] = useState('Semua');
-  const [viewMode, setViewMode] = useState<'console' | 'grid'>('console');
+  const [clusterFilter] = useState('Semua cluster');
+  const [portStatusFilter] = useState('Semua');
   const [activeSplitterCode, setActiveSplitterCode] = useState<string>('ODP-BDG-05');
   const [expandedClusters, setExpandedClusters] = useState<Record<string, boolean>>({
     'BDG-01': true,
@@ -94,16 +92,9 @@ export default function NetworkPage() {
     'BDG-04': true,
   });
   const [networkData, setNetworkData] = useState<ClusterListItem[]>(FALLBACK_CLUSTERS);
-  const [stats, setStats] = useState<NetworkStats>({
-    totalClusters: 4,
-    totalSplitters: 8,
-    totalCapacity: 88,
-    usedCapacity: 40,
-    availableCapacity: 48,
-  });
   const [loading, setLoading] = useState(false);
   const [selectedPort, setSelectedPort] = useState<SelectedPortContext | null>(null);
-  const [portFilter, setPortFilter] = useState<'ALL' | 'OCCUPIED' | 'AVAILABLE'>('ALL');
+  const [portFilter] = useState<'ALL' | 'OCCUPIED' | 'AVAILABLE'>('ALL');
   const [activeTab, setActiveTab] = useState<'ports' | 'inspeksi' | 'riwayat' | 'audit'>('ports');
   const [expandedPortNum, setExpandedPortNum] = useState<number | null>(1);
   const [selectedCustomerForModal, setSelectedCustomerForModal] = useState<CustomerListItem | null>(null);
@@ -115,7 +106,7 @@ export default function NetworkPage() {
   const [ticketModalOpen, setTicketModalOpen] = useState(false);
   const [ticketModalInitial, setTicketModalInitial] = useState<Partial<CreateTicketInput>>({});
 
-  const { showSuccess, showError } = useToast();
+  const { showSuccess } = useToast();
   const { canCreateTicket } = useAuth();
 
   const fetchClusters = useCallback(async () => {
@@ -124,9 +115,6 @@ export default function NetworkPage() {
       const json = await res.json();
       if (json.success && json.data && json.data.clusters && json.data.clusters.length > 0) {
         setNetworkData(json.data.clusters);
-        if (json.data.stats) {
-          setStats(json.data.stats);
-        }
       }
     } catch (err) {
       console.warn('[NetworkPage] Gunakan data cluster inventaris lokal:', err);
@@ -175,25 +163,6 @@ export default function NetworkPage() {
     }
   };
 
-  const openTicketModalForPort = (type: 'PSB' | 'MAINTENANCE') => {
-    if (!selectedPort) return;
-    if (type === 'PSB') {
-      setTicketModalInitial({
-        ticketType: 'PSB',
-        clusterCode: selectedPort.clusterName,
-        adminNotes: `Penugasan Pasang Baru pada ${selectedPort.splitterCode} Port ${selectedPort.port.portNumber}`,
-      });
-    } else {
-      setTicketModalInitial({
-        ticketType: 'MAINTENANCE',
-        clusterCode: selectedPort.clusterName,
-        customerName: selectedPort.port.customerName || '',
-        siaNumber: selectedPort.port.siaNumber || '',
-        adminNotes: `Maintenance redaman pada ${selectedPort.splitterCode} Port ${selectedPort.port.portNumber} (${selectedPort.port.attenuation || 'N/A'} dBm)`,
-      });
-    }
-    setTicketModalOpen(true);
-  };
 
   const toggleClusterExpand = (clusterCode: string) => {
     setExpandedClusters((prev) => ({
@@ -274,45 +243,6 @@ export default function NetworkPage() {
     return activeSplitter.ports;
   }, [activeSplitter, portFilter]);
 
-  // Executive Telemetry Bento Summary
-  const fleetSummary = useMemo(() => {
-    let totalNormal = 0;
-    let totalWarning = 0;
-    let totalCritical = 0;
-    let totalOccupied = 0;
-    let totalCapacity = 0;
-
-    for (const c of filteredClusters) {
-      totalCapacity += c.maxPorts;
-      totalOccupied += c.usedPorts;
-      for (const p of c.ports) {
-        if (p.isOccupied && p.attenuation !== undefined) {
-          if (p.attenuation >= -22.0 && p.attenuation <= -15.0) {
-            totalNormal++;
-          } else if (p.attenuation < -22.0 && p.attenuation >= -25.0) {
-            totalWarning++;
-          } else {
-            totalCritical++;
-          }
-        }
-      }
-    }
-
-    const available = totalCapacity - totalOccupied;
-    const occupancyPct = totalCapacity > 0 ? Math.round((totalOccupied / totalCapacity) * 100) : 0;
-    const normalPct = totalOccupied > 0 ? Math.round((totalNormal / totalOccupied) * 100) : 100;
-
-    return {
-      totalCapacity,
-      totalOccupied,
-      available,
-      occupancyPct,
-      normalPct,
-      totalNormal,
-      totalWarning,
-      totalCritical,
-    };
-  }, [filteredClusters]);
 
   useEffect(() => {
     if (filteredClusters.length > 0) {

@@ -3,20 +3,21 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
-import { dbmTone } from '@repo/shared';
 import { CreateTicketModal } from '@/components/modals/CreateTicketModal';
 import { TicketDetailModal } from '@/components/modals/TicketDetailModal';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/ToastProvider';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
 
+import type { DbTicket } from '@/services/ticket.service';
+
 export default function OverviewPage() {
   const [cluster, setCluster] = useState('Semua cluster');
   const [query, setQuery] = useState('');
-  const [tickets, setTickets] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<DbTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<DbTicket | null>(null);
 
   const { canCreateTicket } = useAuth();
   const { showError } = useToast();
@@ -138,8 +139,8 @@ export default function OverviewPage() {
     const matchesCluster = cluster === 'Semua cluster' || t.cluster === cluster;
     const matchesStatus =
       statusFilter === 'Semua' ||
-      (statusFilter === 'Menunggu' && t.status === 'Menunggu') ||
-      (statusFilter === 'Dalam proses' && (t.status === 'Dalam proses' || t.status === 'Proses')) ||
+      (statusFilter === 'Menunggu' && (t.status === 'Menunggu' || t.status === 'Menunggu verifikasi')) ||
+      (statusFilter === 'Dalam proses' && t.status === 'Menunggu verifikasi') ||
       (statusFilter === 'Selesai' && t.status === 'Selesai');
     const matchesQuery =
       query === '' ||
@@ -168,10 +169,6 @@ export default function OverviewPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  const waitingCount = tickets.filter((t) => t.status === 'Menunggu').length;
-  const inProgressCount = tickets.filter((t) => t.status === 'Dalam proses' || t.status === 'Proses').length;
-  const completedCount = tickets.filter((t) => t.status === 'Selesai').length;
 
   return (
     <main className="overview-page">
@@ -615,7 +612,7 @@ export default function OverviewPage() {
                     Rendah: 'Rendah',
                     Kritis: 'Kritis',
                   };
-                  const priorityLabel = priorityMap[r.priority] || r.priority || 'Normal';
+                  const priorityLabel = (r.priority && priorityMap[r.priority]) || r.priority || 'Normal';
 
                   return (
                     <tr key={r.id || r.ticketNumber} onClick={() => setSelectedTicket(r)}>

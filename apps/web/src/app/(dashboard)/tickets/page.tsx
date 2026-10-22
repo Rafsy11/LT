@@ -138,8 +138,6 @@ export default function TicketsPage() {
 
   const waitingCount = scoped.filter((r) => r.status === 'Menunggu').length;
   const inProgressCount = scoped.filter((r) => r.status === 'Dalam proses').length;
-  const pendingApprovalCount = scoped.filter((r) => r.status === 'Menunggu verifikasi').length;
-  const completedCount = scoped.filter((r) => r.status === 'Selesai').length;
 
   const getDbmBadge = (att: number | undefined) => {
     if (att === undefined || att === null) {

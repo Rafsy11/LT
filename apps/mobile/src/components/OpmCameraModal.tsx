@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { compressOpmPhoto, ImageManipulatorResult } from '../camera/opmCamera';
 
 export interface OpmCameraModalProps {

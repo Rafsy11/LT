@@ -27,7 +27,6 @@ export function TechnicianDetailModal({
 
   const isActiveSession = technician.sessionStatus === 'ACTIVE_SESSION';
   const isRevokedSession = technician.sessionStatus === 'REVOKED';
-  const isNoSession = !technician.sessionStatus || technician.sessionStatus === 'NO_SESSION';
 
   return (
     <div className="overlay" onClick={onClose} role="dialog" aria-modal="true">

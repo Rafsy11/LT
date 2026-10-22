@@ -4,7 +4,6 @@ import crypto from 'crypto';
 import { prisma } from '@repo/database';
 import { redisManager } from '@/lib/redis';
 import {
-  JwtTokenPayload,
   RefreshTokenPayload,
   UserSessionContext,
   ERROR_CODES,
