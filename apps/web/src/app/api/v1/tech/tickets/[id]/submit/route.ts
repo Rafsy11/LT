@@ -41,8 +41,8 @@ export async function POST(
         {
           success: false,
           error: {
-            code: ERROR_CODES.RATE_LIMITED,
-            message: 'Terlalu banyak pengiriman laporan tiket. Silakan tunggu 60 detik.',
+            code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
+            message: 'Terlalu banyak pengiriman laporan tiket. Silakan tunggu cooldown sebelum mengirim ulang.',
           },
           meta: { retryAfterMs: rateResult.retryAfterMs },
         },
@@ -91,13 +91,29 @@ export async function POST(
           );
         }
 
-        // (2) Idempotency Check BEFORE closed status
+        // (2) Idempotency Check BEFORE closed status with Cross-Ticket Guard
         const existingHistory = await prisma.attenuationHistory.findUnique({
           where: { submissionId: validated.submissionId },
           include: { ticket: true },
         });
 
         if (existingHistory) {
+          const isSameTicket = existingHistory.ticketId === ticket.id;
+          const isSameTech = !techUserId || existingHistory.techId === techUserId;
+
+          if (!isSameTicket || !isSameTech) {
+            return NextResponse.json(
+              {
+                success: false,
+                error: {
+                  code: ERROR_CODES.IDOR_VIOLATION,
+                  message: 'submissionId ini telah digunakan pada tiket atau teknisi lain (Cross-Ticket Replay Blocked).',
+                },
+              },
+              { status: 403 }
+            );
+          }
+
           return NextResponse.json({
             success: true,
             data: existingHistory.ticket,
@@ -118,7 +134,7 @@ export async function POST(
                 message: `Tiket sudah berstatus ${ticket.status} dan tidak dapat dimutasi lagi.`,
               },
             },
-            { status: 400 }
+            { status: 409 }
           );
         }
       }
@@ -147,12 +163,11 @@ export async function POST(
     const isOccupied = err.message?.includes(ERROR_CODES.PORT_OCCUPIED);
     const isMock = err.message?.includes(ERROR_CODES.MOCK_LOCATION_DETECTED);
     const isIdor = err.message?.includes(ERROR_CODES.IDOR_VIOLATION);
-    const isClosed = err.message?.includes('tidak dapat dimutasi');
+    const isClosed = err.message?.includes('tidak dapat dimutasi') || err.message?.includes(ERROR_CODES.TICKET_ALREADY_CLOSED);
 
     let status = 400;
-    if (isOccupied) status = 409;
-    else if (isMock) status = 403;
-    else if (isIdor) status = 403;
+    if (isOccupied || isClosed) status = 409;
+    else if (isMock || isIdor) status = 403;
 
     return NextResponse.json(
       {
@@ -160,12 +175,12 @@ export async function POST(
         error: {
           code: isOccupied
             ? ERROR_CODES.PORT_OCCUPIED
-            : isMock
-              ? ERROR_CODES.MOCK_LOCATION_DETECTED
-              : isIdor
-                ? ERROR_CODES.IDOR_VIOLATION
-                : isClosed
-                  ? ERROR_CODES.TICKET_ALREADY_CLOSED
+            : isClosed
+              ? ERROR_CODES.TICKET_ALREADY_CLOSED
+              : isMock
+                ? ERROR_CODES.MOCK_LOCATION_DETECTED
+                : isIdor
+                  ? ERROR_CODES.IDOR_VIOLATION
                   : isValidation
                     ? ERROR_CODES.VALIDATION_ERROR
                     : 'SUBMISSION_ERROR',

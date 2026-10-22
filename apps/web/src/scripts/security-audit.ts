@@ -200,6 +200,62 @@ async function runSecurityAudit() {
   }
 
   // ---------------------------------------------------------------------------
+  // TEST F: Cross-Ticket Idempotency IDOR Check & State Transition Verification
+  // ---------------------------------------------------------------------------
+  try {
+    const sharedSubmissionId = `cross_idempotent_test_${Date.now()}`;
+    const payloadForTicket1: SubmitTicketInput = {
+      submissionId: sharedSubmissionId,
+      splitterId: 'ODP-BDG-01',
+      portNumber: 2,
+      attenuationDbm: -19.2,
+      photoObjectKey: 'proofs/cross_test_1.jpg',
+      submittedLat: -6.9148,
+      submittedLng: 107.6099,
+      isMockLocation: false,
+    };
+
+    // 1. First submission to Ticket 1 (t-1)
+    await TicketService.submitTicketByTechnician('t-1', payloadForTicket1, {
+      id: 'tech_andi',
+      username: 'andi.pratama',
+    });
+
+    // 2. Replay same submissionId to same Ticket 1 -> MUST return alreadyProcessed: true
+    const replayRes = await TicketService.submitTicketByTechnician('t-1', payloadForTicket1, {
+      id: 'tech_andi',
+      username: 'andi.pratama',
+    });
+    const sameTicketReplayOk = replayRes.alreadyProcessed === true;
+
+    // 3. Replay same submissionId to different Ticket 2 (t-2) -> MUST throw IDOR_VIOLATION
+    let crossTicketIdorBlocked = false;
+    try {
+      const payloadForTicket2: SubmitTicketInput = {
+        ...payloadForTicket1,
+        splitterId: 'ODP-CMH-01',
+        portNumber: 3,
+      };
+      await TicketService.submitTicketByTechnician('t-2', payloadForTicket2, {
+        id: 'tech_andi',
+        username: 'andi.pratama',
+      });
+    } catch (crossErr: unknown) {
+      const msg = (crossErr as Error).message || '';
+      crossTicketIdorBlocked =
+        msg.includes(ERROR_CODES.IDOR_VIOLATION) || msg.includes('Cross-Ticket Replay Blocked');
+    }
+
+    assert(
+      sameTicketReplayOk && crossTicketIdorBlocked,
+      'Test F: Cross-Ticket Idempotency IDOR Check',
+      `Idempotent replay on same ticket returned alreadyProcessed: true; replay across different ticket strictly rejected with HTTP 403 IDOR_VIOLATION`
+    );
+  } catch (err: unknown) {
+    assert(false, 'Test F: Cross-Ticket Idempotency IDOR Check', (err as Error).message);
+  }
+
+  // ---------------------------------------------------------------------------
   // Audit Summary Reporting
   // ---------------------------------------------------------------------------
   console.log('\n================ AUDIT RESULTS ================');
@@ -213,7 +269,7 @@ async function runSecurityAudit() {
   console.log('================================================');
 
   if (allPassed) {
-    console.log('\n>>> ALL 5 SECURITY PENETRATION AUDITS PASSED 100% <<<\n');
+    console.log('\n>>> ALL 6 ENTERPRISE SECURITY & IDEMPOTENCY AUDITS PASSED 100% <<<\n');
     process.exit(0);
   } else {
     console.error('\n>>> SECURITY AUDIT DETECTED FAILURES <<<\n');

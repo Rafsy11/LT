@@ -6,12 +6,14 @@ export interface LoginScreenProps {
   apiClient: ApiClient;
   onLoginSuccess: (user: UserProfile, tokens: MobileSessionTokens) => void;
   defaultDeviceId?: string;
+  sessionRevokedReason?: string | null;
 }
 
 export function LoginScreen({
   apiClient,
   onLoginSuccess,
   defaultDeviceId = 'DEVICE-TECH-SM-A54',
+  sessionRevokedReason = null,
 }: LoginScreenProps) {
   const [username, setUsername] = useState('andi.pratama');
   const [password, setPassword] = useState('');
@@ -74,6 +76,7 @@ export function LoginScreen({
       appVersion: CURRENT_MOBILE_APP_VERSION,
       isLoading,
       errorMessage,
+      sessionRevokedReason,
       isAppLocked: apiClient.isLocked(),
     },
     actions: {

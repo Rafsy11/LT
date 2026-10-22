@@ -190,6 +190,9 @@ export const ERROR_CODES = {
   IDOR_VIOLATION: 'IDOR_VIOLATION',
   ACTION_TOKEN_REPLAYED: 'ACTION_TOKEN_REPLAYED',
   TICKET_ALREADY_CLOSED: 'TICKET_ALREADY_CLOSED',
+  TOKEN_EXPIRED: 'TOKEN_EXPIRED',
+  CLUSTER_ACCESS_DENIED: 'CLUSTER_ACCESS_DENIED',
+  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -247,6 +250,12 @@ export const ERROR_MESSAGES_MAP: Record<ErrorCode | string, string> = {
     'Token aksi AI telah digunakan sebelumnya (single-use). Silakan minta AI untuk menyiapkan aksi baru.',
   [ERROR_CODES.TICKET_ALREADY_CLOSED]:
     'Tiket ini sudah berstatus selesai atau dibatalkan dan tidak dapat dimutasi lagi.',
+  [ERROR_CODES.TOKEN_EXPIRED]:
+    'Sesi akses Anda telah kedaluwarsa. Sistem sedang memperbarui token secara otomatis.',
+  [ERROR_CODES.CLUSTER_ACCESS_DENIED]:
+    'Akses ditolak: Anda tidak memiliki wewenang pada cluster wilayah ini.',
+  [ERROR_CODES.RATE_LIMIT_EXCEEDED]:
+    'Batas permintaan terlampaui. Silakan tunggu beberapa saat sebelum mencoba kembali.',
 };
 
 /**

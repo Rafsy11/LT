@@ -180,7 +180,15 @@ const FALLBACK_TICKETS: DbTicket[] = [
   },
 ];
 
-const inMemoryProcessedSubmissions = new Set<string>();
+export interface InMemorySubmissionRecord {
+  submissionId: string;
+  ticketId: string;
+  ticketNumber?: string;
+  techId?: string;
+  techUsername?: string;
+}
+
+const inMemoryProcessedSubmissions = new Map<string, InMemorySubmissionRecord>();
 
 /**
  * Calculates great-circle distance between two GPS coordinates using Haversine formula (returns meters).
@@ -504,11 +512,17 @@ export class TicketService {
     input: SubmitTicketInput,
     techContext?: { id?: string; username?: string }
   ) {
+    let preliminaryTicket: {
+      id: string;
+      ticketNumber: string;
+      assignedTechId: string | null;
+    } | null = null;
+
     // ------------------------------------------------------------------
     // 1. TICKET OWNERSHIP VERIFICATION (Rule 1: Anti-IDOR)
     // ------------------------------------------------------------------
     try {
-      const preliminaryTicket = await prisma.ticket.findFirst({
+      preliminaryTicket = await prisma.ticket.findFirst({
         where: {
           OR: [{ id: ticketId }, { ticketNumber: ticketId }],
         },
@@ -533,7 +547,7 @@ export class TicketService {
     if (fallbackTicketCheck && techContext?.username && fallbackTicketCheck.assignedTech) {
       const techLower = techContext.username.toLowerCase();
       const assignedLower = fallbackTicketCheck.assignedTech.toLowerCase().replace(/\s+/g, '.');
-      if (techLower.includes('rizky') && assignedLower.includes('andi')) {
+      if (techLower !== assignedLower && !assignedLower.includes(techLower) && !techLower.includes(assignedLower)) {
         throw new Error(
           `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${fallbackTicketCheck.ticketNumber}.`
         );
@@ -541,7 +555,7 @@ export class TicketService {
     }
 
     // ------------------------------------------------------------------
-    // 2. IDEMPOTENCY CHECK (Rule 2: Before Ticket Status Check)
+    // 2. IDEMPOTENCY CHECK (Rule 2: Before Ticket Status Check with Cross-Ticket Guard)
     // ------------------------------------------------------------------
     try {
       const existingHistory = await prisma.attenuationHistory.findUnique({
@@ -559,15 +573,50 @@ export class TicketService {
       });
 
       if (existingHistory) {
+        // Cross-Ticket Idempotency Guard (Task 8 Section 1)
+        const isSameTicket =
+          existingHistory.ticketId === ticketId ||
+          existingHistory.ticket?.ticketNumber === ticketId ||
+          (preliminaryTicket !== null && existingHistory.ticketId === preliminaryTicket.id);
+        const isSameTech =
+          !techContext?.id ||
+          !existingHistory.techId ||
+          existingHistory.techId === techContext.id;
+
+        if (!isSameTicket || !isSameTech) {
+          throw new Error(
+            `${ERROR_CODES.IDOR_VIOLATION}: submissionId ini telah digunakan pada tiket atau teknisi lain (Cross-Ticket Replay Blocked).`
+          );
+        }
+
         return {
           alreadyProcessed: true,
           ticket: existingHistory.ticket,
           message: 'Laporan telah berhasil diproses sebelumnya (Idempotent response)',
         };
       }
-    } catch {
-      // Check in-memory processed submissions
-      if (inMemoryProcessedSubmissions.has(input.submissionId)) {
+    } catch (dbErr: unknown) {
+      const dbErrMsg = (dbErr as Error).message || '';
+      if (dbErrMsg.includes(ERROR_CODES.IDOR_VIOLATION)) {
+        throw dbErr;
+      }
+      // Check in-memory processed submissions with Cross-Ticket Guard
+      const inMemRecord = inMemoryProcessedSubmissions.get(input.submissionId);
+      if (inMemRecord) {
+        const isSameTicket =
+          inMemRecord.ticketId === ticketId ||
+          inMemRecord.ticketNumber === ticketId ||
+          (preliminaryTicket !== null && inMemRecord.ticketId === preliminaryTicket.id);
+        const isSameTech =
+          (!techContext?.username || !inMemRecord.techUsername || inMemRecord.techUsername === techContext.username) &&
+          (!techContext?.id || !inMemRecord.techId || inMemRecord.techId === techContext.id);
+
+        if (!isSameTicket || !isSameTech) {
+          throw new Error(
+            `${ERROR_CODES.IDOR_VIOLATION}: submissionId ini telah digunakan pada tiket atau teknisi lain (Cross-Ticket Replay Blocked).`
+          );
+        }
+
         const cachedTicket = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
         return {
           alreadyProcessed: true,
@@ -825,7 +874,13 @@ export class TicketService {
       // Transition to 'Menunggu verifikasi' instead of 'Selesai'
       ticket.status = 'Menunggu verifikasi';
       ticket.pendingSubmission = pendingSubmission;
-      inMemoryProcessedSubmissions.add(input.submissionId);
+      inMemoryProcessedSubmissions.set(input.submissionId, {
+        submissionId: input.submissionId,
+        ticketId: ticket.id,
+        ticketNumber: ticket.ticketNumber,
+        techId: techContext?.id,
+        techUsername: techContext?.username,
+      });
     }
 
     // ------------------------------------------------------------------

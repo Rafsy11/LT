@@ -38,7 +38,8 @@ export default function MonitoringPage() {
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<LiveReportItem | null>(null);
   const [modalTicket, setModalTicket] = useState<LiveReportItem | null>(null);
-  const [sseStatus, setSseStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>('reconnecting');
+  const [sseState, setSseState] = useState<'CONNECTING' | 'LIVE_CONNECTED' | 'DISCONNECTED' | 'RECONNECTING'>('CONNECTING');
+  const [reconnectCountdown, setReconnectCountdown] = useState<number>(0);
   const [lastHeartbeat, setLastHeartbeat] = useState<string>('Memulai koneksi...');
 
   const fetchInitialReports = async () => {
@@ -67,24 +68,45 @@ export default function MonitoringPage() {
     // Setup Server-Sent Events (SSE) Stream per PRD Section 3.4 & agent.md Section 5
     let eventSource: EventSource | null = null;
     let retryTimeout: NodeJS.Timeout | null = null;
+    let countdownInterval: NodeJS.Timeout | null = null;
+    let retryCount = 0;
 
     const connectSSE = () => {
       try {
+        setSseState('CONNECTING');
         eventSource = new EventSource('/api/v1/admin/stream/reports');
 
+        eventSource.onopen = () => {
+          retryCount = 0;
+          setSseState('LIVE_CONNECTED');
+          setLastHeartbeat(
+            new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB'
+          );
+        };
+
         eventSource.addEventListener('connected', () => {
-          setSseStatus('connected');
-          setLastHeartbeat(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB');
+          retryCount = 0;
+          setSseState('LIVE_CONNECTED');
+          setLastHeartbeat(
+            new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB'
+          );
         });
 
         eventSource.addEventListener('ping', () => {
-          setSseStatus('connected');
-          setLastHeartbeat(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB');
+          retryCount = 0;
+          setSseState('LIVE_CONNECTED');
+          setLastHeartbeat(
+            new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB'
+          );
         });
 
         eventSource.addEventListener('report', (e) => {
           try {
             const item = JSON.parse(e.data);
+            const rawDbm = Number(item.attenuationDbm);
+            const distance = item.distanceMeters !== undefined ? Number(item.distanceMeters) : 18;
+            const isLocationFlagged = item.isLocationFlagged ?? (distance > 100);
+
             const newReport: LiveReportItem = {
               id: item.id || `live-${Date.now()}`,
               ticketNumber: item.ticketNumber,
@@ -95,35 +117,54 @@ export default function MonitoringPage() {
               assignedTech: item.technicianName,
               techInitials: item.techInitials || 'TK',
               status: 'Selesai',
-              currentAttenuation: item.attenuationDbm,
+              currentAttenuation: rawDbm,
               createdAt: new Date().toISOString(),
               completedAt: new Date().toISOString(),
               splitterCode: item.splitterCode || 'ODP-LIVE',
               portNumber: item.portNumber || 1,
-              distanceToSplitterM: item.distanceMeters || 18,
-              isLocationFlagged: (item.distanceMeters || 18) > 100,
+              distanceToSplitterM: distance,
+              isLocationFlagged,
               isLiveIncoming: true,
             };
 
             setReports((prev) => [newReport, ...prev.filter((r) => r.ticketNumber !== newReport.ticketNumber)]);
             setSelectedTicket(newReport); // Auto-focus new incoming live report in the HUD
-            setLastHeartbeat(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB');
+            setLastHeartbeat(
+              new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB'
+            );
           } catch (err) {
             console.error('[Monitoring] Parse error pada SSE report event:', err);
           }
         });
 
         eventSource.onerror = () => {
-          setSseStatus('reconnecting');
           if (eventSource) {
             eventSource.close();
           }
+          retryCount++;
+          // Exponential backoff: min 2s, max 30s
+          const delayMs = Math.min(1000 * Math.pow(2, retryCount), 30000);
+          const delaySec = Math.ceil(delayMs / 1000);
+          setSseState('RECONNECTING');
+          setReconnectCountdown(delaySec);
+
+          if (countdownInterval) clearInterval(countdownInterval);
+          countdownInterval = setInterval(() => {
+            setReconnectCountdown((prev) => {
+              if (prev <= 1) {
+                if (countdownInterval) clearInterval(countdownInterval);
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+
           retryTimeout = setTimeout(() => {
             connectSSE();
-          }, 4000);
+          }, delayMs);
         };
       } catch (err) {
-        setSseStatus('disconnected');
+        setSseState('DISCONNECTED');
         console.error('[Monitoring] Inisialisasi EventSource gagal:', err);
       }
     };
@@ -136,6 +177,9 @@ export default function MonitoringPage() {
       }
       if (retryTimeout) {
         clearTimeout(retryTimeout);
+      }
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
       }
     };
   }, []);
@@ -235,12 +279,22 @@ export default function MonitoringPage() {
 
         <div className="overview-toolbar">
           {/* Live SSE Status Beacon */}
-          <div className={`live-status-pill ${sseStatus}`} title={`Status SSE: ${sseStatus} · Heartbeat: ${lastHeartbeat}`}>
+          <div
+            className={`live-status-pill ${
+              sseState === 'LIVE_CONNECTED'
+                ? 'connected'
+                : sseState === 'CONNECTING'
+                ? 'reconnecting'
+                : 'disconnected'
+            }`}
+            title={`Status SSE: ${sseState} · Heartbeat: ${lastHeartbeat}`}
+          >
             <span className="live-pulse-beacon" />
             <span>
-              {sseStatus === 'connected' && 'Live SSE Active'}
-              {sseStatus === 'reconnecting' && 'Menghubungkan Ulang...'}
-              {sseStatus === 'disconnected' && 'Stream Terputus'}
+              {sseState === 'LIVE_CONNECTED' && 'Live SSE Active'}
+              {sseState === 'CONNECTING' && 'Menghubungkan Stream...'}
+              {sseState === 'RECONNECTING' && `Menghubungkan Ulang (${reconnectCountdown}s)...`}
+              {sseState === 'DISCONNECTED' && 'Stream Terputus (Offline)'}
             </span>
           </div>
 

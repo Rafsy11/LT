@@ -5,6 +5,7 @@ import { DraftActionCardData, sanitizeUiErrorMessage } from '@repo/shared';
 import { useToast } from '@/components/ui/ToastProvider';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
+import { DraftActionCard } from '@/components/ai/DraftActionCard';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -448,155 +449,12 @@ export default function AiPage() {
                     {m.text}
                   </p>
 
-                  {/* Draft Action Card (Human-in-the-Loop) */}
+                  {/* Draft Action Card (Human-in-the-Loop with 6-State Local Machine) */}
                   {m.draft && (
-                    <div
-                      style={{
-                        marginTop: '14px',
-                        background: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '10px',
-                        padding: '16px 18px',
-                        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.02)',
-                        color: '#0f172a',
-                      }}
-                    >
-                      {/* Card Header & Security Info */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'flex-start',
-                          gap: '12px',
-                          marginBottom: '10px',
-                        }}
-                      >
-                        <div>
-                          <div
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 600,
-                              color: isCardExecuted ? '#64748b' : '#0e5b92',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.4px',
-                              marginBottom: '3px',
-                            }}
-                          >
-                            {isCardExecuted ? 'Sudah Dieksekusi' : 'Draft Persetujuan Admin'}
-                          </div>
-                          <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: '0 0 3px' }}>
-                            {m.draft.title}
-                          </h3>
-                          <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.4 }}>
-                            {m.draft.summary}
-                          </div>
-                        </div>
-
-                        {/* Monospace HMAC Verification */}
-                        <div
-                          style={{
-                            fontSize: '11px',
-                            color: '#94a3b8',
-                            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                            textAlign: 'right',
-                            flexShrink: 0,
-                          }}
-                        >
-                          <div>HMAC: <code>{m.draft.actionToken.substring(0, 10)}...</code></div>
-                          <div style={{ fontSize: '10.5px', marginTop: '2px' }}>Masa berlaku 5m</div>
-                        </div>
-                      </div>
-
-                      {/* Clean Grid Layout (Hairline separators, no box-inside-a-box) */}
-                      {m.draft.payload && (
-                        <div
-                          style={{
-                            paddingTop: '12px',
-                            paddingBottom: '12px',
-                            borderTop: '1px solid #edf2f7',
-                            borderBottom: '1px solid #edf2f7',
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                            rowGap: '10px',
-                            columnGap: '16px',
-                            marginBottom: '14px',
-                          }}
-                        >
-                          {Object.entries(m.draft.payload).map(([k, v]) => {
-                            const entry = formatPayloadEntry(k, v);
-                            return (
-                              <div key={k} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <span style={{ fontSize: '10.5px', fontWeight: 500, color: '#64748b' }}>
-                                  {entry.label}
-                                </span>
-                                <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#0f172a', wordBreak: 'break-word' }}>
-                                  {entry.value}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Action / Result Area */}
-                      <div>
-                        {isCardExecuted ? (
-                          <div
-                            style={{
-                              fontSize: '12px',
-                              color: '#64748b',
-                              lineHeight: 1.5,
-                            }}
-                          >
-                            Mutasi diverifikasi dan dicatat permanen pada activity_logs.
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <button
-                              className="button primary"
-                              disabled={isCardExecuting}
-                              onClick={() => handleApproveAction(m.draft!)}
-                              type="button"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '8px 18px',
-                                fontSize: '12.5px',
-                                fontWeight: 600,
-                                borderRadius: '9999px',
-                                background: '#0e5b92',
-                                color: '#ffffff',
-                              }}
-                            >
-                              {isCardExecuting ? (
-                                <>
-                                  <Icon name="refresh" size={13} className="animate-spin" />
-                                  <span>Mengeksekusi...</span>
-                                </>
-                              ) : (
-                                <span>Setujui &amp; Eksekusi</span>
-                              )}
-                            </button>
-                            <button
-                              className="button"
-                              disabled={isCardExecuting}
-                              type="button"
-                              style={{
-                                padding: '8px 16px',
-                                fontSize: '12.5px',
-                                color: '#64748b',
-                                borderRadius: '9999px',
-                                border: 'none',
-                                background: 'transparent',
-                              }}
-                            >
-                              Batalkan
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <DraftActionCard
+                      draft={m.draft}
+                      formatPayloadEntry={formatPayloadEntry}
+                    />
                   )}
                 </div>
 

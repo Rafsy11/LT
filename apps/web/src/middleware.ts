@@ -124,13 +124,16 @@ export async function middleware(request: NextRequest) {
           headers: requestHeaders,
         },
       });
-    } catch {
+    } catch (err: unknown) {
+      const isExpired = (err as { code?: string })?.code === 'ERR_JWT_EXPIRED';
       return NextResponse.json(
         {
           success: false,
           error: {
-            code: ERROR_CODES.UNAUTHORIZED,
-            message: 'Token otentikasi tidak valid atau telah kedaluwarsa.',
+            code: isExpired ? ERROR_CODES.TOKEN_EXPIRED : ERROR_CODES.UNAUTHORIZED,
+            message: isExpired
+              ? 'Token otentikasi telah kedaluwarsa. Silakan refresh token.'
+              : 'Token otentikasi tidak valid atau telah kedaluwarsa.',
           },
         },
         { status: 401 }

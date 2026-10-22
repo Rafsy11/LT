@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
               message: 'Token aksi ini sudah pernah dieksekusi sebelumnya (Anti-Replay). Silakan minta AI untuk menyiapkan draf baru.',
             },
           },
-          { status: 400 }
+          { status: 409 }
         );
       }
     }
@@ -115,22 +115,42 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    const isExpired = error.message?.includes('kedaluwarsa') || error.message?.includes(ERROR_CODES.INVALID_ACTION_TOKEN);
+    const isOccupied = error.message?.includes(ERROR_CODES.PORT_OCCUPIED);
     const isReplayed = error.message?.includes(ERROR_CODES.ACTION_TOKEN_REPLAYED);
+    const isForbidden = error.message?.includes(ERROR_CODES.FORBIDDEN) || error.message?.includes(ERROR_CODES.HIERARCHY_VIOLATION);
+    const isExpired = error.message?.includes('kedaluwarsa') || error.message?.includes(ERROR_CODES.AI_ACTION_EXPIRED);
+    const isInvalidToken = error.message?.includes(ERROR_CODES.INVALID_ACTION_TOKEN) || error.message?.includes('manipulasi');
+
+    let status = 400;
+    let code: string = ERROR_CODES.VALIDATION_ERROR;
+
+    if (isOccupied) {
+      status = 409;
+      code = ERROR_CODES.PORT_OCCUPIED;
+    } else if (isReplayed) {
+      status = 409;
+      code = ERROR_CODES.ACTION_TOKEN_REPLAYED;
+    } else if (isForbidden) {
+      status = 403;
+      code = ERROR_CODES.FORBIDDEN;
+    } else if (isExpired) {
+      status = 400;
+      code = ERROR_CODES.AI_ACTION_EXPIRED;
+    } else if (isInvalidToken) {
+      status = 400;
+      code = ERROR_CODES.INVALID_ACTION_TOKEN;
+    }
+
     return NextResponse.json(
       {
         success: false,
         error: {
-          code: isReplayed
-            ? ERROR_CODES.ACTION_TOKEN_REPLAYED
-            : isExpired
-              ? ERROR_CODES.AI_ACTION_EXPIRED
-              : ERROR_CODES.VALIDATION_ERROR,
+          code,
           message: error.errors ? error.errors[0]?.message : error.message,
           details: error.errors,
         },
       },
-      { status: 400 }
+      { status }
     );
   }
 }

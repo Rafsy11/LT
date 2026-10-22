@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
 import { DraftActionCardData, sanitizeUiErrorMessage } from '@repo/shared';
 import { useToast } from '@/components/ui/ToastProvider';
+import { DraftActionCard } from '@/components/ai/DraftActionCard';
 
 export function AiChatWidget() {
   const pathname = usePathname();
@@ -153,38 +154,8 @@ export function AiChatWidget() {
                   <p style={{ whiteSpace: 'pre-wrap' }}>{m.text}</p>
 
                   {m.draft && (
-                    <div className="draft-card" style={{ marginTop: '12px' }}>
-                      <span className={`badge ${isCardExecuted ? 'green' : 'blue'}`}>
-                        {isCardExecuted ? '✓ AKSI TELAH DIEKSEKUSI' : 'MENUNGGU KONFIRMASI ADMIN'}
-                      </span>
-                      <h3>{m.draft.title}</h3>
-                      <p>{m.draft.summary}</p>
-
-                      <div className="heading-actions" style={{ marginTop: '14px' }}>
-                        {isCardExecuted ? (
-                          <div className="badge green" style={{ padding: '6px 12px' }}>
-                            ✓ Transaksi database telah tercatat di Audit Log
-                          </div>
-                        ) : (
-                          <>
-                            {/* State disabled & Debounce pada Tombol Kritis (Requirement 2) */}
-                            <button
-                              className="button primary"
-                              disabled={isCardExecuting}
-                              onClick={() => handleApproveAction(m.draft!)}
-                            >
-                              {isCardExecuting ? 'Mengeksekusi...' : 'Setujui & Eksekusi'}
-                            </button>
-                            <button
-                              className="button"
-                              disabled={isCardExecuting}
-                              onClick={() => setExecutedFeedback('Aksi dibatalkan oleh Admin.')}
-                            >
-                              Batalkan
-                            </button>
-                          </>
-                        )}
-                      </div>
+                    <div style={{ marginTop: '12px' }}>
+                      <DraftActionCard draft={m.draft} />
                     </div>
                   )}
                 </div>

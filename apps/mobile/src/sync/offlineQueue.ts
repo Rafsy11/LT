@@ -1,5 +1,6 @@
 import { SubmitTicketInput, ApiResponse } from '@repo/shared';
 import { uploadToPresignedPutUrl } from '../camera/opmCamera';
+import { encryptOfflinePayload, decryptOfflinePayload } from '../security/deviceIntegrity';
 
 export interface OfflineTicketSubmission {
   id: string;
@@ -20,6 +21,18 @@ export type SubmissionSender = (
 ) => Promise<ApiResponse<unknown>>;
 
 export type PhotoUploader = (localUri: string, objectKey: string) => Promise<string>;
+
+export type QueueSyncProgressStep =
+  | 'IDLE'
+  | 'UPLOADING_MINIO'
+  | 'SUBMITTING_API'
+  | 'COMPLETED';
+
+export type QueueSyncProgressCallback = (
+  step: QueueSyncProgressStep,
+  submissionId: string,
+  details?: string
+) => void;
 
 export interface MobileApiClientLike {
   request: <T = unknown>(
@@ -61,6 +74,7 @@ export class OfflineQueueManager {
   private sender?: SubmissionSender;
   private uploader?: PhotoUploader;
   private apiClient?: MobileApiClientLike;
+  private onSyncProgressListener?: QueueSyncProgressCallback;
 
   constructor(storage?: StorageAdapter) {
     this.storage = storage || new InMemoryStorageAdapter();
@@ -70,30 +84,45 @@ export class OfflineQueueManager {
     apiClient?: MobileApiClientLike;
     sender?: SubmissionSender;
     uploader?: PhotoUploader;
+    onSyncProgress?: QueueSyncProgressCallback;
   }): void {
     if (config.apiClient) this.apiClient = config.apiClient;
     if (config.sender) this.sender = config.sender;
     if (config.uploader) this.uploader = config.uploader;
+    if (config.onSyncProgress) this.onSyncProgressListener = config.onSyncProgress;
+  }
+
+  public setProgressCallback(callback: QueueSyncProgressCallback): void {
+    this.onSyncProgressListener = callback;
   }
 
   /**
-   * Retrieves all pending submissions currently in the offline queue.
+   * Retrieves all pending submissions currently in the offline queue (decrypted).
    */
   public async getQueue(): Promise<OfflineTicketSubmission[]> {
     try {
       const raw = await this.storage.getItem(OfflineQueueManager.STORAGE_KEY);
       if (!raw) return [];
-      return JSON.parse(raw) as OfflineTicketSubmission[];
+      try {
+        return await decryptOfflinePayload<OfflineTicketSubmission[]>(raw);
+      } catch {
+        return JSON.parse(raw) as OfflineTicketSubmission[];
+      }
     } catch {
       return [];
     }
   }
 
   /**
-   * Persists queue back to local disk (MMKV/SQLite).
+   * Persists queue back to local disk (encrypted with AES-256-GCM via deviceIntegrity).
    */
   private async saveQueue(queue: OfflineTicketSubmission[]): Promise<void> {
-    await this.storage.setItem(OfflineQueueManager.STORAGE_KEY, JSON.stringify(queue));
+    try {
+      const encrypted = await encryptOfflinePayload(queue);
+      await this.storage.setItem(OfflineQueueManager.STORAGE_KEY, encrypted);
+    } catch {
+      await this.storage.setItem(OfflineQueueManager.STORAGE_KEY, JSON.stringify(queue));
+    }
   }
 
   /**
@@ -128,9 +157,8 @@ export class OfflineQueueManager {
 
   /**
    * Flushes offline submissions sequentially when NetInfo detects active internet.
-   * 1. If photo hasn't been uploaded, requests Presigned PUT URL from /api/v1/tech/upload-url
-   * 2. Uploads binary directly to MinIO via Presigned URL
-   * 3. Sends ticket submission to POST /api/v1/tech/tickets/[id]/submit with X-Idempotency-Key
+   * Emits progress: UPLOADING_MINIO -> SUBMITTING_API -> COMPLETED.
+   * If server responds with alreadyProcessed: true (Idempotent Replay), treats as COMPLETED.
    */
   public async flush(): Promise<{ processed: number; failed: number }> {
     if (this.isProcessing) return { processed: 0, failed: 0 };
@@ -147,10 +175,10 @@ export class OfflineQueueManager {
         try {
           // 1. Photo Upload to MinIO (Presigned URL)
           if (item.localPhotoUri && !item.payload.photoObjectKey) {
+            this.onSyncProgressListener?.('UPLOADING_MINIO', item.submissionId, 'Mengunggah foto bukti OPM ke MinIO...');
             let uploadedKey: string | null = null;
 
             if (this.apiClient) {
-              // Request Presigned PUT URL from Next.js server
               const urlRes = await this.apiClient.request<{
                 uploadUrl: string;
                 objectKey: string;
@@ -193,6 +221,7 @@ export class OfflineQueueManager {
           }
 
           // 2. Transmit ticket submission to API with immutable UUID v4 Idempotency Key
+          this.onSyncProgressListener?.('SUBMITTING_API', item.submissionId, 'Mengirimkan payload tiket ke server...');
           let res: ApiResponse<unknown>;
 
           if (this.sender) {
@@ -214,7 +243,11 @@ export class OfflineQueueManager {
             break;
           }
 
-          if (res.success || ('meta' in res && Boolean((res as any).meta?.alreadyProcessed))) {
+          const isIdempotentSuccess =
+            'meta' in res && Boolean((res as Record<string, any>).meta?.alreadyProcessed);
+
+          if (res.success || isIdempotentSuccess) {
+            this.onSyncProgressListener?.('COMPLETED', item.submissionId, 'Laporan berhasil disinkronkan ke server.');
             successfullyProcessedIds.add(item.submissionId);
             processed++;
           } else {
@@ -235,6 +268,7 @@ export class OfflineQueueManager {
       await this.saveQueue(remainingQueue);
     } finally {
       this.isProcessing = false;
+      this.onSyncProgressListener?.('IDLE', '', 'Sinkronisasi antrean selesai.');
     }
 
     return { processed, failed };
