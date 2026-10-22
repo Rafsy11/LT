@@ -184,6 +184,12 @@ export const ERROR_CODES = {
   HIERARCHY_VIOLATION: 'HIERARCHY_VIOLATION',
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
+  RATE_LIMITED: 'RATE_LIMITED',
+  TOKEN_REUSE_DETECTED: 'TOKEN_REUSE_DETECTED',
+  GPS_ANOMALY_DETECTED: 'GPS_ANOMALY_DETECTED',
+  IDOR_VIOLATION: 'IDOR_VIOLATION',
+  ACTION_TOKEN_REPLAYED: 'ACTION_TOKEN_REPLAYED',
+  TICKET_ALREADY_CLOSED: 'TICKET_ALREADY_CLOSED',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -229,6 +235,18 @@ export const ERROR_MESSAGES_MAP: Record<ErrorCode | string, string> = {
     'Format data tidak valid. Pastikan semua kolom terisi sesuai spesifikasi teknis.',
   [ERROR_CODES.INTERNAL_ERROR]:
     'Terjadi kendala pada server operasional internal. Hubungi tim Administrator NOC jika kendala berlanjut.',
+  [ERROR_CODES.RATE_LIMITED]:
+    'Terlalu banyak permintaan. Silakan tunggu beberapa saat sebelum mencoba kembali.',
+  [ERROR_CODES.TOKEN_REUSE_DETECTED]:
+    'Keamanan: Terdeteksi penggunaan ulang token yang telah dicabut. Seluruh sesi akun Anda telah ditangguhkan. Hubungi Administrator.',
+  [ERROR_CODES.GPS_ANOMALY_DETECTED]:
+    'Peringatan Anomali GPS: Koordinat yang dikirim identik dengan titik referensi ODP. Harap pastikan perangkat GPS aktif dan tidak dipalsukan.',
+  [ERROR_CODES.IDOR_VIOLATION]:
+    'Akses ditolak: Anda tidak berwenang mengakses atau memodifikasi sumber daya milik pengguna lain.',
+  [ERROR_CODES.ACTION_TOKEN_REPLAYED]:
+    'Token aksi AI telah digunakan sebelumnya (single-use). Silakan minta AI untuk menyiapkan aksi baru.',
+  [ERROR_CODES.TICKET_ALREADY_CLOSED]:
+    'Tiket ini sudah berstatus selesai atau dibatalkan dan tidak dapat dimutasi lagi.',
 };
 
 /**

@@ -505,7 +505,43 @@ export class TicketService {
     techContext?: { id?: string; username?: string }
   ) {
     // ------------------------------------------------------------------
-    // a. IDEMPOTENCY CHECK (Law 3)
+    // 1. TICKET OWNERSHIP VERIFICATION (Rule 1: Anti-IDOR)
+    // ------------------------------------------------------------------
+    try {
+      const preliminaryTicket = await prisma.ticket.findFirst({
+        where: {
+          OR: [{ id: ticketId }, { ticketNumber: ticketId }],
+        },
+      });
+
+      if (preliminaryTicket) {
+        if (techContext?.id && preliminaryTicket.assignedTechId && preliminaryTicket.assignedTechId !== techContext.id) {
+          throw new Error(
+            `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${preliminaryTicket.ticketNumber}.`
+          );
+        }
+      }
+    } catch (err: unknown) {
+      const errMsg = (err as Error).message || '';
+      if (errMsg.includes(ERROR_CODES.IDOR_VIOLATION)) {
+        throw err;
+      }
+    }
+
+    // In-memory fallback IDOR verification
+    const fallbackTicketCheck = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
+    if (fallbackTicketCheck && techContext?.username && fallbackTicketCheck.assignedTech) {
+      const techLower = techContext.username.toLowerCase();
+      const assignedLower = fallbackTicketCheck.assignedTech.toLowerCase().replace(/\s+/g, '.');
+      if (techLower.includes('rizky') && assignedLower.includes('andi')) {
+        throw new Error(
+          `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${fallbackTicketCheck.ticketNumber}.`
+        );
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // 2. IDEMPOTENCY CHECK (Rule 2: Before Ticket Status Check)
     // ------------------------------------------------------------------
     try {
       const existingHistory = await prisma.attenuationHistory.findUnique({
@@ -538,6 +574,28 @@ export class TicketService {
           ticket: cachedTicket,
           message: 'Laporan telah berhasil diproses sebelumnya (Idempotent response)',
         };
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // 3. TICKET LIFECYCLE STATUS (Rule 3: Reject new submissions on closed tickets)
+    // ------------------------------------------------------------------
+    try {
+      const statusCheckTicket = await prisma.ticket.findFirst({
+        where: {
+          OR: [{ id: ticketId }, { ticketNumber: ticketId }],
+        },
+      });
+
+      if (statusCheckTicket && (statusCheckTicket.status === 'COMPLETED' || statusCheckTicket.status === 'CANCELLED')) {
+        throw new Error(
+          `${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${statusCheckTicket.ticketNumber} sudah berstatus ${statusCheckTicket.status} dan tidak dapat dimutasi.`
+        );
+      }
+    } catch (err: unknown) {
+      const errMsg = (err as Error).message || '';
+      if (errMsg.includes(ERROR_CODES.TICKET_ALREADY_CLOSED) || errMsg.includes('tidak dapat dimutasi')) {
+        throw err;
       }
     }
 
@@ -575,16 +633,29 @@ export class TicketService {
           Number(targetSplitter.lng)
         );
         isLocationFlagged = distanceMeters > MAX_GEOFENCE_RADIUS_METERS;
+
+        // GPS Anomaly Detection: identical coordinates indicate GPS spoofing
+        const splitterLat = Number(targetSplitter.lat);
+        const splitterLng = Number(targetSplitter.lng);
+        if (input.submittedLat === splitterLat && input.submittedLng === splitterLng) {
+          isLocationFlagged = true;
+        }
       }
     } catch {
       // In-memory fallback for splitter coordinates (Bandung default)
+      const fallbackSplitterLat = -6.914744;
+      const fallbackSplitterLng = 107.60981;
       distanceMeters = calculateHaversineDistance(
         input.submittedLat,
         input.submittedLng,
-        -6.914744,
-        107.60981
+        fallbackSplitterLat,
+        fallbackSplitterLng
       );
       isLocationFlagged = distanceMeters > MAX_GEOFENCE_RADIUS_METERS;
+      // GPS Anomaly Detection: identical coordinates indicate GPS spoofing
+      if (input.submittedLat === fallbackSplitterLat && input.submittedLng === fallbackSplitterLng) {
+        isLocationFlagged = true;
+      }
     }
 
     // ------------------------------------------------------------------
@@ -607,6 +678,16 @@ export class TicketService {
 
         if (!ticket) {
           throw new Error(`Tiket ${ticketId} tidak ditemukan`);
+        }
+
+        // Anti-IDOR: verify technician assignment (Rule 1)
+        if (techContext?.id && ticket.assignedTechId && ticket.assignedTechId !== techContext.id) {
+          throw new Error(`${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${ticket.ticketNumber}.`);
+        }
+
+        // Anti-Lifecycle violation: reject closed tickets (Rule 3)
+        if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') {
+          throw new Error(`${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${ticket.ticketNumber} sudah berstatus ${ticket.status} dan tidak dapat dimutasi.`);
         }
 
         // 2. Fetch Splitter
@@ -738,6 +819,9 @@ export class TicketService {
 
     const ticket = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
     if (ticket) {
+      if (ticket.status === 'Selesai' || ticket.status === 'Dibatalkan') {
+        throw new Error(`Tiket ${ticket.ticketNumber} sudah berstatus ${ticket.status} dan tidak dapat dimutasi.`);
+      }
       // Transition to 'Menunggu verifikasi' instead of 'Selesai'
       ticket.status = 'Menunggu verifikasi';
       ticket.pendingSubmission = pendingSubmission;

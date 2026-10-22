@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AiService, verifySignedActionToken } from '@/services/ai.service';
 import { AuthService } from '@/services/auth.service';
 import { confirmActionSchema, ERROR_CODES, UserSessionContext } from '@repo/shared';
+import { redisManager } from '@/lib/redis';
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,6 +55,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Anti-Impersonation / Actor Verification: Ensure executing admin matches the drafter
+    if (tokenData.actorId && adminContext.userId && tokenData.actorId !== adminContext.userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: ERROR_CODES.UNAUTHORIZED,
+            message: 'Aksi ini hanya dapat dieksekusi oleh Administrator yang meminta draf (Actor mismatch).',
+          },
+        },
+        { status: 403 }
+      );
+    }
+
+    // Anti-Replay: Mark token JTI as used in Redis (Single-Use Token)
+    if (tokenData.jti) {
+      const isFirstUse = await redisManager.markActionTokenUsed(tokenData.jti, 300);
+      if (!isFirstUse) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: ERROR_CODES.ACTION_TOKEN_REPLAYED,
+              message: 'Token aksi ini sudah pernah dieksekusi sebelumnya (Anti-Replay). Silakan minta AI untuk menyiapkan draf baru.',
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // 3. RBAC Permission Validation
     const requiredPermissionMap: Record<string, string> = {
       CREATE_TICKET: 'ticket:create',
@@ -84,16 +116,21 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     const isExpired = error.message?.includes('kedaluwarsa') || error.message?.includes(ERROR_CODES.INVALID_ACTION_TOKEN);
+    const isReplayed = error.message?.includes(ERROR_CODES.ACTION_TOKEN_REPLAYED);
     return NextResponse.json(
       {
         success: false,
         error: {
-          code: isExpired ? ERROR_CODES.AI_ACTION_EXPIRED : ERROR_CODES.VALIDATION_ERROR,
+          code: isReplayed
+            ? ERROR_CODES.ACTION_TOKEN_REPLAYED
+            : isExpired
+              ? ERROR_CODES.AI_ACTION_EXPIRED
+              : ERROR_CODES.VALIDATION_ERROR,
           message: error.errors ? error.errors[0]?.message : error.message,
           details: error.errors,
         },
       },
-      { status: isExpired ? 400 : 400 }
+      { status: 400 }
     );
   }
 }

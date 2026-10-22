@@ -3,6 +3,7 @@
     "name": "FiberOps Technician",
     "slug": "fiberops-technician",
     "version": "1.0.0",
+    "jsEngine": "hermes",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "assetBundlePatterns": ["**/*"],

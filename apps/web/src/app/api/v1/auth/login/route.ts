@@ -1,11 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/services/auth.service';
 import { loginRequestSchema, ERROR_CODES } from '@repo/shared';
+import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.json();
     const validated = loginRequestSchema.parse(rawBody);
+
+    // Rate Limiting: Maksimal 5 request per 15 menit per IP + username (HTTP 429)
+    const clientIp =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      'unknown';
+
+    const normalizedUsername = validated.username.trim().toLowerCase();
+    const rateLimitKey = `auth_login:${clientIp}:${normalizedUsername}`;
+    const rateResult = await checkRateLimit(rateLimitKey, RATE_LIMIT_PROFILES.AUTH_LOGIN);
+
+    if (!rateResult.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: ERROR_CODES.RATE_LIMITED,
+            message: 'Terlalu banyak percobaan login untuk akun ini. Silakan tunggu 15 menit.',
+          },
+          meta: { retryAfterMs: rateResult.retryAfterMs },
+        },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil(rateResult.retryAfterMs / 1000)) },
+        }
+      );
+    }
 
     // 1. Mobile Technician Login (requires deviceId)
     if (validated.deviceId) {
@@ -44,15 +72,16 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-  } catch (error: any) {
-    const isValidation = error.name === 'ZodError';
+  } catch (error: unknown) {
+    const err = error as Error & { name?: string; errors?: Array<{ message: string }> };
+    const isValidation = err.name === 'ZodError';
     return NextResponse.json(
       {
         success: false,
         error: {
           code: isValidation ? ERROR_CODES.VALIDATION_ERROR : ERROR_CODES.UNAUTHORIZED,
-          message: isValidation ? error.errors[0]?.message : error.message,
-          details: error.errors,
+          message: isValidation ? err.errors?.[0]?.message : err.message,
+          details: err.errors,
         },
       },
       { status: isValidation ? 400 : 401 }

@@ -7,6 +7,21 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 
 /**
+ * Sensitive internal headers that MUST be stripped from incoming requests
+ * before being re-injected from verified JWT claims.
+ * Prevents client-side header spoofing attacks (CWE-290).
+ */
+const SENSITIVE_HEADERS_TO_STRIP = [
+  'x-user-id',
+  'x-username',
+  'x-user-role',
+  'x-user-type',
+  'x-hierarchy-level',
+  'x-device-id',
+  'x-assigned-clusters',
+] as const;
+
+/**
  * Parses semver string into [major, minor, patch] numbers.
  */
 function parseSemver(version: string): [number, number, number] {
@@ -29,6 +44,18 @@ function isVersionOutdated(clientVersion: string | null, minVersion: string): bo
   if (cMin < mMin) return true;
   if (cMin > mMin) return false;
   return cPatch < mPatch;
+}
+
+/**
+ * Creates a new Headers object with all sensitive internal headers stripped.
+ * This prevents attackers from injecting spoofed identity headers.
+ */
+function stripSensitiveHeaders(original: Headers): Headers {
+  const cleaned = new Headers(original);
+  for (const header of SENSITIVE_HEADERS_TO_STRIP) {
+    cleaned.delete(header);
+  }
+  return cleaned;
 }
 
 export async function middleware(request: NextRequest) {
@@ -75,7 +102,9 @@ export async function middleware(request: NextRequest) {
     const token = authHeader.substring(7).trim();
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET);
-      const requestHeaders = new Headers(request.headers);
+
+      // SECURITY: Strip ALL sensitive headers first, then inject verified claims only
+      const requestHeaders = stripSensitiveHeaders(request.headers);
 
       if (payload.sub) requestHeaders.set('x-user-id', payload.sub);
       if (payload.username) requestHeaders.set('x-username', String(payload.username));
@@ -83,6 +112,12 @@ export async function middleware(request: NextRequest) {
       if (payload.userType) requestHeaders.set('x-user-type', String(payload.userType));
       if (payload.deviceId) requestHeaders.set('x-device-id', String(payload.deviceId));
       if (payload.hierarchyLevel) requestHeaders.set('x-hierarchy-level', String(payload.hierarchyLevel));
+      if (payload.assignedClusters) {
+        requestHeaders.set(
+          'x-assigned-clusters',
+          JSON.stringify(payload.assignedClusters)
+        );
+      }
 
       return NextResponse.next({
         request: {
@@ -129,18 +164,28 @@ export async function middleware(request: NextRequest) {
           { status: 401 }
         );
       }
-      return NextResponse.next();
+      // Dev mode: strip headers but allow through without auth
+      const requestHeaders = stripSensitiveHeaders(request.headers);
+      return NextResponse.next({ request: { headers: requestHeaders } });
     }
 
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET);
-      const requestHeaders = new Headers(request.headers);
+
+      // SECURITY: Strip ALL sensitive headers first, then inject verified claims only
+      const requestHeaders = stripSensitiveHeaders(request.headers);
 
       if (payload.sub) requestHeaders.set('x-user-id', payload.sub);
       if (payload.username) requestHeaders.set('x-username', String(payload.username));
       if (payload.role) requestHeaders.set('x-user-role', String(payload.role));
       if (payload.userType) requestHeaders.set('x-user-type', String(payload.userType));
       if (payload.hierarchyLevel) requestHeaders.set('x-hierarchy-level', String(payload.hierarchyLevel));
+      if (payload.assignedClusters) {
+        requestHeaders.set(
+          'x-assigned-clusters',
+          JSON.stringify(payload.assignedClusters)
+        );
+      }
 
       return NextResponse.next({
         request: {
@@ -160,7 +205,8 @@ export async function middleware(request: NextRequest) {
           { status: 401 }
         );
       }
-      return NextResponse.next();
+      const requestHeaders = stripSensitiveHeaders(request.headers);
+      return NextResponse.next({ request: { headers: requestHeaders } });
     }
   }
 

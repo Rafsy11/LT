@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { prisma } from '@repo/database';
 import { redisManager } from '@/lib/redis';
 import {
@@ -16,13 +17,14 @@ const JWT_SECRET = new TextEncoder().encode(
 
 const ACCESS_TOKEN_EXPIRY = '15m'; // Short-lived for technicians
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+const BCRYPT_SALT_ROUNDS = 10;
 
 export class AuthService {
   /**
    * Hashes password using bcrypt with standard salt rounds.
    */
   public static async hashPassword(password: string): Promise<string> {
-    return await bcrypt.hash(password, 10);
+    return await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
   }
 
   /**
@@ -61,11 +63,14 @@ export class AuthService {
 
   /**
    * Generates Refresh Token for mobile technician device binding.
+   * Includes a unique jti for token rotation tracking.
    */
   public static async generateRefreshToken(userId: string, sessionId: string, deviceId: string): Promise<string> {
+    const jti = `rt_${sessionId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     return await new SignJWT({
       sessionId,
       deviceId,
+      jti,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(userId)
@@ -266,13 +271,45 @@ export class AuthService {
   }
 
   /**
-   * Refreshes short-lived Access Token using valid Refresh Token.
+   * Refresh Token Rotation:
+   * 1. Verifies incoming refresh token.
+   * 2. Checks for Token Reuse Detection: if the submitted token's hash matches
+   *    a previously-rotated token, ALL user sessions are revoked immediately.
+   * 3. Issues a new access token AND a new refresh token (rotation).
+   * 4. Marks the old refresh token hash as rotated in Redis for reuse detection.
+   * 5. Stores the new refresh token hash in the session record.
    */
   public static async refreshMobileSession(refreshToken: string, deviceId: string) {
     try {
       const { payload } = await jwtVerify(refreshToken, JWT_SECRET);
       const userId = payload.sub as string;
       const sessionId = (payload as unknown as RefreshTokenPayload).sessionId;
+      const tokenFingerprint = (payload as { jti?: string }).jti || crypto.createHash('sha256').update(refreshToken).digest('hex');
+
+      // 1. REUSE DETECTION: Check if this specific token was already rotated
+      const isRotated = await redisManager.isRefreshTokenRotated(sessionId, tokenFingerprint);
+      if (isRotated) {
+        // CONFIRMED REUSE ATTACK (CWE-613): Revoke all sessions for this user and blacklist device
+        await this.revokeAllUserSessionsForReuse(userId, deviceId);
+
+        await prisma.activityLog.create({
+          data: {
+            actorUserId: userId,
+            actorRole: 'System',
+            actionType: 'TOKEN_REUSE_DETECTED',
+            targetEntity: 'user_session',
+            targetId: sessionId,
+            newPayload: {
+              deviceId,
+              tokenFingerprint,
+              detectedAt: new Date().toISOString(),
+              action: 'ALL_USER_SESSIONS_REVOKED_TOKEN_REUSE',
+            },
+          },
+        }).catch(() => {});
+
+        throw new Error(ERROR_CODES.TOKEN_REUSE_DETECTED);
+      }
 
       const session = await prisma.userSession.findUnique({
         where: { id: sessionId },
@@ -292,7 +329,11 @@ export class AuthService {
         throw new Error(ERROR_CODES.UNAUTHORIZED);
       }
 
-      const accessToken = await this.generateAccessToken({
+      // 2. Mark this token as rotated in Redis so any subsequent attempt triggers reuse detection
+      await redisManager.markRefreshTokenRotated(sessionId, tokenFingerprint);
+
+      // 3. Issue new Access Token AND new Refresh Token (ROTATION)
+      const newAccessToken = await this.generateAccessToken({
         id: session.user.id,
         username: session.user.username,
         roleName: session.user.role.name,
@@ -302,10 +343,52 @@ export class AuthService {
         deviceId,
       });
 
-      return { accessToken };
-    } catch {
+      const newRefreshToken = await this.generateRefreshToken(session.user.id, sessionId, deviceId);
+      const newRefreshHash = await this.hashPassword(newRefreshToken);
+
+      // 4. Update session record with the new hash
+      await prisma.userSession.update({
+        where: { id: sessionId },
+        data: { refreshTokenHash: newRefreshHash },
+      });
+
+      return {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+      };
+    } catch (err: unknown) {
+      const errMsg = (err as Error).message || '';
+      if (errMsg.includes(ERROR_CODES.TOKEN_REUSE_DETECTED)) {
+        throw err;
+      }
       throw new Error(ERROR_CODES.UNAUTHORIZED);
     }
+  }
+
+  /**
+   * Revokes all sessions for a user when refresh token reuse is detected.
+   * Blacklists current device and all user devices in Redis for instant enforcement.
+   */
+  private static async revokeAllUserSessionsForReuse(userId: string, deviceId: string): Promise<void> {
+    // Blacklist requesting device immediately
+    await redisManager.blacklistSession(deviceId);
+
+    // Blacklist all active session devices for this user
+    const activeSessions = await prisma.userSession.findMany({
+      where: { userId, revokedAt: null },
+    });
+
+    for (const session of activeSessions) {
+      if (session.deviceId) {
+        await redisManager.blacklistSession(session.deviceId);
+      }
+    }
+
+    // Mark all active sessions as revoked in DB
+    await prisma.userSession.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 
   /**

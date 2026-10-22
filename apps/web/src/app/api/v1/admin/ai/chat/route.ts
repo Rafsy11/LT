@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AiService } from '@/services/ai.service';
 import { AuthService } from '@/services/auth.service';
-import { UserSessionContext } from '@repo/shared';
+import { ERROR_CODES, UserSessionContext } from '@repo/shared';
+import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest) {
 
     if (!prompt) {
       return NextResponse.json(
-        { success: false, error: { code: 'INVALID_PROMPT', message: 'Pesan prompt tidak boleh kosong' } },
+        { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Pesan prompt tidak boleh kosong' } },
         { status: 400 }
       );
     }
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
         adminContext = await AuthService.verifyAccessToken(token);
       } catch {
         return NextResponse.json(
-          { success: false, error: { code: 'UNAUTHORIZED', message: 'Sesi Admin tidak valid atau telah kedaluwarsa' } },
+          { success: false, error: { code: ERROR_CODES.UNAUTHORIZED, message: 'Sesi Admin tidak valid atau telah kedaluwarsa' } },
           { status: 401 }
         );
       }
@@ -44,15 +45,38 @@ export async function POST(request: NextRequest) {
       };
     }
 
+    // Rate Limiting: 10 req/60s per admin userId
+    const rateResult = await checkRateLimit(
+      `ai_chat:${adminContext.userId}`,
+      RATE_LIMIT_PROFILES.AI_CHAT
+    );
+    if (!rateResult.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: ERROR_CODES.RATE_LIMITED,
+            message: 'Terlalu banyak permintaan AI Chat. Silakan tunggu sebelum mencoba lagi.',
+          },
+          meta: { retryAfterMs: rateResult.retryAfterMs },
+        },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil(rateResult.retryAfterMs / 1000)) },
+        }
+      );
+    }
+
     const response = await AiService.processChat(prompt, adminContext);
 
     return NextResponse.json({
       success: true,
       data: response,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as Error;
     return NextResponse.json(
-      { success: false, error: { code: 'AI_CHAT_ERROR', message: error.message } },
+      { success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: err.message } },
       { status: 500 }
     );
   }
