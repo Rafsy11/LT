@@ -82,8 +82,8 @@ function SignalStrengthBars({ status }: { status: 'normal' | 'warning' | 'critic
 
 export default function NetworkPage() {
   const [search, setSearch] = useState('');
-  const [clusterFilter] = useState('Semua cluster');
-  const [portStatusFilter] = useState('Semua');
+  const [clusterFilter, setClusterFilter] = useState('Semua cluster');
+  const [portStatusFilter, setPortStatusFilter] = useState('Semua');
   const [activeSplitterCode, setActiveSplitterCode] = useState<string>('ODP-BDG-05');
   const [expandedClusters, setExpandedClusters] = useState<Record<string, boolean>>({
     'BDG-01': true,
@@ -94,7 +94,27 @@ export default function NetworkPage() {
   const [networkData, setNetworkData] = useState<ClusterListItem[]>(FALLBACK_CLUSTERS);
   const [loading, setLoading] = useState(false);
   const [selectedPort, setSelectedPort] = useState<SelectedPortContext | null>(null);
-  const [portFilter] = useState<'ALL' | 'OCCUPIED' | 'AVAILABLE'>('ALL');
+  const [portFilter, setPortFilter] = useState<'ALL' | 'OCCUPIED' | 'AVAILABLE'>('ALL');
+
+  const networkStats: NetworkStats = useMemo(() => {
+    const totalClusters = new Set(networkData.map((c) => c.clusterCode)).size;
+    const totalSplitters = networkData.length;
+    let totalCapacity = 0;
+    let usedCapacity = 0;
+
+    networkData.forEach((item) => {
+      totalCapacity += item.maxPorts || 0;
+      usedCapacity += item.usedPorts || 0;
+    });
+
+    return {
+      totalClusters,
+      totalSplitters,
+      totalCapacity,
+      usedCapacity,
+      availableCapacity: Math.max(0, totalCapacity - usedCapacity),
+    };
+  }, [networkData]);
   const [activeTab, setActiveTab] = useState<'ports' | 'inspeksi' | 'riwayat' | 'audit'>('ports');
   const [expandedPortNum, setExpandedPortNum] = useState<number | null>(1);
   const [selectedCustomerForModal, setSelectedCustomerForModal] = useState<CustomerListItem | null>(null);
@@ -354,57 +374,54 @@ export default function NetworkPage() {
         </div>
       </header>
 
-      {/* 3 Metric Cards (Kesehatan Jaringan Removed, Zero Progress Percentages) */}
+      {/* 3 Metric Cards Computed Directly from Live Network Matrix */}
       <section className="network-metrics-row-3" aria-label="Metrik Utama Jaringan">
-        {/* Card 1: Pelanggan Aktif */}
+        {/* Card 1: Total Cluster & ODP */}
         <article className="metric-card-clean">
           <div className="metric-card-header">
             <div className="metric-icon-box">
               <Icon name="network" size={20} />
             </div>
             <div className="metric-label-group">
-              <span className="metric-label-text">Pelanggan aktif</span>
-              <span className="metric-number-big">428</span>
+              <span className="metric-label-text">Total ODP Splitter</span>
+              <span className="metric-number-big">{networkStats.totalSplitters}</span>
             </div>
           </div>
           <div className="metric-footer-text">
-            <span className="metric-trend-up">
-              <span>↑</span> +12
-            </span>
-            <span>dari bulan lalu</span>
+            <span>terbagi dalam {networkStats.totalClusters} cluster wilayah</span>
           </div>
         </article>
 
-        {/* Card 2: Tiket Aktif */}
+        {/* Card 2: Kapasitas Port Terpakai */}
         <article className="metric-card-clean">
           <div className="metric-card-header">
             <div className="metric-icon-box">
-              <Icon name="ticket" size={20} />
+              <Icon name="activity" size={20} />
             </div>
             <div className="metric-label-group">
-              <span className="metric-label-text">Tiket aktif</span>
-              <span className="metric-number-big">3</span>
+              <span className="metric-label-text">Port terpakai</span>
+              <span className="metric-number-big">{networkStats.usedCapacity}</span>
             </div>
           </div>
           <div className="metric-footer-text">
-            <span className="metric-pill-chip">1 menunggu</span>
-            <span>penguasaan teknisi</span>
+            <span className="metric-pill-chip">{networkStats.totalCapacity} kapasitas total</span>
+            <span>alokasi splitter</span>
           </div>
         </article>
 
-        {/* Card 3: Teknisi di Lapangan */}
+        {/* Card 3: Port Siap PSB */}
         <article className="metric-card-clean">
           <div className="metric-card-header">
             <div className="metric-icon-box">
-              <Icon name="wrench" size={20} />
+              <Icon name="check" size={20} />
             </div>
             <div className="metric-label-group">
-              <span className="metric-label-text">Teknisi di lapangan</span>
-              <span className="metric-number-big">186</span>
+              <span className="metric-label-text">Port siap PSB</span>
+              <span className="metric-number-big">{networkStats.availableCapacity}</span>
             </div>
           </div>
           <div className="metric-footer-text">
-            <span>dari 200 teknisi terdaftar</span>
+            <span>siap untuk instalasi baru</span>
           </div>
         </article>
       </section>
@@ -572,6 +589,71 @@ export default function NetworkPage() {
 
               {activeTab === 'ports' && (
                 <div className="odp-table-wrapper">
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 16px',
+                      borderBottom: '1px solid #f1f5f9',
+                      background: '#fbfcfd',
+                    }}
+                  >
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', marginRight: '4px' }}>
+                      Filter Port:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPortFilter('ALL')}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        borderRadius: '4px',
+                        border: '1px solid',
+                        borderColor: portFilter === 'ALL' ? '#0e5b92' : '#dce7f0',
+                        background: portFilter === 'ALL' ? '#eef5fa' : '#ffffff',
+                        color: portFilter === 'ALL' ? '#0e5b92' : '#64748b',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Semua Port ({activeSplitter.ports.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPortFilter('OCCUPIED')}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        borderRadius: '4px',
+                        border: '1px solid',
+                        borderColor: portFilter === 'OCCUPIED' ? '#0e5b92' : '#dce7f0',
+                        background: portFilter === 'OCCUPIED' ? '#eef5fa' : '#ffffff',
+                        color: portFilter === 'OCCUPIED' ? '#0e5b92' : '#64748b',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Terpakai ({activeSplitter.ports.filter((p) => p.isOccupied).length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPortFilter('AVAILABLE')}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        borderRadius: '4px',
+                        border: '1px solid',
+                        borderColor: portFilter === 'AVAILABLE' ? '#0e5b92' : '#dce7f0',
+                        background: portFilter === 'AVAILABLE' ? '#eef5fa' : '#ffffff',
+                        color: portFilter === 'AVAILABLE' ? '#0e5b92' : '#64748b',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Tersedia ({activeSplitter.ports.filter((p) => !p.isOccupied).length})
+                    </button>
+                  </div>
                   <table className="odp-clean-table">
                     <thead>
                       <tr>

@@ -220,7 +220,7 @@ export default function AiPage() {
                 style={{
                   background: 'rgba(238, 246, 255, 0.95)',
                   border: '1px solid rgba(200, 226, 252, 0.9)',
-                  borderRadius: '9999px',
+                  borderRadius: '8px',
                   padding: '16px 28px',
                   fontSize: '14.5px',
                   fontWeight: 600,

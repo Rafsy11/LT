@@ -154,7 +154,7 @@ class RedisManager {
     const currentCount = (results[1]?.[1] as number) ?? 0;
 
     if (currentCount >= maxRequests) {
-      // Over limit — remove the entry we just speculatively added
+      // Over limit: remove the entry we just speculatively added
       await this.publisher.zrem(redisKey, member).catch(() => {});
       return {
         allowed: false,

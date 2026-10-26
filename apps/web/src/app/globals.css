@@ -385,7 +385,7 @@ svg {
   margin-right: auto;
   background: #ffffff;
   border: 1px solid #bddaf0;
-  border-radius: 9999px;
+  border-radius: 8px;
   padding: 7px 16px;
   display: flex;
   align-items: center;
@@ -415,7 +415,7 @@ svg {
 }
 
 .header-search-input::placeholder {
-  color: #8da4be;
+  color: #506882;
 }
 
 .header-search-kbd {
@@ -693,7 +693,7 @@ p {
 }
 
 /* ==========================================================================
-   OVERVIEW OPERASIONAL — LINTASARTA ENTERPRISE DESIGN SYSTEM
+   OVERVIEW OPERASIONAL: LINTASARTA ENTERPRISE DESIGN SYSTEM
    Aligned with Test-Design.md, high-end-visual-design, & antislop-ui
    Matches image.png pixel-for-pixel
    ========================================================================== */
@@ -3284,7 +3284,7 @@ button:disabled {
 }
 
 /* ==========================================================================
-   MASTER JARINGAN & ODP SPLITTER HARDWARE MATRIX — LINTASARTA ENTERPRISE
+   MASTER JARINGAN & ODP SPLITTER HARDWARE MATRIX: LINTASARTA ENTERPRISE
    PRD Section 3.1 & 5.2 (idx_unique_active_splitter_port)
    ========================================================================== */
 
@@ -3398,7 +3398,7 @@ button:disabled {
 }
 
 /* ==========================================================================
-   NETWORK TREE VIEW — CLUSTER & ODP FOLDER STRUCTURE (ANTI-SLOP ARCHITECTURE)
+   NETWORK TREE VIEW: CLUSTER & ODP FOLDER STRUCTURE (ANTI-SLOP ARCHITECTURE)
    PRD Section 5.1 & antislop-ui: Clean hierarchical tree, strictly monochrome text
    ========================================================================== */
 .network-tree-panel {
@@ -4215,7 +4215,7 @@ button:disabled {
 }
 
 /* ==========================================================================
-   TIKET & WORK ORDER — LINTASARTA ENTERPRISE DESIGN SYSTEM
+   TIKET & WORK ORDER: LINTASARTA ENTERPRISE DESIGN SYSTEM
    PRD Section 3.2, 5.1 & agent.md (Strict Workflow & Anti-Circumvention)
    ========================================================================== */
 

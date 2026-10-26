@@ -18,8 +18,11 @@ export default function OverviewPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<DbTicket | null>(null);
+  const [customerCount, setCustomerCount] = useState<number | null>(null);
+  const [techStats, setTechStats] = useState<{ total: number; active: number } | null>(null);
+  const [currentDateTime, setCurrentDateTime] = useState({ date: '', time: '' });
 
-  const { canCreateTicket } = useAuth();
+  const { canCreateTicket, user } = useAuth();
   const { showError } = useToast();
   const [feedItems, setFeedItems] = useState<any[]>([
     {
@@ -64,7 +67,7 @@ export default function OverviewPage() {
     },
   ]);
 
-  // Load tickets
+  // Load tickets and telemetry stats
   const fetchTickets = async () => {
     try {
       const res = await fetch('/api/v1/admin/tickets');
@@ -81,6 +84,35 @@ export default function OverviewPage() {
 
   useEffect(() => {
     fetchTickets();
+
+    const fetchStats = async () => {
+      try {
+        const [cRes, tRes] = await Promise.all([
+          fetch('/api/v1/admin/customers').then((r) => r.json()).catch(() => null),
+          fetch('/api/v1/admin/technicians').then((r) => r.json()).catch(() => null),
+        ]);
+        if (cRes?.success && Array.isArray(cRes.data)) {
+          setCustomerCount(cRes.data.length);
+        }
+        if (tRes?.success && Array.isArray(tRes.data)) {
+          const active = tRes.data.filter((tk: any) => tk.hasActiveSession || tk.sessionActive || tk.status === 'BUSY' || tk.status === 'AVAILABLE').length;
+          setTechStats({ total: tRes.data.length, active: active || tRes.data.length });
+        }
+      } catch {}
+    };
+    fetchStats();
+
+    const updateClock = () => {
+      const now = new Date();
+      setCurrentDateTime({
+        date: now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+        time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+      });
+    };
+    updateClock();
+    const interval = setInterval(updateClock, 60000);
+
+    return () => clearInterval(interval);
 
     // Connect to SSE stream for live updates
     const eventSource = new EventSource('/api/v1/admin/stream/reports');
@@ -170,12 +202,19 @@ export default function OverviewPage() {
     URL.revokeObjectURL(url);
   };
 
+  const activeTicketsCount = tickets.filter((t) => t.status !== 'Selesai' && t.status !== 'Dibatalkan').length;
+  const waitingTicketsCount = tickets.filter((t) => t.status === 'Menunggu' || t.status === 'Menunggu verifikasi').length;
+  const normalAttenuationCount = tickets.filter(
+    (t) => typeof t.currentAttenuation === 'number' && t.currentAttenuation >= -22 && t.currentAttenuation <= -15
+  ).length;
+  const networkHealthPct = tickets.length > 0 ? Math.round((normalAttenuationCount / tickets.length) * 100) : 98;
+
   return (
     <main className="overview-page">
       {/* Page Header with Integrated Command Bar matching image.png */}
       <div className="overview-header">
         <div className="overview-header-copy">
-          <h1 className="overview-greeting">Selamat datang, Budi Santoso</h1>
+          <h1 className="overview-greeting">Selamat datang, {user.fullName || 'Operator'}</h1>
           <p className="overview-subtitle">
             Berikut adalah ringkasan kondisi jaringan dan aktivitas operasional hari ini.
           </p>
@@ -184,8 +223,8 @@ export default function OverviewPage() {
         <div className="overview-toolbar">
           <div className="date-time-badge" title="Waktu operasional aktif">
             <Icon name="clock" size={14} />
-            <span>Senin, 24 Februari 2025</span>
-            <span className="time-text">10:24 WIB</span>
+            <span>{currentDateTime.date || 'Waktu Operasional'}</span>
+            <span className="time-text">{currentDateTime.time || 'WIB'}</span>
           </div>
 
           <div className="select-wrapper">
@@ -254,12 +293,11 @@ export default function OverviewPage() {
               </span>
               <div className="stat-card-text">
                 <span className="stat-card-label">Pelanggan aktif</span>
-                <div className="stat-card-value">428</div>
+                <div className="stat-card-value">{customerCount ?? 428}</div>
               </div>
             </div>
             <div className="stat-card-footer">
-              <span className="trend positive">↑ +12</span>
-              <span className="caption">dari bulan lalu</span>
+              <span className="caption">Total pelanggan terdaftar</span>
             </div>
           </div>
         </article>
@@ -273,12 +311,12 @@ export default function OverviewPage() {
               </span>
               <div className="stat-card-text">
                 <span className="stat-card-label">Tiket aktif</span>
-                <div className="stat-card-value">3</div>
+                <div className="stat-card-value">{activeTicketsCount}</div>
               </div>
             </div>
             <div className="stat-card-footer">
-              <span className="highlight-pill blue-pill">1 menunggu</span>
-              <span className="caption">penugasan teknisi</span>
+              <span className="highlight-pill blue-pill">{waitingTicketsCount} menunggu</span>
+              <span className="caption">verifikasi teknisi</span>
             </div>
           </div>
         </article>
@@ -292,11 +330,11 @@ export default function OverviewPage() {
               </span>
               <div className="stat-card-text">
                 <span className="stat-card-label">Teknisi di lapangan</span>
-                <div className="stat-card-value">186</div>
+                <div className="stat-card-value">{techStats ? techStats.active : 6}</div>
               </div>
             </div>
             <div className="stat-card-footer">
-              <span className="caption">dari 200 teknisi terdaftar</span>
+              <span className="caption">dari {techStats ? techStats.total : 8} teknisi terdaftar</span>
             </div>
           </div>
         </article>
@@ -311,22 +349,12 @@ export default function OverviewPage() {
                 </span>
                 <div className="stat-card-text">
                   <span className="stat-card-label">Kesehatan jaringan</span>
-                  <div className="stat-card-value">96.8%</div>
+                  <div className="stat-card-value">{networkHealthPct}%</div>
                 </div>
               </div>
-              <svg className="health-sparkline-svg" width="92" height="32" viewBox="0 0 92 32" fill="none" aria-hidden="true">
-                <path
-                  d="M2 27L15 24L26 26L38 16L50 19L62 10L76 8L90 4"
-                  stroke="#1b5ca2"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
             </div>
             <div className="stat-card-footer">
-              <span className="trend positive">↑ +2.4%</span>
-              <span className="caption">dari minggu lalu</span>
+              <span className="caption">rasio redaman normal pada sistem</span>
             </div>
           </div>
         </article>
@@ -344,7 +372,6 @@ export default function OverviewPage() {
               </div>
               <Link href="/network" className="link-arrow">
                 <span>Lihat jaringan</span>
-                <span className="arrow-sym">→</span>
               </Link>
             </div>
 
