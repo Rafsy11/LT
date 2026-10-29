@@ -3,9 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
-import { useToast } from '@/components/ui/ToastProvider';
+import { useToast } from '@/providers';
 
-interface TicketDetailModalProps {
+export interface TicketDetailModalProps {
   ticket: any | null;
   onClose: () => void;
   onTicketUpdated?: () => void;
@@ -745,3 +745,4 @@ export function TicketDetailModal({
     </div>
   );
 }
+

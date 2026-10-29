@@ -1,12 +1,12 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
-import { CreateTicketModal } from '@/components/modals/CreateTicketModal';
-import { TicketDetailModal } from '@/components/modals/TicketDetailModal';
-import { useAuth } from '@/lib/auth-context';
-import { useToast } from '@/components/ui/ToastProvider';
+import { CreateTicketModal, TicketDetailModal } from '@/features/tickets';
+import { useAuth, useToast } from '@/providers';
+
+
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
 
 import type { DbTicket } from '@repo/shared';

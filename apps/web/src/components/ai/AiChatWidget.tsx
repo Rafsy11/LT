@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
 import { DraftActionCardData, sanitizeUiErrorMessage } from '@repo/shared';
-import { useToast } from '@/components/ui/ToastProvider';
+import { useToast } from '@/providers';
 import { DraftActionCard } from '@/components/ai/DraftActionCard';
 
 export function AiChatWidget() {

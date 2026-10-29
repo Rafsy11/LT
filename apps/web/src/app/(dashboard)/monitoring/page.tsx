@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { classifyDbm, dbmTone } from '@repo/shared';
 import { Icon } from '@/components/ui/Icon';
-import { TicketDetailModal } from '@/components/modals/TicketDetailModal';
+import { TicketDetailModal } from '@/features/tickets';
 
 export interface LiveReportItem {
   id: string;

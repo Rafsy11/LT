@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/providers";
 import { PERMISSIONS } from "@repo/shared";
 
 interface HeaderProps {

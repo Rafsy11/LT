@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { CreateTicketInput } from '@repo/shared';
-import { useToast } from '@/components/ui/ToastProvider';
-import { useAuth } from '@/lib/auth-context';
+import type { CreateTicketInput } from '@repo/shared';
+import { useToast, useAuth } from '@/providers';
 
-interface CreateTicketModalProps {
+export interface CreateTicketModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: CreateTicketInput) => Promise<void> | void;
@@ -149,3 +148,4 @@ export function CreateTicketModal({ isOpen, onClose, onSubmit, initialValues }: 
     </div>
   );
 }
+

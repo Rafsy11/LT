@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { DraftActionCardData, sanitizeUiErrorMessage } from '@repo/shared';
-import { useToast } from '@/components/ui/ToastProvider';
+import { useToast } from '@/providers';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
 import { DraftActionCard } from '@/components/ai/DraftActionCard';

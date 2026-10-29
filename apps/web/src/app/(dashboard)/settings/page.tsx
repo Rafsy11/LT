@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/lib/auth-context';
-import { useToast } from '@/components/ui/ToastProvider';
+import { useAuth, useToast } from '@/providers';
+
 import { Icon } from '@/components/ui/Icon';
 import {
   SystemSettingsInput,

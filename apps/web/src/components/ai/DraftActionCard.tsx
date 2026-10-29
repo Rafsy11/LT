@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { DraftActionCardData, sanitizeUiErrorMessage, ERROR_CODES } from '@repo/shared';
-import { useToast } from '@/components/ui/ToastProvider';
+import { useToast } from '@/providers';
 import { Icon } from '@/components/ui/Icon';
 import { webApiClient, ApiClientError } from '@/lib/api-client';
 
