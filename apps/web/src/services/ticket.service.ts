@@ -1,4 +1,4 @@
-import { prisma } from '@repo/database';
+﻿import { prisma } from '@repo/database';
 import { redisManager } from '@/lib/redis';
 import {
   CreateTicketInput,
@@ -9,51 +9,14 @@ import {
   MAX_GEOFENCE_RADIUS_METERS,
   ERROR_CODES,
   UserSessionContext,
+  DbTicket,
+  DbTicketPendingSubmission,
 } from '@repo/shared';
 import { sseBroadcaster } from './sse.service';
 
 import { CustomerService } from './customer.service';
 
-export interface DbTicketPendingSubmission {
-  submissionId: string;
-  splitterId: string;
-  splitterCode: string;
-  portNumber: number;
-  attenuationDbm: number;
-  photoObjectKey: string;
-  submittedLat: number;
-  submittedLng: number;
-  distanceToSplitterM: number;
-  isLocationFlagged: boolean;
-  clientRecordedAt?: string;
-  technicianNotes?: string;
-  submittedAt: string;
-  techUsername: string;
-  techFullName: string;
-}
-
-export interface DbTicket {
-  id: string;
-  ticketNumber: string;
-  customerName: string;
-  siaNumber: string;
-  ticketType: 'Pasang baru' | 'Perbaikan' | 'Maintenance' | 'Instalasi';
-  cluster: string;
-  assignedTech: string;
-  techInitials: string;
-  status: 'Menunggu' | 'Dalam proses' | 'Menunggu verifikasi' | 'Selesai' | 'Dibatalkan';
-  priority?: 'Normal' | 'High' | 'Low';
-  currentAttenuation: number;
-  adminNotes?: string;
-  createdAt: string;
-  completedAt?: string;
-  splitterCode?: string;
-  portNumber?: number;
-  distanceToSplitterM?: number;
-  isLocationFlagged?: boolean;
-  pendingSubmission?: DbTicketPendingSubmission;
-}
-
+export type { DbTicket, DbTicketPendingSubmission };
 const FALLBACK_TICKETS: DbTicket[] = [
   {
     id: 't-1',
@@ -818,7 +781,7 @@ export class TicketService {
           data: {
             status: 'IN_PROGRESS',
             adminNotes: ticket.adminNotes
-              ? `${ticket.adminNotes} · Menunggu verifikasi Super Admin`
+              ? `${ticket.adminNotes} Â· Menunggu verifikasi Super Admin`
               : 'Menunggu verifikasi Super Admin',
           },
           include: {
@@ -1060,7 +1023,7 @@ export class TicketService {
     ticket.portNumber = finalPort;
     ticket.completedAt = new Date().toISOString();
     ticket.adminNotes = ticket.adminNotes
-      ? `${ticket.adminNotes} · Disetujui oleh Super Admin (${adminUser})`
+      ? `${ticket.adminNotes} Â· Disetujui oleh Super Admin (${adminUser})`
       : `Disetujui oleh Super Admin (${adminUser})`;
     ticket.pendingSubmission = undefined;
 

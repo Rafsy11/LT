@@ -10,6 +10,10 @@ dist/
 build/
 .turbo/
 *.tsbuildinfo
+.prettiercache
+
+# temporary & misdirected files
+tatus
 
 # expo & react native mobile
 .expo/

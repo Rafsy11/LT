@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/ToastProvider';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
 
-import type { DbTicket } from '@/services/ticket.service';
+import type { DbTicket } from '@repo/shared';
 
 export default function OverviewPage() {
   const [cluster, setCluster] = useState('Semua cluster');
@@ -485,7 +485,7 @@ export default function OverviewPage() {
                 <span className="map-hud-pill">
                   <span className="status-dot green" />
                   <b>12 cluster aktif</b>
-                  <span className="sep">·</span>
+                  <span className="sep">Â·</span>
                   <span>64 titik ODP</span>
                 </span>
               </div>
@@ -493,7 +493,7 @@ export default function OverviewPage() {
               {/* Floating Zoom Controls matching image.png */}
               <div className="map-zoom-controls">
                 <button type="button" className="map-zoom-btn" aria-label="Zoom in">+</button>
-                <button type="button" className="map-zoom-btn" aria-label="Zoom out">−</button>
+                <button type="button" className="map-zoom-btn" aria-label="Zoom out">âˆ’</button>
                 <button type="button" className="map-zoom-btn compass" aria-label="Reset arah">
                   <Icon name="compass" size={13} />
                 </button>
@@ -525,7 +525,7 @@ export default function OverviewPage() {
               </div>
               <Link href="/monitoring" className="link-arrow">
                 <span>Lihat semua</span>
-                <span className="arrow-sym">→</span>
+                <span className="arrow-sym">â†’</span>
               </Link>
             </div>
 
@@ -693,7 +693,7 @@ export default function OverviewPage() {
                         <span className="muted-dash">-</span>
                       </td>
                       <td className="action-col-dots">
-                        <span className="more-dots">⋯</span>
+                        <span className="more-dots">â‹¯</span>
                       </td>
                     </tr>
                   );
@@ -710,7 +710,7 @@ export default function OverviewPage() {
 
           <div className="table-footer-bar">
             <span>Menampilkan {filteredTickets.length} dari {tickets.length} tiket</span>
-            <span>Master Data Terverifikasi · FiberOps On-Premise</span>
+            <span>Master Data Terverifikasi Â· FiberOps On-Premise</span>
           </div>
         </div>
       </section>

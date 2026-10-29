@@ -14,11 +14,11 @@ process.env.JWT_SECRET =
   process.env.JWT_SECRET || 'fiberops_on_premise_super_secure_jwt_secret_key_32chars';
 
 import { NextRequest } from 'next/server';
-import { middleware } from '../middleware';
-import { checkRateLimit } from '../lib/rate-limit';
-import { TicketService } from '../services/ticket.service';
-import { generateSignedActionToken, verifySignedActionToken } from '../services/ai.service';
-import { redisManager } from '../lib/redis';
+import { middleware } from '../apps/web/src/middleware';
+import { checkRateLimit } from '../apps/web/src/lib/rate-limit';
+import { TicketService } from '../apps/web/src/services/ticket.service';
+import { generateSignedActionToken, verifySignedActionToken } from '../apps/web/src/services/ai.service';
+import { redisManager } from '../apps/web/src/lib/redis';
 import { ERROR_CODES, SubmitTicketInput } from '@repo/shared';
 
 interface TestResult {

@@ -1,22 +1,7 @@
 import { prisma } from '@repo/database';
-import { ERROR_CODES } from '@repo/shared';
+import { ERROR_CODES, type CustomerListItem } from '@repo/shared';
 
-export interface CustomerListItem {
-  id: string;
-  siaNumber: string;
-  fullName: string;
-  address: string;
-  kecamatan?: string;
-  kelurahan?: string;
-  street?: string;
-  cluster: string;
-  clusterCode: string;
-  splitterCode: string;
-  portNumber: number;
-  currentAttenuation: number;
-  status: string;
-  updatedAt: string;
-}
+export type { CustomerListItem };
 
 export function parseCustomerAddress(address: string): { street: string; kelurahan: string; kecamatan: string } {
   const lower = address.toLowerCase();

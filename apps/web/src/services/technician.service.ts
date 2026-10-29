@@ -1,28 +1,7 @@
 import { prisma } from '@repo/database';
+import { type TechnicianListItem } from '@repo/shared';
 
-export interface TechnicianListItem {
-  id: string;
-  username: string;
-  fullName: string;
-  cluster: string;
-  initials: string;
-  isActive: boolean;
-  activeTicketsCount: number;
-  completedTicketsCount: number;
-  phoneNumber?: string;
-  deviceModel?: string;
-  deviceId?: string;
-  appVersion?: string;
-  sessionStatus?: 'ACTIVE_SESSION' | 'REVOKED' | 'NO_SESSION';
-  lastActiveAt?: string;
-  isMockLocationDetected?: boolean;
-  activeWorkOrders?: {
-    ticketNumber: string;
-    customerName: string;
-    ticketType: string;
-    splitterCode?: string;
-  }[];
-}
+export type { TechnicianListItem };
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);

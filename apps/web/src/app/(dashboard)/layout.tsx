@@ -1,12 +1,11 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { AiChatWidget } from '@/components/ai/AiChatWidget';
-import { AuthProvider } from '@/lib/auth-context';
-import { ToastProvider } from '@/components/ui/ToastProvider';
+import { AuthProvider, ToastProvider } from '@/providers';
 
 const pageTitleMap: Record<string, string> = {
   '/': 'Overview',
@@ -49,7 +48,7 @@ export default function DashboardLayout({
             <Header pageTitle={title} />
             {children}
             <footer>
-              <span>© 2025 Fiberops. All rights reserved. Single Source of Truth FTTH.</span>
+              <span>Â© 2025 Fiberops. All rights reserved. Single Source of Truth FTTH.</span>
               <span style={{ paddingRight: '120px' }}>Versi 1.0.0 (On-Premise)</span>
             </footer>
           </div>
