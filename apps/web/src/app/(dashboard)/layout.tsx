@@ -1,10 +1,10 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
-import { AiChatWidget } from '@/components/ai/AiChatWidget';
+import { AiChatWidget } from '@/features/ai';
 import { AuthProvider, ToastProvider } from '@/providers';
 
 const pageTitleMap: Record<string, string> = {

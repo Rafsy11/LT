@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
 import { DraftActionCardData, sanitizeUiErrorMessage } from '@repo/shared';
 import { useToast } from '@/providers';
-import { DraftActionCard } from '@/components/ai/DraftActionCard';
+import { DraftActionCard } from './draft-action-card';
 
 export function AiChatWidget() {
   const pathname = usePathname();
@@ -145,3 +145,4 @@ export function AiChatWidget() {
     </>
   );
 }
+
