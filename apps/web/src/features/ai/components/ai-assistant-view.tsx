@@ -34,10 +34,7 @@ export function AiAssistantView() {
       }}
     >
       {!messages.length ? (
-        <AiHero
-          suggestions={suggestions}
-          onSelectSuggestion={(text) => sendMessage(text)}
-        />
+        <AiHero suggestions={suggestions} onSelectSuggestion={(text) => sendMessage(text)} />
       ) : (
         <AiMessageList
           messages={messages}
@@ -57,4 +54,3 @@ export function AiAssistantView() {
     </div>
   );
 }
-

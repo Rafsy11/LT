@@ -30,7 +30,9 @@ export const submitTicketSchema = z.object({
     .number()
     .min(-40.0, 'Nilai redaman tidak valid (terlalu rendah)')
     .max(5.0, 'Nilai redaman tidak valid (terlalu tinggi)'),
-  photoObjectKey: z.string().min(1, 'photo_object_key dari MinIO wajib disertakan sebagai bukti OPM'),
+  photoObjectKey: z
+    .string()
+    .min(1, 'photo_object_key dari MinIO wajib disertakan sebagai bukti OPM'),
   submittedLat: z.number().min(-90.0).max(90.0, 'Latitude tidak valid'),
   submittedLng: z.number().min(-180.0).max(180.0, 'Longitude tidak valid'),
   isMockLocation: z.boolean().default(false), // Flag anti-fake GPS

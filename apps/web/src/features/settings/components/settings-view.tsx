@@ -28,7 +28,10 @@ export function SettingsView() {
   } = useSettings();
 
   return (
-    <main className="settings-page" style={{ paddingBottom: '48px', maxWidth: '1600px', margin: '0 auto' }}>
+    <main
+      className="settings-page"
+      style={{ paddingBottom: '48px', maxWidth: '1600px', margin: '0 auto' }}
+    >
       {/* Overview Command Header */}
       <SettingsHeader
         isSuperAdmin={isSuperAdmin}
@@ -102,7 +105,9 @@ export function SettingsView() {
                 ● Terdapat perubahan konfigurasi yang belum disimpan.
               </span>
             ) : (
-              <span>Konfigurasi tersinkronisasi penuh dengan server on-premise PostgreSQL &amp; Docker.</span>
+              <span>
+                Konfigurasi tersinkronisasi penuh dengan server on-premise PostgreSQL &amp; Docker.
+              </span>
             )}
           </div>
 
@@ -152,4 +157,3 @@ export function SettingsView() {
     </main>
   );
 }
-

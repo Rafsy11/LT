@@ -41,7 +41,15 @@ export function RoleDirectoryTable({
   return (
     <div>
       {/* Search & Filter Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          flexWrap: 'wrap',
+          marginBottom: '16px',
+        }}
+      >
         {/* Search input */}
         <div
           style={{
@@ -77,7 +85,13 @@ export function RoleDirectoryTable({
               type="button"
               onClick={() => setSearchQuery('')}
               aria-label="Hapus pencarian"
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#94a3b8' }}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                color: '#94a3b8',
+              }}
             >
               <Icon name="x" size={13} />
             </button>
@@ -143,7 +157,15 @@ export function RoleDirectoryTable({
           }}
         >
           <thead>
-            <tr style={{ borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <tr
+              style={{
+                borderBottom: '1px solid #e2e8f0',
+                color: '#64748b',
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}
+            >
               <th style={{ padding: '12px 16px', fontWeight: 600 }}>Pengguna</th>
               <th style={{ padding: '12px 16px', fontWeight: 600 }}>Peran Sistem</th>
               <th style={{ padding: '12px 16px', fontWeight: 600 }}>Cakupan Wilayah</th>
@@ -154,7 +176,10 @@ export function RoleDirectoryTable({
           <tbody>
             {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ padding: '40px 16px', textAlign: 'center', color: '#94a3b8' }}>
+                <td
+                  colSpan={5}
+                  style={{ padding: '40px 16px', textAlign: 'center', color: '#94a3b8' }}
+                >
                   Tidak ada pengguna yang sesuai dengan filter pencarian ini.
                 </td>
               </tr>
@@ -177,7 +202,15 @@ export function RoleDirectoryTable({
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <DefaultAvatar size={34} name={u.name} />
                         <div>
-                          <div style={{ fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              color: '#0f172a',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
                             {u.name}
                             {isCurrentUser && (
                               <span
@@ -254,7 +287,13 @@ export function RoleDirectoryTable({
                             outline: 'none',
                             opacity: isCurrentUser ? 0.7 : 1,
                           }}
-                          title={isCurrentUser ? 'Tidak dapat menonaktifkan akun sendiri' : u.isActive ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
+                          title={
+                            isCurrentUser
+                              ? 'Tidak dapat menonaktifkan akun sendiri'
+                              : u.isActive
+                                ? 'Klik untuk nonaktifkan'
+                                : 'Klik untuk aktifkan'
+                          }
                         >
                           <span
                             style={{
@@ -270,7 +309,13 @@ export function RoleDirectoryTable({
                             }}
                           />
                         </button>
-                        <span style={{ fontSize: '11.5px', color: u.isActive ? '#15803d' : '#94a3b8', fontWeight: 500 }}>
+                        <span
+                          style={{
+                            fontSize: '11.5px',
+                            color: u.isActive ? '#15803d' : '#94a3b8',
+                            fontWeight: 500,
+                          }}
+                        >
                           {u.isActive ? 'Aktif' : 'Nonaktif'}
                         </span>
                       </div>
@@ -326,11 +371,21 @@ export function RoleDirectoryTable({
       </div>
 
       {/* Quick Context Footer */}
-      <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', color: '#64748b' }}>
-        <span>Menampilkan {filteredUsers.length} dari {totalUsersCount} operator</span>
+      <div
+        style={{
+          marginTop: '16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '11.5px',
+          color: '#64748b',
+        }}
+      >
+        <span>
+          Menampilkan {filteredUsers.length} dari {totalUsersCount} operator
+        </span>
         <span>Hak akses dieksekusi secara instan dengan verifikasi sesi token</span>
       </div>
     </div>
   );
 }
-

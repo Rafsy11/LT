@@ -34,7 +34,15 @@ export function PermissionMatrixPanel({
   return (
     <div>
       {/* Role Selector Pills */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '18px' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          flexWrap: 'wrap',
+          marginBottom: '18px',
+        }}
+      >
         <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>Pilih Peran:</span>
         {roleList.map((r) => {
           const isSelected = selectedRole?.name === r.name;
@@ -95,12 +103,12 @@ export function PermissionMatrixPanel({
             {isSuperAdminRole
               ? 'Peran Super Admin memiliki hak akses penuh tak terbatas ke seluruh modul sistem.'
               : selectedRole?.name === 'Admin Operasional'
-              ? 'Mengelola master jaringan, data pelanggan, dan penugasan tiket di wilayah cluster terkait.'
-              : selectedRole?.name === 'NOC Monitoring'
-              ? 'Memantau telemetri OLT/ODP, status redaman pelanggan, dan visualisasi topologi jaringan.'
-              : selectedRole?.name === 'Customer Support'
-              ? 'Membuka tiket laporan gangguan pelanggan dan permohonan pasang baru (PSB).'
-              : 'Akses aplikasi mobile teknisi terikat nomor tiket aktif dan validasi OPM lapangan.'}
+                ? 'Mengelola master jaringan, data pelanggan, dan penugasan tiket di wilayah cluster terkait.'
+                : selectedRole?.name === 'NOC Monitoring'
+                  ? 'Memantau telemetri OLT/ODP, status redaman pelanggan, dan visualisasi topologi jaringan.'
+                  : selectedRole?.name === 'Customer Support'
+                    ? 'Membuka tiket laporan gangguan pelanggan dan permohonan pasang baru (PSB).'
+                    : 'Akses aplikasi mobile teknisi terikat nomor tiket aktif dan validasi OPM lapangan.'}
           </p>
         </div>
 
@@ -123,7 +131,15 @@ export function PermissionMatrixPanel({
       {/* Matrix Table */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
         {categories.map(([categoryName, perms]) => (
-          <div key={categoryName} style={{ background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <div
+            key={categoryName}
+            style={{
+              background: '#ffffff',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+              overflow: 'hidden',
+            }}
+          >
             {/* Category Header */}
             <div
               style={{
@@ -203,7 +219,13 @@ export function PermissionMatrixPanel({
                           outline: 'none',
                           opacity: isLocked ? 0.75 : 1,
                         }}
-                        title={isLocked ? 'Izin dikunci oleh otoritas peran' : isChecked ? 'Nonaktifkan izin' : 'Aktifkan izin'}
+                        title={
+                          isLocked
+                            ? 'Izin dikunci oleh otoritas peran'
+                            : isChecked
+                              ? 'Nonaktifkan izin'
+                              : 'Aktifkan izin'
+                        }
                       >
                         <span
                           style={{
@@ -294,4 +316,3 @@ export function PermissionMatrixPanel({
     </div>
   );
 }
-

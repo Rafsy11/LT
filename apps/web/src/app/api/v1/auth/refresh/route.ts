@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
 
     const result = await AuthService.refreshMobileSession(
       validated.refreshToken,
-      validated.deviceId
+      validated.deviceId,
     );
 
     return NextResponse.json({
@@ -37,7 +37,10 @@ export async function POST(request: NextRequest) {
     }
 
     const firstZodMessage =
-      Array.isArray(err.errors) && err.errors[0] && typeof err.errors[0] === 'object' && 'message' in err.errors[0]
+      Array.isArray(err.errors) &&
+      err.errors[0] &&
+      typeof err.errors[0] === 'object' &&
+      'message' in err.errors[0]
         ? String((err.errors[0] as { message: unknown }).message)
         : 'Permintaan tidak valid';
 
@@ -46,11 +49,11 @@ export async function POST(request: NextRequest) {
         success: false,
         error: {
           code,
-          message: isValidation ? firstZodMessage : (err.message || 'Sesi otentikasi tidak valid'),
+          message: isValidation ? firstZodMessage : err.message || 'Sesi otentikasi tidak valid',
           details: err.errors,
         },
       },
-      { status }
+      { status },
     );
   }
 }

@@ -29,42 +29,57 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const addToast = useCallback((toast: Omit<ToastItem, 'id' | 'createdAt'>) => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const newToast: ToastItem = { ...toast, id, createdAt: Date.now() };
+  const addToast = useCallback(
+    (toast: Omit<ToastItem, 'id' | 'createdAt'>) => {
+      const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const newToast: ToastItem = { ...toast, id, createdAt: Date.now() };
 
-    setToasts((prev) => [newToast, ...prev].slice(0, 5));
+      setToasts((prev) => [newToast, ...prev].slice(0, 5));
 
-    // Auto dismiss after 5.5s
-    setTimeout(() => {
-      dismissToast(id);
-    }, 5500);
-  }, [dismissToast]);
+      // Auto dismiss after 5.5s
+      setTimeout(() => {
+        dismissToast(id);
+      }, 5500);
+    },
+    [dismissToast],
+  );
 
-  const showSuccess = useCallback((message: string) => {
-    addToast({ type: 'success', message });
-  }, [addToast]);
+  const showSuccess = useCallback(
+    (message: string) => {
+      addToast({ type: 'success', message });
+    },
+    [addToast],
+  );
 
   /**
    * Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1).
    * Mencegah bocornya Prisma query, PostgreSQL error code, dan stack trace ke UI.
    */
-  const showError = useCallback((rawError: unknown, fallbackCode?: string) => {
-    const sanitized = sanitizeUiErrorMessage(rawError);
-    addToast({
-      type: 'error',
-      code: sanitized.code || fallbackCode || ERROR_CODES.INTERNAL_ERROR,
-      message: sanitized.message,
-    });
-  }, [addToast]);
+  const showError = useCallback(
+    (rawError: unknown, fallbackCode?: string) => {
+      const sanitized = sanitizeUiErrorMessage(rawError);
+      addToast({
+        type: 'error',
+        code: sanitized.code || fallbackCode || ERROR_CODES.INTERNAL_ERROR,
+        message: sanitized.message,
+      });
+    },
+    [addToast],
+  );
 
-  const showWarning = useCallback((message: string) => {
-    addToast({ type: 'warning', message });
-  }, [addToast]);
+  const showWarning = useCallback(
+    (message: string) => {
+      addToast({ type: 'warning', message });
+    },
+    [addToast],
+  );
 
-  const showInfo = useCallback((message: string) => {
-    addToast({ type: 'info', message });
-  }, [addToast]);
+  const showInfo = useCallback(
+    (message: string) => {
+      addToast({ type: 'info', message });
+    },
+    [addToast],
+  );
 
   return (
     <ToastContext.Provider
@@ -115,4 +130,3 @@ export function useToast() {
   }
   return ctx;
 }
-

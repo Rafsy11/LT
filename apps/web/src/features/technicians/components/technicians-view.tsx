@@ -39,7 +39,8 @@ export function TechniciansView() {
         <div className="overview-header-copy">
           <h1 className="overview-greeting">Manajemen Teknisi & Sesi Perangkat</h1>
           <p className="overview-subtitle">
-            Kendali sesi mobile short-lived JWT/Redis, pengikatan perangkat (device binding), dan perlindungan integritas lapangan.
+            Kendali sesi mobile short-lived JWT/Redis, pengikatan perangkat (device binding), dan
+            perlindungan integritas lapangan.
           </p>
         </div>
 
@@ -115,7 +116,9 @@ export function TechniciansView() {
         >
           <Icon name="lock" size={16} />
           <span>
-            <b>Mode Peninjauan (Read-Only):</b> Akun Anda tidak memiliki izin <code>tech:manage</code>. Tombol Force Logout dan Kunci Akun dinonaktifkan secara kondisional.
+            <b>Mode Peninjauan (Read-Only):</b> Akun Anda tidak memiliki izin{' '}
+            <code>tech:manage</code>. Tombol Force Logout dan Kunci Akun dinonaktifkan secara
+            kondisional.
           </span>
         </div>
       )}
@@ -164,10 +167,11 @@ export function TechniciansView() {
           onForceLogout={handleForceLogout}
           onToggleAccount={handleToggleAccount}
           canManageTech={canManageTech}
-          isProcessing={processingUser === selectedTech.username || processingUser === selectedTech.id}
+          isProcessing={
+            processingUser === selectedTech.username || processingUser === selectedTech.id
+          }
         />
       )}
     </main>
   );
 }
-

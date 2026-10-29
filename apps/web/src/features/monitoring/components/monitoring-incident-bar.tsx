@@ -23,12 +23,17 @@ export function MonitoringIncidentBar({
           INSIDEN KRITIS
         </span>
         <div className="noc-incident-summary">
-          Sinyal drop terdeteksi pada <b>{pinnedCriticalReport.customerName}</b> ({pinnedCriticalReport.siaNumber}) · {pinnedCriticalReport.splitterCode || 'ODP-CMH-02'} Port {pinnedCriticalReport.portNumber || 7} ({pinnedCriticalReport.cluster}) · Teknisi: {pinnedCriticalReport.assignedTech}
+          Sinyal drop terdeteksi pada <b>{pinnedCriticalReport.customerName}</b> (
+          {pinnedCriticalReport.siaNumber}) · {pinnedCriticalReport.splitterCode || 'ODP-CMH-02'}{' '}
+          Port {pinnedCriticalReport.portNumber || 7} ({pinnedCriticalReport.cluster}) · Teknisi:{' '}
+          {pinnedCriticalReport.assignedTech}
         </div>
       </div>
 
       <div className="noc-incident-right">
-        <span className="noc-incident-dbm">{pinnedCriticalReport.currentAttenuation.toFixed(1)} dBm</span>
+        <span className="noc-incident-dbm">
+          {pinnedCriticalReport.currentAttenuation.toFixed(1)} dBm
+        </span>
         <button
           className="noc-incident-btn"
           onClick={() => onFocusReport(pinnedCriticalReport)}
@@ -51,4 +56,3 @@ export function MonitoringIncidentBar({
     </section>
   );
 }
-

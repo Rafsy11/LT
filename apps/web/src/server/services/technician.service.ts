@@ -163,7 +163,7 @@ export class TechnicianService {
    */
   public static async listTechnicians(
     search = '',
-    cluster = 'Semua cluster'
+    cluster = 'Semua cluster',
   ): Promise<TechnicianListItem[]> {
     try {
       const techs = await prisma.user.findMany({
@@ -180,10 +180,10 @@ export class TechnicianService {
       if (techs.length > 0) {
         const result: TechnicianListItem[] = techs.map((t) => {
           const activeTicketsCount = t.assignedTickets.filter(
-            (ticket) => ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS'
+            (ticket) => ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS',
           ).length;
           const completedTicketsCount = t.assignedTickets.filter(
-            (ticket) => ticket.status === 'COMPLETED'
+            (ticket) => ticket.status === 'COMPLETED',
           ).length;
 
           const clusterName =
@@ -211,13 +211,16 @@ export class TechnicianService {
             (t) =>
               t.fullName.toLowerCase().includes(q) ||
               t.username.toLowerCase().includes(q) ||
-              t.cluster.toLowerCase().includes(q)
+              t.cluster.toLowerCase().includes(q),
           );
         }
         return filtered;
       }
     } catch (err) {
-      console.warn('[TechnicianService] DB listTechnicians failed, using fallback:', (err as Error).message);
+      console.warn(
+        '[TechnicianService] DB listTechnicians failed, using fallback:',
+        (err as Error).message,
+      );
     }
 
     // Graceful fallback
@@ -231,7 +234,7 @@ export class TechnicianService {
         (t) =>
           t.fullName.toLowerCase().includes(q) ||
           t.username.toLowerCase().includes(q) ||
-          t.cluster.toLowerCase().includes(q)
+          t.cluster.toLowerCase().includes(q),
       );
     }
     return fallback;
@@ -244,7 +247,7 @@ export class TechnicianService {
     username: string,
     setActive?: boolean,
     reason?: string,
-    actorId = 'superadmin'
+    actorId = 'superadmin',
   ) {
     try {
       const user = await prisma.user.findFirst({
@@ -295,11 +298,17 @@ export class TechnicianService {
         };
       }
     } catch (err) {
-      console.warn('[TechnicianService] DB toggle failed, fallback memory:', (err as Error).message);
+      console.warn(
+        '[TechnicianService] DB toggle failed, fallback memory:',
+        (err as Error).message,
+      );
     }
 
     const tech = FALLBACK_TECHS.find(
-      (t) => t.id === username || t.username === username || t.fullName.toLowerCase() === username.toLowerCase()
+      (t) =>
+        t.id === username ||
+        t.username === username ||
+        t.fullName.toLowerCase() === username.toLowerCase(),
     );
 
     if (!tech) {
@@ -325,7 +334,7 @@ export class TechnicianService {
   public static async forceLogoutTechnician(
     idOrUsername: string,
     reason = 'Admin Force Logout (Sesi Dicabut)',
-    actorId = 'usr-admin-01'
+    actorId = 'usr-admin-01',
   ): Promise<TechnicianListItem> {
     try {
       const user = await prisma.user.findFirst({
@@ -378,12 +387,18 @@ export class TechnicianService {
         };
       }
     } catch (err) {
-      console.warn('[TechnicianService] DB forceLogout failed, fallback memory:', (err as Error).message);
+      console.warn(
+        '[TechnicianService] DB forceLogout failed, fallback memory:',
+        (err as Error).message,
+      );
     }
 
     // Graceful fallback memory
     const tech = FALLBACK_TECHS.find(
-      (t) => t.id === idOrUsername || t.username === idOrUsername || t.fullName.toLowerCase() === idOrUsername.toLowerCase()
+      (t) =>
+        t.id === idOrUsername ||
+        t.username === idOrUsername ||
+        t.fullName.toLowerCase() === idOrUsername.toLowerCase(),
     );
 
     if (!tech) {

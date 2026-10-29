@@ -12,15 +12,11 @@ export interface TicketDetailModalProps {
   onMarkCompleted?: (ticketNumber: string) => void;
 }
 
-export function TicketDetailModal({
-  ticket,
-  onClose,
-  onTicketUpdated,
-}: TicketDetailModalProps) {
+export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDetailModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [rejectReason, setRejectReason] = useState(
-    'Data redaman atau bukti foto OPM belum memenuhi standar toleransi operasional (-22 dBm).'
+    'Data redaman atau bukti foto OPM belum memenuhi standar toleransi operasional (-22 dBm).',
   );
 
   const { showSuccess, showError } = useToast();
@@ -65,7 +61,7 @@ export function TicketDetailModal({
       }
       showSuccess(
         json.meta?.message ||
-          'Laporan teknisi berhasil disetujui (Accepted). Data Master Pelanggan telah diperbarui.'
+          'Laporan teknisi berhasil disetujui (Accepted). Data Master Pelanggan telah diperbarui.',
       );
       if (onTicketUpdated) onTicketUpdated();
       onClose();
@@ -93,8 +89,7 @@ export function TicketDetailModal({
         throw new Error(json.error?.message || 'Gagal menolak laporan tiket');
       }
       showSuccess(
-        json.meta?.message ||
-          'Laporan telah ditolak dan dikembalikan ke teknisi untuk perbaikan.'
+        json.meta?.message || 'Laporan telah ditolak dan dikembalikan ke teknisi untuk perbaikan.',
       );
       if (onTicketUpdated) onTicketUpdated();
       onClose();
@@ -119,7 +114,7 @@ export function TicketDetailModal({
       }
       showSuccess(
         json.meta?.message ||
-          'Laporan baru dari teknisi berhasil diterima. Siap diverifikasi dan disetujui (Accepted).'
+          'Laporan baru dari teknisi berhasil diterima. Siap diverifikasi dan disetujui (Accepted).',
       );
       if (onTicketUpdated) onTicketUpdated();
       onClose();
@@ -156,7 +151,14 @@ export function TicketDetailModal({
           {isPending && (
             <div className="ticket-workflow-banner pending">
               <div>
-                <div style={{ fontWeight: 600, color: '#92400e', marginBottom: '2px', fontSize: '12.5px' }}>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    color: '#92400e',
+                    marginBottom: '2px',
+                    fontSize: '12.5px',
+                  }}
+                >
                   Status: Menunggu Respon Teknisi
                 </div>
                 <div style={{ fontSize: '11.5px', color: '#78350f', lineHeight: 1.4 }}>
@@ -170,7 +172,14 @@ export function TicketDetailModal({
           {isInProgress && (
             <div className="ticket-workflow-banner in-progress">
               <div>
-                <div style={{ fontWeight: 600, color: '#1e40af', marginBottom: '2px', fontSize: '12.5px' }}>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    color: '#1e40af',
+                    marginBottom: '2px',
+                    fontSize: '12.5px',
+                  }}
+                >
                   Pekerjaan Sedang Berlangsung di Lapangan
                 </div>
                 <div style={{ fontSize: '11.5px', color: '#1e3a8a', lineHeight: 1.4 }}>
@@ -192,13 +201,20 @@ export function TicketDetailModal({
               }}
             >
               <div style={{ fontSize: '12px', lineHeight: 1.45, color: '#334155' }}>
-                <div style={{ fontWeight: 700, fontSize: '13px', color: '#0f172a', marginBottom: '2px' }}>
+                <div
+                  style={{
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    color: '#0f172a',
+                    marginBottom: '2px',
+                  }}
+                >
                   Laporan Menunggu Persetujuan Super Admin
                 </div>
                 <div style={{ color: '#475569' }}>
                   Teknisi telah mengirimkan data hasil ukur redaman dan alokasi port. Sesuai aturan
-                  Master Data, data ini <strong>tidak dapat langsung masuk</strong> ke sistem sebelum
-                  diperiksa dan disetujui (Accepted) oleh Super Admin.
+                  Master Data, data ini <strong>tidak dapat langsung masuk</strong> ke sistem
+                  sebelum diperiksa dan disetujui (Accepted) oleh Super Admin.
                 </div>
               </div>
             </div>
@@ -207,7 +223,14 @@ export function TicketDetailModal({
           {isCompleted && (
             <div className="ticket-workflow-banner completed">
               <div>
-                <div style={{ fontWeight: 600, color: '#166534', marginBottom: '2px', fontSize: '12.5px' }}>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    color: '#166534',
+                    marginBottom: '2px',
+                    fontSize: '12.5px',
+                  }}
+                >
                   Work Order Telah Selesai & Terverifikasi
                 </div>
                 <div style={{ fontSize: '11.5px', color: '#14532d', lineHeight: 1.4 }}>
@@ -243,7 +266,8 @@ export function TicketDetailModal({
                     Alur Persetujuan Data Lapangan (Super Admin)
                   </div>
                   <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                    Simulasikan kiriman data terbaru dari mobile app ({ticket.assignedTech}) untuk menguji alur verifikasi.
+                    Simulasikan kiriman data terbaru dari mobile app ({ticket.assignedTech}) untuk
+                    menguji alur verifikasi.
                   </div>
                 </div>
                 <button
@@ -293,7 +317,14 @@ export function TicketDetailModal({
                   gap: '6px',
                 }}
               >
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#475569' }} />
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    background: '#475569',
+                  }}
+                />
                 <span>Data yang Diajukan oleh Teknisi ({ticket.assignedTech})</span>
               </div>
 
@@ -456,13 +487,13 @@ export function TicketDetailModal({
                   fontSize: '11px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#334155' }}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#334155' }}
+                >
                   <Icon name="camera" size={13} />
                   <span>
                     Bukti Foto OPM Terunggah:{' '}
-                    <code>
-                      {pendingData?.photoObjectKey || 'opm-proofs/2025/02/t-3-opm.webp'}
-                    </code>
+                    <code>{pendingData?.photoObjectKey || 'opm-proofs/2025/02/t-3-opm.webp'}</code>
                   </span>
                 </div>
                 <span
@@ -524,13 +555,7 @@ export function TicketDetailModal({
               <span className="inspector-field-label">Status Penugasan</span>
               <span className="inspector-field-value">
                 <span
-                  className={`badge ${
-                    isCompleted
-                      ? 'green'
-                      : isInProgress
-                      ? 'blue'
-                      : 'neutral'
-                  }`}
+                  className={`badge ${isCompleted ? 'green' : isInProgress ? 'blue' : 'neutral'}`}
                 >
                   {ticket.status}
                 </span>
@@ -611,7 +636,14 @@ export function TicketDetailModal({
                   resize: 'none',
                 }}
               />
-              <div style={{ display: 'flex', gap: '8px', marginTop: '8px', justifyContent: 'flex-end' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '8px',
+                  marginTop: '8px',
+                  justifyContent: 'flex-end',
+                }}
+              >
                 <button
                   type="button"
                   className="button secondary"
@@ -745,4 +777,3 @@ export function TicketDetailModal({
     </div>
   );
 }
-

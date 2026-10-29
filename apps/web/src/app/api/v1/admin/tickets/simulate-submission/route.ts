@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
           message: error.message || 'Gagal mensimulasikan kiriman data teknisi',
         },
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

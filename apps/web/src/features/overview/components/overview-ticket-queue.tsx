@@ -102,7 +102,8 @@ export function OverviewTicketQueue({
                   Rendah: 'Rendah',
                   Kritis: 'Kritis',
                 };
-                const priorityLabel = (r.priority && priorityMap[r.priority]) || r.priority || 'Normal';
+                const priorityLabel =
+                  (r.priority && priorityMap[r.priority]) || r.priority || 'Normal';
 
                 return (
                   <tr key={r.id || r.ticketNumber} onClick={() => onSelectTicket(r)}>
@@ -117,10 +118,10 @@ export function OverviewTicketQueue({
                           r.ticketType === 'Pasang baru'
                             ? 'chip-blue'
                             : r.ticketType === 'Perbaikan'
-                            ? 'chip-amber'
-                            : r.ticketType === 'Maintenance'
-                            ? 'chip-purple'
-                            : 'chip-blue'
+                              ? 'chip-amber'
+                              : r.ticketType === 'Maintenance'
+                                ? 'chip-purple'
+                                : 'chip-blue'
                         }`}
                       >
                         {r.ticketType}
@@ -128,7 +129,10 @@ export function OverviewTicketQueue({
                     </td>
                     <td className="cluster-text">{r.cluster}</td>
                     <td>
-                      <div className="tech-cell" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        className="tech-cell"
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                      >
                         <DefaultAvatar size={24} name={r.assignedTech} />
                         <span className="tech-name">{r.assignedTech}</span>
                       </div>
@@ -139,8 +143,8 @@ export function OverviewTicketQueue({
                           r.status === 'Selesai'
                             ? 'green'
                             : r.status === 'Menunggu'
-                            ? 'neutral'
-                            : 'blue'
+                              ? 'neutral'
+                              : 'blue'
                         }`}
                       >
                         <i className="status-chip-dot" />
@@ -172,11 +176,12 @@ export function OverviewTicketQueue({
         </div>
 
         <div className="table-footer-bar">
-          <span>Menampilkan {filteredTickets.length} dari {tickets.length} tiket</span>
+          <span>
+            Menampilkan {filteredTickets.length} dari {tickets.length} tiket
+          </span>
           <span>Master Data Terverifikasi · FiberOps On-Premise</span>
         </div>
       </div>
     </section>
   );
 }
-

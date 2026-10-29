@@ -3,7 +3,11 @@ import { ERROR_CODES, type CustomerListItem } from '@repo/shared';
 
 export type { CustomerListItem };
 
-export function parseCustomerAddress(address: string): { street: string; kelurahan: string; kecamatan: string } {
+export function parseCustomerAddress(address: string): {
+  street: string;
+  kelurahan: string;
+  kecamatan: string;
+} {
   const lower = address.toLowerCase();
   const street = address.split(',')[0]?.trim() || address;
 
@@ -14,13 +18,21 @@ export function parseCustomerAddress(address: string): { street: string; kelurah
     kecamatan = 'Sukajadi';
   } else if (lower.includes('lengkong') || lower.includes('buah batu')) {
     kecamatan = 'Lengkong';
-  } else if (lower.includes('arcamanik') || lower.includes('soekarno hatta') || lower.includes('sukamiskin')) {
+  } else if (
+    lower.includes('arcamanik') ||
+    lower.includes('soekarno hatta') ||
+    lower.includes('sukamiskin')
+  ) {
     kecamatan = 'Arcamanik';
   } else if (lower.includes('cimahi') || lower.includes('baros')) {
     kecamatan = 'Cimahi Tengah';
   } else if (lower.includes('rancaekek')) {
     kecamatan = 'Rancaekek';
-  } else if (lower.includes('riau') || lower.includes('bandung wetan') || lower.includes('citarum')) {
+  } else if (
+    lower.includes('riau') ||
+    lower.includes('bandung wetan') ||
+    lower.includes('citarum')
+  ) {
     kecamatan = 'Bandung Wetan';
   }
 
@@ -184,7 +196,7 @@ export class CustomerService {
    */
   public static async listCustomers(
     search = '',
-    cluster = 'Semua cluster'
+    cluster = 'Semua cluster',
   ): Promise<CustomerListItem[]> {
     try {
       const whereClause: Record<string, unknown> = {};
@@ -253,7 +265,7 @@ export class CustomerService {
         (c) =>
           c.fullName.toLowerCase().includes(q) ||
           c.siaNumber.toLowerCase().includes(q) ||
-          c.address.toLowerCase().includes(q)
+          c.address.toLowerCase().includes(q),
       );
     }
     return fallback;
@@ -288,7 +300,9 @@ export class CustomerService {
             clusterCode: customer.cluster?.clusterCode || 'BDG-01',
             splitterCode: customer.splitter?.splitterCode || 'ODP-BDG-01',
             portNumber: customer.portNumber || 1,
-            currentAttenuation: customer.currentAttenuation ? Number(customer.currentAttenuation) : -18.5,
+            currentAttenuation: customer.currentAttenuation
+              ? Number(customer.currentAttenuation)
+              : -18.5,
             status: customer.status,
             updatedAt: customer.updatedAt.toISOString(),
           },
@@ -306,7 +320,10 @@ export class CustomerService {
         };
       }
     } catch (err) {
-      console.warn('[CustomerService] DB getCustomerBySia failed, using fallback:', (err as Error).message);
+      console.warn(
+        '[CustomerService] DB getCustomerBySia failed, using fallback:',
+        (err as Error).message,
+      );
     }
 
     const fallbackCust = FALLBACK_CUSTOMERS.find((c) => c.siaNumber === siaNumber);
@@ -339,7 +356,7 @@ export class CustomerService {
     siaNumber: string,
     newSplitterCode: string,
     newPortNumber: number,
-    actorId = 'superadmin'
+    actorId = 'superadmin',
   ) {
     try {
       return await prisma.$transaction(async (tx) => {
@@ -364,7 +381,7 @@ export class CustomerService {
 
         if (newPortNumber > targetSplitter.maxPorts) {
           throw new Error(
-            `Nomor port ${newPortNumber} melebihi batas kapasitas ODP (${targetSplitter.maxPorts} port)`
+            `Nomor port ${newPortNumber} melebihi batas kapasitas ODP (${targetSplitter.maxPorts} port)`,
           );
         }
 
@@ -380,7 +397,7 @@ export class CustomerService {
 
         if (occupied) {
           throw new Error(
-            `${ERROR_CODES.PORT_OCCUPIED}: Port ${newPortNumber} pada ${targetSplitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName} - ${occupied.siaNumber}).`
+            `${ERROR_CODES.PORT_OCCUPIED}: Port ${newPortNumber} pada ${targetSplitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName} - ${occupied.siaNumber}).`,
           );
         }
 
@@ -426,13 +443,18 @@ export class CustomerService {
           clusterCode: updated.cluster?.clusterCode || 'BDG-01',
           splitterCode: updated.splitter?.splitterCode || newSplitterCode,
           portNumber: updated.portNumber || newPortNumber,
-          currentAttenuation: updated.currentAttenuation ? Number(updated.currentAttenuation) : -18.5,
+          currentAttenuation: updated.currentAttenuation
+            ? Number(updated.currentAttenuation)
+            : -18.5,
           status: updated.status,
           updatedAt: updated.updatedAt.toISOString(),
         };
       });
     } catch (err) {
-      if ((err as Error).message.includes(ERROR_CODES.PORT_OCCUPIED) || (err as Error).message.includes('kapasitas')) {
+      if (
+        (err as Error).message.includes(ERROR_CODES.PORT_OCCUPIED) ||
+        (err as Error).message.includes('kapasitas')
+      ) {
         throw err;
       }
       console.warn('[CustomerService] DB mutate failed:', (err as Error).message);
@@ -450,14 +472,15 @@ export class CustomerService {
       splitterCode?: string;
       portNumber?: number;
       currentAttenuation?: number;
-    }
+    },
   ): void {
     const customer = FALLBACK_CUSTOMERS.find((c) => c.siaNumber === siaNumber);
     if (customer) {
       if (update.status) customer.status = update.status;
       if (update.splitterCode) customer.splitterCode = update.splitterCode;
       if (update.portNumber !== undefined) customer.portNumber = update.portNumber;
-      if (update.currentAttenuation !== undefined) customer.currentAttenuation = update.currentAttenuation;
+      if (update.currentAttenuation !== undefined)
+        customer.currentAttenuation = update.currentAttenuation;
       customer.updatedAt = new Date().toISOString();
     }
   }

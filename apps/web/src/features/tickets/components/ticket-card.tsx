@@ -44,13 +44,7 @@ export function TicketCard({ ticket, onSelect, getDbmBadge }: TicketCardProps) {
             {ticket.ticketType}
           </span>
           <span
-            className={`badge ${
-              isCompleted
-                ? 'green'
-                : isInProgress
-                ? 'blue'
-                : 'neutral'
-            }`}
+            className={`badge ${isCompleted ? 'green' : isInProgress ? 'blue' : 'neutral'}`}
             style={{ fontSize: '10.5px' }}
           >
             {ticket.status}
@@ -87,10 +81,7 @@ export function TicketCard({ ticket, onSelect, getDbmBadge }: TicketCardProps) {
           <span style={{ fontSize: '11px', color: '#64748b' }}>
             {isPendingApproval ? 'Hasil Ukur Diajukan:' : 'Redaman:'}
           </span>
-          <span
-            className={att.cls}
-            style={{ fontSize: '10.5px', padding: '2px 6px' }}
-          >
+          <span className={att.cls} style={{ fontSize: '10.5px', padding: '2px 6px' }}>
             {att.label}
           </span>
         </div>
@@ -108,9 +99,7 @@ export function TicketCard({ ticket, onSelect, getDbmBadge }: TicketCardProps) {
               marginTop: '4px',
             }}
           >
-            <div style={{ fontWeight: 600, color: '#0f172a' }}>
-              Verifikasi Persetujuan Admin
-            </div>
+            <div style={{ fontWeight: 600, color: '#0f172a' }}>Verifikasi Persetujuan Admin</div>
             <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: '2px' }}>
               ODP:{' '}
               <strong style={{ color: '#0f172a' }}>
@@ -142,4 +131,3 @@ export function TicketCard({ ticket, onSelect, getDbmBadge }: TicketCardProps) {
     </article>
   );
 }
-

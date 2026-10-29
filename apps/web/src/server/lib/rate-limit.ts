@@ -84,10 +84,14 @@ function checkInMemory(key: string, config: RateLimitConfig): RateLimitResult {
  */
 export async function checkRateLimit(
   key: string,
-  config: RateLimitConfig
+  config: RateLimitConfig,
 ): Promise<RateLimitResult> {
   try {
-    const result = await redisManager.checkSlidingWindowRate(key, config.windowMs, config.maxRequests);
+    const result = await redisManager.checkSlidingWindowRate(
+      key,
+      config.windowMs,
+      config.maxRequests,
+    );
     return result;
   } catch {
     return checkInMemory(key, config);

@@ -135,7 +135,10 @@ export function AiMessageList({
               padding: '14px 18px',
               fontSize: '13.5px',
               lineHeight: 1.6,
-              boxShadow: m.role === 'user' ? '0 2px 6px rgba(14, 91, 146, 0.15)' : '0 2px 8px rgba(0, 0, 0, 0.03)',
+              boxShadow:
+                m.role === 'user'
+                  ? '0 2px 6px rgba(14, 91, 146, 0.15)'
+                  : '0 2px 8px rgba(0, 0, 0, 0.03)',
             }}
           >
             <div
@@ -180,17 +183,10 @@ export function AiMessageList({
             </p>
 
             {/* Draft Action Card (Human-in-the-Loop with 6-State Local Machine) */}
-            {m.draft && (
-              <DraftActionCard
-                draft={m.draft}
-                formatPayloadEntry={formatPayloadEntry}
-              />
-            )}
+            {m.draft && <DraftActionCard draft={m.draft} formatPayloadEntry={formatPayloadEntry} />}
           </div>
 
-          {m.role === 'user' && (
-            <DefaultAvatar name="Aditya Saputra" size={32} />
-          )}
+          {m.role === 'user' && <DefaultAvatar name="Aditya Saputra" size={32} />}
         </div>
       ))}
 
@@ -246,4 +242,3 @@ export function AiMessageList({
     </div>
   );
 }
-

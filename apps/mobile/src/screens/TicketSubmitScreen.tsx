@@ -16,32 +16,16 @@ export interface TicketSubmitScreenProps {
   ticket: MobileTicketItem;
   splitters: SplitterItem[];
   apiClient: ApiClient;
-  onSubmitSuccess: (result: {
-    isOffline: boolean;
-    submissionId: string;
-    message: string;
-  }) => void;
+  onSubmitSuccess: (result: { isOffline: boolean; submissionId: string; message: string }) => void;
   onCancel: () => void;
 }
 
 export type GpsState =
-  | 'IDLE'
-  | 'ACQUIRING'
-  | 'MOCK_DETECTED'
-  | 'VERIFIED_IN_RANGE'
-  | 'FLAGGED_OUT_OF_RANGE';
+  'IDLE' | 'ACQUIRING' | 'MOCK_DETECTED' | 'VERIFIED_IN_RANGE' | 'FLAGGED_OUT_OF_RANGE';
 
-export type CameraState =
-  | 'IDLE'
-  | 'CAPTURING'
-  | 'COMPRESSING_AND_WATERMARKING'
-  | 'READY_URI';
+export type CameraState = 'IDLE' | 'CAPTURING' | 'COMPRESSING_AND_WATERMARKING' | 'READY_URI';
 
-export type SubmitLifecycleState =
-  | 'IDLE'
-  | 'SUBMITTING'
-  | 'QUEUED_OFFLINE'
-  | 'COMPLETED';
+export type SubmitLifecycleState = 'IDLE' | 'SUBMITTING' | 'QUEUED_OFFLINE' | 'COMPLETED';
 
 /**
  * Generates an immutable UUID v4 for ticket submission idempotency (Law 3).
@@ -73,7 +57,7 @@ export function TicketSubmitScreen({
 
   // 1. Operational Form States
   const [selectedSplitterId, setSelectedSplitterId] = useState<string>(
-    defaultSplitter ? defaultSplitter.id : ''
+    defaultSplitter ? defaultSplitter.id : '',
   );
   const [selectedPort, setSelectedPort] = useState<number>(ticket.customer.portNumber || 1);
   const [newMutationPort, setNewMutationPort] = useState<number | null>(null);
@@ -82,7 +66,7 @@ export function TicketSubmitScreen({
   const [attenuationInput, setAttenuationInput] = useState<string>(
     ticket.customer.currentAttenuation !== null && ticket.customer.currentAttenuation !== undefined
       ? String(ticket.customer.currentAttenuation)
-      : '-18.5'
+      : '-18.5',
   );
 
   // Maintenance Read-Only 5 Last Attenuation History
@@ -108,7 +92,7 @@ export function TicketSubmitScreen({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const selectedSplitter = splitters.find(
-    (s) => s.id === selectedSplitterId || s.splitterCode === selectedSplitterId
+    (s) => s.id === selectedSplitterId || s.splitterCode === selectedSplitterId,
   );
 
   /**
@@ -130,7 +114,10 @@ export function TicketSubmitScreen({
       if (result.isMockLocation) {
         setGpsState('MOCK_DETECTED');
         setErrorMessage('Fake GPS / Mock Location terdeteksi! Pengiriman laporan dinonaktifkan.');
-      } else if (result.distanceToSplitterMeters !== undefined && result.distanceToSplitterMeters <= MAX_GEOFENCE_RADIUS_METERS) {
+      } else if (
+        result.distanceToSplitterMeters !== undefined &&
+        result.distanceToSplitterMeters <= MAX_GEOFENCE_RADIUS_METERS
+      ) {
         setGpsState('VERIFIED_IN_RANGE');
       } else {
         setGpsState('FLAGGED_OUT_OF_RANGE');
@@ -183,11 +170,15 @@ export function TicketSubmitScreen({
       }
 
       // Target port validation (handling optional port mutation in Maintenance)
-      const targetPortNumber = isMaintenance && newMutationPort !== null ? newMutationPort : selectedPort;
+      const targetPortNumber =
+        isMaintenance && newMutationPort !== null ? newMutationPort : selectedPort;
 
-      if (selectedSplitter.occupiedPorts.includes(targetPortNumber) && targetPortNumber !== ticket.customer.portNumber) {
+      if (
+        selectedSplitter.occupiedPorts.includes(targetPortNumber) &&
+        targetPortNumber !== ticket.customer.portNumber
+      ) {
         throw new Error(
-          `Port ${targetPortNumber} pada ${selectedSplitter.splitterCode} sudah digunakan oleh pelanggan aktif lain.`
+          `Port ${targetPortNumber} pada ${selectedSplitter.splitterCode} sudah digunakan oleh pelanggan aktif lain.`,
         );
       }
 
@@ -229,7 +220,7 @@ export function TicketSubmitScreen({
               ticketId: ticket.id,
               submissionId,
             }),
-          }
+          },
         );
 
         if (!urlRes.success) {
@@ -254,7 +245,7 @@ export function TicketSubmitScreen({
           {
             'X-Idempotency-Key': submissionId,
             'Idempotency-Key': submissionId,
-          }
+          },
         );
 
         if (!submitRes.success) {
@@ -269,7 +260,10 @@ export function TicketSubmitScreen({
         });
       } catch (netErr: unknown) {
         // Step D: Network failure -> Encrypt payload into Offline Queue
-        console.warn('[TicketSubmit] Offline/Timeout fallback: storing to offline queue:', (netErr as Error).message);
+        console.warn(
+          '[TicketSubmit] Offline/Timeout fallback: storing to offline queue:',
+          (netErr as Error).message,
+        );
 
         await offlineQueue.enqueue({
           submissionId,
@@ -319,7 +313,8 @@ export function TicketSubmitScreen({
               lat: ticket.customer.lat,
               lng: ticket.customer.lng,
             },
-            currentOdpSplitter: ticket.customer.splitterCode || defaultSplitter?.splitterCode || 'ODP-BDG-01',
+            currentOdpSplitter:
+              ticket.customer.splitterCode || defaultSplitter?.splitterCode || 'ODP-BDG-01',
             currentPortNumber: ticket.customer.portNumber || 1,
             last5AttenuationHistory,
           }

@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { TicketService } from '@/server/services/ticket.service';
 import { ERROR_CODES } from '@repo/shared';
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const adminUsername = request.headers.get('x-username') || 'Super Admin';
@@ -20,7 +17,8 @@ export async function POST(
       success: true,
       data: ticket,
       meta: {
-        message: 'Laporan teknisi berhasil diverifikasi dan disetujui (Accepted). Data redaman dan port splitter telah resmi diterapkan pada Master Data Pelanggan.',
+        message:
+          'Laporan teknisi berhasil diverifikasi dan disetujui (Accepted). Data redaman dan port splitter telah resmi diterapkan pada Master Data Pelanggan.',
       },
     });
   } catch (error: any) {
@@ -35,7 +33,7 @@ export async function POST(
           message: error.message || 'Gagal menyetujui laporan tiket',
         },
       },
-      { status }
+      { status },
     );
   }
 }

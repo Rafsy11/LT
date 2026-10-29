@@ -49,7 +49,8 @@ export function MonitoringView() {
           <div className="eyebrow">NOC TELEMETRY & ATTENUATION STREAM</div>
           <h1 className="overview-greeting">Live Monitoring Redaman</h1>
           <p className="overview-subtitle">
-            Pusat kendali dan pemantauan sinyal redaman optik FTTH secara real-time via Server-Sent Events (SSE) &amp; Redis Pub/Sub (PRD Section 3.4).
+            Pusat kendali dan pemantauan sinyal redaman optik FTTH secara real-time via Server-Sent
+            Events (SSE) &amp; Redis Pub/Sub (PRD Section 3.4).
           </p>
         </div>
 
@@ -60,8 +61,8 @@ export function MonitoringView() {
               sseState === 'LIVE_CONNECTED'
                 ? 'connected'
                 : sseState === 'CONNECTING'
-                ? 'reconnecting'
-                : 'disconnected'
+                  ? 'reconnecting'
+                  : 'disconnected'
             }`}
             title={`Status SSE: ${sseState} · Heartbeat: ${lastHeartbeat}`}
           >
@@ -137,11 +138,7 @@ export function MonitoringView() {
       </div>
 
       {/* Ticket Detail Modal */}
-      <TicketDetailModal
-        ticket={modalTicket}
-        onClose={() => setModalTicket(null)}
-      />
+      <TicketDetailModal ticket={modalTicket} onClose={() => setModalTicket(null)} />
     </main>
   );
 }
-

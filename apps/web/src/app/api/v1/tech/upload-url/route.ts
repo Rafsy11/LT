@@ -23,10 +23,11 @@ export async function POST(request: NextRequest) {
             success: false,
             error: {
               code: ERROR_CODES.SESSION_REVOKED,
-              message: 'Sesi perangkat Anda telah dicabut oleh Administrator (Force Logout). Silakan login kembali.',
+              message:
+                'Sesi perangkat Anda telah dicabut oleh Administrator (Force Logout). Silakan login kembali.',
             },
           },
-          { status: 401 }
+          { status: 401 },
         );
       }
     }
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     // 2. Rate Limiting: Maksimal 20 request per menit per Teknisi user ID
     const rateResult = await checkRateLimit(
       `tech_upload:${techUserId}`,
-      RATE_LIMIT_PROFILES.TECH_UPLOAD
+      RATE_LIMIT_PROFILES.TECH_UPLOAD,
     );
     if (!rateResult.allowed) {
       return NextResponse.json(
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
         {
           status: 429,
           headers: { 'Retry-After': String(Math.ceil(rateResult.retryAfterMs / 1000)) },
-        }
+        },
       );
     }
 
@@ -72,10 +73,11 @@ export async function POST(request: NextRequest) {
           success: false,
           error: {
             code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'ticketId dan submissionId wajib berupa string alfanumerik/UUID valid tanpa karakter khusus.',
+            message:
+              'ticketId dan submissionId wajib berupa string alfanumerik/UUID valid tanpa karakter khusus.',
           },
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -98,7 +100,7 @@ export async function POST(request: NextRequest) {
                 message: `Tiket tidak dapat dimutasi karena sudah berstatus ${ticket.status}.`,
               },
             },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -112,7 +114,7 @@ export async function POST(request: NextRequest) {
                 message: 'Akses ditolak: Anda bukan teknisi yang ditugaskan pada tiket ini.',
               },
             },
-            { status: 403 }
+            { status: 403 },
           );
         }
       }
@@ -145,7 +147,7 @@ export async function POST(request: NextRequest) {
           message: err.message || 'Gagal menghasilkan Presigned PUT URL MinIO',
         },
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

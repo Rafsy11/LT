@@ -21,8 +21,14 @@ export async function POST(request: NextRequest) {
         adminContext = await AuthService.verifyAccessToken(token);
       } catch {
         return NextResponse.json(
-          { success: false, error: { code: ERROR_CODES.UNAUTHORIZED, message: 'Sesi Admin tidak valid atau telah kedaluwarsa.' } },
-          { status: 401 }
+          {
+            success: false,
+            error: {
+              code: ERROR_CODES.UNAUTHORIZED,
+              message: 'Sesi Admin tidak valid atau telah kedaluwarsa.',
+            },
+          },
+          { status: 401 },
         );
       }
     } else {
@@ -51,7 +57,7 @@ export async function POST(request: NextRequest) {
             message: 'Integritas token aksi draf rusak atau dimanipulasi.',
           },
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -62,10 +68,11 @@ export async function POST(request: NextRequest) {
           success: false,
           error: {
             code: ERROR_CODES.UNAUTHORIZED,
-            message: 'Aksi ini hanya dapat dieksekusi oleh Administrator yang meminta draf (Actor mismatch).',
+            message:
+              'Aksi ini hanya dapat dieksekusi oleh Administrator yang meminta draf (Actor mismatch).',
           },
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -78,10 +85,11 @@ export async function POST(request: NextRequest) {
             success: false,
             error: {
               code: ERROR_CODES.ACTION_TOKEN_REPLAYED,
-              message: 'Token aksi ini sudah pernah dieksekusi sebelumnya (Anti-Replay). Silakan minta AI untuk menyiapkan draf baru.',
+              message:
+                'Token aksi ini sudah pernah dieksekusi sebelumnya (Anti-Replay). Silakan minta AI untuk menyiapkan draf baru.',
             },
           },
-          { status: 409 }
+          { status: 409 },
         );
       }
     }
@@ -117,9 +125,15 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     const isOccupied = error.message?.includes(ERROR_CODES.PORT_OCCUPIED);
     const isReplayed = error.message?.includes(ERROR_CODES.ACTION_TOKEN_REPLAYED);
-    const isForbidden = error.message?.includes(ERROR_CODES.FORBIDDEN) || error.message?.includes(ERROR_CODES.HIERARCHY_VIOLATION);
-    const isExpired = error.message?.includes('kedaluwarsa') || error.message?.includes(ERROR_CODES.AI_ACTION_EXPIRED);
-    const isInvalidToken = error.message?.includes(ERROR_CODES.INVALID_ACTION_TOKEN) || error.message?.includes('manipulasi');
+    const isForbidden =
+      error.message?.includes(ERROR_CODES.FORBIDDEN) ||
+      error.message?.includes(ERROR_CODES.HIERARCHY_VIOLATION);
+    const isExpired =
+      error.message?.includes('kedaluwarsa') ||
+      error.message?.includes(ERROR_CODES.AI_ACTION_EXPIRED);
+    const isInvalidToken =
+      error.message?.includes(ERROR_CODES.INVALID_ACTION_TOKEN) ||
+      error.message?.includes('manipulasi');
 
     let status = 400;
     let code: string = ERROR_CODES.VALIDATION_ERROR;
@@ -150,7 +164,7 @@ export async function POST(request: NextRequest) {
           details: error.errors,
         },
       },
-      { status }
+      { status },
     );
   }
 }

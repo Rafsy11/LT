@@ -7,4 +7,3 @@ export { BackupPanel } from './components/backup-panel';
 export { NetworkSettingsPanel } from './components/network-settings-panel';
 export { useSettings, INITIAL_FALLBACK_SETTINGS } from './hooks/use-settings';
 export type { SettingsTab } from './hooks/use-settings';
-

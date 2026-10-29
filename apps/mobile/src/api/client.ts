@@ -1,8 +1,4 @@
-import {
-  CURRENT_MOBILE_APP_VERSION,
-  ERROR_CODES,
-  ApiResponse,
-} from '@repo/shared';
+import { CURRENT_MOBILE_APP_VERSION, ERROR_CODES, ApiResponse } from '@repo/shared';
 
 export interface MobileSessionTokens {
   accessToken: string;
@@ -70,12 +66,12 @@ export class ApiClient {
   public async request<T = unknown>(
     endpoint: string,
     options: RequestInit = {},
-    customHeaders: Record<string, string> = {}
+    customHeaders: Record<string, string> = {},
   ): Promise<ApiResponse<T>> {
     // 1. App Version Gate Lock Guard
     if (this.isAppLocked) {
       throw new Error(
-        `${ERROR_CODES.UPGRADE_REQUIRED}: Aplikasi terkunci karena versi sudah usang. Harap perbarui aplikasi terlebih dahulu.`
+        `${ERROR_CODES.UPGRADE_REQUIRED}: Aplikasi terkunci karena versi sudah usang. Harap perbarui aplikasi terlebih dahulu.`,
       );
     }
 
@@ -131,15 +127,22 @@ export class ApiClient {
 
       // 3. Handle 401 Session Revocation or Token Expiry
       if (response.status === 401) {
-        const errorJson = (await response.clone().json().catch(() => ({}))) as Record<string, any>;
+        const errorJson = (await response
+          .clone()
+          .json()
+          .catch(() => ({}))) as Record<string, any>;
         const errorCode = errorJson.error?.code;
 
         // Force Logout check
-        if (errorCode === ERROR_CODES.SESSION_REVOKED || errorCode === ERROR_CODES.TOKEN_REUSE_DETECTED) {
+        if (
+          errorCode === ERROR_CODES.SESSION_REVOKED ||
+          errorCode === ERROR_CODES.TOKEN_REUSE_DETECTED
+        ) {
           this.tokens = null;
           if (this.onSessionRevokedListener) {
             this.onSessionRevokedListener(
-              errorJson.error?.message || 'Sesi perangkat telah dicabut oleh Administrator (Force Logout).'
+              errorJson.error?.message ||
+                'Sesi perangkat telah dicabut oleh Administrator (Force Logout).',
             );
           }
           return {
@@ -207,7 +210,8 @@ export class ApiClient {
           this.tokens = null;
           if (json.error?.code === ERROR_CODES.SESSION_REVOKED && this.onSessionRevokedListener) {
             this.onSessionRevokedListener(
-              json.error?.message || 'Sesi perangkat telah dicabut oleh Administrator (Force Logout).'
+              json.error?.message ||
+                'Sesi perangkat telah dicabut oleh Administrator (Force Logout).',
             );
           }
           return false;

@@ -6,10 +6,7 @@ import { TechnicianService } from '@/server/services/technician.service';
  * Instant Session Revocation (PRD Section 2.2 & agent.md Law 4).
  * Revokes mobile user tokens and clears active session state in Redis/PostgreSQL.
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
@@ -31,7 +28,7 @@ export async function POST(
           message: error?.message || 'Gagal mencabut sesi perangkat teknisi',
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 }

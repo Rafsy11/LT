@@ -102,7 +102,9 @@ export function TelemetryStreamPanel({
             >
               <option value="Semua teknisi">Semua Teknisi Lapangan</option>
               {availableTechs.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
             </select>
           </div>
@@ -166,14 +168,16 @@ export function TelemetryStreamPanel({
         {loading ? (
           <div className="noc-empty-stream">Memuat aliran sinyal live telemetri...</div>
         ) : filteredReports.length === 0 ? (
-          <div className="noc-empty-stream">Tidak ada laporan telemetri pada kriteria filter ini.</div>
+          <div className="noc-empty-stream">
+            Tidak ada laporan telemetri pada kriteria filter ini.
+          </div>
         ) : (
           filteredReports.map((report) => {
             const status = classifyDbm(report.currentAttenuation);
             const tone = dbmTone(report.currentAttenuation);
             const meterPct = getMeterPercentage(report.currentAttenuation);
             const distance = report.distanceToSplitterM ?? 18;
-            const isFlagged = report.isLocationFlagged ?? (distance > 100);
+            const isFlagged = report.isLocationFlagged ?? distance > 100;
             const isSelected = activeReport?.ticketNumber === report.ticketNumber;
             const isCritical = status === 'Critical';
 
@@ -185,13 +189,18 @@ export function TelemetryStreamPanel({
               >
                 {/* Time & Dot Indicator */}
                 <div className="col-time-status">
-                  <span className={`optical-status-dot ${status.toLowerCase()}`} title={`Status: ${status}`} />
+                  <span
+                    className={`optical-status-dot ${status.toLowerCase()}`}
+                    title={`Status: ${status}`}
+                  />
                   <span>{formatTimestamp(report.createdAt)}</span>
                 </div>
 
                 {/* Customer & SIA */}
                 <div className="col-customer">
-                  <div className="col-customer-name" title={report.customerName}>{report.customerName}</div>
+                  <div className="col-customer-name" title={report.customerName}>
+                    {report.customerName}
+                  </div>
                   <div className="col-customer-meta">
                     <code>{report.siaNumber}</code>
                     <span className="meta-separator">·</span>
@@ -211,7 +220,9 @@ export function TelemetryStreamPanel({
                 {/* Field Technician */}
                 <div className="col-tech">
                   <span className="col-tech-avatar">{report.techInitials || 'TK'}</span>
-                  <span className="col-tech-name" title={report.assignedTech}>{report.assignedTech}</span>
+                  <span className="col-tech-name" title={report.assignedTech}>
+                    {report.assignedTech}
+                  </span>
                 </div>
 
                 {/* Attenuation dBm & Spark Bar */}
@@ -219,7 +230,10 @@ export function TelemetryStreamPanel({
                   <span className={`col-signal-value ${tone}`}>
                     {report.currentAttenuation.toFixed(1)} dBm
                   </span>
-                  <div className="col-signal-bar-mini" title={`Skala Optik: ${report.currentAttenuation} dBm`}>
+                  <div
+                    className="col-signal-bar-mini"
+                    title={`Skala Optik: ${report.currentAttenuation} dBm`}
+                  >
                     <div
                       className={`col-signal-fill-mini ${status.toLowerCase()}`}
                       style={{ width: `${meterPct}%` }}
@@ -230,11 +244,17 @@ export function TelemetryStreamPanel({
                 {/* Validation: Geofence & Proof */}
                 <div className="col-validation">
                   {isFlagged ? (
-                    <span className="validation-tag-clean warn" title="Jarak melebihi radius batas toleransi 100 meter">
+                    <span
+                      className="validation-tag-clean warn"
+                      title="Jarak melebihi radius batas toleransi 100 meter"
+                    >
                       {distance}m Warn
                     </span>
                   ) : (
-                    <span className="validation-tag-clean ok" title="GPS terverifikasi ≤ 100m dari ODP">
+                    <span
+                      className="validation-tag-clean ok"
+                      title="GPS terverifikasi ≤ 100m dari ODP"
+                    >
                       {distance}m OK
                     </span>
                   )}
@@ -265,7 +285,8 @@ export function TelemetryStreamPanel({
       {/* Bottom Stream Metadata Strip */}
       <div className="monitoring-info-strip">
         <div>
-          Jalur SSE: <code>/api/v1/admin/stream/reports</code> (Nginx Unbuffered <code>X-Accel-Buffering: no</code>).
+          Jalur SSE: <code>/api/v1/admin/stream/reports</code> (Nginx Unbuffered{' '}
+          <code>X-Accel-Buffering: no</code>).
         </div>
         <div>
           Heartbeat: <b>{lastHeartbeat}</b> · Redis Bus Aktif.
@@ -274,4 +295,3 @@ export function TelemetryStreamPanel({
     </section>
   );
 }
-

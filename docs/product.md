@@ -20,6 +20,7 @@ An on-premise FTTH ISP Operations, Master Data, Optical Telemetry, and Work Orde
 ## Positioning
 
 Deterministic, zero-data-leakage operational software. Unlike generic cloud ticketing tools or flashy AI dashboards, this system provides:
+
 1. Strict cybersecurity pre-hardening (zero raw database/ORM leaks).
 2. Millisecond-exact critical button locking to prevent double-execution.
 3. Strict client-side and server-side RBAC permission gating.
@@ -33,7 +34,7 @@ Deterministic, zero-data-leakage operational software. Unlike generic cloud tick
 ## Capabilities and Constraints
 
 - **Anti-Information Leakage:** Strict UI sanitization. Never leak `error.stack`, table names, or raw Prisma/PostgreSQL errors. UI errors are mapped exclusively through `@repo/shared` error codes into clear Indonesian feedback.
-- **1ms Debounce & State Locking:** Immediate `disabled={isSubmitting}` and ref-level debounce lock at millisecond zero on critical triggers (*Submit Laporan ODP* on mobile, *[Setujui & Eksekusi]* on Web AI draft cards).
+- **1ms Debounce & State Locking:** Immediate `disabled={isSubmitting}` and ref-level debounce lock at millisecond zero on critical triggers (_Submit Laporan ODP_ on mobile, _[Setujui & Eksekusi]_ on Web AI draft cards).
 - **RBAC Permission Matrix:** Client-side conditional rendering with `<PermissionGate />` matching backend permission enforcement. Sensitive controls (Force Logout, Role Editor, Create Ticket) are hidden or cleanly disabled with lock badges when unpermitted.
 - **High-Contrast Outdoor UX:** WCAG AAA outdoor color tokens (`#056434` emerald for Normal -15 to -24 dBm, `#92400e` amber for Warning -25 to -27 dBm, `#991b1b` crimson for Critical > -27 dBm / Los), yellow high-visibility GPS mock alerts, and dedicated offline queue badges.
 - **Monorepo Architecture:** Next.js 15 App Router web application (`apps/web`), React Native headless/mobile hook screens (`apps/mobile`), shared schemas and security constants (`packages/shared`), and Prisma ORM client (`packages/database`).

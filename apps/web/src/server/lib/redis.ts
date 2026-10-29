@@ -39,11 +39,14 @@ class RedisManager {
         this.isAvailable = false;
       });
 
-      this.publisher.connect().then(() => {
-        this.isAvailable = true;
-      }).catch(() => {
-        this.isAvailable = false;
-      });
+      this.publisher
+        .connect()
+        .then(() => {
+          this.isAvailable = true;
+        })
+        .catch(() => {
+          this.isAvailable = false;
+        });
 
       this.subscriber.connect().catch(() => {
         this.isAvailable = false;
@@ -126,7 +129,7 @@ class RedisManager {
   public async checkSlidingWindowRate(
     key: string,
     windowMs: number,
-    maxRequests: number
+    maxRequests: number,
   ): Promise<{ allowed: boolean; remaining: number; retryAfterMs: number }> {
     if (!this.publisher || !this.isAvailable) {
       throw new Error('Redis unavailable for rate limiting');
@@ -192,7 +195,7 @@ class RedisManager {
         '1',
         'EX',
         ttlSeconds,
-        'NX'
+        'NX',
       );
       if (result === 'OK') {
         this.inMemoryActionTokens.add(jti);
@@ -228,18 +231,17 @@ class RedisManager {
    * Stores the latest refresh token fingerprint per session. If a previously-rotated
    * token is reused, all sessions for the user must be revoked.
    */
-  public async markRefreshTokenRotated(sessionId: string, tokenIdentifier: string, ttlSeconds = 604800): Promise<void> {
+  public async markRefreshTokenRotated(
+    sessionId: string,
+    tokenIdentifier: string,
+    ttlSeconds = 604800,
+  ): Promise<void> {
     const key = `${sessionId}:${tokenIdentifier.slice(0, 32)}`;
     this.inMemoryRotatedTokens.add(key);
 
     if (!this.publisher || !this.isAvailable) return;
     try {
-      await this.publisher.set(
-        `rotated_refresh:${key}`,
-        '1',
-        'EX',
-        ttlSeconds
-      );
+      await this.publisher.set(`rotated_refresh:${key}`, '1', 'EX', ttlSeconds);
     } catch {
       // Degrades gracefully to in-memory set
     }

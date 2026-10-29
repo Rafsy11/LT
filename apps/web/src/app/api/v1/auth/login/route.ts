@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         {
           status: 429,
           headers: { 'Retry-After': String(Math.ceil(rateResult.retryAfterMs / 1000)) },
-        }
+        },
       );
     }
 
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         validated.password,
         validated.deviceId,
         validated.deviceModel,
-        validated.appVersion
+        validated.appVersion,
       );
 
       return NextResponse.json({
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
           details: err.errors,
         },
       },
-      { status: isValidation ? 400 : 401 }
+      { status: isValidation ? 400 : 401 },
     );
   }
 }

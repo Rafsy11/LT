@@ -26,7 +26,13 @@ export function OverviewNetworkMap() {
           >
             <defs>
               <pattern id="cleanGrid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e8f2f8" strokeWidth="0.8" opacity="0.8" />
+                <path
+                  d="M 40 0 L 0 0 0 40"
+                  fill="none"
+                  stroke="#e8f2f8"
+                  strokeWidth="0.8"
+                  opacity="0.8"
+                />
               </pattern>
             </defs>
 
@@ -51,11 +57,7 @@ export function OverviewNetworkMap() {
             />
 
             {/* Road Network Grid Lines */}
-            <path
-              d="M0 230 800 60 M270 0 500 300 M0 80 800 190"
-              stroke="#ffffff"
-              strokeWidth="8"
-            />
+            <path d="M0 230 800 60 M270 0 500 300 M0 80 800 190" stroke="#ffffff" strokeWidth="8" />
             <path
               d="M0 230 800 60 M270 0 500 300 M0 80 800 190"
               stroke="#e5eef5"
@@ -113,11 +115,24 @@ export function OverviewNetworkMap() {
             })}
 
             {/* Topographic Typography matching image.png */}
-            <g fill="#475569" fontSize="13" fontWeight="600" fontFamily="Plus Jakarta Sans, sans-serif">
-              <text x="330" y="38" fill="#334155" fontWeight="600">Bandung Utara</text>
-              <text x="305" y="152" fontSize="16" fontWeight="800" fill="#0f172a">Bandung</text>
-              <text x="75" y="210" fill="#64748b" fontWeight="500">Sukajadi</text>
-              <text x="560" y="240" fill="#64748b" fontWeight="500">Antapani</text>
+            <g
+              fill="#475569"
+              fontSize="13"
+              fontWeight="600"
+              fontFamily="Plus Jakarta Sans, sans-serif"
+            >
+              <text x="330" y="38" fill="#334155" fontWeight="600">
+                Bandung Utara
+              </text>
+              <text x="305" y="152" fontSize="16" fontWeight="800" fill="#0f172a">
+                Bandung
+              </text>
+              <text x="75" y="210" fill="#64748b" fontWeight="500">
+                Sukajadi
+              </text>
+              <text x="560" y="240" fill="#64748b" fontWeight="500">
+                Antapani
+              </text>
             </g>
           </svg>
 
@@ -133,8 +148,12 @@ export function OverviewNetworkMap() {
 
           {/* Floating Zoom Controls matching image.png */}
           <div className="map-zoom-controls">
-            <button type="button" className="map-zoom-btn" aria-label="Zoom in">+</button>
-            <button type="button" className="map-zoom-btn" aria-label="Zoom out">−</button>
+            <button type="button" className="map-zoom-btn" aria-label="Zoom in">
+              +
+            </button>
+            <button type="button" className="map-zoom-btn" aria-label="Zoom out">
+              −
+            </button>
             <button type="button" className="map-zoom-btn compass" aria-label="Reset arah">
               <Icon name="compass" size={13} />
             </button>
@@ -142,9 +161,15 @@ export function OverviewNetworkMap() {
 
           <div className="map-hud-bottom">
             <div className="map-legend-pills">
-              <span className="legend-item"><i className="legend-dot green-bg" /> Normal</span>
-              <span className="legend-item"><i className="legend-dot amber-bg" /> Warning</span>
-              <span className="legend-item"><i className="legend-dot red-bg" /> Critical</span>
+              <span className="legend-item">
+                <i className="legend-dot green-bg" /> Normal
+              </span>
+              <span className="legend-item">
+                <i className="legend-dot amber-bg" /> Warning
+              </span>
+              <span className="legend-item">
+                <i className="legend-dot red-bg" /> Critical
+              </span>
             </div>
           </div>
         </div>
@@ -152,4 +177,3 @@ export function OverviewNetworkMap() {
     </section>
   );
 }
-

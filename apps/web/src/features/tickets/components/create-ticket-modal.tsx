@@ -11,7 +11,12 @@ export interface CreateTicketModalProps {
   initialValues?: Partial<CreateTicketInput>;
 }
 
-export function CreateTicketModal({ isOpen, onClose, onSubmit, initialValues }: CreateTicketModalProps) {
+export function CreateTicketModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  initialValues,
+}: CreateTicketModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const { showSuccess, showError } = useToast();
@@ -24,7 +29,10 @@ export function CreateTicketModal({ isOpen, onClose, onSubmit, initialValues }: 
 
     // 1. Permission Matrix check (Requirement 3)
     if (!canCreateTicket) {
-      showError({ code: 'FORBIDDEN', message: 'Anda tidak memiliki hak akses (ticket:create) untuk membuat tiket baru.' });
+      showError({
+        code: 'FORBIDDEN',
+        message: 'Anda tidak memiliki hak akses (ticket:create) untuk membuat tiket baru.',
+      });
       return;
     }
 
@@ -46,7 +54,9 @@ export function CreateTicketModal({ isOpen, onClose, onSubmit, initialValues }: 
 
     try {
       await onSubmit(payload);
-      showSuccess(`Tiket untuk pelanggan ${payload.customerName} (${payload.siaNumber}) berhasil dibuat & ditugaskan.`);
+      showSuccess(
+        `Tiket untuk pelanggan ${payload.customerName} (${payload.siaNumber}) berhasil dibuat & ditugaskan.`,
+      );
       onClose();
     } catch (err: unknown) {
       // 3. Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
@@ -68,8 +78,19 @@ export function CreateTicketModal({ isOpen, onClose, onSubmit, initialValues }: 
         </div>
 
         {!canCreateTicket && (
-          <div className="permission-lock-notice" style={{ margin: '16px 20px', padding: '12px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#991b1b' }}>
-            <b>Akses Dibatasi:</b> Akun Anda tidak memiliki izin <code>ticket:create</code>. Tombol pembuatan tiket dikunci demi keamanan.
+          <div
+            className="permission-lock-notice"
+            style={{
+              margin: '16px 20px',
+              padding: '12px 14px',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '6px',
+              color: '#991b1b',
+            }}
+          >
+            <b>Akses Dibatasi:</b> Akun Anda tidak memiliki izin <code>ticket:create</code>. Tombol
+            pembuatan tiket dikunci demi keamanan.
           </div>
         )}
 
@@ -140,7 +161,11 @@ export function CreateTicketModal({ isOpen, onClose, onSubmit, initialValues }: 
               disabled={!canCreateTicket || submitting}
             />
           </label>
-          <button className="button primary" disabled={submitting || !canCreateTicket} type="submit">
+          <button
+            className="button primary"
+            disabled={submitting || !canCreateTicket}
+            type="submit"
+          >
             {submitting ? 'Memproses Transaksi...' : 'Buat & Tugaskan Tiket'}
           </button>
         </form>
@@ -148,4 +173,3 @@ export function CreateTicketModal({ isOpen, onClose, onSubmit, initialValues }: 
     </div>
   );
 }
-

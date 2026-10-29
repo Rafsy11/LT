@@ -35,10 +35,7 @@ class OllamaClient {
     }
   }
 
-  public async chat(
-    messages: OllamaChatMessage[],
-    systemPrompt?: string
-  ): Promise<string> {
+  public async chat(messages: OllamaChatMessage[], systemPrompt?: string): Promise<string> {
     const formattedMessages: OllamaChatMessage[] = [];
 
     if (systemPrompt) {

@@ -23,9 +23,7 @@ export function TelemetryInspectorHud({
   return (
     <aside className="noc-inspector-panel" aria-label="Inspektor Telemetri Real-Time">
       <div className="noc-inspector-header">
-        <span className="noc-inspector-title">
-          INSPEKTOR TELEMETRI
-        </span>
+        <span className="noc-inspector-title">INSPEKTOR TELEMETRI</span>
         <span className="ticket-tag-mono">{activeReport.ticketNumber}</span>
       </div>
 
@@ -43,7 +41,10 @@ export function TelemetryInspectorHud({
             </span>
           </div>
 
-          <div className="hud-spectrum-bar" title={`Posisi spektrum ukur: ${activeReport.currentAttenuation} dBm`}>
+          <div
+            className="hud-spectrum-bar"
+            title={`Posisi spektrum ukur: ${activeReport.currentAttenuation} dBm`}
+          >
             <div
               className={`hud-spectrum-fill ${status.toLowerCase()}`}
               style={{ width: `${meterPct}%` }}
@@ -58,13 +59,22 @@ export function TelemetryInspectorHud({
 
           <p className="hud-diagnostic-text">
             {status === 'Normal' && (
-              <>Sinyal redaman optik berada di rentang ideal (<b>-15.0 s/d -22.0 dBm</b>) untuk transmisi GPON tanpa <i>packet loss</i>.</>
+              <>
+                Sinyal redaman optik berada di rentang ideal (<b>-15.0 s/d -22.0 dBm</b>) untuk
+                transmisi GPON tanpa <i>packet loss</i>.
+              </>
             )}
             {status === 'Warning' && (
-              <>Sinyal mendekati ambang batas margin redaman (<b>-22.1 s/d -25.0 dBm</b>). Disarankan inspeksi konektor patch cord dan adaptor ODP.</>
+              <>
+                Sinyal mendekati ambang batas margin redaman (<b>-22.1 s/d -25.0 dBm</b>).
+                Disarankan inspeksi konektor patch cord dan adaptor ODP.
+              </>
             )}
             {status === 'Critical' && (
-              <>Sinyal redaman drop kritis (<b>&lt; -25.0 dBm</b>). Risiko tinggi terjadi degradasi layanan pelanggan atau link optik terputus.</>
+              <>
+                Sinyal redaman drop kritis (<b>&lt; -25.0 dBm</b>). Risiko tinggi terjadi degradasi
+                layanan pelanggan atau link optik terputus.
+              </>
             )}
           </p>
         </div>
@@ -79,7 +89,9 @@ export function TelemetryInspectorHud({
             </div>
             <div className="hud-spec-item">
               <div className="hud-spec-key">Nomor SIA</div>
-              <div className="hud-spec-val"><code>{activeReport.siaNumber}</code></div>
+              <div className="hud-spec-val">
+                <code>{activeReport.siaNumber}</code>
+              </div>
             </div>
             <div className="hud-spec-item">
               <div className="hud-spec-key">Cluster Area</div>
@@ -87,7 +99,9 @@ export function TelemetryInspectorHud({
             </div>
             <div className="hud-spec-item">
               <div className="hud-spec-key">Splitter ODP Fisik</div>
-              <div className="hud-spec-val"><code>{activeReport.splitterCode || 'ODP-BDG-01'}</code></div>
+              <div className="hud-spec-val">
+                <code>{activeReport.splitterCode || 'ODP-BDG-01'}</code>
+              </div>
             </div>
             <div className="hud-spec-item">
               <div className="hud-spec-key">Alokasi Port</div>
@@ -118,15 +132,11 @@ export function TelemetryInspectorHud({
             </div>
             <div className="hud-sec-row">
               <span className="hud-sec-label">Deteksi Mock GPS</span>
-              <span className="hud-sec-val verified">
-                Negatif (OS Verified)
-              </span>
+              <span className="hud-sec-val verified">Negatif (OS Verified)</span>
             </div>
             <div className="hud-sec-row">
               <span className="hud-sec-label">Bukti Foto OPM</span>
-              <span className="hud-sec-val verified">
-                MinIO Verified
-              </span>
+              <span className="hud-sec-val verified">MinIO Verified</span>
             </div>
           </div>
         </div>
@@ -141,10 +151,7 @@ export function TelemetryInspectorHud({
             <span>Lihat Rincian Lengkap Tiket</span>
           </button>
 
-          <Link
-            href="/network"
-            className="hud-btn-secondary"
-          >
+          <Link href="/network" className="hud-btn-secondary">
             <span>Buka di Master Jaringan</span>
           </Link>
         </div>
@@ -152,4 +159,3 @@ export function TelemetryInspectorHud({
     </aside>
   );
 }
-

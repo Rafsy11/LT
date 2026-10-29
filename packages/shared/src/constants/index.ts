@@ -86,7 +86,7 @@ export const HIERARCHY_LEVELS = {
 export const SSE_HEADERS = {
   'Content-Type': 'text/event-stream',
   'Cache-Control': 'no-cache, no-transform',
-  'Connection': 'keep-alive',
+  Connection: 'keep-alive',
   'X-Accel-Buffering': 'no',
 } as const;
 
@@ -120,7 +120,8 @@ export const ROLE_PRESETS: Record<string, RolePreset> = {
     userType: 'SUPER_ADMIN',
     hierarchyLevel: 100,
     permissions: [PERMISSIONS.ALL],
-    description: 'Akses global tak terbatas: Role Editor, Force Logout, Master Data, AI Assistant & Konfigurasi Sistem.',
+    description:
+      'Akses global tak terbatas: Role Editor, Force Logout, Master Data, AI Assistant & Konfigurasi Sistem.',
   },
   NOC_ADMIN: {
     id: 'role-noc-admin',
@@ -135,19 +136,17 @@ export const ROLE_PRESETS: Record<string, RolePreset> = {
       PERMISSIONS.CUSTOMER_UPDATE,
       PERMISSIONS.AI_USE,
     ],
-    description: 'Mengelola tiket, master cluster terikat, force logout teknisi, live monitoring, dan AI operational tools.',
+    description:
+      'Mengelola tiket, master cluster terikat, force logout teknisi, live monitoring, dan AI operational tools.',
   },
   FIELD_DISPATCHER: {
     id: 'role-dispatcher',
     name: 'Dispatcher / Helpdesk',
     userType: 'ADMIN',
     hierarchyLevel: 30,
-    permissions: [
-      PERMISSIONS.TICKET_READ,
-      PERMISSIONS.TICKET_CREATE,
-      PERMISSIONS.CUSTOMER_READ,
-    ],
-    description: 'Hanya dapat melihat data pelanggan dan membuat tiket baru (tanpa izin Force Logout atau Role Editor).',
+    permissions: [PERMISSIONS.TICKET_READ, PERMISSIONS.TICKET_CREATE, PERMISSIONS.CUSTOMER_READ],
+    description:
+      'Hanya dapat melihat data pelanggan dan membuat tiket baru (tanpa izin Force Logout atau Role Editor).',
   },
   AUDITOR_VIEWER: {
     id: 'role-auditor',
@@ -155,7 +154,8 @@ export const ROLE_PRESETS: Record<string, RolePreset> = {
     userType: 'ADMIN',
     hierarchyLevel: 20,
     permissions: [PERMISSIONS.TICKET_READ, PERMISSIONS.CUSTOMER_READ],
-    description: 'Akses peninjauan read-only. Tidak dapat membuat tiket, mengubah peran, atau menghentikan teknisi.',
+    description:
+      'Akses peninjauan read-only. Tidak dapat membuat tiket, mengubah peran, atau menghentikan teknisi.',
   },
   TECHNICIAN: {
     id: 'role-technician',
@@ -163,7 +163,8 @@ export const ROLE_PRESETS: Record<string, RolePreset> = {
     userType: 'TECHNICIAN',
     hierarchyLevel: 10,
     permissions: [PERMISSIONS.TICKET_READ],
-    description: 'Aplikasi mobile: Menerima tiket aktif, uji redaman OPM, cek GPS, dan submit laporan lapangan.',
+    description:
+      'Aplikasi mobile: Menerima tiket aktif, uji redaman OPM, cek GPS, dan submit laporan lapangan.',
   },
 };
 
@@ -218,12 +219,10 @@ export const ERROR_MESSAGES_MAP: Record<ErrorCode | string, string> = {
     'Laporan ini telah berhasil diproses sebelumnya. Pengiriman ganda telah dicegah oleh sistem idempotency.',
   [ERROR_CODES.PORT_OCCUPIED]:
     'Port splitter yang dipilih sudah terisi oleh pelanggan aktif lain. Silakan pilih port lain.',
-  [ERROR_CODES.CUSTOMER_NOT_FOUND]:
-    'Data pelanggan (SIA) tidak ditemukan dalam basis data master.',
+  [ERROR_CODES.CUSTOMER_NOT_FOUND]: 'Data pelanggan (SIA) tidak ditemukan dalam basis data master.',
   [ERROR_CODES.TECH_NOT_FOUND]:
     'Data teknisi yang ditugaskan tidak ditemukan atau sedang tidak aktif.',
-  [ERROR_CODES.TICKET_NOT_FOUND]:
-    'Nomor tiket atau work order tidak ditemukan dalam sistem.',
+  [ERROR_CODES.TICKET_NOT_FOUND]: 'Nomor tiket atau work order tidak ditemukan dalam sistem.',
   [ERROR_CODES.CLUSTER_NOT_FOUND]:
     'Wilayah cluster jaringan tidak valid atau berada di luar cakupan wewenang Anda.',
   [ERROR_CODES.INVALID_GEOFENCE]:
@@ -232,8 +231,7 @@ export const ERROR_MESSAGES_MAP: Record<ErrorCode | string, string> = {
     'Sistem Keamanan Integritas Lapangan: Terdeteksi Mock Location / Fake GPS pada perangkat. Tombol Submit dikunci.',
   [ERROR_CODES.AI_ACTION_EXPIRED]:
     'Batas waktu persetujuan aksi AI telah kedaluwarsa. Silakan ajukan perintah baru pada AI Assistant.',
-  [ERROR_CODES.INVALID_ACTION_TOKEN]:
-    'Token kriptografi aksi AI tidak valid atau telah dirusak.',
+  [ERROR_CODES.INVALID_ACTION_TOKEN]: 'Token kriptografi aksi AI tidak valid atau telah dirusak.',
   [ERROR_CODES.HIERARCHY_VIOLATION]:
     'Pelanggaran Hierarki Keamanan: Anda tidak diizinkan mengubah akun dengan tingkat wewenang setara atau lebih tinggi.',
   [ERROR_CODES.VALIDATION_ERROR]:
@@ -297,7 +295,7 @@ export function sanitizeUiErrorMessage(rawError: unknown): {
   const rawMessage = typeof rawError === 'string' ? rawError : errorObj?.message || '';
   const isDangerousLeak =
     /prisma|postgresql|select|insert|update|delete|table|column|relation|p2002|p2003|at\s|node_modules/i.test(
-      rawMessage
+      rawMessage,
     );
 
   if (isDangerousLeak) {
@@ -322,9 +320,10 @@ export function sanitizeUiErrorMessage(rawError: unknown): {
   // 4. Fallback aman
   return {
     code: ERROR_CODES.INTERNAL_ERROR,
-    message: rawMessage && rawMessage.length < 120 && !isDangerousLeak
-      ? rawMessage
-      : ERROR_MESSAGES_MAP[ERROR_CODES.INTERNAL_ERROR],
+    message:
+      rawMessage && rawMessage.length < 120 && !isDangerousLeak
+        ? rawMessage
+        : ERROR_MESSAGES_MAP[ERROR_CODES.INTERNAL_ERROR],
     isSanitized: true,
   };
 }
@@ -368,4 +367,3 @@ export const OUTDOOR_CONTRAST_TOKENS = {
     statusDot: '#ef4444',
   },
 } as const;
-

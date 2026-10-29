@@ -36,10 +36,10 @@ export function OverviewTelemetryFeed({ feedItems }: OverviewTelemetryFeedProps)
                     item.type === 'critical'
                       ? 'activity'
                       : item.type === 'warning'
-                      ? 'wrench'
-                      : item.type === 'success'
-                      ? 'check'
-                      : 'fileText'
+                        ? 'wrench'
+                        : item.type === 'success'
+                          ? 'check'
+                          : 'fileText'
                   }
                   size={15}
                 />
@@ -59,4 +59,3 @@ export function OverviewTelemetryFeed({ feedItems }: OverviewTelemetryFeedProps)
     </section>
   );
 }
-

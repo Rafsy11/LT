@@ -43,11 +43,7 @@ export interface TicketListScreenProps {
   onLogout: () => void;
 }
 
-export function TicketListScreen({
-  apiClient,
-  onSelectTicket,
-  onLogout,
-}: TicketListScreenProps) {
+export function TicketListScreen({ apiClient, onSelectTicket, onLogout }: TicketListScreenProps) {
   const [tickets, setTickets] = useState<MobileTicketItem[]>([]);
   const [splitters, setSplitters] = useState<SplitterItem[]>([]);
   const [offlineItems, setOfflineItems] = useState<OfflineTicketSubmission[]>([]);

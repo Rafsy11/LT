@@ -74,7 +74,6 @@ export function AiChatWidget() {
     }
   };
 
-
   return (
     <>
       <button
@@ -99,15 +98,15 @@ export function AiChatWidget() {
 
           <div className="chat-body">
             {messages.map((m, idx) => (
-                <div key={idx} className={m.role === 'user' ? 'user-message' : 'assistant-message'}>
-                  <p style={{ whiteSpace: 'pre-wrap' }}>{m.text}</p>
+              <div key={idx} className={m.role === 'user' ? 'user-message' : 'assistant-message'}>
+                <p style={{ whiteSpace: 'pre-wrap' }}>{m.text}</p>
 
-                  {m.draft && (
-                    <div style={{ marginTop: '12px' }}>
-                      <DraftActionCard draft={m.draft} />
-                    </div>
-                  )}
-                </div>
+                {m.draft && (
+                  <div style={{ marginTop: '12px' }}>
+                    <DraftActionCard draft={m.draft} />
+                  </div>
+                )}
+              </div>
             ))}
 
             {loading && (
@@ -145,4 +144,3 @@ export function AiChatWidget() {
     </>
   );
 }
-

@@ -1,7 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { ClusterListItem, SplitterPortState, NetworkStats, CustomerListItem, CreateTicketInput } from '@repo/shared';
+import type {
+  ClusterListItem,
+  SplitterPortState,
+  NetworkStats,
+  CustomerListItem,
+  CreateTicketInput,
+} from '@repo/shared';
 import { FALLBACK_CLUSTERS } from '@repo/shared';
 import { useToast, useAuth } from '@/providers';
 
@@ -57,8 +63,12 @@ export function useNetwork() {
   const [portFilter, setPortFilter] = useState<'ALL' | 'OCCUPIED' | 'AVAILABLE'>('ALL');
   const [activeTab, setActiveTab] = useState<'ports' | 'inspeksi' | 'riwayat' | 'audit'>('ports');
   const [expandedPortNum, setExpandedPortNum] = useState<number | null>(1);
-  const [selectedCustomerForModal, setSelectedCustomerForModal] = useState<CustomerListItem | null>(null);
-  const [historyTypeFilter, setHistoryTypeFilter] = useState<'ALL' | 'MAINTENANCE' | 'PEMASANGAN' | 'PENARIKAN'>('ALL');
+  const [selectedCustomerForModal, setSelectedCustomerForModal] = useState<CustomerListItem | null>(
+    null,
+  );
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<
+    'ALL' | 'MAINTENANCE' | 'PEMASANGAN' | 'PENARIKAN'
+  >('ALL');
   const [auditRunning, setAuditRunning] = useState(false);
   const [auditTimestamp, setAuditTimestamp] = useState<string>('22:00:15 WIB');
   const [ticketModalOpen, setTicketModalOpen] = useState(false);
@@ -157,7 +167,7 @@ export function useNetwork() {
         c.ports.some(
           (p) =>
             (p.customerName && p.customerName.toLowerCase().includes(search.toLowerCase())) ||
-            (p.siaNumber && p.siaNumber.toLowerCase().includes(search.toLowerCase()))
+            (p.siaNumber && p.siaNumber.toLowerCase().includes(search.toLowerCase())),
         );
 
       const matchesPortStatus =
@@ -213,7 +223,10 @@ export function useNetwork() {
 
   useEffect(() => {
     if (filteredClusters.length > 0) {
-      if (!activeSplitterCode || !filteredClusters.some((c) => c.splitterCode === activeSplitterCode)) {
+      if (
+        !activeSplitterCode ||
+        !filteredClusters.some((c) => c.splitterCode === activeSplitterCode)
+      ) {
         setActiveSplitterCode(filteredClusters[0].splitterCode);
       }
     }
@@ -224,12 +237,27 @@ export function useNetwork() {
       return { label: 'Belum diukur', tone: 'neutral', badge: 'badge gray', status: 'neutral' };
     }
     if (att >= -22.0 && att <= -15.0) {
-      return { label: `${att.toFixed(1)} dBm (Normal)`, tone: 'normal', badge: 'badge green', status: 'normal' };
+      return {
+        label: `${att.toFixed(1)} dBm (Normal)`,
+        tone: 'normal',
+        badge: 'badge green',
+        status: 'normal',
+      };
     }
     if (att < -22.0 && att >= -25.0) {
-      return { label: `${att.toFixed(1)} dBm (Warning)`, tone: 'warning', badge: 'badge yellow', status: 'warning' };
+      return {
+        label: `${att.toFixed(1)} dBm (Warning)`,
+        tone: 'warning',
+        badge: 'badge yellow',
+        status: 'warning',
+      };
     }
-    return { label: `${att.toFixed(1)} dBm (Critical)`, tone: 'critical', badge: 'badge red', status: 'critical' };
+    return {
+      label: `${att.toFixed(1)} dBm (Critical)`,
+      tone: 'critical',
+      badge: 'badge red',
+      status: 'critical',
+    };
   }, []);
 
   const odpHistoryLogs: OdpHistoryLogItem[] = useMemo(() => {
@@ -312,7 +340,11 @@ export function useNetwork() {
     setTimeout(() => {
       setAuditRunning(false);
       setAuditTimestamp(
-        new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB'
+        new Date().toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        }) + ' WIB',
       );
       showSuccess('Audit integritas database berhasil: 0 anomali port ditemukan.');
     }, 600);
@@ -362,4 +394,3 @@ export function useNetwork() {
     canCreateTicket,
   };
 }
-

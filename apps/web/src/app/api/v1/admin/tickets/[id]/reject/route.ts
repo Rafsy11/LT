@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TicketService } from '@/server/services/ticket.service';
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     let reason = 'Data redaman atau bukti foto OPM belum memenuhi standar operasional.';
@@ -30,7 +27,8 @@ export async function POST(
       success: true,
       data: ticket,
       meta: {
-        message: 'Laporan teknisi telah ditolak dan dikembalikan ke teknisi untuk pengukuran ulang / perbaikan di lapangan.',
+        message:
+          'Laporan teknisi telah ditolak dan dikembalikan ke teknisi untuk pengukuran ulang / perbaikan di lapangan.',
       },
     });
   } catch (error: any) {
@@ -42,7 +40,7 @@ export async function POST(
           message: error.message || 'Gagal menolak laporan tiket',
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 }

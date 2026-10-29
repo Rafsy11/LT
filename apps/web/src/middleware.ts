@@ -3,7 +3,7 @@ import { jwtVerify } from 'jose';
 import { MIN_MOBILE_APP_VERSION, ERROR_CODES } from '@repo/shared';
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'fiberops_on_premise_super_secure_jwt_secret_key_32chars'
+  process.env.JWT_SECRET || 'fiberops_on_premise_super_secure_jwt_secret_key_32chars',
 );
 
 /**
@@ -80,7 +80,7 @@ export async function middleware(request: NextRequest) {
             currentVersion: appVersion || 'unknown',
           },
         },
-        { status: 426 }
+        { status: 426 },
       );
     }
 
@@ -95,7 +95,7 @@ export async function middleware(request: NextRequest) {
             message: 'Akses ditolak: Bearer token otorisasi wajib disertakan.',
           },
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -111,12 +111,10 @@ export async function middleware(request: NextRequest) {
       if (payload.role) requestHeaders.set('x-user-role', String(payload.role));
       if (payload.userType) requestHeaders.set('x-user-type', String(payload.userType));
       if (payload.deviceId) requestHeaders.set('x-device-id', String(payload.deviceId));
-      if (payload.hierarchyLevel) requestHeaders.set('x-hierarchy-level', String(payload.hierarchyLevel));
+      if (payload.hierarchyLevel)
+        requestHeaders.set('x-hierarchy-level', String(payload.hierarchyLevel));
       if (payload.assignedClusters) {
-        requestHeaders.set(
-          'x-assigned-clusters',
-          JSON.stringify(payload.assignedClusters)
-        );
+        requestHeaders.set('x-assigned-clusters', JSON.stringify(payload.assignedClusters));
       }
 
       return NextResponse.next({
@@ -136,7 +134,7 @@ export async function middleware(request: NextRequest) {
               : 'Token otentikasi tidak valid atau telah kedaluwarsa.',
           },
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
   }
@@ -147,12 +145,9 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/v1/admin')) {
     const authHeader = request.headers.get('authorization');
     const cookieToken =
-      request.cookies.get('fiberops_session')?.value ||
-      request.cookies.get('session')?.value;
+      request.cookies.get('fiberops_session')?.value || request.cookies.get('session')?.value;
 
-    const token = authHeader?.startsWith('Bearer ')
-      ? authHeader.substring(7).trim()
-      : cookieToken;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7).trim() : cookieToken;
 
     if (!token) {
       if (process.env.NODE_ENV === 'production') {
@@ -164,7 +159,7 @@ export async function middleware(request: NextRequest) {
               message: 'Sesi login admin tidak ditemukan.',
             },
           },
-          { status: 401 }
+          { status: 401 },
         );
       }
       // Dev mode: strip headers but allow through without auth
@@ -182,12 +177,10 @@ export async function middleware(request: NextRequest) {
       if (payload.username) requestHeaders.set('x-username', String(payload.username));
       if (payload.role) requestHeaders.set('x-user-role', String(payload.role));
       if (payload.userType) requestHeaders.set('x-user-type', String(payload.userType));
-      if (payload.hierarchyLevel) requestHeaders.set('x-hierarchy-level', String(payload.hierarchyLevel));
+      if (payload.hierarchyLevel)
+        requestHeaders.set('x-hierarchy-level', String(payload.hierarchyLevel));
       if (payload.assignedClusters) {
-        requestHeaders.set(
-          'x-assigned-clusters',
-          JSON.stringify(payload.assignedClusters)
-        );
+        requestHeaders.set('x-assigned-clusters', JSON.stringify(payload.assignedClusters));
       }
 
       return NextResponse.next({
@@ -205,7 +198,7 @@ export async function middleware(request: NextRequest) {
               message: 'Sesi login admin tidak valid atau telah kedaluwarsa.',
             },
           },
-          { status: 401 }
+          { status: 401 },
         );
       }
       const requestHeaders = stripSensitiveHeaders(request.headers);

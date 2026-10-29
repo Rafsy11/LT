@@ -28,9 +28,7 @@ import { CustomerService } from './customer.service';
 import { RoleService } from './role.service';
 import { env } from '../../env';
 
-const ACTION_TOKEN_SECRET = new TextEncoder().encode(
-  env.JWT_SECRET
-);
+const ACTION_TOKEN_SECRET = new TextEncoder().encode(env.JWT_SECRET);
 
 const ACTION_TOKEN_EXPIRY = '5m'; // 5 minutes validity for human confirmation
 
@@ -55,7 +53,7 @@ export interface VerifiedActionToken {
 export async function generateSignedActionToken(
   actionType: 'CREATE_TICKET' | 'TOGGLE_TECH_ACCOUNT' | 'MUTATE_SPLITTER_PORT',
   payload: Record<string, unknown>,
-  adminId: string
+  adminId: string,
 ): Promise<string> {
   const jti = crypto.randomUUID();
   return await new SignJWT({
@@ -77,7 +75,7 @@ export async function generateSignedActionToken(
  */
 export async function verifySignedActionToken(
   token: string,
-  options?: { markAsUsed?: boolean }
+  options?: { markAsUsed?: boolean },
 ): Promise<VerifiedActionToken> {
   try {
     const { payload } = await jwtVerify(token, ACTION_TOKEN_SECRET);
@@ -89,13 +87,14 @@ export async function verifySignedActionToken(
       const isFirstUse = await redisManager.markActionTokenUsed(jti, 300);
       if (!isFirstUse) {
         throw new Error(
-          `${ERROR_CODES.ACTION_TOKEN_REPLAYED}: Token aksi ini telah digunakan sebelumnya (single-use anti-replay). Silakan minta AI untuk menyiapkan draf baru.`
+          `${ERROR_CODES.ACTION_TOKEN_REPLAYED}: Token aksi ini telah digunakan sebelumnya (single-use anti-replay). Silakan minta AI untuk menyiapkan draf baru.`,
         );
       }
     }
 
     return {
-      actionType: payload.actionType as 'CREATE_TICKET' | 'TOGGLE_TECH_ACCOUNT' | 'MUTATE_SPLITTER_PORT',
+      actionType: payload.actionType as
+        'CREATE_TICKET' | 'TOGGLE_TECH_ACCOUNT' | 'MUTATE_SPLITTER_PORT',
       payload: payload.payload as Record<string, unknown>,
       adminId: (payload.adminId as string) || actorId,
       actorId,
@@ -107,7 +106,7 @@ export async function verifySignedActionToken(
       throw err;
     }
     throw new Error(
-      `${ERROR_CODES.INVALID_ACTION_TOKEN}: Token aksi draf tidak valid atau telah kedaluwarsa (> 5 menit). Silakan minta AI untuk menyiapkan ulang.`
+      `${ERROR_CODES.INVALID_ACTION_TOKEN}: Token aksi draf tidak valid atau telah kedaluwarsa (> 5 menit). Silakan minta AI untuk menyiapkan ulang.`,
     );
   }
 }
@@ -118,7 +117,8 @@ export class AiService {
    * Enforces Law 4 (Cluster Scoping) & Section 6 of AGENT.md (Server-side context injection).
    */
   public static getFilteredTools(adminContext: UserSessionContext, permissions: string[] = ['*']) {
-    const hasPermission = (required: string) => permissions.includes('*') || permissions.includes(required);
+    const hasPermission = (required: string) =>
+      permissions.includes('*') || permissions.includes(required);
     const isSuperAdmin = adminContext.hierarchyLevel >= 100 || adminContext.role === 'Super Admin';
     const assignedClusters = isSuperAdmin ? [] : adminContext.assignedClusters;
 
@@ -163,7 +163,9 @@ export class AiService {
             if (histories.length > 0) {
               let filtered = histories;
               if (args.minAttenuation !== undefined) {
-                filtered = filtered.filter((h: any) => Number(h.newAttenuation) <= args.minAttenuation!);
+                filtered = filtered.filter(
+                  (h: any) => Number(h.newAttenuation) <= args.minAttenuation!,
+                );
               }
 
               return filtered.map((h: any) => ({
@@ -215,7 +217,9 @@ export class AiService {
               where: {
                 OR: [
                   args.siaNumber ? { siaNumber: args.siaNumber } : {},
-                  args.customerName ? { fullName: { contains: args.customerName, mode: 'insensitive' } } : {},
+                  args.customerName
+                    ? { fullName: { contains: args.customerName, mode: 'insensitive' } }
+                    : {},
                 ],
               },
               include: {
@@ -226,7 +230,10 @@ export class AiService {
 
             if (customer) {
               // Cluster scoping guard
-              if (assignedClusters.length > 0 && !assignedClusters.includes(customer.cluster.clusterCode)) {
+              if (
+                assignedClusters.length > 0 &&
+                !assignedClusters.includes(customer.cluster.clusterCode)
+              ) {
                 return { error: 'Pelanggan berada di luar cluster yang menjadi wewenang Anda.' };
               }
 
@@ -247,7 +254,9 @@ export class AiService {
                 clusterCode: customer.cluster.clusterCode,
                 splitterCode: customer.splitter?.splitterCode || 'Belum terhubung',
                 portNumber: customer.portNumber,
-                currentAttenuation: customer.currentAttenuation ? Number(customer.currentAttenuation) : null,
+                currentAttenuation: customer.currentAttenuation
+                  ? Number(customer.currentAttenuation)
+                  : null,
                 recentHistories: histories.map((h) => ({
                   id: h.id,
                   submissionId: h.submissionId,
@@ -263,7 +272,7 @@ export class AiService {
           }
 
           const custDetail = await CustomerService.getCustomerBySia(
-            args.siaNumber || args.customerName || 'SIA-2024-001'
+            args.siaNumber || args.customerName || 'SIA-2024-001',
           ).catch(() => null);
 
           if (!custDetail) {
@@ -324,7 +333,10 @@ export class AiService {
             // In-memory fallback
           }
 
-          const techs = await TechnicianService.listTechnicians('', args.clusterCode || 'Semua cluster');
+          const techs = await TechnicianService.listTechnicians(
+            '',
+            args.clusterCode || 'Semua cluster',
+          );
 
           return techs.map((t) => ({
             username: t.username,
@@ -348,20 +360,26 @@ export class AiService {
         inputSchema: prepareCreateTicketToolSchema,
         execute: async (args: PrepareCreateTicketInput) => {
           // 1. Pra-validasi Pelanggan
-          const customer = await prisma.customer.findFirst({
-            where: {
-              OR: [
-                { siaNumber: args.siaNumber },
-                args.customerName ? { fullName: { contains: args.customerName, mode: 'insensitive' } } : {},
-              ],
-            },
-            include: { cluster: true },
-          }).catch(() => null);
+          const customer = await prisma.customer
+            .findFirst({
+              where: {
+                OR: [
+                  { siaNumber: args.siaNumber },
+                  args.customerName
+                    ? { fullName: { contains: args.customerName, mode: 'insensitive' } }
+                    : {},
+                ],
+              },
+              include: { cluster: true },
+            })
+            .catch(() => null);
 
           const customerFallback =
             customer ||
             (await CustomerService.listCustomers(args.siaNumber))[0] ||
-            (args.customerName ? (await CustomerService.listCustomers(args.customerName))[0] : null) ||
+            (args.customerName
+              ? (await CustomerService.listCustomers(args.customerName))[0]
+              : null) ||
             (await CustomerService.listCustomers(''))[0] ||
             null;
           if (!customerFallback && args.ticketType === 'MAINTENANCE') {
@@ -370,7 +388,8 @@ export class AiService {
             };
           }
 
-          const resolvedCustomerName = args.customerName || customerFallback?.fullName || 'Pelanggan Baru';
+          const resolvedCustomerName =
+            args.customerName || customerFallback?.fullName || 'Pelanggan Baru';
           const clusterName = customerFallback?.cluster
             ? typeof customerFallback.cluster === 'string'
               ? customerFallback.cluster
@@ -378,14 +397,17 @@ export class AiService {
             : 'Bandung Utara';
 
           // 2. Pra-validasi Teknisi
-          const techUser = await prisma.user.findFirst({
-            where: {
-              OR: [{ username: args.techUsername }, { fullName: args.techUsername }],
-              userType: 'TECHNICIAN',
-            },
-          }).catch(() => null);
+          const techUser = await prisma.user
+            .findFirst({
+              where: {
+                OR: [{ username: args.techUsername }, { fullName: args.techUsername }],
+                userType: 'TECHNICIAN',
+              },
+            })
+            .catch(() => null);
 
-          const techFallback = techUser || (await TechnicianService.listTechnicians(args.techUsername))[0] || null;
+          const techFallback =
+            techUser || (await TechnicianService.listTechnicians(args.techUsername))[0] || null;
 
           if (!techFallback || !techFallback.isActive) {
             return {
@@ -403,9 +425,15 @@ export class AiService {
             adminNotes: args.notes || `Disiapkan oleh AI Assistant atas instruksi Admin`,
           };
 
-          const actionToken = await generateSignedActionToken('CREATE_TICKET', payload, adminContext.userId);
+          const actionToken = await generateSignedActionToken(
+            'CREATE_TICKET',
+            payload,
+            adminContext.userId,
+          );
 
-          const cleanSia = args.siaNumber.startsWith('SIA') ? args.siaNumber : `SIA-${args.siaNumber}`;
+          const cleanSia = args.siaNumber.startsWith('SIA')
+            ? args.siaNumber
+            : `SIA-${args.siaNumber}`;
           const draftCard: DraftActionCard = {
             requiresConfirmation: true,
             actionType: 'CREATE_TICKET',
@@ -417,7 +445,8 @@ export class AiService {
 
           return {
             status: 'DRAFT_PREPARED',
-            message: 'Draf tiket berhasil dibuat. Memerlukan konfirmasi Admin sebelum disimpan ke database.',
+            message:
+              'Draf tiket berhasil dibuat. Memerlukan konfirmasi Admin sebelum disimpan ke database.',
             draftCard,
           };
         },
@@ -434,15 +463,18 @@ export class AiService {
         inputSchema: prepareToggleTechAccountToolSchema,
         execute: async (args: PrepareToggleTechAccountInput) => {
           // 1. Pra-validasi Teknisi & Hierarki
-          const techUser = await prisma.user.findFirst({
-            where: {
-              OR: [{ username: args.techUsername }, { fullName: args.techUsername }],
-              userType: 'TECHNICIAN',
-            },
-            include: { role: true },
-          }).catch(() => null);
+          const techUser = await prisma.user
+            .findFirst({
+              where: {
+                OR: [{ username: args.techUsername }, { fullName: args.techUsername }],
+                userType: 'TECHNICIAN',
+              },
+              include: { role: true },
+            })
+            .catch(() => null);
 
-          const techFallback = techUser || (await TechnicianService.listTechnicians(args.techUsername))[0] || null;
+          const techFallback =
+            techUser || (await TechnicianService.listTechnicians(args.techUsername))[0] || null;
 
           if (!techFallback) {
             return { error: `Pra-validasi Gagal: Teknisi "${args.techUsername}" tidak ditemukan.` };
@@ -450,7 +482,10 @@ export class AiService {
 
           if (techUser?.role) {
             try {
-              RoleService.checkHierarchyProtection(adminContext.hierarchyLevel, techUser.role.hierarchyLevel);
+              RoleService.checkHierarchyProtection(
+                adminContext.hierarchyLevel,
+                techUser.role.hierarchyLevel,
+              );
             } catch (hierErr) {
               return { error: (hierErr as Error).message };
             }
@@ -464,7 +499,11 @@ export class AiService {
             reason: args.reason,
           };
 
-          const actionToken = await generateSignedActionToken('TOGGLE_TECH_ACCOUNT', payload, adminContext.userId);
+          const actionToken = await generateSignedActionToken(
+            'TOGGLE_TECH_ACCOUNT',
+            payload,
+            adminContext.userId,
+          );
 
           const draftCard: DraftActionCard = {
             requiresConfirmation: true,
@@ -496,10 +535,12 @@ export class AiService {
         inputSchema: prepareMutateSplitterPortToolSchema,
         execute: async (args: PrepareMutateSplitterPortInput) => {
           // 1. Pra-validasi Pelanggan
-          const customer = await prisma.customer.findFirst({
-            where: { siaNumber: args.siaNumber },
-            include: { cluster: true },
-          }).catch(() => null);
+          const customer = await prisma.customer
+            .findFirst({
+              where: { siaNumber: args.siaNumber },
+              include: { cluster: true },
+            })
+            .catch(() => null);
 
           const customerFallback =
             customer ||
@@ -507,13 +548,17 @@ export class AiService {
             (await CustomerService.listCustomers(''))[0] ||
             null;
           if (!customerFallback) {
-            return { error: `Pra-validasi Gagal: Pelanggan dengan SIA ${args.siaNumber} tidak ditemukan.` };
+            return {
+              error: `Pra-validasi Gagal: Pelanggan dengan SIA ${args.siaNumber} tidak ditemukan.`,
+            };
           }
 
           // 2. Pra-validasi Splitter ODP Tujuan
-          const splitter = await prisma.networkSplitter.findFirst({
-            where: { splitterCode: args.newSplitterCode },
-          }).catch(() => null);
+          const splitter = await prisma.networkSplitter
+            .findFirst({
+              where: { splitterCode: args.newSplitterCode },
+            })
+            .catch(() => null);
 
           const maxPorts = splitter?.maxPorts || 16;
           if (args.newPortNumber < 1 || args.newPortNumber > maxPorts) {
@@ -524,14 +569,16 @@ export class AiService {
 
           // 3. Pra-validasi Port Kosong (Anti-Double Booking)
           if (splitter) {
-            const occupied = await prisma.customer.findFirst({
-              where: {
-                splitterId: splitter.id,
-                portNumber: args.newPortNumber,
-                status: 'ACTIVE',
-                siaNumber: { not: args.siaNumber },
-              },
-            }).catch(() => null);
+            const occupied = await prisma.customer
+              .findFirst({
+                where: {
+                  splitterId: splitter.id,
+                  portNumber: args.newPortNumber,
+                  status: 'ACTIVE',
+                  siaNumber: { not: args.siaNumber },
+                },
+              })
+              .catch(() => null);
 
             if (occupied) {
               return {
@@ -547,7 +594,11 @@ export class AiService {
             newPortNumber: args.newPortNumber,
           };
 
-          const actionToken = await generateSignedActionToken('MUTATE_SPLITTER_PORT', payload, adminContext.userId);
+          const actionToken = await generateSignedActionToken(
+            'MUTATE_SPLITTER_PORT',
+            payload,
+            adminContext.userId,
+          );
 
           const draftCard: DraftActionCard = {
             requiresConfirmation: true,
@@ -576,7 +627,7 @@ export class AiService {
   public static async streamChat(
     prompt: string,
     adminContext: UserSessionContext,
-    permissions: string[] = ['*']
+    permissions: string[] = ['*'],
   ) {
     const ollama = createOpenAI({
       baseURL: env.OLLAMA_BASE_URL.replace(/\/+$/, '') + '/v1',
@@ -618,7 +669,7 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
       hierarchyLevel: 100,
       assignedClusters: ['CL-01', 'CL-02'],
     },
-    permissions: string[] = ['*']
+    permissions: string[] = ['*'],
   ): Promise<AiMessage> {
     const p = prompt.toLowerCase();
     const tools = this.getFilteredTools(adminContext, permissions);
@@ -658,7 +709,11 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
     }
 
     // Intent 2: Write Tool - Toggle Technician Account
-    if (p.includes('nonaktifkan') || p.includes('matikan teknisi') || p.includes('blokir teknisi')) {
+    if (
+      p.includes('nonaktifkan') ||
+      p.includes('matikan teknisi') ||
+      p.includes('blokir teknisi')
+    ) {
       if (tools.prepare_toggle_tech_account) {
         const res = (await (tools.prepare_toggle_tech_account as any).execute({
           techUsername: 'andi.pratama',
@@ -683,7 +738,12 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
     }
 
     // Intent 3: Write Tool - Mutate Splitter Port
-    if (p.includes('pindah') || p.includes('mutasi') || p.includes('ganti port') || p.includes('ganti odp')) {
+    if (
+      p.includes('pindah') ||
+      p.includes('mutasi') ||
+      p.includes('ganti port') ||
+      p.includes('ganti odp')
+    ) {
       if (tools.prepare_mutate_splitter_port) {
         const res = (await (tools.prepare_mutate_splitter_port as any).execute({
           siaNumber: 'SIA-2024-001',
@@ -710,7 +770,9 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
     // Intent 4: Read Tool - Analisis Gangguan Redaman ("Analisis gangguan redaman")
     if (p.includes('analisis') || p.includes('gangguan redaman') || p.includes('redaman')) {
       const tickets = await TicketService.listTickets();
-      const criticalCount = tickets.filter((t) => classifyDbm(t.currentAttenuation) === 'Critical').length;
+      const criticalCount = tickets.filter(
+        (t) => classifyDbm(t.currentAttenuation) === 'Critical',
+      ).length;
       return {
         role: 'assistant',
         content: `Hasil Analisis Gangguan Redaman Optik (FTTH):\n• Terdeteksi ${criticalCount} titik drop redaman kritis (< -25.0 dBm) yang memerlukan tindakan segera.\n• Titik Kritis: SIA-2024-003 (Ahmad Dahlan, -27.3 dBm di ODP-BDG-03 Port 2).\n• Titik Peringatan: SIA-2024-002 (Siti Aminah, -24.8 dBm di ODP-BDG-01 Port 5).\n• Status Jaringan Umum: 80% pelanggan berada pada batas normal (-18.0 s/d -20.0 dBm).\n\nSaran Operasional: Anda dapat mengklik "Buat draft tiket" untuk menugaskan teknisi perbaikan ke ODP-BDG-03.`,
@@ -718,10 +780,22 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
     }
 
     // Intent 5: Read Tool - Cari Teknisi Terdekat ("Cari teknisi terdekat")
-    if (p.includes('teknisi') || p.includes('cari teknisi') || p.includes('beban kerja') || p.includes('workload')) {
+    if (
+      p.includes('teknisi') ||
+      p.includes('cari teknisi') ||
+      p.includes('beban kerja') ||
+      p.includes('workload')
+    ) {
       if (tools.get_technician_workload) {
-        const list = (await (tools.get_technician_workload as any).execute({ status: 'ALL' })) as any[];
-        const summary = list.map((t) => `• ${t.fullName} (@${t.username}): Cluster ${t.cluster || 'Bandung'} · ${t.activeTicketsCount} tiket aktif [${t.workloadStatus}]`).join('\n');
+        const list = (await (tools.get_technician_workload as any).execute({
+          status: 'ALL',
+        })) as any[];
+        const summary = list
+          .map(
+            (t) =>
+              `• ${t.fullName} (@${t.username}): Cluster ${t.cluster || 'Bandung'} · ${t.activeTicketsCount} tiket aktif [${t.workloadStatus}]`,
+          )
+          .join('\n');
         return {
           role: 'assistant',
           content: `Data Teknisi Terdekat & Beban Tugas Lapangan:\n${summary}\n\nTeknisi Siap Ditugaskan: Cahyo Wibowo (Status IDLE).`,
@@ -730,9 +804,16 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
     }
 
     // Intent 6: Read Tool - Ringkasan Gangguan ("Ringkasan gangguan")
-    if (p.includes('ringkasan') || p.includes('gangguan') || p.includes('kesehatan') || p.includes('status')) {
+    if (
+      p.includes('ringkasan') ||
+      p.includes('gangguan') ||
+      p.includes('kesehatan') ||
+      p.includes('status')
+    ) {
       const tickets = await TicketService.listTickets();
-      const criticalCount = tickets.filter((t) => classifyDbm(t.currentAttenuation) === 'Critical').length;
+      const criticalCount = tickets.filter(
+        (t) => classifyDbm(t.currentAttenuation) === 'Critical',
+      ).length;
       const waitingCount = tickets.filter((t) => t.status === 'Menunggu').length;
       const completedCount = tickets.filter((t) => t.status === 'Selesai').length;
 
@@ -753,10 +834,7 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
    * Confirms and executes a signed action token (Human-in-the-Loop execution).
    * Verifies HMAC signature, 5-minute expiry, and executes underlying Service mutation.
    */
-  public static async confirmAction(
-    actionToken: string,
-    adminContext: UserSessionContext
-  ) {
+  public static async confirmAction(actionToken: string, adminContext: UserSessionContext) {
     // 1. Verify HMAC cryptographic signature and 5m expiry
     const verified = await verifySignedActionToken(actionToken);
 
@@ -767,7 +845,7 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
       case 'CREATE_TICKET':
         mutationResult = await TicketService.createTicket(
           verified.payload as any,
-          adminContext.userId
+          adminContext.userId,
         );
         break;
 
@@ -775,7 +853,7 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
         mutationResult = await TechnicianService.toggleTechnicianStatus(
           verified.payload.techUsername as string,
           verified.payload.setActive as boolean,
-          verified.payload.reason as string
+          verified.payload.reason as string,
         );
         break;
 
@@ -784,7 +862,7 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
           verified.payload.siaNumber as string,
           verified.payload.newSplitterCode as string,
           verified.payload.newPortNumber as number,
-          adminContext.userId
+          adminContext.userId,
         );
         break;
 
@@ -801,9 +879,7 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
           actionType: 'AI_ACTION_EXECUTED',
           targetEntity: verified.actionType,
           targetId: String(
-            verified.payload.siaNumber ||
-            verified.payload.techUsername ||
-            adminContext.userId
+            verified.payload.siaNumber || verified.payload.techUsername || adminContext.userId,
           ),
           oldPayload: {
             actionType: verified.actionType,

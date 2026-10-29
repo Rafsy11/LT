@@ -9,7 +9,8 @@
  */
 
 process.env.DATABASE_URL =
-  process.env.DATABASE_URL || 'postgresql://fiberops:fiberops_secure_pass@127.0.0.1:5432/fiberops_db?schema=public';
+  process.env.DATABASE_URL ||
+  'postgresql://fiberops:fiberops_secure_pass@127.0.0.1:5432/fiberops_db?schema=public';
 process.env.JWT_SECRET =
   process.env.JWT_SECRET || 'fiberops_on_premise_super_secure_jwt_secret_key_32chars';
 
@@ -17,7 +18,10 @@ import { NextRequest } from 'next/server';
 import { middleware } from '../apps/web/src/middleware';
 import { checkRateLimit } from '../apps/web/src/server/lib/rate-limit';
 import { TicketService } from '../apps/web/src/server/services/ticket.service';
-import { generateSignedActionToken, verifySignedActionToken } from '../apps/web/src/server/services/ai.service';
+import {
+  generateSignedActionToken,
+  verifySignedActionToken,
+} from '../apps/web/src/server/services/ai.service';
 import { redisManager } from '../apps/web/src/server/lib/redis';
 import { ERROR_CODES, SubmitTicketInput } from '@repo/shared';
 
@@ -64,7 +68,7 @@ async function runSecurityAudit() {
     assert(
       isBlocked,
       'Test A: Anti-Header Spoofing',
-      `Request without valid JWT bearer token correctly rejected with HTTP 401 UNAUTHORIZED (status: ${response.status})`
+      `Request without valid JWT bearer token correctly rejected with HTTP 401 UNAUTHORIZED (status: ${response.status})`,
     );
   } catch (err: unknown) {
     assert(false, 'Test A: Anti-Header Spoofing', (err as Error).message);
@@ -90,7 +94,7 @@ async function runSecurityAudit() {
     assert(
       first5Allowed && sixthBlocked,
       'Test B: Sliding-Window Rate Limiter',
-      `First 5 attempts allowed, 6th attempt successfully throttled (allowed: false, remaining: 0)`
+      `First 5 attempts allowed, 6th attempt successfully throttled (allowed: false, remaining: 0)`,
     );
   } catch (err: unknown) {
     assert(false, 'Test B: Sliding-Window Rate Limiter', (err as Error).message);
@@ -121,13 +125,14 @@ async function runSecurityAudit() {
       });
     } catch (ticketErr: unknown) {
       const msg = (ticketErr as Error).message || '';
-      idorBlocked = msg.includes(ERROR_CODES.IDOR_VIOLATION) || msg.includes('bukan teknisi yang ditugaskan');
+      idorBlocked =
+        msg.includes(ERROR_CODES.IDOR_VIOLATION) || msg.includes('bukan teknisi yang ditugaskan');
     }
 
     assert(
       idorBlocked,
       'Test C: Technician Anti-IDOR Enforcement',
-      `Cross-technician ticket submission successfully rejected with IDOR_VIOLATION`
+      `Cross-technician ticket submission successfully rejected with IDOR_VIOLATION`,
     );
   } catch (err: unknown) {
     assert(false, 'Test C: Technician Anti-IDOR Enforcement', (err as Error).message);
@@ -144,7 +149,7 @@ async function runSecurityAudit() {
     const actionToken = await generateSignedActionToken(
       'CREATE_TICKET',
       { ticketType: 'PSB', customerName: 'Audit Test' },
-      drafterAdminId
+      drafterAdminId,
     );
 
     // 2. Verify token integrity and actor binding
@@ -161,10 +166,14 @@ async function runSecurityAudit() {
     assert(
       actorVerified && actorMismatchDetected && antiReplayWorks,
       'Test D: AI Action Token Anti-Replay & Actor Verification',
-      `HMAC JTI successfully verified, actor mismatch rejected, and second execution blocked via Redis SETNX anti-replay`
+      `HMAC JTI successfully verified, actor mismatch rejected, and second execution blocked via Redis SETNX anti-replay`,
     );
   } catch (err: unknown) {
-    assert(false, 'Test D: AI Action Token Anti-Replay & Actor Verification', (err as Error).message);
+    assert(
+      false,
+      'Test D: AI Action Token Anti-Replay & Actor Verification',
+      (err as Error).message,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -184,16 +193,20 @@ async function runSecurityAudit() {
       isMockLocation: false,
     };
 
-    const submissionResult = await TicketService.submitTicketByTechnician('t-1', identicalCoordsPayload, {
-      username: 'andi.pratama',
-    });
+    const submissionResult = await TicketService.submitTicketByTechnician(
+      't-1',
+      identicalCoordsPayload,
+      {
+        username: 'andi.pratama',
+      },
+    );
 
     const isFlagged = submissionResult.isLocationFlagged === true;
 
     assert(
       isFlagged,
       'Test E: Identical Coordinate Spoofing Detection',
-      `Coordinates identical to target splitter flagged as location anomaly (isLocationFlagged === true)`
+      `Coordinates identical to target splitter flagged as location anomaly (isLocationFlagged === true)`,
     );
   } catch (err: unknown) {
     assert(false, 'Test E: Identical Coordinate Spoofing Detection', (err as Error).message);
@@ -249,7 +262,7 @@ async function runSecurityAudit() {
     assert(
       sameTicketReplayOk && crossTicketIdorBlocked,
       'Test F: Cross-Ticket Idempotency IDOR Check',
-      `Idempotent replay on same ticket returned alreadyProcessed: true; replay across different ticket strictly rejected with HTTP 403 IDOR_VIOLATION`
+      `Idempotent replay on same ticket returned alreadyProcessed: true; replay across different ticket strictly rejected with HTTP 403 IDOR_VIOLATION`,
     );
   } catch (err: unknown) {
     assert(false, 'Test F: Cross-Ticket Idempotency IDOR Check', (err as Error).message);

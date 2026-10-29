@@ -35,7 +35,10 @@ export function TechnicianDetailModal({
         style={{ maxWidth: '640px', width: '100%' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="panel-heading" style={{ borderBottom: '1px solid #e2e8f0', padding: '16px 20px' }}>
+        <div
+          className="panel-heading"
+          style={{ borderBottom: '1px solid #e2e8f0', padding: '16px 20px' }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <DefaultAvatar size={44} name={technician.fullName} />
             <div>
@@ -79,8 +82,9 @@ export function TechnicianDetailModal({
               <div>
                 <b>Peringatan Integritas Lapangan (Anti-Fake GPS):</b>
                 <div>
-                  Perangkat terdeteksi menyalakan modul Mock Location (<code>location.mocked = true</code>).
-                  Berdasarkan PRD 3.3, pengiriman tiket otomatis ditangguhkan hingga GPS terverifikasi sah.
+                  Perangkat terdeteksi menyalakan modul Mock Location (
+                  <code>location.mocked = true</code>). Berdasarkan PRD 3.3, pengiriman tiket
+                  otomatis ditangguhkan hingga GPS terverifikasi sah.
                 </div>
               </div>
             </div>
@@ -111,7 +115,8 @@ export function TechnicianDetailModal({
                 }}
               />
               <div>
-                <b>Sesi Mobile Aktif:</b> Perangkat terikat secara sah ke Redis Session Store & PostgreSQL. Akses ke API mobile diizinkan.
+                <b>Sesi Mobile Aktif:</b> Perangkat terikat secara sah ke Redis Session Store &
+                PostgreSQL. Akses ke API mobile diizinkan.
               </div>
             </div>
           )}
@@ -133,7 +138,8 @@ export function TechnicianDetailModal({
             >
               <Icon name="lock" size={16} />
               <div>
-                <b>Sesi Dicabut (Force Logout):</b> Token akses JWT perangkat telah dibatalkan di Redis. Aplikasi mobile akan meminta autentikasi ulang.
+                <b>Sesi Dicabut (Force Logout):</b> Token akses JWT perangkat telah dibatalkan di
+                Redis. Aplikasi mobile akan meminta autentikasi ulang.
               </div>
             </div>
           )}
@@ -164,7 +170,14 @@ export function TechnicianDetailModal({
               }}
             >
               <div>
-                <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: '#64748b',
+                    display: 'block',
+                    marginBottom: '2px',
+                  }}
+                >
                   Model Perangkat & OS
                 </span>
                 <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
@@ -173,7 +186,14 @@ export function TechnicianDetailModal({
               </div>
 
               <div>
-                <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: '#64748b',
+                    display: 'block',
+                    marginBottom: '2px',
+                  }}
+                >
                   Versi Aplikasi Mobile
                 </span>
                 <span
@@ -193,7 +213,14 @@ export function TechnicianDetailModal({
               </div>
 
               <div>
-                <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: '#64748b',
+                    display: 'block',
+                    marginBottom: '2px',
+                  }}
+                >
                   Unique Device ID (UUID)
                 </span>
                 <code
@@ -212,7 +239,14 @@ export function TechnicianDetailModal({
               </div>
 
               <div>
-                <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: '#64748b',
+                    display: 'block',
+                    marginBottom: '2px',
+                  }}
+                >
                   Nomor Telepon Operasional
                 </span>
                 <span style={{ fontSize: '12.5px', fontWeight: 500, color: '#1e293b' }}>
@@ -221,7 +255,14 @@ export function TechnicianDetailModal({
               </div>
 
               <div>
-                <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: '#64748b',
+                    display: 'block',
+                    marginBottom: '2px',
+                  }}
+                >
                   Status Sesi Redis / PostgreSQL
                 </span>
                 <span
@@ -239,15 +280,30 @@ export function TechnicianDetailModal({
                       width: '6px',
                       height: '6px',
                       borderRadius: '50%',
-                      background: isActiveSession ? '#16a34a' : isRevokedSession ? '#dc2626' : '#94a3b8',
+                      background: isActiveSession
+                        ? '#16a34a'
+                        : isRevokedSession
+                          ? '#dc2626'
+                          : '#94a3b8',
                     }}
                   />
-                  {isActiveSession ? 'Sesi Aktif (Sah)' : isRevokedSession ? 'Dicabut (Revoked)' : 'Tidak Ada Sesi'}
+                  {isActiveSession
+                    ? 'Sesi Aktif (Sah)'
+                    : isRevokedSession
+                      ? 'Dicabut (Revoked)'
+                      : 'Tidak Ada Sesi'}
                 </span>
               </div>
 
               <div>
-                <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: '#64748b',
+                    display: 'block',
+                    marginBottom: '2px',
+                  }}
+                >
                   Aktivitas Terakhir
                 </span>
                 <span style={{ fontSize: '12px', color: '#334155' }}>
@@ -316,7 +372,14 @@ export function TechnicianDetailModal({
                           {wo.ticketType}
                         </span>
                       </div>
-                      <div style={{ fontSize: '12px', fontWeight: 500, color: '#1e293b', marginTop: '2px' }}>
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          color: '#1e293b',
+                          marginTop: '2px',
+                        }}
+                      >
                         Pelanggan: {wo.customerName}
                       </div>
                     </div>

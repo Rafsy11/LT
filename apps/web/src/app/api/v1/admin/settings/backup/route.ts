@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
           message: error.message || 'Gagal mengeksekusi backup snapshot',
         },
       },
-      { status }
+      { status },
     );
   }
 }

@@ -4,12 +4,7 @@ import crypto from 'crypto';
 import { prisma } from '@repo/database';
 import { env } from '../../env';
 import { redisManager } from '../lib/redis';
-import {
-  RefreshTokenPayload,
-  UserSessionContext,
-  ERROR_CODES,
-  UserTypeEnum,
-} from '@repo/shared';
+import { RefreshTokenPayload, UserSessionContext, ERROR_CODES, UserTypeEnum } from '@repo/shared';
 
 const JWT_SECRET = new TextEncoder().encode(env.JWT_SECRET);
 
@@ -63,7 +58,11 @@ export class AuthService {
    * Generates Refresh Token for mobile technician device binding.
    * Includes a unique jti for token rotation tracking.
    */
-  public static async generateRefreshToken(userId: string, sessionId: string, deviceId: string): Promise<string> {
+  public static async generateRefreshToken(
+    userId: string,
+    sessionId: string,
+    deviceId: string,
+  ): Promise<string> {
     const jti = `rt_${sessionId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     return await new SignJWT({
       sessionId,
@@ -152,7 +151,8 @@ export class AuthService {
 
     const match = await this.comparePassword(plainPassword, user.passwordHash).catch(() => false);
     // Allow demo fallback hash if in dev mode
-    const isValid = match || (process.env.NODE_ENV !== 'production' && plainPassword === 'password123');
+    const isValid =
+      match || (process.env.NODE_ENV !== 'production' && plainPassword === 'password123');
 
     if (!isValid) {
       throw new Error('Username atau password tidak valid');
@@ -189,7 +189,7 @@ export class AuthService {
     plainPassword: string,
     deviceId: string,
     deviceModel?: string,
-    appVersion?: string
+    appVersion?: string,
   ) {
     const user = await prisma.user.findUnique({
       where: { username },
@@ -201,7 +201,8 @@ export class AuthService {
     }
 
     const match = await this.comparePassword(plainPassword, user.passwordHash).catch(() => false);
-    const isValid = match || (process.env.NODE_ENV !== 'production' && plainPassword === 'password123');
+    const isValid =
+      match || (process.env.NODE_ENV !== 'production' && plainPassword === 'password123');
 
     if (!isValid) {
       throw new Error('Kredensial tidak valid');
@@ -282,7 +283,9 @@ export class AuthService {
       const { payload } = await jwtVerify(refreshToken, JWT_SECRET);
       const userId = payload.sub as string;
       const sessionId = (payload as unknown as RefreshTokenPayload).sessionId;
-      const tokenFingerprint = (payload as { jti?: string }).jti || crypto.createHash('sha256').update(refreshToken).digest('hex');
+      const tokenFingerprint =
+        (payload as { jti?: string }).jti ||
+        crypto.createHash('sha256').update(refreshToken).digest('hex');
 
       // 1. REUSE DETECTION: Check if this specific token was already rotated
       const isRotated = await redisManager.isRefreshTokenRotated(sessionId, tokenFingerprint);
@@ -290,21 +293,23 @@ export class AuthService {
         // CONFIRMED REUSE ATTACK (CWE-613): Revoke all sessions for this user and blacklist device
         await this.revokeAllUserSessionsForReuse(userId, deviceId);
 
-        await prisma.activityLog.create({
-          data: {
-            actorUserId: userId,
-            actorRole: 'System',
-            actionType: 'TOKEN_REUSE_DETECTED',
-            targetEntity: 'user_session',
-            targetId: sessionId,
-            newPayload: {
-              deviceId,
-              tokenFingerprint,
-              detectedAt: new Date().toISOString(),
-              action: 'ALL_USER_SESSIONS_REVOKED_TOKEN_REUSE',
+        await prisma.activityLog
+          .create({
+            data: {
+              actorUserId: userId,
+              actorRole: 'System',
+              actionType: 'TOKEN_REUSE_DETECTED',
+              targetEntity: 'user_session',
+              targetId: sessionId,
+              newPayload: {
+                deviceId,
+                tokenFingerprint,
+                detectedAt: new Date().toISOString(),
+                action: 'ALL_USER_SESSIONS_REVOKED_TOKEN_REUSE',
+              },
             },
-          },
-        }).catch(() => {});
+          })
+          .catch(() => {});
 
         throw new Error(ERROR_CODES.TOKEN_REUSE_DETECTED);
       }
@@ -314,7 +319,12 @@ export class AuthService {
         include: { user: { include: { role: true } } },
       });
 
-      if (!session || session.revokedAt || session.deviceId !== deviceId || session.expiresAt < new Date()) {
+      if (
+        !session ||
+        session.revokedAt ||
+        session.deviceId !== deviceId ||
+        session.expiresAt < new Date()
+      ) {
         throw new Error(ERROR_CODES.SESSION_REVOKED);
       }
 
@@ -367,7 +377,10 @@ export class AuthService {
    * Revokes all sessions for a user when refresh token reuse is detected.
    * Blacklists current device and all user devices in Redis for instant enforcement.
    */
-  private static async revokeAllUserSessionsForReuse(userId: string, deviceId: string): Promise<void> {
+  private static async revokeAllUserSessionsForReuse(
+    userId: string,
+    deviceId: string,
+  ): Promise<void> {
     // Blacklist requesting device immediately
     await redisManager.blacklistSession(deviceId);
 
@@ -393,7 +406,10 @@ export class AuthService {
    * Force Logout (Instant Session Revocation):
    * Updates database and writes revocation flag into Redis so mobile requests fail immediately.
    */
-  public static async revokeUserSessions(userId: string, actorAdminId = 'superadmin'): Promise<void> {
+  public static async revokeUserSessions(
+    userId: string,
+    actorAdminId = 'superadmin',
+  ): Promise<void> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { sessions: { where: { revokedAt: null } } },

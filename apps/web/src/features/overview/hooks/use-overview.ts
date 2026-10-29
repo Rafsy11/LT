@@ -99,15 +99,23 @@ export function useOverview() {
     const fetchStats = async () => {
       try {
         const [cRes, tRes] = await Promise.all([
-          fetch('/api/v1/admin/customers').then((r) => r.json()).catch(() => null),
-          fetch('/api/v1/admin/technicians').then((r) => r.json()).catch(() => null),
+          fetch('/api/v1/admin/customers')
+            .then((r) => r.json())
+            .catch(() => null),
+          fetch('/api/v1/admin/technicians')
+            .then((r) => r.json())
+            .catch(() => null),
         ]);
         if (cRes?.success && Array.isArray(cRes.data)) {
           setCustomerCount(cRes.data.length);
         }
         if (tRes?.success && Array.isArray(tRes.data)) {
           const active = tRes.data.filter(
-            (tk: any) => tk.hasActiveSession || tk.sessionActive || tk.status === 'BUSY' || tk.status === 'AVAILABLE'
+            (tk: any) =>
+              tk.hasActiveSession ||
+              tk.sessionActive ||
+              tk.status === 'BUSY' ||
+              tk.status === 'AVAILABLE',
           ).length;
           setTechStats({ total: tRes.data.length, active: active || tRes.data.length });
         }
@@ -118,7 +126,12 @@ export function useOverview() {
     const updateClock = () => {
       const now = new Date();
       setCurrentDateTime({
-        date: now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+        date: now.toLocaleDateString('id-ID', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        }),
         time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
       });
     };
@@ -143,7 +156,7 @@ export function useOverview() {
 
   const handleMarkCompleted = async (ticketNumber: string) => {
     setTickets((prev) =>
-      prev.map((t) => (t.ticketNumber === ticketNumber ? { ...t, status: 'Selesai' } : t))
+      prev.map((t) => (t.ticketNumber === ticketNumber ? { ...t, status: 'Selesai' } : t)),
     );
   };
 
@@ -151,7 +164,8 @@ export function useOverview() {
     const matchesCluster = cluster === 'Semua cluster' || t.cluster === cluster;
     const matchesStatus =
       statusFilter === 'Semua' ||
-      (statusFilter === 'Menunggu' && (t.status === 'Menunggu' || t.status === 'Menunggu verifikasi')) ||
+      (statusFilter === 'Menunggu' &&
+        (t.status === 'Menunggu' || t.status === 'Menunggu verifikasi')) ||
       (statusFilter === 'Dalam proses' && t.status === 'Menunggu verifikasi') ||
       (statusFilter === 'Selesai' && t.status === 'Selesai');
     const matchesQuery =
@@ -178,7 +192,7 @@ export function useOverview() {
             r.assignedTech,
             r.status,
             r.currentAttenuation,
-          ].join(',')
+          ].join(','),
         )
         .join('\n');
 
@@ -191,12 +205,20 @@ export function useOverview() {
     URL.revokeObjectURL(url);
   };
 
-  const activeTicketsCount = tickets.filter((t) => t.status !== 'Selesai' && t.status !== 'Dibatalkan').length;
-  const waitingTicketsCount = tickets.filter((t) => t.status === 'Menunggu' || t.status === 'Menunggu verifikasi').length;
-  const normalAttenuationCount = tickets.filter(
-    (t) => typeof t.currentAttenuation === 'number' && t.currentAttenuation >= -22 && t.currentAttenuation <= -15
+  const activeTicketsCount = tickets.filter(
+    (t) => t.status !== 'Selesai' && t.status !== 'Dibatalkan',
   ).length;
-  const networkHealthPct = tickets.length > 0 ? Math.round((normalAttenuationCount / tickets.length) * 100) : 98;
+  const waitingTicketsCount = tickets.filter(
+    (t) => t.status === 'Menunggu' || t.status === 'Menunggu verifikasi',
+  ).length;
+  const normalAttenuationCount = tickets.filter(
+    (t) =>
+      typeof t.currentAttenuation === 'number' &&
+      t.currentAttenuation >= -22 &&
+      t.currentAttenuation <= -15,
+  ).length;
+  const networkHealthPct =
+    tickets.length > 0 ? Math.round((normalAttenuationCount / tickets.length) * 100) : 98;
 
   return {
     cluster,
@@ -228,4 +250,3 @@ export function useOverview() {
     exportCsv,
   };
 }
-

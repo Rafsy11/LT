@@ -9,7 +9,11 @@ export async function GET(request: Request) {
   const stream = new ReadableStream({
     start(controller) {
       // Send initial heartbeat
-      controller.enqueue(encoder.encode(`event: connected\ndata: ${JSON.stringify({ message: 'Connected to FiberOps SSE Stream' })}\n\n`));
+      controller.enqueue(
+        encoder.encode(
+          `event: connected\ndata: ${JSON.stringify({ message: 'Connected to FiberOps SSE Stream' })}\n\n`,
+        ),
+      );
 
       // Subscribe to real-time broadcaster
       const unsubscribe = sseBroadcaster.subscribe((item) => {

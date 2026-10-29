@@ -9,12 +9,7 @@ export interface TicketGridProps {
   getDbmBadge: (att: number | undefined) => { label: string; cls: string };
 }
 
-export function TicketGrid({
-  loading,
-  tickets,
-  onSelectTicket,
-  getDbmBadge,
-}: TicketGridProps) {
+export function TicketGrid({ loading, tickets, onSelectTicket, getDbmBadge }: TicketGridProps) {
   if (loading) {
     return (
       <div style={{ padding: '36px', textAlign: 'center', color: '#64748b' }}>
@@ -57,4 +52,3 @@ export function TicketGrid({
     </div>
   );
 }
-

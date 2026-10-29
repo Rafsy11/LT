@@ -43,87 +43,107 @@ export function useTechnicians() {
    * Instant Session Revocation (Force Logout) - PRD Section 2.2 & agent.md Law 4.
    * Debounced with 1-ms action lock & guarded by `tech:manage` permission.
    */
-  const handleForceLogout = useCallback(async (usernameOrId: string) => {
-    if (!canManageTech) {
-      showError({
-        code: 'FORBIDDEN',
-        message: 'Akses Ditolak: Anda tidak memiliki izin tech:manage untuk melakukan Force Logout teknisi.',
-      });
-      return;
-    }
-
-    if (actionLockRef.current) return;
-    actionLockRef.current = true;
-    setProcessingUser(usernameOrId);
-
-    try {
-      const res = await fetch(`/api/v1/admin/technicians/${usernameOrId}/force-logout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: 'Admin Force Logout (Sesi Dicabut)' }),
-      });
-      const json = await res.json();
-
-      if (json.success) {
-        showSuccess(json.message || `Sesi perangkat teknisi ${usernameOrId} berhasil dicabut.`);
-        await fetchTechs();
-
-        // Update modal state if open
-        if (selectedTech && (selectedTech.username === usernameOrId || selectedTech.id === usernameOrId)) {
-          setSelectedTech((prev) =>
-            prev ? { ...prev, sessionStatus: 'REVOKED', lastActiveAt: 'Baru saja dicabut oleh Admin' } : null
-          );
-        }
-      } else {
-        showError(json.error);
+  const handleForceLogout = useCallback(
+    async (usernameOrId: string) => {
+      if (!canManageTech) {
+        showError({
+          code: 'FORBIDDEN',
+          message:
+            'Akses Ditolak: Anda tidak memiliki izin tech:manage untuk melakukan Force Logout teknisi.',
+        });
+        return;
       }
-    } catch (e: unknown) {
-      showError(e);
-    } finally {
-      actionLockRef.current = false;
-      setProcessingUser(null);
-    }
-  }, [canManageTech, fetchTechs, selectedTech, showError, showSuccess]);
+
+      if (actionLockRef.current) return;
+      actionLockRef.current = true;
+      setProcessingUser(usernameOrId);
+
+      try {
+        const res = await fetch(`/api/v1/admin/technicians/${usernameOrId}/force-logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: 'Admin Force Logout (Sesi Dicabut)' }),
+        });
+        const json = await res.json();
+
+        if (json.success) {
+          showSuccess(json.message || `Sesi perangkat teknisi ${usernameOrId} berhasil dicabut.`);
+          await fetchTechs();
+
+          // Update modal state if open
+          if (
+            selectedTech &&
+            (selectedTech.username === usernameOrId || selectedTech.id === usernameOrId)
+          ) {
+            setSelectedTech((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    sessionStatus: 'REVOKED',
+                    lastActiveAt: 'Baru saja dicabut oleh Admin',
+                  }
+                : null,
+            );
+          }
+        } else {
+          showError(json.error);
+        }
+      } catch (e: unknown) {
+        showError(e);
+      } finally {
+        actionLockRef.current = false;
+        setProcessingUser(null);
+      }
+    },
+    [canManageTech, fetchTechs, selectedTech, showError, showSuccess],
+  );
 
   /**
    * Toggles account active status (Lock / Unlock account).
    */
-  const handleToggleAccount = useCallback(async (usernameOrId: string) => {
-    if (!canManageTech) {
-      showError({
-        code: 'FORBIDDEN',
-        message: 'Akses Ditolak: Anda tidak memiliki izin tech:manage untuk mengubah status akun teknisi.',
-      });
-      return;
-    }
-
-    if (actionLockRef.current) return;
-    actionLockRef.current = true;
-    setProcessingUser(usernameOrId);
-
-    try {
-      const res = await fetch(`/api/v1/admin/technicians/${usernameOrId}/toggle`, {
-        method: 'POST',
-      });
-      const json = await res.json();
-
-      if (json.success) {
-        showSuccess(json.message || `Status akun teknisi ${usernameOrId} berhasil diperbarui.`);
-        await fetchTechs();
-
-        if (selectedTech && (selectedTech.username === usernameOrId || selectedTech.id === usernameOrId)) {
-          setSelectedTech((prev) => (prev ? { ...prev, isActive: !prev.isActive } : null));
-        }
-      } else {
-        showError(json.error);
+  const handleToggleAccount = useCallback(
+    async (usernameOrId: string) => {
+      if (!canManageTech) {
+        showError({
+          code: 'FORBIDDEN',
+          message:
+            'Akses Ditolak: Anda tidak memiliki izin tech:manage untuk mengubah status akun teknisi.',
+        });
+        return;
       }
-    } catch (e: unknown) {
-      showError(e);
-    } finally {
-      actionLockRef.current = false;
-      setProcessingUser(null);
-    }
-  }, [canManageTech, fetchTechs, selectedTech, showError, showSuccess]);
+
+      if (actionLockRef.current) return;
+      actionLockRef.current = true;
+      setProcessingUser(usernameOrId);
+
+      try {
+        const res = await fetch(`/api/v1/admin/technicians/${usernameOrId}/toggle`, {
+          method: 'POST',
+        });
+        const json = await res.json();
+
+        if (json.success) {
+          showSuccess(json.message || `Status akun teknisi ${usernameOrId} berhasil diperbarui.`);
+          await fetchTechs();
+
+          if (
+            selectedTech &&
+            (selectedTech.username === usernameOrId || selectedTech.id === usernameOrId)
+          ) {
+            setSelectedTech((prev) => (prev ? { ...prev, isActive: !prev.isActive } : null));
+          }
+        } else {
+          showError(json.error);
+        }
+      } catch (e: unknown) {
+        showError(e);
+      } finally {
+        actionLockRef.current = false;
+        setProcessingUser(null);
+      }
+    },
+    [canManageTech, fetchTechs, selectedTech, showError, showSuccess],
+  );
 
   // Scoped by Cluster & Search
   const clusterScoped = useMemo(() => {
@@ -144,19 +164,19 @@ export function useTechnicians() {
   // Telemetry Counts
   const activeSessionsCount = useMemo(
     () => clusterScoped.filter((t) => t.sessionStatus === 'ACTIVE_SESSION').length,
-    [clusterScoped]
+    [clusterScoped],
   );
   const busyCount = useMemo(
     () => clusterScoped.filter((t) => t.activeTicketsCount > 0).length,
-    [clusterScoped]
+    [clusterScoped],
   );
   const revokedCount = useMemo(
     () => clusterScoped.filter((t) => t.sessionStatus === 'REVOKED').length,
-    [clusterScoped]
+    [clusterScoped],
   );
   const disabledCount = useMemo(
     () => clusterScoped.filter((t) => !t.isActive).length,
-    [clusterScoped]
+    [clusterScoped],
   );
 
   // Tab Filtering
@@ -200,4 +220,3 @@ export function useTechnicians() {
     displayedTechs,
   };
 }
-

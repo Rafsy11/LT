@@ -58,4 +58,3 @@ export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
     </div>
   );
 }
-

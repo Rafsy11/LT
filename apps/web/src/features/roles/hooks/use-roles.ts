@@ -74,7 +74,8 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   {
     code: 'tech:manage',
     label: 'Kendali Teknisi & Force Logout',
-    description: 'Mengubah status akun teknisi dan mencabut sesi mobile JWT/Redis seketika (PRD 2.2).',
+    description:
+      'Mengubah status akun teknisi dan mencabut sesi mobile JWT/Redis seketika (PRD 2.2).',
     category: 'Manajemen Teknisi & Sesi',
   },
 
@@ -288,9 +289,12 @@ export function useRoles() {
     setActivePermissions(perms);
   }, [selectedRole]);
 
-  const isSuperAdminRole = selectedRole?.name === 'Super Admin' || selectedRole?.hierarchyLevel === 100;
+  const isSuperAdminRole =
+    selectedRole?.name === 'Super Admin' || selectedRole?.hierarchyLevel === 100;
   const isHierarchyProtected =
-    user.hierarchyLevel !== 100 && selectedRole && selectedRole.hierarchyLevel >= user.hierarchyLevel;
+    user.hierarchyLevel !== 100 &&
+    selectedRole &&
+    selectedRole.hierarchyLevel >= user.hierarchyLevel;
   const isEditable = !isSuperAdminRole && canEditRole && !isHierarchyProtected;
 
   // Toggle permission
@@ -336,12 +340,15 @@ export function useRoles() {
       }
 
       setRoleList((prev) =>
-        prev.map((r) => (r.id === selectedRole.id ? { ...r, permissions: Array.from(activePermissions) } : r))
+        prev.map((r) =>
+          r.id === selectedRole.id ? { ...r, permissions: Array.from(activePermissions) } : r,
+        ),
       );
 
       showSuccess(`Matriks izin untuk ${selectedRole.name} berhasil diperbarui.`);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan hak akses';
+      const message =
+        err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan hak akses';
       showError(message);
     } finally {
       setIsLoading(false);
@@ -355,13 +362,13 @@ export function useRoles() {
 
     const updatedStatus = !targetUser.isActive;
     setUserList((prev) =>
-      prev.map((u) => (u.id === targetUser.id ? { ...u, isActive: updatedStatus } : u))
+      prev.map((u) => (u.id === targetUser.id ? { ...u, isActive: updatedStatus } : u)),
     );
 
     setTimeout(() => {
       setActionInProgress(null);
       showSuccess(
-        `Akun ${targetUser.name} berhasil ${updatedStatus ? 'diaktifkan' : 'dinonaktifkan'}.`
+        `Akun ${targetUser.name} berhasil ${updatedStatus ? 'diaktifkan' : 'dinonaktifkan'}.`,
       );
     }, 300);
   };
@@ -397,7 +404,7 @@ export function useRoles() {
       }
 
       setUserList((prev) =>
-        prev.map((u) => (u.id === editingUser.id ? { ...u, role: chosenRole.name } : u))
+        prev.map((u) => (u.id === editingUser.id ? { ...u, role: chosenRole.name } : u)),
       );
 
       showSuccess(`Peran ${editingUser.name} berhasil diubah menjadi ${chosenRole.name}.`);
@@ -521,4 +528,3 @@ export function useRoles() {
     getRoleBadgeStyle,
   };
 }
-

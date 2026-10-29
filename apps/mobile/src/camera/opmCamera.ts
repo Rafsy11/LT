@@ -26,27 +26,29 @@ export interface OpmProofUploadResult {
 export async function compressOpmPhoto(
   rawPhotoUri: string,
   options: CompressPhotoOptions = { maxWidth: 1280, quality: 0.7 },
-  customManipulator?: (uri: string, actions: unknown[], saveOptions: unknown) => Promise<ImageManipulatorResult>
+  customManipulator?: (
+    uri: string,
+    actions: unknown[],
+    saveOptions: unknown,
+  ) => Promise<ImageManipulatorResult>,
 ): Promise<ImageManipulatorResult> {
   const maxWidth = options.maxWidth || 1280;
   const quality = options.quality ?? 0.7;
 
   if (customManipulator) {
-    return await customManipulator(
-      rawPhotoUri,
-      [{ resize: { width: maxWidth } }],
-      { compress: quality, format: 'jpeg' }
-    );
+    return await customManipulator(rawPhotoUri, [{ resize: { width: maxWidth } }], {
+      compress: quality,
+      format: 'jpeg',
+    });
   }
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const ImageManipulator = require('expo-image-manipulator');
-    return await ImageManipulator.manipulateAsync(
-      rawPhotoUri,
-      [{ resize: { width: maxWidth } }],
-      { compress: quality, format: ImageManipulator.SaveFormat.JPEG }
-    );
+    return await ImageManipulator.manipulateAsync(rawPhotoUri, [{ resize: { width: maxWidth } }], {
+      compress: quality,
+      format: ImageManipulator.SaveFormat.JPEG,
+    });
   } catch {
     // Fallback if running outside native Expo container
     return {
@@ -64,7 +66,7 @@ export async function compressOpmPhoto(
 export async function uploadToPresignedPutUrl(
   presignedPutUrl: string,
   localPhotoUri: string,
-  contentType = 'image/jpeg'
+  contentType = 'image/jpeg',
 ): Promise<boolean> {
   try {
     // Read local file as blob
@@ -81,7 +83,12 @@ export async function uploadToPresignedPutUrl(
 
     return uploadRes.ok;
   } catch (err) {
-    console.warn('[MinIO Upload] Upload directly to object storage failed:', (err as Error).message);
-    throw new Error(`Gagal mengunggah foto bukti OPM ke server penyimpanan MinIO: ${(err as Error).message}`);
+    console.warn(
+      '[MinIO Upload] Upload directly to object storage failed:',
+      (err as Error).message,
+    );
+    throw new Error(
+      `Gagal mengunggah foto bukti OPM ke server penyimpanan MinIO: ${(err as Error).message}`,
+    );
   }
 }

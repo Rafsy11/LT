@@ -15,15 +15,10 @@ export const metadata: Metadata = {
     'Single Source of Truth untuk Pengelolaan Master Data Jaringan, Tiket Lapangan, Monitoring Redaman Optik, dan Asisten AI On-Premise.',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="id" className={plusJakartaSans.variable}>
       <body className={plusJakartaSans.className}>{children}</body>
     </html>
   );
 }
-

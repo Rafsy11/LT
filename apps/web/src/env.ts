@@ -1,17 +1,24 @@
 import { z } from 'zod';
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProductionRuntime =
+  process.env.NODE_ENV === 'production' &&
+  process.env.NEXT_PHASE !== 'phase-production-build' &&
+  process.env.npm_lifecycle_event !== 'build';
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
   // Database
-  DATABASE_URL: isProduction
+  DATABASE_URL: isProductionRuntime
     ? z.string().min(1, 'DATABASE_URL is required in production')
-    : z.string().default('postgresql://fiberops:fiberops_secure_pass@localhost:5432/fiberops_db?schema=public'),
+    : z
+        .string()
+        .default(
+          'postgresql://fiberops:fiberops_secure_pass@localhost:5432/fiberops_db?schema=public',
+        ),
 
   // Redis
-  REDIS_URL: isProduction
+  REDIS_URL: isProductionRuntime
     ? z.string().min(1, 'REDIS_URL is required in production')
     : z.string().default('redis://localhost:6379'),
 
@@ -22,10 +29,10 @@ const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((val) => val === 'true'),
-  MINIO_ACCESS_KEY: isProduction
+  MINIO_ACCESS_KEY: isProductionRuntime
     ? z.string().min(1, 'MINIO_ACCESS_KEY is required in production')
     : z.string().default('fiberops_minio_admin'),
-  MINIO_SECRET_KEY: isProduction
+  MINIO_SECRET_KEY: isProductionRuntime
     ? z.string().min(1, 'MINIO_SECRET_KEY is required in production')
     : z.string().default('fiberops_minio_secret_pass'),
   MINIO_BUCKET: z.string().default('fiberops-proofs'),
@@ -35,7 +42,7 @@ const envSchema = z.object({
   OLLAMA_MODEL: z.string().default('qwen2.5:7b'),
 
   // Security & Authentication
-  JWT_SECRET: isProduction
+  JWT_SECRET: isProductionRuntime
     ? z.string().min(32, 'JWT_SECRET must be at least 32 characters in production')
     : z.string().default('fiberops_on_premise_super_secure_jwt_secret_key_32chars'),
   HMAC_ACTION_SECRET: z.string().default('fiberops_action_secret_token_default_32_chars'),
@@ -63,4 +70,3 @@ function parseEnv(): Env {
 }
 
 export const env = parseEnv();
-

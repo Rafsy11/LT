@@ -35,11 +35,15 @@ export function SettingsHeader({
         </div>
         <h1 className="overview-greeting">Pengaturan Sistem &amp; Infrastruktur</h1>
         <p className="overview-subtitle">
-          Manajemen sumber daya server lokal, isolasi kontainer Docker, parameter geofencing lapangan, dan pemulihan bencana 3-2-1.
+          Manajemen sumber daya server lokal, isolasi kontainer Docker, parameter geofencing
+          lapangan, dan pemulihan bencana 3-2-1.
         </p>
       </div>
 
-      <div className="overview-toolbar" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+      <div
+        className="overview-toolbar"
+        style={{ display: 'flex', gap: '8px', alignItems: 'center' }}
+      >
         <div
           style={{
             display: 'inline-flex',
@@ -82,7 +86,9 @@ export function SettingsHeader({
           }}
         >
           <Icon name="shield" size={13} />
-          <span>{isSuperAdmin ? 'Super Admin (Level 100)' : `${roleName || 'Operator'} (Read-Only)`}</span>
+          <span>
+            {isSuperAdmin ? 'Super Admin (Level 100)' : `${roleName || 'Operator'} (Read-Only)`}
+          </span>
         </div>
 
         {/* Quick Header Save Action */}
@@ -106,11 +112,14 @@ export function SettingsHeader({
             transition: 'all 0.15s ease',
           }}
         >
-          {isSaving ? <Icon name="refresh" size={13} className="spin" /> : <Icon name="check" size={13} />}
+          {isSaving ? (
+            <Icon name="refresh" size={13} className="spin" />
+          ) : (
+            <Icon name="check" size={13} />
+          )}
           <span>{isSaving ? 'Menyimpan...' : hasChanges ? 'Simpan Perubahan' : 'Tersimpan'}</span>
         </button>
       </div>
     </div>
   );
 }
-

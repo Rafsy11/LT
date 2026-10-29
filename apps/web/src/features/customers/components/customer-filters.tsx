@@ -100,7 +100,9 @@ export function CustomerFilters({
         {/* Left: Search Box + Integrated Filter Wilayah */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <div className="customer-search-box">
-            <span style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <span
+              style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+            >
               <Icon name="search" size={14} />
             </span>
             <input
@@ -132,9 +134,7 @@ export function CustomerFilters({
             <Icon name="filter" size={13} />
             <span>Filter Wilayah</span>
             {activeWilayahCount > 0 && (
-              <span className="wilayah-badge-count">
-                {activeWilayahCount}
-              </span>
+              <span className="wilayah-badge-count">{activeWilayahCount}</span>
             )}
             <Icon
               name="chevron"
@@ -148,7 +148,11 @@ export function CustomerFilters({
         </div>
 
         {/* Right: Segmented Status Filter Tabs */}
-        <div className="customer-status-segmented-tabs" role="tablist" aria-label="Filter Status Layanan">
+        <div
+          className="customer-status-segmented-tabs"
+          role="tablist"
+          aria-label="Filter Status Layanan"
+        >
           <button
             type="button"
             onClick={() => setStatusTab('all')}
@@ -212,7 +216,16 @@ export function CustomerFilters({
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: '#1e3a5f' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#1e3a5f',
+              }}
+            >
               <Icon name="pin" size={14} />
               <span>Filter Spesifikasi Wilayah Pelanggan</span>
             </div>
@@ -249,7 +262,15 @@ export function CustomerFilters({
           >
             {/* Filter Kecamatan */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              <label
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#475569',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.4px',
+                }}
+              >
                 Kecamatan
               </label>
               <select
@@ -283,7 +304,15 @@ export function CustomerFilters({
 
             {/* Filter Kelurahan */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              <label
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#475569',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.4px',
+                }}
+              >
                 Kelurahan
               </label>
               <select
@@ -316,7 +345,15 @@ export function CustomerFilters({
 
             {/* Filter Jalan */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              <label
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#475569',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.4px',
+                }}
+              >
                 Jalan / Alamat Spesifik
               </label>
               <select
@@ -363,7 +400,15 @@ export function CustomerFilters({
             fontSize: '11.5px',
           }}
         >
-          <span style={{ color: '#0369a1', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <span
+            style={{
+              color: '#0369a1',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
             <Icon name="filter" size={12} />
             Filter Wilayah:
           </span>
@@ -387,7 +432,14 @@ export function CustomerFilters({
                 type="button"
                 onClick={() => setKecamatan('Semua kecamatan')}
                 aria-label="Hapus filter kecamatan"
-                style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: '#0369a1', display: 'flex' }}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: '#0369a1',
+                  display: 'flex',
+                }}
               >
                 <Icon name="x" size={11} />
               </button>
@@ -413,7 +465,14 @@ export function CustomerFilters({
                 type="button"
                 onClick={() => setKelurahan('Semua kelurahan')}
                 aria-label="Hapus filter kelurahan"
-                style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: '#0369a1', display: 'flex' }}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: '#0369a1',
+                  display: 'flex',
+                }}
               >
                 <Icon name="x" size={11} />
               </button>
@@ -439,7 +498,14 @@ export function CustomerFilters({
                 type="button"
                 onClick={() => setJalan('Semua jalan')}
                 aria-label="Hapus filter jalan"
-                style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: '#0369a1', display: 'flex' }}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: '#0369a1',
+                  display: 'flex',
+                }}
               >
                 <Icon name="x" size={11} />
               </button>
@@ -467,4 +533,3 @@ export function CustomerFilters({
     </>
   );
 }
-

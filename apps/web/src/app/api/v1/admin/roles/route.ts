@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
           message: error.message || 'Gagal mengambil data peran',
         },
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         success: true,
         data: newRole,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error: any) {
     const isValidation = error.name === 'ZodError';
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
           details: error.errors,
         },
       },
-      { status }
+      { status },
     );
   }
 }
@@ -104,7 +104,7 @@ export async function PATCH(request: NextRequest) {
       const updatedUser = await RoleService.updateUserRole(
         actor,
         body.targetUserId,
-        body.newRoleId
+        body.newRoleId,
       );
       return NextResponse.json({
         success: true,
@@ -123,7 +123,7 @@ export async function PATCH(request: NextRequest) {
             message: 'roleId wajib disertakan.',
           },
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -131,7 +131,7 @@ export async function PATCH(request: NextRequest) {
     const updatedRole = await RoleService.updateRolePermissions(
       actor,
       roleId,
-      validated.permissions
+      validated.permissions,
     );
 
     return NextResponse.json({
@@ -160,7 +160,7 @@ export async function PATCH(request: NextRequest) {
           message: error.errors ? error.errors[0]?.message : error.message,
         },
       },
-      { status }
+      { status },
     );
   }
 }

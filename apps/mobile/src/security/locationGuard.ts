@@ -22,7 +22,7 @@ export function calculateHaversineDistance(
   lat1: number,
   lon1: number,
   lat2: number,
-  lon2: number
+  lon2: number,
 ): number {
   const R = 6371000; // Earth's mean radius in meters
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -57,7 +57,7 @@ interface ExpoLocationObject {
  */
 export async function acquireVerifiedLocation(
   targetSplitterCoords?: GpsCoordinates,
-  customLocationProvider?: () => Promise<ExpoLocationObject>
+  customLocationProvider?: () => Promise<ExpoLocationObject>,
 ): Promise<LocationGuardResult> {
   const recordedAt = new Date().toISOString();
 
@@ -86,7 +86,7 @@ export async function acquireVerifiedLocation(
   const isMock = Boolean(locationData.mocked);
   if (isMock) {
     throw new Error(
-      `${ERROR_CODES.MOCK_LOCATION_DETECTED}: Perangkat Anda terdeteksi menggunakan aplikasi Fake GPS / Mock Location. Pengiriman tiket dibatalkan demi kepatuhan SOP.`
+      `${ERROR_CODES.MOCK_LOCATION_DETECTED}: Perangkat Anda terdeteksi menggunakan aplikasi Fake GPS / Mock Location. Pengiriman tiket dibatalkan demi kepatuhan SOP.`,
     );
   }
 
@@ -101,8 +101,8 @@ export async function acquireVerifiedLocation(
         latitude,
         longitude,
         targetSplitterCoords.latitude,
-        targetSplitterCoords.longitude
-      )
+        targetSplitterCoords.longitude,
+      ),
     );
     isFlagged = distanceMeters > MAX_GEOFENCE_RADIUS_METERS;
   }

@@ -67,7 +67,7 @@ Teknisi **tidak dapat** menginput atau mengubah data pelanggan secara bebas tanp
 
 1. **Pencegahan Manipulasi Lokasi (Anti-Fake GPS & Geofencing):**
    - Aplikasi memeriksa bendera sistem operasi (location.mocked pada Android). Jika terdeteksi menggunakan aplikasi _Fake GPS / Mock Location_, tombol _Submit_ dikunci.
-   - Saat menekan _Submit_, sistem menghitung jarak antara koordinat GPS HP teknisi dengan koordinat ODP/Splitter. Jika jarak melebihi batas toleransi (misal 100 meter), sistem menolak laporan atau menandainya dengan label LOCATION_MISMATCH_WARNING untuk ditinjau Admin.  
+   - Saat menekan _Submit_, sistem menghitung jarak antara koordinat GPS HP teknisi dengan koordinat ODP/Splitter. Jika jarak melebihi batas toleransi (misal 100 meter), sistem menolak laporan atau menandainya dengan label LOCATION_MISMATCH_WARNING untuk ditinjau Admin.
 
 2. **Validasi Port Splitter Anti-Bentrokan:**
    - Teknisi memilih Cluster → ODP/Splitter → Nomor Port dari menu _dropdown_ (bukan ketik teks bebas).
@@ -133,8 +133,8 @@ isp-ops-monorepo/
 │ ├── shared/ \# Shared Zod Schemas, TypeScript Interfaces, & Constants  
 │ └── database/ \# Skema Prisma/Drizzle, Script Migrasi, & Seeder  
 └── docker/  
- ├── docker-compose.yml \# Orkestrasi On-Premise (Next.js, Postgres, Redis, MinIO, Ollama, Nginx)  
- └── nginx/nginx.conf \# Konfigurasi Reverse Proxy
+├── docker-compose.yml \# Orkestrasi On-Premise (Next.js, Postgres, Redis, MinIO, Ollama, Nginx)  
+└── nginx/nginx.conf \# Konfigurasi Reverse Proxy
 
 ## **5\. Skema Database Inti & Aturan Integritas Data**
 
@@ -200,14 +200,14 @@ Seluruh request dari aplikasi React Native wajib menyertakan header berikut:
 
 Backend menyaring daftar _Tools_ di bawah ini sesuai izin Admin sebelum diteruskan ke Local LLM:
 
-| Nama Tool (Function)         | Tipe Eksekusi                | Parameter Input (Zod Schema)                                  | Perilaku Sistem                                                                                                                           |
+| Nama Tool (Function) | Tipe Eksekusi | Parameter Input (Zod Schema) | Perilaku Sistem |
 | :--------------------------- | :--------------------------- | :------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| get_recent_reports           | **Read (Otomatis)**          | cluster_code?, min_attenuation?, limit                        | Mengambil laporan redaman terbaru dari database (dibatasi maksimal 50 baris agar konteks LLM tidak penuh).                                |
-| get_customer_detail          | **Read (Otomatis)**          | sia_number atau customer_name                                 | Menampilkan detail pelanggan, port splitter saat ini, dan 10 riwayat redaman terakhir.                                                    |
-| get_technician_workload      | **Read (Otomatis)**          | cluster_code?, status? (IDLE                                  | BUSY)                                                                                                                                     | Menampilkan daftar teknisi beserta jumlah tiket aktif dan waktu _log activity_ terakhirnya. |
-| prepare_create_ticket        | **Write (Wajib Konfirmasi)** | ticket_type, sia_number, customer_name?, tech_username, notes | Memvalidasi ketersediaan teknisi dan SIA, lalu mengembalikan payload JSON untuk merender kartu konfirmasi pembuatan tiket di UI Admin.    |
-| prepare_toggle_tech_account  | **Write (Wajib Konfirmasi)** | tech_username, set_active (Boolean), reason                   | Memvalidasi izin Admin, lalu menampilkan kartu konfirmasi untuk menonaktifkan/mengaktifkan akun teknisi beserta pencabutan sesi loginnya. |
-| prepare_mutate_splitter_port | **Write (Wajib Konfirmasi)** | sia_number, new_splitter_code, new_port_number                | Memeriksa apakah port tujuan kosong, lalu menampilkan kartu konfirmasi mutasi port kepada Admin.                                          |
+| get_recent_reports | **Read (Otomatis)** | cluster_code?, min_attenuation?, limit | Mengambil laporan redaman terbaru dari database (dibatasi maksimal 50 baris agar konteks LLM tidak penuh). |
+| get_customer_detail | **Read (Otomatis)** | sia_number atau customer_name | Menampilkan detail pelanggan, port splitter saat ini, dan 10 riwayat redaman terakhir. |
+| get_technician_workload | **Read (Otomatis)** | cluster_code?, status? (IDLE | BUSY) | Menampilkan daftar teknisi beserta jumlah tiket aktif dan waktu _log activity_ terakhirnya. |
+| prepare_create_ticket | **Write (Wajib Konfirmasi)** | ticket_type, sia_number, customer_name?, tech_username, notes | Memvalidasi ketersediaan teknisi dan SIA, lalu mengembalikan payload JSON untuk merender kartu konfirmasi pembuatan tiket di UI Admin. |
+| prepare_toggle_tech_account | **Write (Wajib Konfirmasi)** | tech_username, set_active (Boolean), reason | Memvalidasi izin Admin, lalu menampilkan kartu konfirmasi untuk menonaktifkan/mengaktifkan akun teknisi beserta pencabutan sesi loginnya. |
+| prepare_mutate_splitter_port | **Write (Wajib Konfirmasi)** | sia_number, new_splitter_code, new_port_number | Memeriksa apakah port tujuan kosong, lalu menampilkan kartu konfirmasi mutasi port kepada Admin. |
 
 ##
 

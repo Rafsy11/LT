@@ -111,4 +111,3 @@ export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
     </div>
   );
 }
-

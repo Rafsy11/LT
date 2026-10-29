@@ -10,7 +10,10 @@ export interface BackupPanelProps {
   isBackingUp: boolean;
   isSuperAdmin: boolean;
   onTriggerBackup: () => void;
-  handleChange: <K extends keyof SystemSettingsInput>(field: K, value: SystemSettingsInput[K]) => void;
+  handleChange: <K extends keyof SystemSettingsInput>(
+    field: K,
+    value: SystemSettingsInput[K],
+  ) => void;
 }
 
 export function BackupPanel({
@@ -33,13 +36,23 @@ export function BackupPanel({
           boxShadow: '0 1px 3px rgba(27, 92, 162, 0.02)',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: '16px',
+          }}
+        >
           <div>
-            <h2 style={{ fontSize: '15px', fontWeight: 600, color: '#182230', margin: '0 0 4px 0' }}>
+            <h2
+              style={{ fontSize: '15px', fontWeight: 600, color: '#182230', margin: '0 0 4px 0' }}
+            >
               Strategi Disaster Recovery 3-2-1
             </h2>
             <p style={{ fontSize: '12.5px', color: '#515a62', margin: 0 }}>
-              Perlindungan master data FTTH terhadap kegagalan hardware fisik dengan 3 salinan data, 2 media penyimpanan, dan 1 salinan off-site.
+              Perlindungan master data FTTH terhadap kegagalan hardware fisik dengan 3 salinan data,
+              2 media penyimpanan, dan 1 salinan off-site.
             </p>
           </div>
 
@@ -68,9 +81,25 @@ export function BackupPanel({
         </div>
 
         {/* 3-2-1 Architecture Pill Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
-          <div style={{ background: '#f8fafc', border: '1px solid #eef2f6', borderRadius: '6px', padding: '12px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#0e5b92', marginBottom: '3px' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '12px',
+            marginBottom: '20px',
+          }}
+        >
+          <div
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #eef2f6',
+              borderRadius: '6px',
+              padding: '12px',
+            }}
+          >
+            <div
+              style={{ fontSize: '11px', fontWeight: 700, color: '#0e5b92', marginBottom: '3px' }}
+            >
               3 SALINAN DATA
             </div>
             <div style={{ fontSize: '12px', color: '#334155', lineHeight: 1.4 }}>
@@ -78,8 +107,17 @@ export function BackupPanel({
             </div>
           </div>
 
-          <div style={{ background: '#f8fafc', border: '1px solid #eef2f6', borderRadius: '6px', padding: '12px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#0e5b92', marginBottom: '3px' }}>
+          <div
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #eef2f6',
+              borderRadius: '6px',
+              padding: '12px',
+            }}
+          >
+            <div
+              style={{ fontSize: '11px', fontWeight: 700, color: '#0e5b92', marginBottom: '3px' }}
+            >
               2 MEDIA BERBEDA
             </div>
             <div style={{ fontSize: '12px', color: '#334155', lineHeight: 1.4 }}>
@@ -87,20 +125,45 @@ export function BackupPanel({
             </div>
           </div>
 
-          <div style={{ background: '#f8fafc', border: '1px solid #eef2f6', borderRadius: '6px', padding: '12px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#0e5b92', marginBottom: '3px' }}>
+          <div
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #eef2f6',
+              borderRadius: '6px',
+              padding: '12px',
+            }}
+          >
+            <div
+              style={{ fontSize: '11px', fontWeight: 700, color: '#0e5b92', marginBottom: '3px' }}
+            >
               1 SALINAN OFF-SITE
             </div>
             <div style={{ fontSize: '12px', color: '#334155', lineHeight: 1.4 }}>
-              Penyimpanan cadangan ditempatkan di luar gedung server utama untuk proteksi bencana fisik.
+              Penyimpanan cadangan ditempatkan di luar gedung server utama untuk proteksi bencana
+              fisik.
             </div>
           </div>
         </div>
 
         {/* Backup Settings Form */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '14px' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '16px',
+            marginBottom: '14px',
+          }}
+        >
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#334155',
+                marginBottom: '6px',
+              }}
+            >
               Jadwal Cronjob Otomatis Harian
             </label>
             <input
@@ -118,13 +181,24 @@ export function BackupPanel({
                 color: '#182230',
               }}
             />
-            <span style={{ fontSize: '11.5px', color: '#64748b', display: 'block', marginTop: '4px' }}>
-              Format cron: Pukul 02:00 WIB dini hari (<code style={{ background: '#f1f5f9', padding: '1px 4px' }}>0 2 * * *</code>)
+            <span
+              style={{ fontSize: '11.5px', color: '#64748b', display: 'block', marginTop: '4px' }}
+            >
+              Format cron: Pukul 02:00 WIB dini hari (
+              <code style={{ background: '#f1f5f9', padding: '1px 4px' }}>0 2 * * *</code>)
             </span>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#334155',
+                marginBottom: '6px',
+              }}
+            >
               Target Penyimpanan Kedua
             </label>
             <select
@@ -142,14 +216,24 @@ export function BackupPanel({
               }}
             >
               <option value="EXTERNAL_NAS">NAS Eksternal (Gedung Terpisah · Rekomendasi)</option>
-              <option value="ENCRYPTED_CLOUD_BUCKET">Encrypted Cloud Storage Bucket (S3 Compatible)</option>
+              <option value="ENCRYPTED_CLOUD_BUCKET">
+                Encrypted Cloud Storage Bucket (S3 Compatible)
+              </option>
               <option value="OFFLINE_COLD_STORAGE">Cold Offline Hard Drive Vault</option>
             </select>
           </div>
         </div>
 
         <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#334155',
+              marginBottom: '6px',
+            }}
+          >
             Lokasi / Path Penyimpanan Cadangan
           </label>
           <input
@@ -185,9 +269,22 @@ export function BackupPanel({
         </h3>
 
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              textAlign: 'left',
+              fontSize: '12px',
+            }}
+          >
             <thead>
-              <tr style={{ borderBottom: '1px solid #e2ecf2', background: '#f8fafc', color: '#64748b' }}>
+              <tr
+                style={{
+                  borderBottom: '1px solid #e2ecf2',
+                  background: '#f8fafc',
+                  color: '#64748b',
+                }}
+              >
                 <th style={{ padding: '8px 12px', fontWeight: 600 }}>Waktu Eksekusi</th>
                 <th style={{ padding: '8px 12px', fontWeight: 600 }}>Nama Berkas</th>
                 <th style={{ padding: '8px 12px', fontWeight: 600 }}>Ukuran</th>
@@ -199,10 +296,16 @@ export function BackupPanel({
             <tbody>
               {telemetry?.backupHistory.map((b) => (
                 <tr key={b.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '9px 12px', color: '#182230', fontWeight: 500 }}>{b.timestamp}</td>
-                  <td style={{ padding: '9px 12px', fontFamily: 'monospace', color: '#0e5b92' }}>{b.filename}</td>
+                  <td style={{ padding: '9px 12px', color: '#182230', fontWeight: 500 }}>
+                    {b.timestamp}
+                  </td>
+                  <td style={{ padding: '9px 12px', fontFamily: 'monospace', color: '#0e5b92' }}>
+                    {b.filename}
+                  </td>
                   <td style={{ padding: '9px 12px', color: '#475569' }}>{b.sizeMb} MB</td>
-                  <td style={{ padding: '9px 12px', color: '#475569' }}>{b.photosCount} Foto MinIO</td>
+                  <td style={{ padding: '9px 12px', color: '#475569' }}>
+                    {b.photosCount} Foto MinIO
+                  </td>
                   <td style={{ padding: '9px 12px', color: '#64748b' }}>{b.target}</td>
                   <td style={{ padding: '9px 12px' }}>
                     <span
@@ -227,4 +330,3 @@ export function BackupPanel({
     </div>
   );
 }
-

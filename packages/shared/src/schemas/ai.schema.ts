@@ -5,9 +5,21 @@ import { z } from 'zod';
 // ==========================================
 
 export const getRecentReportsToolSchema = z.object({
-  clusterCode: z.string().optional().describe('Filter laporan berdasarkan kode cluster (misal: CL-01)'),
-  minAttenuation: z.number().optional().describe('Ambil redaman yang lebih buruk dari nilai ini (misal -25.0 dBm)'),
-  limit: z.number().int().min(1).max(50).default(20).describe('Batas jumlah data (maksimal 50 baris untuk menjaga context window LLM)'),
+  clusterCode: z
+    .string()
+    .optional()
+    .describe('Filter laporan berdasarkan kode cluster (misal: CL-01)'),
+  minAttenuation: z
+    .number()
+    .optional()
+    .describe('Ambil redaman yang lebih buruk dari nilai ini (misal -25.0 dBm)'),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .default(20)
+    .describe('Batas jumlah data (maksimal 50 baris untuk menjaga context window LLM)'),
 });
 
 export type GetRecentReportsInput = z.infer<typeof getRecentReportsToolSchema>;
@@ -21,7 +33,11 @@ export type GetCustomerDetailInput = z.infer<typeof getCustomerDetailToolSchema>
 
 export const getTechnicianWorkloadToolSchema = z.object({
   clusterCode: z.string().optional().describe('Filter teknisi di cluster tertentu'),
-  status: z.enum(['ALL', 'IDLE', 'BUSY']).optional().default('ALL').describe('Filter status kesibukan teknisi'),
+  status: z
+    .enum(['ALL', 'IDLE', 'BUSY'])
+    .optional()
+    .default('ALL')
+    .describe('Filter status kesibukan teknisi'),
 });
 
 export type GetTechnicianWorkloadInput = z.infer<typeof getTechnicianWorkloadToolSchema>;
@@ -32,7 +48,9 @@ export type GetTechnicianWorkloadInput = z.infer<typeof getTechnicianWorkloadToo
 // ==========================================
 
 export const prepareCreateTicketToolSchema = z.object({
-  ticketType: z.enum(['PSB', 'MAINTENANCE']).describe('Tipe pekerjaan tiket (PSB untuk Pasang Baru, MAINTENANCE untuk Perbaikan)'),
+  ticketType: z
+    .enum(['PSB', 'MAINTENANCE'])
+    .describe('Tipe pekerjaan tiket (PSB untuk Pasang Baru, MAINTENANCE untuk Perbaikan)'),
   siaNumber: z.string().min(3).describe('Nomor SIA pelanggan terkait'),
   customerName: z.string().optional().describe('Nama lengkap pelanggan'),
   techUsername: z.string().min(2).describe('Username teknisi yang akan ditugaskan'),
@@ -43,7 +61,9 @@ export type PrepareCreateTicketInput = z.infer<typeof prepareCreateTicketToolSch
 
 export const prepareToggleTechAccountToolSchema = z.object({
   techUsername: z.string().min(2).describe('Username teknisi yang akan diubah statusnya'),
-  setActive: z.boolean().describe('true untuk mengaktifkan kembali, false untuk menonaktifkan & cabut sesi JWT aktif'),
+  setActive: z
+    .boolean()
+    .describe('true untuk mengaktifkan kembali, false untuk menonaktifkan & cabut sesi JWT aktif'),
   reason: z.string().min(3).describe('Alasan audit pencabutan sesi atau penonaktifan akun'),
 });
 

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: { code: 'TICKET_FETCH_ERROR', message: error.message } },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -31,10 +31,13 @@ export async function POST(request: NextRequest) {
 
     const ticket = await TicketService.createTicket(validated);
 
-    return NextResponse.json({
-      success: true,
-      data: ticket,
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        success: true,
+        data: ticket,
+      },
+      { status: 201 },
+    );
   } catch (error: any) {
     return NextResponse.json(
       {
@@ -45,7 +48,7 @@ export async function POST(request: NextRequest) {
           details: error.errors,
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 }

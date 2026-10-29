@@ -49,11 +49,20 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
     <div className="overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div
         className="modal"
-        style={{ maxWidth: '640px', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        style={{
+          maxWidth: '640px',
+          width: '100%',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="panel-heading" style={{ borderBottom: '1px solid #e2e8f0', padding: '16px 20px', flexShrink: 0 }}>
+        <div
+          className="panel-heading"
+          style={{ borderBottom: '1px solid #e2e8f0', padding: '16px 20px', flexShrink: 0 }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div
               style={{
@@ -102,7 +111,16 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
         </div>
 
         {/* Modal Body */}
-        <div className="modal-body" style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div
+          className="modal-body"
+          style={{
+            padding: '20px',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+          }}
+        >
           {/* Service Status & Physical Binding Strip */}
           <div
             style={{
@@ -116,7 +134,15 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
             }}
           >
             <div>
-              <div style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              <div
+                style={{
+                  fontSize: '10.5px',
+                  color: '#64748b',
+                  fontWeight: 500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.4px',
+                }}
+              >
                 Status Layanan
               </div>
               <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -126,30 +152,40 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                       customer.status === 'ACTIVE'
                         ? 'active'
                         : customer.status === 'PENDING_INSTALL'
-                        ? 'pending'
-                        : customer.status === 'ISOLATED'
-                        ? 'isolated'
-                        : 'inactive'
+                          ? 'pending'
+                          : customer.status === 'ISOLATED'
+                            ? 'isolated'
+                            : 'inactive'
                     }`}
                   />
                   <span>
                     {customer.status === 'ACTIVE'
                       ? 'Aktif'
                       : customer.status === 'PENDING_INSTALL'
-                      ? 'Menunggu PSB'
-                      : customer.status === 'ISOLATED'
-                      ? 'Terisolir'
-                      : 'Nonaktif'}
+                        ? 'Menunggu PSB'
+                        : customer.status === 'ISOLATED'
+                          ? 'Terisolir'
+                          : 'Nonaktif'}
                   </span>
                 </span>
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              <div
+                style={{
+                  fontSize: '10.5px',
+                  color: '#64748b',
+                  fontWeight: 500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.4px',
+                }}
+              >
                 Alokasi Splitter & Port
               </div>
-              <div style={{ marginTop: '4px', fontSize: '12px', fontWeight: 600, color: '#0f172a' }}>
+              <div
+                style={{ marginTop: '4px', fontSize: '12px', fontWeight: 600, color: '#0f172a' }}
+              >
                 {customer.splitterCode}{' '}
                 <span style={{ color: '#0e5b92', fontFamily: 'monospace' }}>
                   Port #{customer.portNumber}
@@ -158,10 +194,25 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
             </div>
 
             <div>
-              <div style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              <div
+                style={{
+                  fontSize: '10.5px',
+                  color: '#64748b',
+                  fontWeight: 500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.4px',
+                }}
+              >
                 Redaman Optik Terakhir
               </div>
-              <div style={{ marginTop: '4px', fontSize: '13px', fontWeight: 700, color: tone === 'green' ? '#166534' : tone === 'orange' ? '#b45309' : '#be123c' }}>
+              <div
+                style={{
+                  marginTop: '4px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  color: tone === 'green' ? '#166534' : tone === 'orange' ? '#b45309' : '#be123c',
+                }}
+              >
                 {customer.currentAttenuation.toFixed(1)} dBm{' '}
                 <span style={{ fontSize: '10.5px', fontWeight: 500, color: '#64748b' }}>
                   ({classifyDbm(customer.currentAttenuation)})
@@ -182,7 +233,16 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
               border: '1px solid #e2e8f0',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', fontWeight: 600, color: '#1e3a5f' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '4px',
+                fontWeight: 600,
+                color: '#1e3a5f',
+              }}
+            >
               <Icon name="pin" size={13} />
               <span>Detail Wilayah &amp; Alamat Instalasi</span>
             </div>
@@ -191,7 +251,16 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
               {customer.address}
             </div>
             {(customer.kecamatan || customer.kelurahan || customer.street) && (
-              <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '11.5px', color: '#334155', flexWrap: 'wrap' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '16px',
+                  marginTop: '6px',
+                  fontSize: '11.5px',
+                  color: '#334155',
+                  flexWrap: 'wrap',
+                }}
+              >
                 {customer.street && (
                   <span>
                     <b>Jalan:</b> {customer.street}
@@ -213,7 +282,14 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
 
           {/* Attenuation History Section (Append-Only per PRD 5.1 & Law 2) */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '8px',
+              }}
+            >
               <div style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a' }}>
                 Riwayat Pengukuran Redaman (10 Laporan Terakhir)
               </div>
@@ -223,7 +299,9 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
             </div>
 
             {loadingHistory ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+              <div
+                style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}
+              >
                 Memuat riwayat redaman...
               </div>
             ) : histories.length === 0 ? (
@@ -238,7 +316,8 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                   borderRadius: '6px',
                 }}
               >
-                Belum ada data pengukuran redaman yang tercatat di <code>attenuation_histories</code>.
+                Belum ada data pengukuran redaman yang tercatat di{' '}
+                <code>attenuation_histories</code>.
               </div>
             ) : (
               <div
@@ -250,9 +329,22 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                   overflowY: 'auto',
                 }}
               >
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: 'left' }}>
+                <table
+                  style={{
+                    width: '100%',
+                    borderCollapse: 'collapse',
+                    fontSize: '11.5px',
+                    textAlign: 'left',
+                  }}
+                >
                   <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+                    <tr
+                      style={{
+                        background: '#f8fafc',
+                        borderBottom: '1px solid #e2e8f0',
+                        color: '#64748b',
+                      }}
+                    >
                       <th style={{ padding: '8px 10px', fontWeight: 600 }}>Waktu Pencatatan</th>
                       <th style={{ padding: '8px 10px', fontWeight: 600 }}>Nilai Redaman</th>
                       <th style={{ padding: '8px 10px', fontWeight: 600 }}>Splitter & Port</th>
@@ -263,7 +355,10 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                     {histories.map((h) => {
                       const histTone = dbmTone(h.newAttenuation);
                       return (
-                        <tr key={h.id || h.submissionId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <tr
+                          key={h.id || h.submissionId}
+                          style={{ borderBottom: '1px solid #f1f5f9' }}
+                        >
                           <td style={{ padding: '8px 10px', color: '#475569', fontSize: '11px' }}>
                             {new Date(h.recordedAt).toLocaleString('id-ID', {
                               day: '2-digit',
@@ -271,25 +366,36 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                               year: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit',
-                            })} WIB
+                            })}{' '}
+                            WIB
                           </td>
                           <td style={{ padding: '8px 10px' }}>
                             <span
                               style={{
                                 fontWeight: 600,
-                                color: histTone === 'green' ? '#166534' : histTone === 'orange' ? '#b45309' : '#be123c',
+                                color:
+                                  histTone === 'green'
+                                    ? '#166534'
+                                    : histTone === 'orange'
+                                      ? '#b45309'
+                                      : '#be123c',
                               }}
                             >
                               {h.newAttenuation.toFixed(1)} dBm
                             </span>
                             {h.oldAttenuation !== null && (
-                              <span style={{ fontSize: '10px', color: '#94a3b8', marginLeft: '6px' }}>
+                              <span
+                                style={{ fontSize: '10px', color: '#94a3b8', marginLeft: '6px' }}
+                              >
                                 (sebelumnya: {h.oldAttenuation.toFixed(1)})
                               </span>
                             )}
                           </td>
                           <td style={{ padding: '8px 10px', color: '#334155' }}>
-                            {h.splitterCode} <span style={{ color: '#0e5b92', fontFamily: 'monospace' }}>#{h.portNumber}</span>
+                            {h.splitterCode}{' '}
+                            <span style={{ color: '#0e5b92', fontFamily: 'monospace' }}>
+                              #{h.portNumber}
+                            </span>
                           </td>
                           <td style={{ padding: '8px 10px', color: '#475569' }}>
                             {h.technicianName}

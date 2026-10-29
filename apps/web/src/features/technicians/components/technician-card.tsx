@@ -38,20 +38,46 @@ export function TechnicianCard({
       }}
     >
       {/* Card Header: Avatar, Name & Username, Last Active & Unified Status Pill */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: '8px',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
           <DefaultAvatar size={38} name={tech.fullName} />
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
-              <h3 style={{ margin: 0, fontSize: '13.5px', fontWeight: 600, color: '#0f172a', lineHeight: 1.3 }}>
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: '13.5px',
+                  fontWeight: 600,
+                  color: '#0f172a',
+                  lineHeight: 1.3,
+                }}
+              >
                 {tech.fullName}
               </h3>
               <span style={{ fontSize: '11px', color: '#64748b', fontFamily: 'monospace' }}>
                 @{tech.username}
               </span>
             </div>
-            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {tech.lastActiveAt ? `Sesi online terakhir ${tech.lastActiveAt}` : 'Belum ada riwayat sesi'}
+            <div
+              style={{
+                fontSize: '11px',
+                color: '#64748b',
+                marginTop: '3px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {tech.lastActiveAt
+                ? `Sesi online terakhir ${tech.lastActiveAt}`
+                : 'Belum ada riwayat sesi'}
             </div>
           </div>
         </div>
@@ -91,7 +117,9 @@ export function TechnicianCard({
                 gap: '5px',
               }}
             >
-              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#16a34a' }} />
+              <span
+                style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#16a34a' }}
+              />
               Sesi Aktif
             </span>
           ) : isRevokedSession ? (
@@ -227,7 +255,9 @@ export function TechnicianCard({
             className="button"
             disabled={isProcessing || !isActiveSession}
             onClick={() => onForceLogout(tech.username)}
-            title={isActiveSession ? 'Cabut sesi token JWT mobile' : 'Teknisi tidak memiliki sesi aktif'}
+            title={
+              isActiveSession ? 'Cabut sesi token JWT mobile' : 'Teknisi tidak memiliki sesi aktif'
+            }
             aria-label={isActiveSession ? 'Cabut sesi' : 'Sesi nonaktif'}
             type="button"
             style={{
@@ -308,4 +338,3 @@ export function TechnicianCard({
     </article>
   );
 }
-

@@ -7,12 +7,7 @@ import { Icon } from '@/components/ui/Icon';
 import { webApiClient, ApiClientError } from '@/lib/api-client';
 
 export type DraftCardState =
-  | 'PENDING'
-  | 'EXECUTING'
-  | 'EXECUTED'
-  | 'CANCELLED'
-  | 'EXPIRED'
-  | 'FAILED_REPLAY_BLOCKED';
+  'PENDING' | 'EXECUTING' | 'EXECUTED' | 'CANCELLED' | 'EXPIRED' | 'FAILED_REPLAY_BLOCKED';
 
 export interface DraftActionCardProps {
   draft: DraftActionCardData;
@@ -115,7 +110,8 @@ export function DraftActionCard({
 
       let msg = apiErr.message || 'Eksekusi aksi gagal diproses server.';
       if (isReplay) {
-        msg = 'Token aksi ini sudah pernah dieksekusi sebelumnya (Replay Blocked). Silakan minta draf baru.';
+        msg =
+          'Token aksi ini sudah pernah dieksekusi sebelumnya (Replay Blocked). Silakan minta draf baru.';
       } else if (isPortOccupied) {
         msg = 'Port splitter telah terisi oleh pelanggan aktif lain. Mutasi dibatalkan.';
       }
@@ -164,10 +160,10 @@ export function DraftActionCard({
                 state === 'EXECUTED'
                   ? '#16a34a'
                   : state === 'CANCELLED'
-                  ? '#94a3b8'
-                  : state === 'EXPIRED' || state === 'FAILED_REPLAY_BLOCKED'
-                  ? '#dc2626'
-                  : '#0e5b92',
+                    ? '#94a3b8'
+                    : state === 'EXPIRED' || state === 'FAILED_REPLAY_BLOCKED'
+                      ? '#dc2626'
+                      : '#0e5b92',
               textTransform: 'uppercase',
               letterSpacing: '0.4px',
               marginBottom: '3px',
@@ -186,9 +182,7 @@ export function DraftActionCard({
           <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: '0 0 3px' }}>
             {draft.title}
           </h3>
-          <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.4 }}>
-            {draft.summary}
-          </div>
+          <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.4 }}>{draft.summary}</div>
         </div>
 
         {/* Monospace HMAC Verification & Live Countdown */}
@@ -201,18 +195,16 @@ export function DraftActionCard({
             flexShrink: 0,
           }}
         >
-          <div>HMAC: <code>{draft.actionToken.substring(0, 10)}...</code></div>
+          <div>
+            HMAC: <code>{draft.actionToken.substring(0, 10)}...</code>
+          </div>
           <div
             style={{
               fontSize: '11px',
               marginTop: '3px',
               fontWeight: 600,
               color:
-                state === 'PENDING'
-                  ? remainingSeconds < 60
-                    ? '#dc2626'
-                    : '#0e5b92'
-                  : '#94a3b8',
+                state === 'PENDING' ? (remainingSeconds < 60 ? '#dc2626' : '#0e5b92') : '#94a3b8',
             }}
           >
             {state === 'PENDING' ? `Sisa: ${formatCountdown(remainingSeconds)}` : 'Kedaluwarsa'}
@@ -301,7 +293,8 @@ export function DraftActionCard({
           </div>
         ) : state === 'EXPIRED' ? (
           <div style={{ fontSize: '12px', color: '#dc2626' }}>
-            Masa aktif 5 menit telah habis. Token HMAC ini tidak dapat dieksekusi lagi demi keamanan. Silakan minta AI membuat draf baru.
+            Masa aktif 5 menit telah habis. Token HMAC ini tidak dapat dieksekusi lagi demi
+            keamanan. Silakan minta AI membuat draf baru.
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -355,4 +348,3 @@ export function DraftActionCard({
     </div>
   );
 }
-

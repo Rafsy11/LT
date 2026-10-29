@@ -11,8 +11,11 @@ export async function POST(request: NextRequest) {
 
     if (!prompt) {
       return NextResponse.json(
-        { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Pesan prompt tidak boleh kosong' } },
-        { status: 400 }
+        {
+          success: false,
+          error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Pesan prompt tidak boleh kosong' },
+        },
+        { status: 400 },
       );
     }
 
@@ -28,8 +31,14 @@ export async function POST(request: NextRequest) {
         adminContext = await AuthService.verifyAccessToken(token);
       } catch {
         return NextResponse.json(
-          { success: false, error: { code: ERROR_CODES.UNAUTHORIZED, message: 'Sesi Admin tidak valid atau telah kedaluwarsa' } },
-          { status: 401 }
+          {
+            success: false,
+            error: {
+              code: ERROR_CODES.UNAUTHORIZED,
+              message: 'Sesi Admin tidak valid atau telah kedaluwarsa',
+            },
+          },
+          { status: 401 },
         );
       }
     } else {
@@ -48,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Rate Limiting: 10 req/60s per admin userId
     const rateResult = await checkRateLimit(
       `ai_chat:${adminContext.userId}`,
-      RATE_LIMIT_PROFILES.AI_CHAT
+      RATE_LIMIT_PROFILES.AI_CHAT,
     );
     if (!rateResult.allowed) {
       return NextResponse.json(
@@ -63,7 +72,7 @@ export async function POST(request: NextRequest) {
         {
           status: 429,
           headers: { 'Retry-After': String(Math.ceil(rateResult.retryAfterMs / 1000)) },
-        }
+        },
       );
     }
 
@@ -77,7 +86,7 @@ export async function POST(request: NextRequest) {
     const err = error as Error;
     return NextResponse.json(
       { success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: err.message } },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

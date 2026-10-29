@@ -14,7 +14,8 @@ export function RoleHeader({ isFetching, onRefresh }: RoleHeaderProps) {
       <div className="overview-header-copy">
         <h1 className="overview-greeting">Role-Based Access Control</h1>
         <p className="overview-subtitle">
-          Pengelolaan direktori pengguna, penugasan peran operasional, dan konfigurasi matriks izin sistem FTTH.
+          Pengelolaan direktori pengguna, penugasan peran operasional, dan konfigurasi matriks izin
+          sistem FTTH.
         </p>
       </div>
 
@@ -72,4 +73,3 @@ export function RoleHeader({ isFetching, onRefresh }: RoleHeaderProps) {
     </div>
   );
 }
-

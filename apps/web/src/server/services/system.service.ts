@@ -155,12 +155,12 @@ export class SystemService {
    */
   static async updateSettings(
     actor: UserSessionContext,
-    newSettings: SystemSettingsInput
+    newSettings: SystemSettingsInput,
   ): Promise<SystemSettingsInput> {
     // Validasi Hierarki: Hanya Super Admin (level 100) yang berhak mengubah konfigurasi sistem
     if (actor.hierarchyLevel < 100) {
       const err: any = new Error(
-        'Akses ditolak: Hanya Super Admin yang berwenang mengubah konfigurasi sistem on-premise'
+        'Akses ditolak: Hanya Super Admin yang berwenang mengubah konfigurasi sistem on-premise',
       );
       err.code = ERROR_CODES.FORBIDDEN;
       throw err;
@@ -186,7 +186,7 @@ export class SystemService {
       // In-memory fallback logging
       console.log(
         `[AUDIT] SYSTEM_SETTINGS_UPDATED by ${actor.userId} (${actor.role}):`,
-        currentSettings
+        currentSettings,
       );
     }
 
@@ -196,19 +196,20 @@ export class SystemService {
   /**
    * Menjalankan backup darurat manual (3-2-1 Snapshot Disaster Recovery per PRD 7.3)
    */
-  static async triggerBackupSnapshot(
-    actor: UserSessionContext
-  ): Promise<BackupSnapshotItem> {
+  static async triggerBackupSnapshot(actor: UserSessionContext): Promise<BackupSnapshotItem> {
     if (actor.hierarchyLevel < 50) {
       const err: any = new Error(
-        'Akses ditolak: Minimal Admin Operasional atau Super Admin untuk memicu snapshot backup'
+        'Akses ditolak: Minimal Admin Operasional atau Super Admin untuk memicu snapshot backup',
       );
       err.code = ERROR_CODES.FORBIDDEN;
       throw err;
     }
 
     const now = new Date();
-    const dateStr = now.toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+    const dateStr = now
+      .toISOString()
+      .replace(/[-:T.]/g, '')
+      .slice(0, 14);
     const displayTime = `${now.toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'short',

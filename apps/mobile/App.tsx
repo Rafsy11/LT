@@ -4,7 +4,11 @@ import { offlineQueue } from './src/sync/offlineQueue';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { TicketListScreen, MobileTicketItem, SplitterItem } from './src/screens/TicketListScreen';
 import { TicketSubmitScreen } from './src/screens/TicketSubmitScreen';
-import { checkDeviceIntegrity, DeviceIntegrityReport, removeSecureToken } from './src/security/deviceIntegrity';
+import {
+  checkDeviceIntegrity,
+  DeviceIntegrityReport,
+  removeSecureToken,
+} from './src/security/deviceIntegrity';
 import { CURRENT_MOBILE_APP_VERSION, UserProfile } from '@repo/shared';
 
 export type AppSecurityState =
@@ -88,12 +92,32 @@ export default function App() {
   // State 1: Device Integrity Violation Screen
   if (securityState === 'DEVICE_COMPROMISED_LOCK') {
     return (
-      <div style={{ padding: '24px', fontFamily: 'sans-serif', maxWidth: '480px', margin: '40px auto', textAlign: 'center' }}>
-        <h2 style={{ color: '#dc2626', fontSize: '18px', fontWeight: 700 }}>Perangkat Tidak Memenuhi Standar Keamanan</h2>
+      <div
+        style={{
+          padding: '24px',
+          fontFamily: 'sans-serif',
+          maxWidth: '480px',
+          margin: '40px auto',
+          textAlign: 'center',
+        }}
+      >
+        <h2 style={{ color: '#dc2626', fontSize: '18px', fontWeight: 700 }}>
+          Perangkat Tidak Memenuhi Standar Keamanan
+        </h2>
         <p style={{ color: '#475569', fontSize: '13px', lineHeight: '1.5' }}>
-          Aplikasi FiberOps ditolak berjalan pada perangkat yang terdeteksi rooted, emulator, atau memiliki lingkungan debug aktif demi menjaga kerahasiaan topologi jaringan ISP.
+          Aplikasi FiberOps ditolak berjalan pada perangkat yang terdeteksi rooted, emulator, atau
+          memiliki lingkungan debug aktif demi menjaga kerahasiaan topologi jaringan ISP.
         </p>
-        <div style={{ marginTop: '16px', padding: '12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', textAlign: 'left' }}>
+        <div
+          style={{
+            marginTop: '16px',
+            padding: '12px',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '6px',
+            textAlign: 'left',
+          }}
+        >
           <strong style={{ fontSize: '12px', color: '#991b1b' }}>Pelanggaran Terdeteksi:</strong>
           <ul style={{ margin: '8px 0 0 16px', padding: 0, fontSize: '12px', color: '#b91c1c' }}>
             {(integrityReport?.violations || ['Root binary detected']).map((v, i) => (
@@ -108,17 +132,40 @@ export default function App() {
   // State 2: App Upgrade Required Screen (HTTP 426)
   if (securityState === 'UPGRADE_REQUIRED_LOCK' && upgradeLock) {
     return (
-      <div style={{ padding: '24px', fontFamily: 'sans-serif', maxWidth: '480px', margin: '40px auto', textAlign: 'center' }}>
-        <h2 style={{ color: '#0e5b92', fontSize: '18px', fontWeight: 700 }}>Pembaruan Aplikasi Diperlukan</h2>
+      <div
+        style={{
+          padding: '24px',
+          fontFamily: 'sans-serif',
+          maxWidth: '480px',
+          margin: '40px auto',
+          textAlign: 'center',
+        }}
+      >
+        <h2 style={{ color: '#0e5b92', fontSize: '18px', fontWeight: 700 }}>
+          Pembaruan Aplikasi Diperlukan
+        </h2>
         <p style={{ color: '#475569', fontSize: '13px', lineHeight: '1.5' }}>
-          {upgradeLock.message || 'Versi aplikasi Anda sudah tidak didukung. Silakan unduh versi terbaru.'}
+          {upgradeLock.message ||
+            'Versi aplikasi Anda sudah tidak didukung. Silakan unduh versi terbaru.'}
         </p>
         <p style={{ fontSize: '12px', color: '#64748b' }}>
           Versi saat ini: {upgradeLock.currentVersion} | Versi minimum: {upgradeLock.minVersion}
         </p>
         <a
-          href={upgradeLock.downloadUrl || 'https://internal.fiberops.net/download/mobile-latest.apk'}
-          style={{ display: 'inline-block', marginTop: '16px', padding: '10px 20px', background: '#0e5b92', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: 600, fontSize: '13px' }}
+          href={
+            upgradeLock.downloadUrl || 'https://internal.fiberops.net/download/mobile-latest.apk'
+          }
+          style={{
+            display: 'inline-block',
+            marginTop: '16px',
+            padding: '10px 20px',
+            background: '#0e5b92',
+            color: '#fff',
+            borderRadius: '6px',
+            textDecoration: 'none',
+            fontWeight: 600,
+            fontSize: '13px',
+          }}
         >
           Unduh APK Terbaru
         </a>
@@ -129,8 +176,17 @@ export default function App() {
   // State 3: Checking Integrity Loading Screen
   if (securityState === 'CHECKING_INTEGRITY') {
     return (
-      <div style={{ padding: '60px 24px', fontFamily: 'sans-serif', textAlign: 'center', color: '#64748b' }}>
-        <p style={{ fontSize: '14px', fontWeight: 500 }}>Memeriksa integritas keamanan perangkat mobile...</p>
+      <div
+        style={{
+          padding: '60px 24px',
+          fontFamily: 'sans-serif',
+          textAlign: 'center',
+          color: '#64748b',
+        }}
+      >
+        <p style={{ fontSize: '14px', fontWeight: 500 }}>
+          Memeriksa integritas keamanan perangkat mobile...
+        </p>
       </div>
     );
   }
@@ -176,11 +232,24 @@ export default function App() {
       )}
 
       {currentScreen === 'TICKET_LIST' && (
-        <div style={{ padding: '24px', maxWidth: '480px', margin: '0 auto', fontFamily: 'sans-serif' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div
+          style={{ padding: '24px', maxWidth: '480px', margin: '0 auto', fontFamily: 'sans-serif' }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px',
+            }}
+          >
             <div>
-              <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>Daftar Tiket Lapangan</h2>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>Teknisi: {currentUser?.fullName}</p>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                Daftar Tiket Lapangan
+              </h2>
+              <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>
+                Teknisi: {currentUser?.fullName}
+              </p>
             </div>
             <button
               type="button"
@@ -190,19 +259,39 @@ export default function App() {
                 setCurrentUser(null);
                 setCurrentScreen('LOGIN');
               }}
-              style={{ padding: '6px 12px', fontSize: '12px', color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '4px', cursor: 'pointer' }}
+              style={{
+                padding: '6px 12px',
+                fontSize: '12px',
+                color: '#dc2626',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
             >
               Keluar
             </button>
           </div>
-          <div style={{ padding: '24px', textAlign: 'center', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#64748b', fontSize: '13px' }}>
+          <div
+            style={{
+              padding: '24px',
+              textAlign: 'center',
+              background: '#fff',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+              color: '#64748b',
+              fontSize: '13px',
+            }}
+          >
             Memuat antrean tiket penugasan teknisi...
           </div>
         </div>
       )}
 
       {currentScreen === 'TICKET_SUBMIT' && selectedTicket && (
-        <div style={{ padding: '24px', maxWidth: '480px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+        <div
+          style={{ padding: '24px', maxWidth: '480px', margin: '0 auto', fontFamily: 'sans-serif' }}
+        >
           <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>
             Form Validasi Tiket {selectedTicket.ticketNumber}
           </h2>
@@ -212,7 +301,15 @@ export default function App() {
               setSelectedTicket(null);
               setCurrentScreen('TICKET_LIST');
             }}
-            style={{ padding: '6px 12px', fontSize: '12px', color: '#475569', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer' }}
+            style={{
+              padding: '6px 12px',
+              fontSize: '12px',
+              color: '#475569',
+              background: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
           >
             ← Kembali ke Daftar Tiket
           </button>

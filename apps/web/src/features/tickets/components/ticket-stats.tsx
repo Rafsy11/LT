@@ -7,11 +7,7 @@ export interface TicketStatsProps {
   inProgressCount: number;
 }
 
-export function TicketStats({
-  totalWorkOrder,
-  waitingCount,
-  inProgressCount,
-}: TicketStatsProps) {
+export function TicketStats({ totalWorkOrder, waitingCount, inProgressCount }: TicketStatsProps) {
   return (
     <section
       className="tickets-stats-grid"
@@ -73,4 +69,3 @@ export function TicketStats({
     </section>
   );
 }
-

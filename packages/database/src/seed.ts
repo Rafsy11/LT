@@ -107,8 +107,8 @@ export async function seedDatabase() {
     create: {
       clusterCode: 'CL-01',
       name: 'Bandung Utara',
-      centerLat: -6.8850,
-      centerLng: 107.6150,
+      centerLat: -6.885,
+      centerLng: 107.615,
       isActive: true,
     },
   });
@@ -119,8 +119,8 @@ export async function seedDatabase() {
     create: {
       clusterCode: 'CL-02',
       name: 'Bandung Timur',
-      centerLat: -6.9180,
-      centerLng: 107.6680,
+      centerLat: -6.918,
+      centerLng: 107.668,
       isActive: true,
     },
   });
@@ -132,8 +132,8 @@ export async function seedDatabase() {
     create: {
       clusterId: clusterUtara.id,
       splitterCode: 'ODP-CL01-01',
-      lat: -6.8860,
-      lng: 107.6160,
+      lat: -6.886,
+      lng: 107.616,
       maxPorts: 16, // 16 Port
       isActive: true,
     },
@@ -158,8 +158,8 @@ export async function seedDatabase() {
     create: {
       clusterId: clusterTimur.id,
       splitterCode: 'ODP-CL02-01',
-      lat: -6.9190,
-      lng: 107.6690,
+      lat: -6.919,
+      lng: 107.669,
       maxPorts: 16, // 16 Port
       isActive: true,
     },
@@ -191,7 +191,7 @@ export async function seedDatabase() {
       clusterId: clusterUtara.id,
       splitterId: odp1.id,
       portNumber: 3,
-      currentAttenuation: -26.40, // Critical (> -25 dBm)
+      currentAttenuation: -26.4, // Critical (> -25 dBm)
       status: 'ACTIVE',
     },
   });
@@ -208,7 +208,7 @@ export async function seedDatabase() {
       clusterId: clusterTimur.id,
       splitterId: odp3.id,
       portNumber: 1,
-      currentAttenuation: -19.20, // Normal (-15 s/d -22 dBm)
+      currentAttenuation: -19.2, // Normal (-15 s/d -22 dBm)
       status: 'ACTIVE',
     },
   });
@@ -225,7 +225,7 @@ export async function seedDatabase() {
       clusterId: clusterUtara.id,
       splitterId: odp2.id,
       portNumber: 2,
-      currentAttenuation: -23.50, // Warning (-22.1 s/d -25 dBm)
+      currentAttenuation: -23.5, // Warning (-22.1 s/d -25 dBm)
       status: 'ACTIVE',
     },
   });
@@ -240,7 +240,7 @@ export async function seedDatabase() {
       clusterId: clusterUtara.id,
       splitterId: null,
       portNumber: null,
-      currentAttenuation: -20.00,
+      currentAttenuation: -20.0,
       status: 'PENDING_INSTALL', // Menunggu instalasi pasang baru
     },
   });
@@ -256,7 +256,8 @@ export async function seedDatabase() {
       assignedTechId: techAndi.id,
       createdByAdminId: adminNoc.id,
       status: 'IN_PROGRESS',
-      adminNotes: 'Redaman optik drop drastis di bawah -25.0 dBm (-26.40 dBm). Lakukan re-splicing di ODP-CL01-01.',
+      adminNotes:
+        'Redaman optik drop drastis di bawah -25.0 dBm (-26.40 dBm). Lakukan re-splicing di ODP-CL01-01.',
       assignedAt: new Date(),
     },
   });

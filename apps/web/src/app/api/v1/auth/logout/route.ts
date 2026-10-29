@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
           message: (error as Error).message || 'Gagal melakukan logout',
         },
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

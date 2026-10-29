@@ -53,9 +53,7 @@ export function NetworkView() {
       {/* Header Section matching Lintasarta FTTH Network Dashboard reference */}
       <header className="network-header-v2">
         <div className="network-header-titles">
-          <h1 className="network-main-title">
-            Master Jaringan & Splitter ODP
-          </h1>
+          <h1 className="network-main-title">Master Jaringan & Splitter ODP</h1>
           <p className="network-sub-title">
             Data master jaringan FTTH, daftar ODP, splitter, dan informasi port secara terpusat.
           </p>
@@ -71,9 +69,21 @@ export function NetworkView() {
           Memuat data cluster dan matriks port splitter...
         </div>
       ) : filteredClusters.length === 0 ? (
-        <div style={{ padding: '48px', textAlign: 'center', background: '#ffffff', borderRadius: '12px', border: '1px solid #dce7f0' }}>
-          <p style={{ fontWeight: 600, color: '#0f172a' }}>Tidak ada splitter yang cocok dengan filter pencarian.</p>
-          <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Coba ubah kata kunci atau reset filter cluster.</p>
+        <div
+          style={{
+            padding: '48px',
+            textAlign: 'center',
+            background: '#ffffff',
+            borderRadius: '12px',
+            border: '1px solid #dce7f0',
+          }}
+        >
+          <p style={{ fontWeight: 600, color: '#0f172a' }}>
+            Tidak ada splitter yang cocok dengan filter pencarian.
+          </p>
+          <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+            Coba ubah kata kunci atau reset filter cluster.
+          </p>
         </div>
       ) : (
         <div className="network-main-grid">
@@ -91,7 +101,10 @@ export function NetworkView() {
 
           {/* Right Column: Active ODP Command Deck */}
           {activeSplitter && (
-            <section className="odp-main-panel-card" aria-label={`Detail ODP ${activeSplitter.name}`}>
+            <section
+              className="odp-main-panel-card"
+              aria-label={`Detail ODP ${activeSplitter.name}`}
+            >
               {/* Top Header for Selected ODP (Clean, No Progress Bar, No Percentage) */}
               <div className="odp-hardware-chassis-top">
                 <div className="odp-id-left-group">
@@ -108,9 +121,13 @@ export function NetworkView() {
                     <p className="odp-sub-specs-line">
                       <span>Cluster: {activeSplitter.clusterCode}</span>
                       <span>·</span>
-                      <span>Koordinat: {activeSplitter.lat.toFixed(4)}, {activeSplitter.lng.toFixed(4)}</span>
+                      <span>
+                        Koordinat: {activeSplitter.lat.toFixed(4)}, {activeSplitter.lng.toFixed(4)}
+                      </span>
                       <span>·</span>
-                      <span>Splitter: {activeSplitter.maxPorts === 8 ? '1x8 PLC' : '1x16 PLC'}</span>
+                      <span>
+                        Splitter: {activeSplitter.maxPorts === 8 ? '1x8 PLC' : '1x16 PLC'}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -127,7 +144,9 @@ export function NetworkView() {
                     type="button"
                     className="odp-more-menu-btn"
                     title="Opsi ODP"
-                    onClick={() => showSuccess(`ODP ${activeSplitter.splitterCode} beroperasi normal.`)}
+                    onClick={() =>
+                      showSuccess(`ODP ${activeSplitter.splitterCode} beroperasi normal.`)
+                    }
                   >
                     ⋮
                   </button>
@@ -223,4 +242,3 @@ export function NetworkView() {
     </main>
   );
 }
-

@@ -52,29 +52,62 @@ export function RoleReassignModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px',
+          }}
+        >
           <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#0f172a' }}>
             Ubah Peran Pengguna
           </h3>
           <button
             type="button"
             onClick={onClose}
-            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              padding: '2px',
+            }}
           >
             <Icon name="x" size={16} />
           </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: '#f8fafc', borderRadius: '8px', marginBottom: '16px' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '12px',
+            background: '#f8fafc',
+            borderRadius: '8px',
+            marginBottom: '16px',
+          }}
+        >
           <DefaultAvatar size={36} name={editingUser.name} />
           <div>
-            <div style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a' }}>{editingUser.name}</div>
+            <div style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a' }}>
+              {editingUser.name}
+            </div>
             <div style={{ fontSize: '11.5px', color: '#64748b' }}>{editingUser.email}</div>
           </div>
         </div>
 
         <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#334155',
+              marginBottom: '6px',
+            }}
+          >
             Pilih Peran Baru:
           </label>
           <select
@@ -138,4 +171,3 @@ export function RoleReassignModal({
     </div>
   );
 }
-

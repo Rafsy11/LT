@@ -6,7 +6,10 @@ import { SystemSettingsInput } from '@repo/shared';
 export interface NetworkSettingsPanelProps {
   settings: SystemSettingsInput;
   isSuperAdmin: boolean;
-  handleChange: <K extends keyof SystemSettingsInput>(field: K, value: SystemSettingsInput[K]) => void;
+  handleChange: <K extends keyof SystemSettingsInput>(
+    field: K,
+    value: SystemSettingsInput[K],
+  ) => void;
 }
 
 export function NetworkSettingsPanel({
@@ -37,10 +40,18 @@ export function NetworkSettingsPanel({
           Metode Akses Publik untuk 200 Teknisi
         </h2>
         <p style={{ fontSize: '12.5px', color: '#515a62', margin: '0 0 16px 0' }}>
-          Jalur koneksi terenkripsi HTTPS agar aplikasi mobile Android/iOS dapat mengakses API, kamera, dan koordinat GPS.
+          Jalur koneksi terenkripsi HTTPS agar aplikasi mobile Android/iOS dapat mengakses API,
+          kamera, dan koordinat GPS.
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '10px',
+            marginBottom: '20px',
+          }}
+        >
           {[
             {
               key: 'STATIC_IP_HTTPS',
@@ -70,17 +81,41 @@ export function NetworkSettingsPanel({
                 transition: 'all 0.15s ease',
               }}
             >
-              <div style={{ fontWeight: 600, fontSize: '12.5px', color: '#182230', marginBottom: '3px' }}>
+              <div
+                style={{
+                  fontWeight: 600,
+                  fontSize: '12.5px',
+                  color: '#182230',
+                  marginBottom: '3px',
+                }}
+              >
                 {item.title}
               </div>
-              <div style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.35 }}>{item.desc}</div>
+              <div style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.35 }}>
+                {item.desc}
+              </div>
             </div>
           ))}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '14px',
+            marginBottom: '16px',
+          }}
+        >
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#334155',
+                marginBottom: '6px',
+              }}
+            >
               Domain / Host URL Sistem Operasional
             </label>
             <input
@@ -100,7 +135,15 @@ export function NetworkSettingsPanel({
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#334155',
+                marginBottom: '6px',
+              }}
+            >
               Zona Waktu Operasional Server
             </label>
             <select
@@ -130,9 +173,20 @@ export function NetworkSettingsPanel({
             Konfigurasi Nginx Reverse Proxy (PRD 7.2 &amp; AGENT.md)
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '6px', border: '1px solid #eef2f6' }}>
-              <div style={{ fontSize: '10.5px', fontWeight: 600, color: '#64748b' }}>Batas Ukuran Upload Foto</div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#182230', marginTop: '2px' }}>
+            <div
+              style={{
+                background: '#f8fafc',
+                padding: '10px 12px',
+                borderRadius: '6px',
+                border: '1px solid #eef2f6',
+              }}
+            >
+              <div style={{ fontSize: '10.5px', fontWeight: 600, color: '#64748b' }}>
+                Batas Ukuran Upload Foto
+              </div>
+              <div
+                style={{ fontSize: '13px', fontWeight: 600, color: '#182230', marginTop: '2px' }}
+              >
                 client_max_body_size 20M;
               </div>
               <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
@@ -140,9 +194,20 @@ export function NetworkSettingsPanel({
               </div>
             </div>
 
-            <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '6px', border: '1px solid #eef2f6' }}>
-              <div style={{ fontSize: '10.5px', fontWeight: 600, color: '#64748b' }}>Buffering Server-Sent Events</div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#182230', marginTop: '2px' }}>
+            <div
+              style={{
+                background: '#f8fafc',
+                padding: '10px 12px',
+                borderRadius: '6px',
+                border: '1px solid #eef2f6',
+              }}
+            >
+              <div style={{ fontSize: '10.5px', fontWeight: 600, color: '#64748b' }}>
+                Buffering Server-Sent Events
+              </div>
+              <div
+                style={{ fontSize: '13px', fontWeight: 600, color: '#182230', marginTop: '2px' }}
+              >
                 proxy_buffering off;
               </div>
               <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
@@ -164,7 +229,14 @@ export function NetworkSettingsPanel({
             boxShadow: '0 1px 3px rgba(27, 92, 162, 0.02)',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '12px',
+            }}
+          >
             <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#182230', margin: 0 }}>
               Distribusi Mobile &amp; Self-Hosted OTA Update
             </h3>
@@ -184,18 +256,30 @@ export function NetworkSettingsPanel({
           </div>
 
           <p style={{ fontSize: '12px', color: '#515a62', margin: '0 0 16px 0', lineHeight: 1.4 }}>
-            Mekanisme pembaruan aplikasi lapangan langsung melalui server internal tanpa harus menginstal ulang file APK pada 200 ponsel teknisi.
+            Mekanisme pembaruan aplikasi lapangan langsung melalui server internal tanpa harus
+            menginstal ulang file APK pada 200 ponsel teknisi.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  color: '#334155',
+                  marginBottom: '4px',
+                }}
+              >
                 Portal Unduh APK Internal Resmi
               </label>
               <div style={{ display: 'flex', gap: '6px' }}>
                 <input
                   type="text"
-                  value={settings.apkDownloadUrl || 'https://ftth-ops.lintasarta.co.id/download/technician-latest.apk'}
+                  value={
+                    settings.apkDownloadUrl ||
+                    'https://ftth-ops.lintasarta.co.id/download/technician-latest.apk'
+                  }
                   disabled={!isSuperAdmin}
                   onChange={(e) => handleChange('apkDownloadUrl', e.target.value)}
                   style={{
@@ -212,13 +296,23 @@ export function NetworkSettingsPanel({
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  color: '#334155',
+                  marginBottom: '4px',
+                }}
+              >
                 Endpoint Manifest Self-Hosted OTA (expo-updates)
               </label>
               <div style={{ display: 'flex', gap: '6px' }}>
                 <input
                   type="text"
-                  value={settings.otaUpdateUrl || 'https://ftth-ops.lintasarta.co.id/api/v1/ota/manifest'}
+                  value={
+                    settings.otaUpdateUrl || 'https://ftth-ops.lintasarta.co.id/api/v1/ota/manifest'
+                  }
                   disabled={!isSuperAdmin}
                   onChange={(e) => handleChange('otaUpdateUrl', e.target.value)}
                   style={{
@@ -246,7 +340,8 @@ export function NetworkSettingsPanel({
                 lineHeight: 1.4,
               }}
             >
-              Teknisi yang membuka aplikasi mobile otomatis memeriksa endpoint manifest di atas. Bundle JavaScript dan perbaikan bug dapat langsung diunduh secara latar belakang.
+              Teknisi yang membuka aplikasi mobile otomatis memeriksa endpoint manifest di atas.
+              Bundle JavaScript dan perbaikan bug dapat langsung diunduh secara latar belakang.
             </div>
           </div>
         </div>
@@ -254,4 +349,3 @@ export function NetworkSettingsPanel({
     </div>
   );
 }
-

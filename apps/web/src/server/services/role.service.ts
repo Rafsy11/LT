@@ -1,9 +1,5 @@
 import { prisma } from '@repo/database';
-import {
-  CreateRoleInput,
-  UserSessionContext,
-  ERROR_CODES,
-} from '@repo/shared';
+import { CreateRoleInput, UserSessionContext, ERROR_CODES } from '@repo/shared';
 
 // In-memory fallback seed roles according to PRD Sections 2.1 & 2.2
 const MEMORY_ROLES = [
@@ -62,7 +58,7 @@ export class RoleService {
   public static checkHierarchyProtection(actorHierarchy: number, targetHierarchy: number): void {
     if (actorHierarchy <= targetHierarchy) {
       throw new Error(
-        `${ERROR_CODES.HIERARCHY_VIOLATION}: Dilarang mengubah atau mengatur pengguna/peran dengan hierarchy level yang setara (${targetHierarchy}) atau lebih tinggi.`
+        `${ERROR_CODES.HIERARCHY_VIOLATION}: Dilarang mengubah atau mengatur pengguna/peran dengan hierarchy level yang setara (${targetHierarchy}) atau lebih tinggi.`,
       );
     }
   }
@@ -73,7 +69,7 @@ export class RoleService {
    */
   public static validateGrantablePermissions(
     actorPermissions: string[],
-    requestedPermissions: string[]
+    requestedPermissions: string[],
   ): boolean {
     if (actorPermissions.includes('*')) {
       return true;
@@ -82,7 +78,7 @@ export class RoleService {
     const unpermitted = requestedPermissions.filter((perm) => !actorPermissions.includes(perm));
     if (unpermitted.length > 0) {
       throw new Error(
-        `${ERROR_CODES.FORBIDDEN}: Anda tidak berhak memberikan permission yang tidak Anda miliki: [${unpermitted.join(', ')}]`
+        `${ERROR_CODES.FORBIDDEN}: Anda tidak berhak memberikan permission yang tidak Anda miliki: [${unpermitted.join(', ')}]`,
       );
     }
 
@@ -110,7 +106,10 @@ export class RoleService {
         return roles;
       }
     } catch (err) {
-      console.warn('[RoleService] DB query failed, falling back to in-memory roles:', (err as Error).message);
+      console.warn(
+        '[RoleService] DB query failed, falling back to in-memory roles:',
+        (err as Error).message,
+      );
     }
 
     // Fallback to in-memory seeded roles
@@ -189,9 +188,10 @@ export class RoleService {
   public static async updateRolePermissions(
     actor: UserSessionContext,
     roleId: string,
-    newPermissions: string[]
+    newPermissions: string[],
   ) {
-    let targetRole: { id: string; name: string; permissions: any; hierarchyLevel: number } | null = null;
+    let targetRole: { id: string; name: string; permissions: any; hierarchyLevel: number } | null =
+      null;
     let actorPermissions: string[] = [];
 
     try {
@@ -206,7 +206,11 @@ export class RoleService {
       // In-memory fallback lookup
       targetRole = MEMORY_ROLES.find((r) => r.id === roleId || r.name === roleId) || null;
       const actorRole = MEMORY_ROLES.find((r) => r.name === actor.role);
-      actorPermissions = actorRole ? actorRole.permissions : actor.hierarchyLevel === 100 ? ['*'] : [];
+      actorPermissions = actorRole
+        ? actorRole.permissions
+        : actor.hierarchyLevel === 100
+          ? ['*']
+          : [];
     }
 
     if (!targetRole) {
@@ -258,7 +262,7 @@ export class RoleService {
   public static async updateUserRole(
     actor: UserSessionContext,
     targetUserId: string,
-    newRoleId: string
+    newRoleId: string,
   ) {
     try {
       // 1. Target user check
@@ -312,7 +316,8 @@ export class RoleService {
         throw err;
       }
       // In-memory fallback
-      const targetRole = MEMORY_ROLES.find((r) => r.id === newRoleId || r.name === newRoleId) || MEMORY_ROLES[1];
+      const targetRole =
+        MEMORY_ROLES.find((r) => r.id === newRoleId || r.name === newRoleId) || MEMORY_ROLES[1];
       this.checkHierarchyProtection(actor.hierarchyLevel, targetRole.hierarchyLevel);
       return {
         id: targetUserId,

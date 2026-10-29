@@ -17,28 +17,24 @@ export interface OfflineTicketSubmission {
 export type SubmissionSender = (
   ticketId: string,
   payload: SubmitTicketInput,
-  idempotencyKey: string
+  idempotencyKey: string,
 ) => Promise<ApiResponse<unknown>>;
 
 export type PhotoUploader = (localUri: string, objectKey: string) => Promise<string>;
 
-export type QueueSyncProgressStep =
-  | 'IDLE'
-  | 'UPLOADING_MINIO'
-  | 'SUBMITTING_API'
-  | 'COMPLETED';
+export type QueueSyncProgressStep = 'IDLE' | 'UPLOADING_MINIO' | 'SUBMITTING_API' | 'COMPLETED';
 
 export type QueueSyncProgressCallback = (
   step: QueueSyncProgressStep,
   submissionId: string,
-  details?: string
+  details?: string,
 ) => void;
 
 export interface MobileApiClientLike {
   request: <T = unknown>(
     endpoint: string,
     options?: RequestInit,
-    customHeaders?: Record<string, string>
+    customHeaders?: Record<string, string>,
   ) => Promise<ApiResponse<T>>;
 }
 
@@ -130,7 +126,7 @@ export class OfflineQueueManager {
    * Law 3: Intentionally preserves the technician's original UUID v4 submission_id.
    */
   public async enqueue(
-    submission: Omit<OfflineTicketSubmission, 'id' | 'createdAt' | 'attempts'>
+    submission: Omit<OfflineTicketSubmission, 'id' | 'createdAt' | 'attempts'>,
   ): Promise<OfflineTicketSubmission> {
     const queue = await this.getQueue();
 
@@ -175,7 +171,11 @@ export class OfflineQueueManager {
         try {
           // 1. Photo Upload to MinIO (Presigned URL)
           if (item.localPhotoUri && !item.payload.photoObjectKey) {
-            this.onSyncProgressListener?.('UPLOADING_MINIO', item.submissionId, 'Mengunggah foto bukti OPM ke MinIO...');
+            this.onSyncProgressListener?.(
+              'UPLOADING_MINIO',
+              item.submissionId,
+              'Mengunggah foto bukti OPM ke MinIO...',
+            );
             let uploadedKey: string | null = null;
 
             if (this.apiClient) {
@@ -192,7 +192,7 @@ export class OfflineQueueManager {
 
               if (!urlRes.success) {
                 throw new Error(
-                  urlRes.error?.message || 'Gagal meminta Presigned PUT URL dari server'
+                  urlRes.error?.message || 'Gagal meminta Presigned PUT URL dari server',
                 );
               }
 
@@ -221,7 +221,11 @@ export class OfflineQueueManager {
           }
 
           // 2. Transmit ticket submission to API with immutable UUID v4 Idempotency Key
-          this.onSyncProgressListener?.('SUBMITTING_API', item.submissionId, 'Mengirimkan payload tiket ke server...');
+          this.onSyncProgressListener?.(
+            'SUBMITTING_API',
+            item.submissionId,
+            'Mengirimkan payload tiket ke server...',
+          );
           let res: ApiResponse<unknown>;
 
           if (this.sender) {
@@ -236,7 +240,7 @@ export class OfflineQueueManager {
               {
                 'X-Idempotency-Key': item.submissionId,
                 'Idempotency-Key': item.submissionId,
-              }
+              },
             );
           } else {
             console.warn('[OfflineQueue] Neither sender nor apiClient configured.');
@@ -247,7 +251,11 @@ export class OfflineQueueManager {
             'meta' in res && Boolean((res as Record<string, any>).meta?.alreadyProcessed);
 
           if (res.success || isIdempotentSuccess) {
-            this.onSyncProgressListener?.('COMPLETED', item.submissionId, 'Laporan berhasil disinkronkan ke server.');
+            this.onSyncProgressListener?.(
+              'COMPLETED',
+              item.submissionId,
+              'Laporan berhasil disinkronkan ke server.',
+            );
             successfullyProcessedIds.add(item.submissionId);
             processed++;
           } else {
@@ -263,7 +271,7 @@ export class OfflineQueueManager {
       }
 
       const remainingQueue = queue.filter(
-        (item) => !successfullyProcessedIds.has(item.submissionId)
+        (item) => !successfullyProcessedIds.has(item.submissionId),
       );
       await this.saveQueue(remainingQueue);
     } finally {
@@ -278,7 +286,7 @@ export class OfflineQueueManager {
    * Subscribes to NetInfo network connectivity transitions and triggers flush upon reconnection.
    */
   public attachNetInfoListener(
-    subscribeNetInfo: (callback: (state: { isConnected: boolean | null }) => void) => () => void
+    subscribeNetInfo: (callback: (state: { isConnected: boolean | null }) => void) => () => void,
   ): () => void {
     let wasConnected = true;
 
@@ -298,9 +306,7 @@ export class OfflineQueueManager {
  * Creates default HTTP submission sender utilizing ApiClient and targeting:
  * POST /api/v1/tech/tickets/[id]/submit
  */
-export function createDefaultSubmissionSender(
-  apiClient: MobileApiClientLike
-): SubmissionSender {
+export function createDefaultSubmissionSender(apiClient: MobileApiClientLike): SubmissionSender {
   return async (ticketId: string, payload: SubmitTicketInput, idempotencyKey: string) => {
     return apiClient.request(
       `/api/v1/tech/tickets/${ticketId}/submit`,
@@ -311,7 +317,7 @@ export function createDefaultSubmissionSender(
       {
         'X-Idempotency-Key': idempotencyKey,
         'Idempotency-Key': idempotencyKey,
-      }
+      },
     );
   };
 }

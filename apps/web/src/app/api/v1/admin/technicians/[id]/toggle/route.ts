@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TechnicianService } from '@/server/services/technician.service';
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
@@ -18,7 +15,7 @@ export async function POST(
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: { code: 'TECH_TOGGLE_ERROR', message: error.message } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 }

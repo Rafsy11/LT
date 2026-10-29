@@ -3,21 +3,24 @@
 These assets are reconstructed to follow the approved `image(9).png` visual direction. The cropped PNG is taken from the approved mockup reference; it is not an official Lintasarta brand master. Use an official vector/hi-res brand asset for production if available.
 
 ## Install
+
 Copy these files to `apps/web/public/assets/`:
+
 - `fiberops-header-gradient.svg`
 - `fiberops-sidebar-gradient.svg`
 - `lintasarta-logo.png`
 
 ## CSS reference
+
 Rename selectors to match the existing app components. Consolidate old background declarations rather than stacking overrides.
 
 ```css
 .app-header {
-  background: #cde7fb url("/assets/fiberops-header-gradient.svg") center / 100% 100% no-repeat;
+  background: #cde7fb url('/assets/fiberops-header-gradient.svg') center / 100% 100% no-repeat;
 }
 
 .app-sidebar {
-  background: #d7ecfc url("/assets/fiberops-sidebar-gradient.svg") center / 100% 100% no-repeat;
+  background: #d7ecfc url('/assets/fiberops-sidebar-gradient.svg') center / 100% 100% no-repeat;
 }
 
 .app-brand-logo {
@@ -29,6 +32,7 @@ Rename selectors to match the existing app components. Consolidate old backgroun
 ```
 
 ## Layout details from the reference
+
 - Keep the desktop sidebar near 244px wide; do not let it shrink.
 - Render the logo at roughly 140–145px wide. The incorrect screenshot shows it much smaller than the reference.
 - The reference top search field begins approximately 186px inside the content header (around x=430 at a 1536px-wide viewport), and is about 490px wide. Use explicit grid columns instead of letting `justify-content: space-between` place it unpredictably.
@@ -37,6 +41,7 @@ Rename selectors to match the existing app components. Consolidate old backgroun
 - Restore the `Buat Tiket` action beside `Export laporan`, retaining its existing click handler and role permissions.
 
 ## Verification checklist
+
 1. Compare at a 1536 × 1024 browser viewport and 100% zoom first, matching the reference image size.
 2. Verify the logo uses the exact provided PNG at the intended size.
 3. Verify the header has broad translucent sky-blue curves, not a flat blue fill or a faint unrelated stripe pattern.

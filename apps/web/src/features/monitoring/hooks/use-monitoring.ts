@@ -49,7 +49,9 @@ export function useMonitoring() {
       if (json.success && Array.isArray(json.data)) {
         setReports(json.data);
         if (!selectedTicket && json.data.length > 0) {
-          const crit = json.data.find((r: LiveReportItem) => classifyDbm(r.currentAttenuation) === 'Critical');
+          const crit = json.data.find(
+            (r: LiveReportItem) => classifyDbm(r.currentAttenuation) === 'Critical',
+          );
           setSelectedTicket(crit || json.data[0]);
         }
       }
@@ -77,7 +79,11 @@ export function useMonitoring() {
           retryCount = 0;
           setSseState('LIVE_CONNECTED');
           setLastHeartbeat(
-            new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB'
+            new Date().toLocaleTimeString('id-ID', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            }) + ' WIB',
           );
         };
 
@@ -85,7 +91,11 @@ export function useMonitoring() {
           retryCount = 0;
           setSseState('LIVE_CONNECTED');
           setLastHeartbeat(
-            new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB'
+            new Date().toLocaleTimeString('id-ID', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            }) + ' WIB',
           );
         });
 
@@ -93,7 +103,11 @@ export function useMonitoring() {
           retryCount = 0;
           setSseState('LIVE_CONNECTED');
           setLastHeartbeat(
-            new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB'
+            new Date().toLocaleTimeString('id-ID', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            }) + ' WIB',
           );
         });
 
@@ -102,7 +116,7 @@ export function useMonitoring() {
             const item = JSON.parse(e.data);
             const rawDbm = Number(item.attenuationDbm);
             const distance = item.distanceMeters !== undefined ? Number(item.distanceMeters) : 18;
-            const isLocationFlagged = item.isLocationFlagged ?? (distance > 100);
+            const isLocationFlagged = item.isLocationFlagged ?? distance > 100;
 
             const newReport: LiveReportItem = {
               id: item.id || `live-${Date.now()}`,
@@ -124,10 +138,17 @@ export function useMonitoring() {
               isLiveIncoming: true,
             };
 
-            setReports((prev) => [newReport, ...prev.filter((r) => r.ticketNumber !== newReport.ticketNumber)]);
+            setReports((prev) => [
+              newReport,
+              ...prev.filter((r) => r.ticketNumber !== newReport.ticketNumber),
+            ]);
             setSelectedTicket(newReport);
             setLastHeartbeat(
-              new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB'
+              new Date().toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              }) + ' WIB',
             );
           } catch (err) {
             console.error('[Monitoring] Parse error pada SSE report event:', err);
@@ -195,8 +216,10 @@ export function useMonitoring() {
         r.cluster.toLowerCase().includes(cluster.replace('Bandung ', '').toLowerCase());
       const matchesType =
         typeFilter === 'Semua tipe' ||
-        (typeFilter === 'Pasang baru' && (r.ticketType === 'Pasang baru' || r.ticketType === 'Instalasi')) ||
-        (typeFilter === 'Maintenance' && (r.ticketType === 'Maintenance' || r.ticketType === 'Perbaikan'));
+        (typeFilter === 'Pasang baru' &&
+          (r.ticketType === 'Pasang baru' || r.ticketType === 'Instalasi')) ||
+        (typeFilter === 'Maintenance' &&
+          (r.ticketType === 'Maintenance' || r.ticketType === 'Perbaikan'));
       const matchesTech = techFilter === 'Semua teknisi' || r.assignedTech === techFilter;
       const matchesSearch =
         search.trim() === '' ||
@@ -217,15 +240,15 @@ export function useMonitoring() {
 
   const normalCount = useMemo(
     () => scopedReports.filter((r) => classifyDbm(r.currentAttenuation) === 'Normal').length,
-    [scopedReports]
+    [scopedReports],
   );
   const warningCount = useMemo(
     () => scopedReports.filter((r) => classifyDbm(r.currentAttenuation) === 'Warning').length,
-    [scopedReports]
+    [scopedReports],
   );
   const criticalCount = useMemo(
     () => scopedReports.filter((r) => classifyDbm(r.currentAttenuation) === 'Critical').length,
-    [scopedReports]
+    [scopedReports],
   );
 
   const pinnedCriticalReport = useMemo(() => {
@@ -290,4 +313,3 @@ export function useMonitoring() {
     fetchInitialReports,
   };
 }
-

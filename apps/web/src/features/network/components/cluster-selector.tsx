@@ -46,7 +46,9 @@ export function ClusterSelector({
       <div className="tree-clusters-accordion">
         {clusterGroups.map((group) => {
           const isExpanded = expandedClusters[group.clusterCode] ?? true;
-          const hasActiveChild = group.splitters.some((s) => s.splitterCode === activeSplitter?.splitterCode);
+          const hasActiveChild = group.splitters.some(
+            (s) => s.splitterCode === activeSplitter?.splitterCode,
+          );
 
           return (
             <div key={group.clusterCode} className="tree-cluster-node">
@@ -97,4 +99,3 @@ export function ClusterSelector({
     </aside>
   );
 }
-

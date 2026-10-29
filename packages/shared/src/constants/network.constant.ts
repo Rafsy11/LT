@@ -18,7 +18,13 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-004',
         attenuation: -18.4,
         attenuationHistory: [-19.2, -18.8, -18.4],
-        lastActivity: { type: 'MAINTENANCE', date: '16 Okt 2026', technician: 'Andi Pratama', ticketNumber: 'TKT-2026-077', notes: 'Splicing ulang pigtail' },
+        lastActivity: {
+          type: 'MAINTENANCE',
+          date: '16 Okt 2026',
+          technician: 'Andi Pratama',
+          ticketNumber: 'TKT-2026-077',
+          notes: 'Splicing ulang pigtail',
+        },
         status: 'ACTIVE',
       },
       {
@@ -28,7 +34,12 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-005',
         attenuation: -19.2,
         attenuationHistory: [-19.5, -19.2],
-        lastActivity: { type: 'PEMASANGAN', date: '11 Okt 2026', technician: 'Budi Santoso', ticketNumber: 'PSB-2026-112' },
+        lastActivity: {
+          type: 'PEMASANGAN',
+          date: '11 Okt 2026',
+          technician: 'Budi Santoso',
+          ticketNumber: 'PSB-2026-112',
+        },
         status: 'ACTIVE',
       },
       {
@@ -38,13 +49,24 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-001',
         attenuation: -17.8,
         attenuationHistory: [-18.5, -17.8],
-        lastActivity: { type: 'MAINTENANCE', date: '04 Okt 2026', technician: 'Dedi Kurniawan', ticketNumber: 'TKT-2026-069' },
+        lastActivity: {
+          type: 'MAINTENANCE',
+          date: '04 Okt 2026',
+          technician: 'Dedi Kurniawan',
+          ticketNumber: 'TKT-2026-069',
+        },
         status: 'ACTIVE',
       },
       {
         portNumber: 4,
         isOccupied: false,
-        lastActivity: { type: 'PENARIKAN', date: '28 Sep 2026', technician: 'Hendro Wijaya', ticketNumber: 'DIS-2026-018', notes: 'Pelanggan relokasi' },
+        lastActivity: {
+          type: 'PENARIKAN',
+          date: '28 Sep 2026',
+          technician: 'Hendro Wijaya',
+          ticketNumber: 'DIS-2026-018',
+          notes: 'Pelanggan relokasi',
+        },
       },
       {
         portNumber: 5,
@@ -53,7 +75,12 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-002',
         attenuation: -20.1,
         attenuationHistory: [-20.8, -20.1],
-        lastActivity: { type: 'PEMASANGAN', date: '19 Sep 2026', technician: 'Andi Pratama', ticketNumber: 'PSB-2026-091' },
+        lastActivity: {
+          type: 'PEMASANGAN',
+          date: '19 Sep 2026',
+          technician: 'Andi Pratama',
+          ticketNumber: 'PSB-2026-091',
+        },
         status: 'ACTIVE',
       },
       {
@@ -67,7 +94,13 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-006',
         attenuation: -21.4,
         attenuationHistory: [-22.5, -21.4],
-        lastActivity: { type: 'MAINTENANCE', date: '02 Sep 2026', technician: 'Budi Santoso', ticketNumber: 'TKT-2026-048', notes: 'Pembersihan adapter ferrule' },
+        lastActivity: {
+          type: 'MAINTENANCE',
+          date: '02 Sep 2026',
+          technician: 'Budi Santoso',
+          ticketNumber: 'TKT-2026-048',
+          notes: 'Pembersihan adapter ferrule',
+        },
         status: 'ACTIVE',
       },
       {
@@ -93,7 +126,12 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-011',
         attenuation: -18.1,
         attenuationHistory: [-18.6, -18.1],
-        lastActivity: { type: 'PEMASANGAN', date: '15 Okt 2026', technician: 'Andi Pratama', ticketNumber: 'PSB-2026-121' },
+        lastActivity: {
+          type: 'PEMASANGAN',
+          date: '15 Okt 2026',
+          technician: 'Andi Pratama',
+          ticketNumber: 'PSB-2026-121',
+        },
         status: 'ACTIVE',
       },
       {
@@ -103,13 +141,23 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-012',
         attenuation: -19.0,
         attenuationHistory: [-19.0],
-        lastActivity: { type: 'PEMASANGAN', date: '08 Okt 2026', technician: 'Dedi Kurniawan', ticketNumber: 'PSB-2026-105' },
+        lastActivity: {
+          type: 'PEMASANGAN',
+          date: '08 Okt 2026',
+          technician: 'Dedi Kurniawan',
+          ticketNumber: 'PSB-2026-105',
+        },
         status: 'ACTIVE',
       },
       {
         portNumber: 3,
         isOccupied: false,
-        lastActivity: { type: 'PENARIKAN', date: '01 Okt 2026', technician: 'Budi Santoso', ticketNumber: 'DIS-2026-022' },
+        lastActivity: {
+          type: 'PENARIKAN',
+          date: '01 Okt 2026',
+          technician: 'Budi Santoso',
+          ticketNumber: 'DIS-2026-022',
+        },
       },
       {
         portNumber: 4,
@@ -118,7 +166,12 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-014',
         attenuation: -18.7,
         attenuationHistory: [-19.4, -18.7],
-        lastActivity: { type: 'MAINTENANCE', date: '25 Sep 2026', technician: 'Hendro Wijaya', ticketNumber: 'TKT-2026-061' },
+        lastActivity: {
+          type: 'MAINTENANCE',
+          date: '25 Sep 2026',
+          technician: 'Hendro Wijaya',
+          ticketNumber: 'TKT-2026-061',
+        },
         status: 'ACTIVE',
       },
       { portNumber: 5, isOccupied: false },
@@ -149,7 +202,13 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         12: 'Citra Kirana',
       };
       const atts: Record<number, number> = {
-        1: -18.9, 2: -19.5, 3: -22.4, 5: -17.6, 7: -23.1, 9: -18.2, 12: -20.8
+        1: -18.9,
+        2: -19.5,
+        3: -22.4,
+        5: -17.6,
+        7: -23.1,
+        9: -18.2,
+        12: -20.8,
       };
       const historyMap: Record<number, number[]> = {
         1: [-19.5, -18.9],
@@ -161,13 +220,49 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         12: [-21.4, -20.8],
       };
       const activityMap: Record<number, SplitterPortActivity> = {
-        1: { type: 'MAINTENANCE', date: '17 Okt 2026', technician: 'Andi Pratama', ticketNumber: 'TKT-2026-079' },
-        2: { type: 'PEMASANGAN', date: '14 Okt 2026', technician: 'Budi Santoso', ticketNumber: 'PSB-2026-118' },
-        3: { type: 'MAINTENANCE', date: '10 Okt 2026', technician: 'Dedi Kurniawan', ticketNumber: 'TKT-2026-071', notes: 'Redaman tinggi diturunkan' },
-        5: { type: 'PEMASANGAN', date: '01 Okt 2026', technician: 'Andi Pratama', ticketNumber: 'PSB-2026-098' },
-        7: { type: 'MAINTENANCE', date: '24 Sep 2026', technician: 'Hendro Wijaya', ticketNumber: 'TKT-2026-059' },
-        9: { type: 'PEMASANGAN', date: '15 Sep 2026', technician: 'Budi Santoso', ticketNumber: 'PSB-2026-087' },
-        12: { type: 'PEMASANGAN', date: '01 Sep 2026', technician: 'Dedi Kurniawan', ticketNumber: 'PSB-2026-074' },
+        1: {
+          type: 'MAINTENANCE',
+          date: '17 Okt 2026',
+          technician: 'Andi Pratama',
+          ticketNumber: 'TKT-2026-079',
+        },
+        2: {
+          type: 'PEMASANGAN',
+          date: '14 Okt 2026',
+          technician: 'Budi Santoso',
+          ticketNumber: 'PSB-2026-118',
+        },
+        3: {
+          type: 'MAINTENANCE',
+          date: '10 Okt 2026',
+          technician: 'Dedi Kurniawan',
+          ticketNumber: 'TKT-2026-071',
+          notes: 'Redaman tinggi diturunkan',
+        },
+        5: {
+          type: 'PEMASANGAN',
+          date: '01 Okt 2026',
+          technician: 'Andi Pratama',
+          ticketNumber: 'PSB-2026-098',
+        },
+        7: {
+          type: 'MAINTENANCE',
+          date: '24 Sep 2026',
+          technician: 'Hendro Wijaya',
+          ticketNumber: 'TKT-2026-059',
+        },
+        9: {
+          type: 'PEMASANGAN',
+          date: '15 Sep 2026',
+          technician: 'Budi Santoso',
+          ticketNumber: 'PSB-2026-087',
+        },
+        12: {
+          type: 'PEMASANGAN',
+          date: '01 Sep 2026',
+          technician: 'Dedi Kurniawan',
+          ticketNumber: 'PSB-2026-074',
+        },
       };
 
       const isDismantled = pNum === 4;
@@ -182,8 +277,13 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         lastActivity: occupied
           ? activityMap[pNum]
           : isDismantled
-          ? { type: 'PENARIKAN', date: '18 Sep 2026', technician: 'Hendro Wijaya', ticketNumber: 'DIS-2026-015' }
-          : undefined,
+            ? {
+                type: 'PENARIKAN',
+                date: '18 Sep 2026',
+                technician: 'Hendro Wijaya',
+                ticketNumber: 'DIS-2026-015',
+              }
+            : undefined,
         status: occupied ? 'ACTIVE' : undefined,
       };
     }),
@@ -205,7 +305,12 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-BS01',
         attenuation: -18.3,
         attenuationHistory: [-18.9, -18.3],
-        lastActivity: { type: 'PEMASANGAN', date: '13 Okt 2026', technician: 'Budi Santoso', ticketNumber: 'PSB-2026-115' },
+        lastActivity: {
+          type: 'PEMASANGAN',
+          date: '13 Okt 2026',
+          technician: 'Budi Santoso',
+          ticketNumber: 'PSB-2026-115',
+        },
         status: 'ACTIVE',
       },
       {
@@ -215,13 +320,23 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-BS02',
         attenuation: -19.4,
         attenuationHistory: [-19.4],
-        lastActivity: { type: 'PEMASANGAN', date: '06 Okt 2026', technician: 'Andi Pratama', ticketNumber: 'PSB-2026-102' },
+        lastActivity: {
+          type: 'PEMASANGAN',
+          date: '06 Okt 2026',
+          technician: 'Andi Pratama',
+          ticketNumber: 'PSB-2026-102',
+        },
         status: 'ACTIVE',
       },
       {
         portNumber: 3,
         isOccupied: false,
-        lastActivity: { type: 'PENARIKAN', date: '29 Sep 2026', technician: 'Dedi Kurniawan', ticketNumber: 'DIS-2026-020' },
+        lastActivity: {
+          type: 'PENARIKAN',
+          date: '29 Sep 2026',
+          technician: 'Dedi Kurniawan',
+          ticketNumber: 'DIS-2026-020',
+        },
       },
       {
         portNumber: 4,
@@ -230,7 +345,12 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-BS03',
         attenuation: -19.0,
         attenuationHistory: [-19.6, -19.0],
-        lastActivity: { type: 'MAINTENANCE', date: '22 Sep 2026', technician: 'Hendro Wijaya', ticketNumber: 'TKT-2026-056' },
+        lastActivity: {
+          type: 'MAINTENANCE',
+          date: '22 Sep 2026',
+          technician: 'Hendro Wijaya',
+          ticketNumber: 'TKT-2026-056',
+        },
         status: 'ACTIVE',
       },
       {
@@ -240,7 +360,12 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-BS04',
         attenuation: -18.7,
         attenuationHistory: [-18.7],
-        lastActivity: { type: 'PEMASANGAN', date: '12 Sep 2026', technician: 'Andi Pratama', ticketNumber: 'PSB-2026-085' },
+        lastActivity: {
+          type: 'PEMASANGAN',
+          date: '12 Sep 2026',
+          technician: 'Andi Pratama',
+          ticketNumber: 'PSB-2026-085',
+        },
         status: 'ACTIVE',
       },
       { portNumber: 6, isOccupied: false },
@@ -264,9 +389,16 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
       const prevAtt = occupied ? Number((currAtt! - 0.5).toFixed(1)) : undefined;
 
       const activityTypes: Array<'PEMASANGAN' | 'MAINTENANCE'> = [
-        'MAINTENANCE', 'PEMASANGAN', 'MAINTENANCE', 'PEMASANGAN',
-        'MAINTENANCE', 'PEMASANGAN', 'MAINTENANCE', 'PEMASANGAN',
-        'MAINTENANCE', 'PEMASANGAN'
+        'MAINTENANCE',
+        'PEMASANGAN',
+        'MAINTENANCE',
+        'PEMASANGAN',
+        'MAINTENANCE',
+        'PEMASANGAN',
+        'MAINTENANCE',
+        'PEMASANGAN',
+        'MAINTENANCE',
+        'PEMASANGAN',
       ];
 
       return {
@@ -281,18 +413,24 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
               type: activityTypes[pNum - 1],
               date: `${19 - pNum} Okt 2026`,
               technician: pNum % 2 === 0 ? 'Budi Santoso' : 'Andi Pratama',
-              ticketNumber: activityTypes[pNum - 1] === 'MAINTENANCE' ? `TKT-2026-0${80 + pNum}` : `PSB-2026-1${10 + pNum}`,
-              notes: activityTypes[pNum - 1] === 'MAINTENANCE' ? 'Optimasi sambungan kabel drop core' : 'Instalasi modem ONT & drop wire',
+              ticketNumber:
+                activityTypes[pNum - 1] === 'MAINTENANCE'
+                  ? `TKT-2026-0${80 + pNum}`
+                  : `PSB-2026-1${10 + pNum}`,
+              notes:
+                activityTypes[pNum - 1] === 'MAINTENANCE'
+                  ? 'Optimasi sambungan kabel drop core'
+                  : 'Instalasi modem ONT & drop wire',
             }
           : pNum === 11
-          ? {
-              type: 'PENARIKAN',
-              date: '05 Okt 2026',
-              technician: 'Dedi Kurniawan',
-              ticketNumber: 'DIS-2026-025',
-              notes: 'Terminasi kontrak pelanggan',
-            }
-          : undefined,
+            ? {
+                type: 'PENARIKAN',
+                date: '05 Okt 2026',
+                technician: 'Dedi Kurniawan',
+                ticketNumber: 'DIS-2026-025',
+                notes: 'Terminasi kontrak pelanggan',
+              }
+            : undefined,
         status: occupied ? 'ACTIVE' : undefined,
       };
     }),
@@ -315,7 +453,9 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         customerName: occupied ? `Pelanggan BT-B${pNum}` : undefined,
         siaNumber: occupied ? `SIA-2024-BTB${String(pNum).padStart(2, '0')}` : undefined,
         attenuation: occupied ? Number((-19.0 - pNum * 0.2).toFixed(1)) : undefined,
-        attenuationHistory: occupied ? [Number((-19.5 - pNum * 0.2).toFixed(1)), Number((-19.0 - pNum * 0.2).toFixed(1))] : undefined,
+        attenuationHistory: occupied
+          ? [Number((-19.5 - pNum * 0.2).toFixed(1)), Number((-19.0 - pNum * 0.2).toFixed(1))]
+          : undefined,
         lastActivity: occupied
           ? {
               type: pNum % 2 === 0 ? 'MAINTENANCE' : 'PEMASANGAN',
@@ -345,7 +485,12 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-BB01',
         attenuation: -18.0,
         attenuationHistory: [-18.5, -18.0],
-        lastActivity: { type: 'PEMASANGAN', date: '16 Okt 2026', technician: 'Andi Pratama', ticketNumber: 'PSB-2026-124' },
+        lastActivity: {
+          type: 'PEMASANGAN',
+          date: '16 Okt 2026',
+          technician: 'Andi Pratama',
+          ticketNumber: 'PSB-2026-124',
+        },
         status: 'ACTIVE',
       },
       {
@@ -355,7 +500,12 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-BB02',
         attenuation: -19.2,
         attenuationHistory: [-19.2],
-        lastActivity: { type: 'MAINTENANCE', date: '09 Okt 2026', technician: 'Budi Santoso', ticketNumber: 'TKT-2026-073' },
+        lastActivity: {
+          type: 'MAINTENANCE',
+          date: '09 Okt 2026',
+          technician: 'Budi Santoso',
+          ticketNumber: 'TKT-2026-073',
+        },
         status: 'ACTIVE',
       },
       { portNumber: 3, isOccupied: false },
@@ -383,7 +533,12 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-BB03',
         attenuation: -17.5,
         attenuationHistory: [-18.1, -17.5],
-        lastActivity: { type: 'MAINTENANCE', date: '14 Okt 2026', technician: 'Dedi Kurniawan', ticketNumber: 'TKT-2026-075' },
+        lastActivity: {
+          type: 'MAINTENANCE',
+          date: '14 Okt 2026',
+          technician: 'Dedi Kurniawan',
+          ticketNumber: 'TKT-2026-075',
+        },
         status: 'ACTIVE',
       },
       { portNumber: 2, isOccupied: false },
@@ -394,13 +549,23 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-BB04',
         attenuation: -19.0,
         attenuationHistory: [-19.0],
-        lastActivity: { type: 'PEMASANGAN', date: '07 Okt 2026', technician: 'Andi Pratama', ticketNumber: 'PSB-2026-104' },
+        lastActivity: {
+          type: 'PEMASANGAN',
+          date: '07 Okt 2026',
+          technician: 'Andi Pratama',
+          ticketNumber: 'PSB-2026-104',
+        },
         status: 'ACTIVE',
       },
       {
         portNumber: 4,
         isOccupied: false,
-        lastActivity: { type: 'PENARIKAN', date: '26 Sep 2026', technician: 'Hendro Wijaya', ticketNumber: 'DIS-2026-017' },
+        lastActivity: {
+          type: 'PENARIKAN',
+          date: '26 Sep 2026',
+          technician: 'Hendro Wijaya',
+          ticketNumber: 'DIS-2026-017',
+        },
       },
       {
         portNumber: 5,
@@ -409,7 +574,12 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
         siaNumber: 'SIA-2024-BB05',
         attenuation: -18.2,
         attenuationHistory: [-18.9, -18.2],
-        lastActivity: { type: 'MAINTENANCE', date: '18 Sep 2026', technician: 'Budi Santoso', ticketNumber: 'TKT-2026-052' },
+        lastActivity: {
+          type: 'MAINTENANCE',
+          date: '18 Sep 2026',
+          technician: 'Budi Santoso',
+          ticketNumber: 'TKT-2026-052',
+        },
         status: 'ACTIVE',
       },
       { portNumber: 6, isOccupied: false },
@@ -418,4 +588,3 @@ export const FALLBACK_CLUSTERS: ClusterListItem[] = [
     ],
   },
 ];
-

@@ -10,12 +10,7 @@ export interface AiPromptInputProps {
   onSubmit: (prompt: string) => void;
 }
 
-export function AiPromptInput({
-  prompt,
-  setPrompt,
-  loading,
-  onSubmit,
-}: AiPromptInputProps) {
+export function AiPromptInput({ prompt, setPrompt, loading, onSubmit }: AiPromptInputProps) {
   return (
     <form
       onSubmit={(e) => {
@@ -114,4 +109,3 @@ export function AiPromptInput({
     </form>
   );
 }
-

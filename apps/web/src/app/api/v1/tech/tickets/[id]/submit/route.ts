@@ -5,10 +5,7 @@ import { submitTicketSchema, ERROR_CODES } from '@repo/shared';
 import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
 import { prisma } from '@repo/database';
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // 1. Instant Force Logout Check via Redis (Task 2 & Law 4)
     const deviceId = request.headers.get('x-device-id');
@@ -20,10 +17,11 @@ export async function POST(
             success: false,
             error: {
               code: ERROR_CODES.SESSION_REVOKED,
-              message: 'Sesi perangkat Anda telah dicabut oleh Administrator (Force Logout). Silakan login kembali.',
+              message:
+                'Sesi perangkat Anda telah dicabut oleh Administrator (Force Logout). Silakan login kembali.',
             },
           },
-          { status: 401 }
+          { status: 401 },
         );
       }
     }
@@ -34,7 +32,7 @@ export async function POST(
     // 2. Rate Limiting: Maksimal 20 request per menit per Teknisi user ID
     const rateResult = await checkRateLimit(
       `tech_submit:${techUserId}`,
-      RATE_LIMIT_PROFILES.TECH_SUBMIT
+      RATE_LIMIT_PROFILES.TECH_SUBMIT,
     );
     if (!rateResult.allowed) {
       return NextResponse.json(
@@ -42,14 +40,15 @@ export async function POST(
           success: false,
           error: {
             code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
-            message: 'Terlalu banyak pengiriman laporan tiket. Silakan tunggu cooldown sebelum mengirim ulang.',
+            message:
+              'Terlalu banyak pengiriman laporan tiket. Silakan tunggu cooldown sebelum mengirim ulang.',
           },
           meta: { retryAfterMs: rateResult.retryAfterMs },
         },
         {
           status: 429,
           headers: { 'Retry-After': String(Math.ceil(rateResult.retryAfterMs / 1000)) },
-        }
+        },
       );
     }
 
@@ -84,10 +83,11 @@ export async function POST(
               success: false,
               error: {
                 code: ERROR_CODES.IDOR_VIOLATION,
-                message: 'Anda tidak berwenang mengirim laporan untuk tiket yang bukan ditugaskan kepada Anda.',
+                message:
+                  'Anda tidak berwenang mengirim laporan untuk tiket yang bukan ditugaskan kepada Anda.',
               },
             },
-            { status: 403 }
+            { status: 403 },
           );
         }
 
@@ -107,10 +107,11 @@ export async function POST(
                 success: false,
                 error: {
                   code: ERROR_CODES.IDOR_VIOLATION,
-                  message: 'submissionId ini telah digunakan pada tiket atau teknisi lain (Cross-Ticket Replay Blocked).',
+                  message:
+                    'submissionId ini telah digunakan pada tiket atau teknisi lain (Cross-Ticket Replay Blocked).',
                 },
               },
-              { status: 403 }
+              { status: 403 },
             );
           }
 
@@ -134,7 +135,7 @@ export async function POST(
                 message: `Tiket sudah berstatus ${ticket.status} dan tidak dapat dimutasi lagi.`,
               },
             },
-            { status: 409 }
+            { status: 409 },
           );
         }
       }
@@ -163,7 +164,9 @@ export async function POST(
     const isOccupied = err.message?.includes(ERROR_CODES.PORT_OCCUPIED);
     const isMock = err.message?.includes(ERROR_CODES.MOCK_LOCATION_DETECTED);
     const isIdor = err.message?.includes(ERROR_CODES.IDOR_VIOLATION);
-    const isClosed = err.message?.includes('tidak dapat dimutasi') || err.message?.includes(ERROR_CODES.TICKET_ALREADY_CLOSED);
+    const isClosed =
+      err.message?.includes('tidak dapat dimutasi') ||
+      err.message?.includes(ERROR_CODES.TICKET_ALREADY_CLOSED);
 
     let status = 400;
     if (isOccupied || isClosed) status = 409;
@@ -188,7 +191,7 @@ export async function POST(
           details: err.errors,
         },
       },
-      { status }
+      { status },
     );
   }
 }

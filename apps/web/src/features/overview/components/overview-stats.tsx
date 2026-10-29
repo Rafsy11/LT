@@ -68,7 +68,9 @@ export function OverviewStats({
             </div>
           </div>
           <div className="stat-card-footer">
-            <span className="caption">dari {techStats ? techStats.total : 8} teknisi terdaftar</span>
+            <span className="caption">
+              dari {techStats ? techStats.total : 8} teknisi terdaftar
+            </span>
           </div>
         </div>
       </article>
@@ -95,4 +97,3 @@ export function OverviewStats({
     </section>
   );
 }
-

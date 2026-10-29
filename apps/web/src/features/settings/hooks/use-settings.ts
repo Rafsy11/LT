@@ -2,11 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth, useToast } from '@/providers';
-import {
-  SystemSettingsInput,
-  SystemTelemetryData,
-  BackupSnapshotItem,
-} from '@repo/shared';
+import { SystemSettingsInput, SystemTelemetryData, BackupSnapshotItem } from '@repo/shared';
 
 export type SettingsTab = 'infrastruktur' | 'geofencing' | 'backup' | 'jaringan';
 
@@ -70,7 +66,7 @@ export function useSettings() {
   // Handle form change
   const handleChange = <K extends keyof SystemSettingsInput>(
     field: K,
-    value: SystemSettingsInput[K]
+    value: SystemSettingsInput[K],
   ) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
     setHasChanges(true);
@@ -106,9 +102,12 @@ export function useSettings() {
 
       setSettings(json.data);
       setHasChanges(false);
-      showSuccess('Konfigurasi sistem on-premise berhasil diperbarui dan dicatat pada activity_logs.');
+      showSuccess(
+        'Konfigurasi sistem on-premise berhasil diperbarui dan dicatat pada activity_logs.',
+      );
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan pengaturan';
+      const message =
+        err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan pengaturan';
       showError(message);
     } finally {
       setIsSaving(false);
@@ -145,7 +144,9 @@ export function useSettings() {
         });
       }
 
-      showSuccess(`Backup darurat ${newSnapshot.filename} (${newSnapshot.sizeMb} MB) berhasil dibuat dan disinkronkan ke NAS.`);
+      showSuccess(
+        `Backup darurat ${newSnapshot.filename} (${newSnapshot.sizeMb} MB) berhasil dibuat dan disinkronkan ke NAS.`,
+      );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Gagal menjalankan snapshot backup';
       showError(message);
@@ -170,4 +171,3 @@ export function useSettings() {
     handleTriggerBackup,
   };
 }
-

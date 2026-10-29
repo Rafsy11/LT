@@ -6,14 +6,13 @@ import { SystemSettingsInput } from '@repo/shared';
 export interface GeofencingPanelProps {
   settings: SystemSettingsInput;
   isSuperAdmin: boolean;
-  handleChange: <K extends keyof SystemSettingsInput>(field: K, value: SystemSettingsInput[K]) => void;
+  handleChange: <K extends keyof SystemSettingsInput>(
+    field: K,
+    value: SystemSettingsInput[K],
+  ) => void;
 }
 
-export function GeofencingPanel({
-  settings,
-  isSuperAdmin,
-  handleChange,
-}: GeofencingPanelProps) {
+export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: GeofencingPanelProps) {
   return (
     <div
       style={{
@@ -37,11 +36,19 @@ export function GeofencingPanel({
           Batas Toleransi Geofencing Teknisi Lapangan
         </h2>
         <p style={{ fontSize: '12.5px', color: '#515a62', margin: '0 0 16px 0' }}>
-          Jarak maksimal yang diizinkan antara koordinat GPS ponsel teknisi dengan koordinat tiang ODP saat menekan tombol Submit.
+          Jarak maksimal yang diizinkan antara koordinat GPS ponsel teknisi dengan koordinat tiang
+          ODP saat menekan tombol Submit.
         </p>
 
         {/* 3 Radius Option Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '22px' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '10px',
+            marginBottom: '22px',
+          }}
+        >
           {[
             {
               val: 50,
@@ -71,17 +78,29 @@ export function GeofencingPanel({
                 transition: 'all 0.15s ease',
               }}
             >
-              <div style={{ fontWeight: 600, fontSize: '13px', color: '#182230', marginBottom: '3px' }}>
+              <div
+                style={{ fontWeight: 600, fontSize: '13px', color: '#182230', marginBottom: '3px' }}
+              >
                 {item.title}
               </div>
-              <div style={{ fontSize: '11.5px', color: '#64748b', lineHeight: 1.35 }}>{item.desc}</div>
+              <div style={{ fontSize: '11.5px', color: '#64748b', lineHeight: 1.35 }}>
+                {item.desc}
+              </div>
             </div>
           ))}
         </div>
 
         {/* Policy Selection */}
         <div style={{ borderTop: '1px solid #edf2f7', paddingTop: '18px' }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#182230', marginBottom: '4px' }}>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#182230',
+              marginBottom: '4px',
+            }}
+          >
             Kebijakan Penanganan Laporan di Luar Radius ODP
           </label>
           <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 12px 0' }}>
@@ -97,7 +116,8 @@ export function GeofencingPanel({
                 padding: '12px 14px',
                 borderRadius: '6px',
                 border: `1.5px solid ${settings.locationViolationPolicy === 'SOFT_WARNING' ? '#0e5b92' : '#e2ecf2'}`,
-                background: settings.locationViolationPolicy === 'SOFT_WARNING' ? '#f0f7ff' : '#ffffff',
+                background:
+                  settings.locationViolationPolicy === 'SOFT_WARNING' ? '#f0f7ff' : '#ffffff',
                 cursor: isSuperAdmin ? 'pointer' : 'default',
                 transition: 'all 0.15s ease',
               }}
@@ -114,8 +134,11 @@ export function GeofencingPanel({
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#182230' }}>
                   Tandai untuk Ditinjau Admin (Soft Warning · LOCATION_MISMATCH_WARNING)
                 </div>
-                <div style={{ fontSize: '12px', color: '#515a62', marginTop: '2px', lineHeight: 1.4 }}>
-                  Laporan tetap tersimpan ke PostgreSQL agar pekerjaan lapangan tidak tertunda, namun disorot dengan badge merah pada Live Monitoring untuk verifikasi Admin/NOC.
+                <div
+                  style={{ fontSize: '12px', color: '#515a62', marginTop: '2px', lineHeight: 1.4 }}
+                >
+                  Laporan tetap tersimpan ke PostgreSQL agar pekerjaan lapangan tidak tertunda,
+                  namun disorot dengan badge merah pada Live Monitoring untuk verifikasi Admin/NOC.
                 </div>
               </div>
             </label>
@@ -128,7 +151,8 @@ export function GeofencingPanel({
                 padding: '12px 14px',
                 borderRadius: '6px',
                 border: `1.5px solid ${settings.locationViolationPolicy === 'HARD_BLOCK' ? '#0e5b92' : '#e2ecf2'}`,
-                background: settings.locationViolationPolicy === 'HARD_BLOCK' ? '#f0f7ff' : '#ffffff',
+                background:
+                  settings.locationViolationPolicy === 'HARD_BLOCK' ? '#f0f7ff' : '#ffffff',
                 cursor: isSuperAdmin ? 'pointer' : 'default',
                 transition: 'all 0.15s ease',
               }}
@@ -145,8 +169,11 @@ export function GeofencingPanel({
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#182230' }}>
                   Tolak Laporan Langsung (Hard Block · HTTP 400 Out of Geofence)
                 </div>
-                <div style={{ fontSize: '12px', color: '#515a62', marginTop: '2px', lineHeight: 1.4 }}>
-                  Backend langsung menolak transaksi dan aplikasi mobile menampilkan peringatan agar teknisi berpindah mendekati tiang ODP yang benar sebelum mengirim data.
+                <div
+                  style={{ fontSize: '12px', color: '#515a62', marginTop: '2px', lineHeight: 1.4 }}
+                >
+                  Backend langsung menolak transaksi dan aplikasi mobile menampilkan peringatan agar
+                  teknisi berpindah mendekati tiang ODP yang benar sebelum mengirim data.
                 </div>
               </div>
             </label>
@@ -170,7 +197,15 @@ export function GeofencingPanel({
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '12.5px', color: '#334155' }}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                fontSize: '12.5px',
+                color: '#334155',
+              }}
+            >
               <input
                 type="checkbox"
                 checked={settings.blockMockLocation}
@@ -182,18 +217,38 @@ export function GeofencingPanel({
                 <span style={{ fontWeight: 600, color: '#182230', display: 'block' }}>
                   Kunci Otomatis Aplikasi jika Terdeteksi Mock Location
                 </span>
-                <span style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.4, display: 'block', marginTop: '2px' }}>
-                  Memeriksa bendera sistem operasi Android (<code style={{ background: '#f1f5f9', padding: '1px 4px' }}>location.mocked</code>). Tombol submit dikunci seketika jika aplikasi fake GPS aktif.
+                <span
+                  style={{
+                    fontSize: '12px',
+                    color: '#64748b',
+                    lineHeight: 1.4,
+                    display: 'block',
+                    marginTop: '2px',
+                  }}
+                >
+                  Memeriksa bendera sistem operasi Android (
+                  <code style={{ background: '#f1f5f9', padding: '1px 4px' }}>location.mocked</code>
+                  ). Tombol submit dikunci seketika jika aplikasi fake GPS aktif.
                 </span>
               </div>
             </label>
 
             <div style={{ borderTop: '1px solid #edf2f7', paddingTop: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  color: '#334155',
+                  marginBottom: '4px',
+                }}
+              >
                 Batas Versi Minimum Aplikasi Mobile (App Version Gate)
               </label>
               <p style={{ fontSize: '11.5px', color: '#64748b', margin: '0 0 8px 0' }}>
-                Request dari aplikasi mobile yang menyertakan header <code style={{ background: '#f1f5f9', padding: '1px 4px' }}>X-App-Version</code> di bawah versi ini akan menerima respon <b>HTTP 426 Upgrade Required</b>.
+                Request dari aplikasi mobile yang menyertakan header{' '}
+                <code style={{ background: '#f1f5f9', padding: '1px 4px' }}>X-App-Version</code> di
+                bawah versi ini akan menerima respon <b>HTTP 426 Upgrade Required</b>.
               </p>
               <input
                 type="text"
@@ -218,4 +273,3 @@ export function GeofencingPanel({
     </div>
   );
 }
-

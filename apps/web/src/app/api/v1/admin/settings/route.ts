@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SystemService } from '@/server/services/system.service';
-import {
-  SystemSettingsSchema,
-  UserSessionContext,
-  UserTypeEnum,
-} from '@repo/shared';
+import { SystemSettingsSchema, UserSessionContext, UserTypeEnum } from '@repo/shared';
 
 function getActorContext(request: NextRequest): UserSessionContext {
   const userId = request.headers.get('x-user-id') || 'usr-admin-01';
@@ -40,7 +36,7 @@ export async function GET() {
           message: error.message || 'Gagal memuat konfigurasi sistem',
         },
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -67,7 +63,7 @@ export async function PUT(request: NextRequest) {
           message: error.message || 'Gagal memperbarui konfigurasi sistem',
         },
       },
-      { status }
+      { status },
     );
   }
 }

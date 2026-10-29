@@ -38,11 +38,7 @@ export function Sidebar({ ticketCount = 3 }: SidebarProps) {
   return (
     <aside className="sidebar">
       <Link href="/" className="brand lintasarta-brand-wrap" aria-label="Beranda Lintasarta">
-        <img
-          src="/assets/lintasarta-logo.png"
-          alt="Lintasarta"
-          className="brand-logo-img"
-        />
+        <img src="/assets/lintasarta-logo.png" alt="Lintasarta" className="brand-logo-img" />
       </Link>
 
       <div className="sidebar-workspace-section">
@@ -61,9 +57,7 @@ export function Sidebar({ ticketCount = 3 }: SidebarProps) {
                 {active && item.href === '/' && <span className="nav-active-dot" />}
                 {item.hasLiveDot && <i className="green-dot" />}
                 {item.tag && <span className="ai-tag">{item.tag}</span>}
-                {item.count !== undefined && (
-                  <span className="nav-count">{item.count}</span>
-                )}
+                {item.count !== undefined && <span className="nav-count">{item.count}</span>}
               </Link>
             );
           })}

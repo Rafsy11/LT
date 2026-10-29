@@ -44,7 +44,8 @@ export function TicketsView() {
           <div className="eyebrow">WORK ORDER & FIELD DISPATCH MANAGEMENT</div>
           <h1 className="overview-greeting">Tiket & Penugasan Lapangan</h1>
           <p className="overview-subtitle">
-            Disposisi pekerjaan Pasang Baru (PSB) dan Pemeliharaan (Maintenance) ke teknisi lapangan.
+            Disposisi pekerjaan Pasang Baru (PSB) dan Pemeliharaan (Maintenance) ke teknisi
+            lapangan.
           </p>
         </div>
 
@@ -62,11 +63,7 @@ export function TicketsView() {
           </button>
 
           {canCreateTicket ? (
-            <button
-              className="button primary"
-              onClick={() => setModalOpen(true)}
-              type="button"
-            >
+            <button className="button primary" onClick={() => setModalOpen(true)} type="button">
               <Icon name="plus" size={15} />
               <span>Buat Tiket Baru</span>
             </button>
@@ -141,4 +138,3 @@ export function TicketsView() {
     </main>
   );
 }
-

@@ -60,4 +60,3 @@ export function NetworkStats({ networkStats }: NetworkStatsProps) {
     </section>
   );
 }
-

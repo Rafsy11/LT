@@ -24,7 +24,7 @@ class WebApiClient {
    */
   public async request<T = unknown>(
     endpoint: string,
-    options: RequestOptions = {}
+    options: RequestOptions = {},
   ): Promise<ApiResponse<T>> {
     const { onConflict, skipAuthRedirect = false, ...fetchOptions } = options;
 
@@ -77,7 +77,7 @@ class WebApiClient {
         }
 
         const err: ApiClientError = new Error(
-          errPayload?.message || 'Sesi otentikasi telah berakhir. Silakan login kembali.'
+          errPayload?.message || 'Sesi otentikasi telah berakhir. Silakan login kembali.',
         ) as ApiClientError;
         err.code = errPayload?.code || ERROR_CODES.UNAUTHORIZED;
         err.statusCode = 401;
@@ -105,7 +105,8 @@ class WebApiClient {
         }
 
         const err: ApiClientError = new Error(
-          errPayload?.message || 'Konflik mutasi: Data telah berubah di server. Halaman telah diperbarui.'
+          errPayload?.message ||
+            'Konflik mutasi: Data telah berubah di server. Halaman telah diperbarui.',
         ) as ApiClientError;
         err.code = errPayload?.code || 'CONFLICT';
         err.statusCode = 409;
@@ -128,7 +129,7 @@ class WebApiClient {
 
       if (!response.ok) {
         const err: ApiClientError = new Error(
-          errPayload?.message || `Permintaan gagal dengan kode HTTP ${response.status}`
+          errPayload?.message || `Permintaan gagal dengan kode HTTP ${response.status}`,
         ) as ApiClientError;
         err.code = errPayload?.code || 'HTTP_ERROR';
         err.statusCode = response.status;
@@ -143,7 +144,7 @@ class WebApiClient {
       }
 
       const networkErr: ApiClientError = new Error(
-        (err as Error).message || 'Koneksi jaringan terputus atau server tidak merespons.'
+        (err as Error).message || 'Koneksi jaringan terputus atau server tidak merespons.',
       ) as ApiClientError;
       networkErr.code = 'NETWORK_ERROR';
       networkErr.statusCode = 0;
@@ -158,7 +159,7 @@ class WebApiClient {
   public post<T = unknown>(
     endpoint: string,
     body?: unknown,
-    options?: RequestOptions
+    options?: RequestOptions,
   ): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       ...options,
@@ -170,7 +171,7 @@ class WebApiClient {
   public patch<T = unknown>(
     endpoint: string,
     body?: unknown,
-    options?: RequestOptions
+    options?: RequestOptions,
   ): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       ...options,
@@ -182,7 +183,7 @@ class WebApiClient {
   public put<T = unknown>(
     endpoint: string,
     body?: unknown,
-    options?: RequestOptions
+    options?: RequestOptions,
   ): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       ...options,

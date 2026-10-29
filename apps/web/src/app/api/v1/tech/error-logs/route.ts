@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
             message: 'errorMessage wajib disertakan.',
           },
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
           message: error.message || 'Gagal menyimpan client error log',
         },
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

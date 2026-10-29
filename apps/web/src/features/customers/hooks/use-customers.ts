@@ -39,7 +39,14 @@ export function useCustomers() {
 
   // Distinct Options for Cluster Navigation Tabs
   const availableClusters = useMemo(() => {
-    const defaultList = ['Bandung Utara', 'Bandung Selatan', 'Bandung Timur', 'Bandung Barat', 'Cimahi', 'Rancaekek'];
+    const defaultList = [
+      'Bandung Utara',
+      'Bandung Selatan',
+      'Bandung Timur',
+      'Bandung Barat',
+      'Cimahi',
+      'Rancaekek',
+    ];
     const set = new Set<string>(defaultList);
     customers.forEach((c) => {
       if (c.cluster) set.add(c.cluster);
@@ -53,7 +60,7 @@ export function useCustomers() {
       const match = availableClusters.find(
         (cl) =>
           c.cluster.toLowerCase().trim() === cl.toLowerCase().trim() ||
-          c.cluster.toLowerCase().includes(cl.toLowerCase().replace('bandung ', '').trim())
+          c.cluster.toLowerCase().includes(cl.toLowerCase().replace('bandung ', '').trim()),
       );
       if (match) {
         map[match] = (map[match] || 0) + 1;
@@ -75,7 +82,10 @@ export function useCustomers() {
     const set = new Set<string>();
     customers.forEach((c) => {
       if (c.kelurahan) {
-        if (kecamatan === 'Semua kecamatan' || c.kecamatan?.toLowerCase() === kecamatan.toLowerCase()) {
+        if (
+          kecamatan === 'Semua kecamatan' ||
+          c.kecamatan?.toLowerCase() === kecamatan.toLowerCase()
+        ) {
           set.add(c.kelurahan);
         }
       }
@@ -87,8 +97,10 @@ export function useCustomers() {
     const set = new Set<string>();
     customers.forEach((c) => {
       if (c.street) {
-        const matchKec = kecamatan === 'Semua kecamatan' || c.kecamatan?.toLowerCase() === kecamatan.toLowerCase();
-        const matchKel = kelurahan === 'Semua kelurahan' || c.kelurahan?.toLowerCase() === kelurahan.toLowerCase();
+        const matchKec =
+          kecamatan === 'Semua kecamatan' || c.kecamatan?.toLowerCase() === kecamatan.toLowerCase();
+        const matchKel =
+          kelurahan === 'Semua kelurahan' || c.kelurahan?.toLowerCase() === kelurahan.toLowerCase();
         if (matchKec && matchKel) {
           set.add(c.street);
         }
@@ -145,26 +157,28 @@ export function useCustomers() {
         (c.street && c.street.toLowerCase() === jalan.toLowerCase()) ||
         c.address.toLowerCase().includes(jalan.toLowerCase());
 
-      return matchesCluster && matchesSearch && matchesKecamatan && matchesKelurahan && matchesJalan;
+      return (
+        matchesCluster && matchesSearch && matchesKecamatan && matchesKelurahan && matchesJalan
+      );
     });
   }, [customers, cluster, search, kecamatan, kelurahan, jalan]);
 
   // Telemetry Counts
   const activeCount = useMemo(
     () => clusterScoped.filter((c) => c.status === 'ACTIVE').length,
-    [clusterScoped]
+    [clusterScoped],
   );
   const pendingCount = useMemo(
     () => clusterScoped.filter((c) => c.status === 'PENDING_INSTALL').length,
-    [clusterScoped]
+    [clusterScoped],
   );
   const criticalCount = useMemo(
     () => clusterScoped.filter((c) => classifyDbm(c.currentAttenuation) === 'Critical').length,
-    [clusterScoped]
+    [clusterScoped],
   );
   const isolatedCount = useMemo(
     () => clusterScoped.filter((c) => c.status === 'ISOLATED').length,
-    [clusterScoped]
+    [clusterScoped],
   );
 
   // Tab Filter
@@ -219,4 +233,3 @@ export function useCustomers() {
     displayedCustomers,
   };
 }
-

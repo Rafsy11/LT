@@ -1,11 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useMemo } from 'react';
-import {
-  PERMISSIONS,
-  ROLE_PRESETS,
-  UserTypeEnum,
-} from '@repo/shared';
+import { PERMISSIONS, ROLE_PRESETS, UserTypeEnum } from '@repo/shared';
 
 export interface AuthUser {
   id: string;
@@ -105,4 +101,3 @@ export function PermissionGate({
   }
   return <>{fallback}</>;
 }
-

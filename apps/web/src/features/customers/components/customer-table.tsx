@@ -11,9 +11,13 @@ interface CustomerTableProps {
 export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProps) {
   return (
     <div className="table-scroll">
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+      <table
+        style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}
+      >
         <thead>
-          <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+          <tr
+            style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}
+          >
             <th style={{ padding: '10px 14px', fontWeight: 600 }}>Pelanggan &amp; Nomor SIA</th>
             <th style={{ padding: '10px 14px', fontWeight: 600 }}>Alamat Instalasi</th>
             <th style={{ padding: '10px 14px', fontWeight: 600 }}>Cluster</th>
@@ -59,11 +63,30 @@ export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProp
               </td>
 
               <td style={{ padding: '12px 14px', color: '#475569', maxWidth: '300px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }} title={c.address}>
-                  <span style={{ fontWeight: 500, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}
+                  title={c.address}
+                >
+                  <span
+                    style={{
+                      fontWeight: 500,
+                      color: '#0f172a',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
                     {c.street || c.address.split(',')[0]}
                   </span>
-                  <span style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: '#64748b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                    }}
+                  >
                     <Icon name="pin" size={11} />
                     {c.kelurahan && c.kecamatan
                       ? `Kel. ${c.kelurahan}, Kec. ${c.kecamatan}`
@@ -74,7 +97,9 @@ export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProp
 
               <td style={{ padding: '12px 14px' }}>
                 <span style={{ fontWeight: 500, color: '#334155' }}>{c.cluster}</span>
-                <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block' }}>{c.clusterCode}</span>
+                <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block' }}>
+                  {c.clusterCode}
+                </span>
               </td>
 
               <td style={{ padding: '12px 14px' }}>
@@ -91,34 +116,42 @@ export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProp
                       c.status === 'ACTIVE'
                         ? 'active'
                         : c.status === 'PENDING_INSTALL'
-                        ? 'pending'
-                        : c.status === 'ISOLATED'
-                        ? 'isolated'
-                        : 'inactive'
+                          ? 'pending'
+                          : c.status === 'ISOLATED'
+                            ? 'isolated'
+                            : 'inactive'
                     }`}
                   />
                   <span>
                     {c.status === 'ACTIVE'
                       ? 'Aktif'
                       : c.status === 'PENDING_INSTALL'
-                      ? 'Menunggu PSB'
-                      : c.status === 'ISOLATED'
-                      ? 'Terisolir'
-                      : 'Nonaktif'}
+                        ? 'Menunggu PSB'
+                        : c.status === 'ISOLATED'
+                          ? 'Terisolir'
+                          : 'Nonaktif'}
                   </span>
                 </span>
               </td>
 
               <td style={{ padding: '12px 14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', fontWeight: 600, fontSize: '12.5px', color: '#0f172a' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    fontWeight: 600,
+                    fontSize: '12.5px',
+                    color: '#0f172a',
+                  }}
+                >
                   <span>{c.currentAttenuation.toFixed(1)} dBm</span>
                   <SignalStrengthBars
                     status={
                       c.currentAttenuation >= -22.0 && c.currentAttenuation <= -15.0
                         ? 'normal'
                         : c.currentAttenuation < -22.0 && c.currentAttenuation >= -25.0
-                        ? 'warning'
-                        : 'critical'
+                          ? 'warning'
+                          : 'critical'
                     }
                   />
                 </div>
@@ -126,8 +159,8 @@ export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProp
                   {c.currentAttenuation >= -22.0 && c.currentAttenuation <= -15.0
                     ? 'Normal'
                     : c.currentAttenuation < -22.0 && c.currentAttenuation >= -25.0
-                    ? 'Waspada'
-                    : 'Kritis'}
+                      ? 'Waspada'
+                      : 'Kritis'}
                 </span>
               </td>
 
@@ -180,4 +213,3 @@ export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProp
     </div>
   );
 }
-

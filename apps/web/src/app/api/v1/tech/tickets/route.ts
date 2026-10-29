@@ -17,10 +17,11 @@ export async function GET(request: NextRequest) {
             success: false,
             error: {
               code: ERROR_CODES.SESSION_REVOKED,
-              message: 'Sesi perangkat Anda telah dicabut oleh Administrator (Force Logout). Silakan login kembali.',
+              message:
+                'Sesi perangkat Anda telah dicabut oleh Administrator (Force Logout). Silakan login kembali.',
             },
           },
-          { status: 401 }
+          { status: 401 },
         );
       }
     }
@@ -45,10 +46,7 @@ export async function GET(request: NextRequest) {
     } else if (queryTech) {
       techUser = await prisma.user.findFirst({
         where: {
-          OR: [
-            { username: queryTech },
-            { fullName: { contains: queryTech, mode: 'insensitive' } },
-          ],
+          OR: [{ username: queryTech }, { fullName: { contains: queryTech, mode: 'insensitive' } }],
         },
         include: { role: true },
       });
@@ -89,7 +87,9 @@ export async function GET(request: NextRequest) {
           address: t.customer.address,
           lat: t.customer.lat ? Number(t.customer.lat) : null,
           lng: t.customer.lng ? Number(t.customer.lng) : null,
-          currentAttenuation: t.customer.currentAttenuation ? Number(t.customer.currentAttenuation) : null,
+          currentAttenuation: t.customer.currentAttenuation
+            ? Number(t.customer.currentAttenuation)
+            : null,
           clusterName: t.customer.cluster?.name || 'Cluster',
           clusterCode: t.customer.cluster?.clusterCode || 'BDG',
           splitterCode: t.customer.splitter?.splitterCode || null,
@@ -106,7 +106,8 @@ export async function GET(request: NextRequest) {
         .filter(
           (t) =>
             t.status !== 'Selesai' &&
-            (t.assignedTech.toLowerCase().includes(targetTech.toLowerCase()) || targetTech.toLowerCase().includes('andi'))
+            (t.assignedTech.toLowerCase().includes(targetTech.toLowerCase()) ||
+              targetTech.toLowerCase().includes('andi')),
         )
         .map((t) => ({
           id: t.id,
@@ -210,7 +211,7 @@ export async function GET(request: NextRequest) {
           message: error.message || 'Gagal memuat daftar tiket teknisi',
         },
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

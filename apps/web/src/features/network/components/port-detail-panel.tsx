@@ -98,7 +98,8 @@ export function PortDetailPanel({
           <div className="inspection-action-info">
             <Icon name="check" size={14} />
             <span>
-              Inspeksi Preventif Terakhir: 18 Okt 2026 oleh <strong>Andi Pratama</strong> (Tiket: TKT-2026-081)
+              Inspeksi Preventif Terakhir: 18 Okt 2026 oleh <strong>Andi Pratama</strong> (Tiket:
+              TKT-2026-081)
             </span>
           </div>
 
@@ -160,7 +161,9 @@ export function PortDetailPanel({
                     </td>
 
                     <td>
-                      <span className={`port-alokasi-dot-label ${isOccupied ? 'occupied' : 'available'}`}>
+                      <span
+                        className={`port-alokasi-dot-label ${isOccupied ? 'occupied' : 'available'}`}
+                      >
                         {isOccupied ? 'Terisi' : 'Siap PSB'}
                       </span>
                     </td>
@@ -177,7 +180,15 @@ export function PortDetailPanel({
                     </td>
 
                     <td>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: '#475569' }}>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          fontSize: '11.5px',
+                          color: '#475569',
+                        }}
+                      >
                         <Icon name="camera" size={12} style={{ color: '#64748b' }} />
                         <span>{isOccupied ? '2 foto' : 'Tidak ada'}</span>
                       </span>
@@ -185,14 +196,21 @@ export function PortDetailPanel({
 
                     <td>
                       <div style={{ fontSize: '11.5px' }}>
-                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{port.lastActivity?.date || '05 Okt 2026'}</div>
-                        <div style={{ color: '#64748b', fontSize: '10.5px' }}>{port.lastActivity?.technician || 'Dedi Kurniawan'}</div>
+                        <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                          {port.lastActivity?.date || '05 Okt 2026'}
+                        </div>
+                        <div style={{ color: '#64748b', fontSize: '10.5px' }}>
+                          {port.lastActivity?.technician || 'Dedi Kurniawan'}
+                        </div>
                       </div>
                     </td>
 
                     <td>
                       <span style={{ fontSize: '11.5px', color: '#334155' }}>
-                        {port.lastActivity?.notes || (isOccupied ? 'Sinyal optik stabil, ferrule bersih.' : 'Port bebas alokasi PSB.')}
+                        {port.lastActivity?.notes ||
+                          (isOccupied
+                            ? 'Sinyal optik stabil, ferrule bersih.'
+                            : 'Port bebas alokasi PSB.')}
                       </span>
                     </td>
 
@@ -236,7 +254,16 @@ export function PortDetailPanel({
     return (
       <div className="odp-tab-pane">
         {/* Riwayat Activity Filters */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '18px',
+            flexWrap: 'wrap',
+            gap: '10px',
+          }}
+        >
           <div>
             <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
               Log Histori Aktivitas Operasional {activeSplitter.splitterCode}
@@ -256,7 +283,8 @@ export function PortDetailPanel({
                   padding: '4px 10px',
                   fontSize: '11px',
                   borderRadius: '14px',
-                  border: historyTypeFilter === filterKey ? '1px solid #0284c7' : '1px solid #e2e8f0',
+                  border:
+                    historyTypeFilter === filterKey ? '1px solid #0284c7' : '1px solid #e2e8f0',
                   background: historyTypeFilter === filterKey ? '#0284c7' : '#ffffff',
                   color: historyTypeFilter === filterKey ? '#ffffff' : '#475569',
                   cursor: 'pointer',
@@ -280,11 +308,14 @@ export function PortDetailPanel({
                 <div className="timeline-entry-card">
                   <div className="timeline-entry-head">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className={`status-badge-clean-${log.type === 'MAINTENANCE' ? 'normal' : log.type === 'PEMASANGAN' ? 'psb' : 'warning'}`}>
+                      <span
+                        className={`status-badge-clean-${log.type === 'MAINTENANCE' ? 'normal' : log.type === 'PEMASANGAN' ? 'psb' : 'warning'}`}
+                      >
                         {log.type}
                       </span>
                       <span className="timeline-entry-title">
-                        Port P{log.portNumber < 10 ? `0${log.portNumber}` : log.portNumber} : {log.customerName || 'Alokasi Baru'}
+                        Port P{log.portNumber < 10 ? `0${log.portNumber}` : log.portNumber} :{' '}
+                        {log.customerName || 'Alokasi Baru'}
                       </span>
                     </div>
                     <span className="timeline-entry-date">{log.date}</span>
@@ -293,9 +324,13 @@ export function PortDetailPanel({
                   <p className="timeline-entry-notes">{log.notes}</p>
 
                   <div className="timeline-entry-meta">
-                    <span>Teknisi: <strong>{log.technician}</strong></span>
+                    <span>
+                      Teknisi: <strong>{log.technician}</strong>
+                    </span>
                     <span>·</span>
-                    <span>Tiket: <code>{log.ticketNumber}</code></span>
+                    <span>
+                      Tiket: <code>{log.ticketNumber}</code>
+                    </span>
                     {log.attenuationDelta && (
                       <>
                         <span>·</span>
@@ -321,27 +356,24 @@ export function PortDetailPanel({
           <div className="audit-overview-header">
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="audit-spec-badge">
-                  🔒 idx_unique_active_splitter_port
-                </span>
+                <span className="audit-spec-badge">🔒 idx_unique_active_splitter_port</span>
                 <span className="status-badge-clean-normal">
                   <span>✓</span>
                   <span>100% ACID Enforced</span>
                 </span>
               </div>
-              <h3 style={{ fontSize: '13.5px', fontWeight: 700, color: '#0f172a', marginTop: '6px' }}>
+              <h3
+                style={{ fontSize: '13.5px', fontWeight: 700, color: '#0f172a', marginTop: '6px' }}
+              >
                 Proteksi Integritas Konkurensi Database PostgreSQL (PRD Section 5.2)
               </h3>
               <p style={{ fontSize: '11.5px', color: '#475569', marginTop: '3px' }}>
-                Partial unique constraint mencegah bentrokan penugasan port ganda secara paralel antar teknisi lapangan.
+                Partial unique constraint mencegah bentrokan penugasan port ganda secara paralel
+                antar teknisi lapangan.
               </p>
             </div>
 
-            <button
-              type="button"
-              className="btn-inspect-detail-action"
-              onClick={handleRunAudit}
-            >
+            <button type="button" className="btn-inspect-detail-action" onClick={handleRunAudit}>
               <Icon name="refresh" size={12} />
               <span>{auditRunning ? 'Memvalidasi Skema...' : 'Jalankan Uji Integritas'}</span>
             </button>
@@ -350,22 +382,30 @@ export function PortDetailPanel({
           <div className="audit-kpi-grid">
             <div className="audit-kpi-box">
               <div className="audit-kpi-box-label">Tabrakan Port (Collision)</div>
-              <div className="audit-kpi-box-val" style={{ color: '#16a34a' }}>0 Terdeteksi</div>
+              <div className="audit-kpi-box-val" style={{ color: '#16a34a' }}>
+                0 Terdeteksi
+              </div>
             </div>
 
             <div className="audit-kpi-box">
               <div className="audit-kpi-box-label">Port Terkunci Atomik</div>
-              <div className="audit-kpi-box-val" style={{ color: '#0284c7' }}>{activeSplitter.usedPorts} Port Aktif</div>
+              <div className="audit-kpi-box-val" style={{ color: '#0284c7' }}>
+                {activeSplitter.usedPorts} Port Aktif
+              </div>
             </div>
 
             <div className="audit-kpi-box">
               <div className="audit-kpi-box-label">Port Bebas (Siap PSB)</div>
-              <div className="audit-kpi-box-val" style={{ color: '#475569' }}>{activeSplitter.maxPorts - activeSplitter.usedPorts} Port</div>
+              <div className="audit-kpi-box-val" style={{ color: '#475569' }}>
+                {activeSplitter.maxPorts - activeSplitter.usedPorts} Port
+              </div>
             </div>
 
             <div className="audit-kpi-box">
               <div className="audit-kpi-box-label">Waktu Verifikasi Terakhir</div>
-              <div className="audit-kpi-box-val" style={{ fontSize: '12px', fontWeight: 600 }}>{auditTimestamp}</div>
+              <div className="audit-kpi-box-val" style={{ fontSize: '12px', fontWeight: 600 }}>
+                {auditTimestamp}
+              </div>
             </div>
           </div>
         </div>
@@ -397,13 +437,23 @@ export function PortDetailPanel({
                     </td>
 
                     <td>
-                      <span className={`port-alokasi-dot-label ${isOccupied ? 'occupied' : 'available'}`}>
+                      <span
+                        className={`port-alokasi-dot-label ${isOccupied ? 'occupied' : 'available'}`}
+                      >
                         {isOccupied ? 'Terisi (Active)' : 'Siap PSB'}
                       </span>
                     </td>
 
                     <td>
-                      <code style={{ fontSize: '11px', color: '#1e40af', background: '#eff6ff', padding: '2px 5px', borderRadius: '4px' }}>
+                      <code
+                        style={{
+                          fontSize: '11px',
+                          color: '#1e40af',
+                          background: '#eff6ff',
+                          padding: '2px 5px',
+                          borderRadius: '4px',
+                        }}
+                      >
                         {isOccupied ? 'idx_unique_active_splitter_port' : 'FREE_POOL'}
                       </code>
                     </td>
@@ -411,8 +461,12 @@ export function PortDetailPanel({
                     <td>
                       {isOccupied ? (
                         <div>
-                          <span style={{ fontWeight: 600, color: '#0f172a' }}>{port.customerName}</span>
-                          <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block' }}>{port.siaNumber}</span>
+                          <span style={{ fontWeight: 600, color: '#0f172a' }}>
+                            {port.customerName}
+                          </span>
+                          <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block' }}>
+                            {port.siaNumber}
+                          </span>
                         </div>
                       ) : (
                         <span style={{ color: '#94a3b8' }}>Port Siap Alokasi</span>
@@ -420,13 +474,23 @@ export function PortDetailPanel({
                     </td>
 
                     <td>
-                      <code style={{ fontSize: '10.5px', color: '#64748b', fontFamily: 'var(--font-mono, monospace)' }}>
+                      <code
+                        style={{
+                          fontSize: '10.5px',
+                          color: '#64748b',
+                          fontFamily: 'var(--font-mono, monospace)',
+                        }}
+                      >
                         {hashStr}
                       </code>
                     </td>
 
                     <td style={{ textAlign: 'right', paddingRight: '16px' }}>
-                      <span className={isOccupied ? 'status-badge-clean-normal' : 'status-badge-clean-psb'}>
+                      <span
+                        className={
+                          isOccupied ? 'status-badge-clean-normal' : 'status-badge-clean-psb'
+                        }
+                      >
                         <span>✓</span>
                         <span>{isOccupied ? 'Terkunci Valid' : 'Bebas Valid'}</span>
                       </span>
@@ -443,4 +507,3 @@ export function PortDetailPanel({
 
   return null;
 }
-

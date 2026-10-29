@@ -64,7 +64,8 @@ const FALLBACK_TICKETS: DbTicket[] = [
       submittedLng: 107.5422,
       distanceToSplitterM: 24,
       isLocationFlagged: false,
-      technicianNotes: 'Perbaikan fast connector di ODP-CMH-01 port 3 selesai. Redaman turun dari -24.8 dBm menjadi -19.4 dBm (Normal).',
+      technicianNotes:
+        'Perbaikan fast connector di ODP-CMH-01 port 3 selesai. Redaman turun dari -24.8 dBm menjadi -19.4 dBm (Normal).',
       submittedAt: new Date(Date.now() - 900000).toISOString(),
       techUsername: 'rizky.maulana',
       techFullName: 'Rizky Maulana',
@@ -98,7 +99,8 @@ const FALLBACK_TICKETS: DbTicket[] = [
       submittedLng: 107.60981,
       distanceToSplitterM: 15,
       isLocationFlagged: false,
-      technicianNotes: 'Selesai splicing drop core dan penggantian pigtail di ODP port 2. Hasil ukur OPM stabil di -19.8 dBm.',
+      technicianNotes:
+        'Selesai splicing drop core dan penggantian pigtail di ODP port 2. Hasil ukur OPM stabil di -19.8 dBm.',
       submittedAt: new Date(Date.now() - 1800000).toISOString(),
       techUsername: 'fajar.hidayat',
       techFullName: 'Fajar Hidayat',
@@ -160,7 +162,7 @@ export function calculateHaversineDistance(
   lat1: number,
   lon1: number,
   lat2: number,
-  lon2: number
+  lon2: number,
 ): number {
   const R = 6371000; // Earth's mean radius in meters
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -193,13 +195,17 @@ export class TicketService {
    */
   public static async listTickets(
     params: Partial<TicketQuery> = {},
-    userContext?: UserSessionContext
+    userContext?: UserSessionContext,
   ): Promise<DbTicket[]> {
     try {
       // Build Prisma where clause with cluster scoping (Law 4)
       const whereClause: Record<string, unknown> = {};
 
-      if (userContext && userContext.userType !== 'SUPER_ADMIN' && userContext.assignedClusters.length > 0) {
+      if (
+        userContext &&
+        userContext.userType !== 'SUPER_ADMIN' &&
+        userContext.assignedClusters.length > 0
+      ) {
         whereClause.customer = {
           cluster: {
             clusterCode: { in: userContext.assignedClusters },
@@ -256,7 +262,10 @@ export class TicketService {
       });
 
       if (tickets.length > 0) {
-        const statusMapReverse: Record<string, 'Menunggu' | 'Dalam proses' | 'Menunggu verifikasi' | 'Selesai' | 'Dibatalkan'> = {
+        const statusMapReverse: Record<
+          string,
+          'Menunggu' | 'Dalam proses' | 'Menunggu verifikasi' | 'Selesai' | 'Dibatalkan'
+        > = {
           OPEN: 'Menunggu',
           IN_PROGRESS: 'Dalam proses',
           COMPLETED: 'Selesai',
@@ -273,7 +282,9 @@ export class TicketService {
           assignedTech: t.assignedTech?.fullName || 'Belum Ditugaskan',
           techInitials: t.assignedTech ? getInitials(t.assignedTech.fullName) : 'TK',
           status: statusMapReverse[t.status] || 'Menunggu',
-          currentAttenuation: t.customer.currentAttenuation ? Number(t.customer.currentAttenuation) : -20.0,
+          currentAttenuation: t.customer.currentAttenuation
+            ? Number(t.customer.currentAttenuation)
+            : -20.0,
           adminNotes: t.adminNotes || undefined,
           createdAt: t.createdAt.toISOString(),
           completedAt: t.completedAt ? t.completedAt.toISOString() : undefined,
@@ -288,14 +299,20 @@ export class TicketService {
     // Fallback: In-memory store
     let result = [...FALLBACK_TICKETS];
 
-    if (userContext && userContext.userType !== 'SUPER_ADMIN' && userContext.assignedClusters.length > 0) {
+    if (
+      userContext &&
+      userContext.userType !== 'SUPER_ADMIN' &&
+      userContext.assignedClusters.length > 0
+    ) {
       result = result.filter((t) =>
-        userContext.assignedClusters.some((c) => t.cluster.toLowerCase().includes(c.toLowerCase()))
+        userContext.assignedClusters.some((c) => t.cluster.toLowerCase().includes(c.toLowerCase())),
       );
     }
 
     if (params.cluster && params.cluster !== 'Semua cluster') {
-      result = result.filter((t) => t.cluster.toLowerCase().includes(params.cluster!.toLowerCase()));
+      result = result.filter((t) =>
+        t.cluster.toLowerCase().includes(params.cluster!.toLowerCase()),
+      );
     }
 
     if (params.status && params.status !== 'Semua') {
@@ -310,7 +327,7 @@ export class TicketService {
           t.customerName.toLowerCase().includes(q) ||
           t.siaNumber.toLowerCase().includes(q) ||
           t.cluster.toLowerCase().includes(q) ||
-          t.assignedTech.toLowerCase().includes(q)
+          t.assignedTech.toLowerCase().includes(q),
       );
     }
 
@@ -338,7 +355,10 @@ export class TicketService {
       });
 
       if (ticket) {
-        const statusMapReverse: Record<string, 'Menunggu' | 'Dalam proses' | 'Menunggu verifikasi' | 'Selesai' | 'Dibatalkan'> = {
+        const statusMapReverse: Record<
+          string,
+          'Menunggu' | 'Dalam proses' | 'Menunggu verifikasi' | 'Selesai' | 'Dibatalkan'
+        > = {
           OPEN: 'Menunggu',
           IN_PROGRESS: 'Dalam proses',
           COMPLETED: 'Selesai',
@@ -355,7 +375,9 @@ export class TicketService {
           assignedTech: ticket.assignedTech?.fullName || 'Belum Ditugaskan',
           techInitials: ticket.assignedTech ? getInitials(ticket.assignedTech.fullName) : 'TK',
           status: statusMapReverse[ticket.status] || 'Menunggu',
-          currentAttenuation: ticket.customer.currentAttenuation ? Number(ticket.customer.currentAttenuation) : -20.0,
+          currentAttenuation: ticket.customer.currentAttenuation
+            ? Number(ticket.customer.currentAttenuation)
+            : -20.0,
           adminNotes: ticket.adminNotes || undefined,
           createdAt: ticket.createdAt.toISOString(),
           completedAt: ticket.completedAt ? ticket.completedAt.toISOString() : undefined,
@@ -386,7 +408,9 @@ export class TicketService {
       customerName: input.customerName,
       siaNumber: input.siaNumber,
       ticketType: input.ticketType === 'PSB' ? 'Pasang baru' : 'Maintenance',
-      cluster: input.clusterCode.startsWith('Bandung') ? input.clusterCode : `Bandung ${input.clusterCode}`,
+      cluster: input.clusterCode.startsWith('Bandung')
+        ? input.clusterCode
+        : `Bandung ${input.clusterCode}`,
       assignedTech: techName,
       techInitials,
       status: 'Menunggu',
@@ -430,10 +454,7 @@ export class TicketService {
 
       const dbTech = await prisma.user.findFirst({
         where: {
-          OR: [
-            { username: input.assignedTechUsername },
-            { fullName: input.assignedTechUsername },
-          ],
+          OR: [{ username: input.assignedTechUsername }, { fullName: input.assignedTechUsername }],
         },
       });
 
@@ -473,7 +494,7 @@ export class TicketService {
   public static async submitTicketByTechnician(
     ticketId: string,
     input: SubmitTicketInput,
-    techContext?: { id?: string; username?: string }
+    techContext?: { id?: string; username?: string },
   ) {
     let preliminaryTicket: {
       id: string;
@@ -492,9 +513,13 @@ export class TicketService {
       });
 
       if (preliminaryTicket) {
-        if (techContext?.id && preliminaryTicket.assignedTechId && preliminaryTicket.assignedTechId !== techContext.id) {
+        if (
+          techContext?.id &&
+          preliminaryTicket.assignedTechId &&
+          preliminaryTicket.assignedTechId !== techContext.id
+        ) {
           throw new Error(
-            `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${preliminaryTicket.ticketNumber}.`
+            `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${preliminaryTicket.ticketNumber}.`,
           );
         }
       }
@@ -506,13 +531,19 @@ export class TicketService {
     }
 
     // In-memory fallback IDOR verification
-    const fallbackTicketCheck = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
+    const fallbackTicketCheck = FALLBACK_TICKETS.find(
+      (t) => t.id === ticketId || t.ticketNumber === ticketId,
+    );
     if (fallbackTicketCheck && techContext?.username && fallbackTicketCheck.assignedTech) {
       const techLower = techContext.username.toLowerCase();
       const assignedLower = fallbackTicketCheck.assignedTech.toLowerCase().replace(/\s+/g, '.');
-      if (techLower !== assignedLower && !assignedLower.includes(techLower) && !techLower.includes(assignedLower)) {
+      if (
+        techLower !== assignedLower &&
+        !assignedLower.includes(techLower) &&
+        !techLower.includes(assignedLower)
+      ) {
         throw new Error(
-          `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${fallbackTicketCheck.ticketNumber}.`
+          `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${fallbackTicketCheck.ticketNumber}.`,
         );
       }
     }
@@ -542,13 +573,11 @@ export class TicketService {
           existingHistory.ticket?.ticketNumber === ticketId ||
           (preliminaryTicket !== null && existingHistory.ticketId === preliminaryTicket.id);
         const isSameTech =
-          !techContext?.id ||
-          !existingHistory.techId ||
-          existingHistory.techId === techContext.id;
+          !techContext?.id || !existingHistory.techId || existingHistory.techId === techContext.id;
 
         if (!isSameTicket || !isSameTech) {
           throw new Error(
-            `${ERROR_CODES.IDOR_VIOLATION}: submissionId ini telah digunakan pada tiket atau teknisi lain (Cross-Ticket Replay Blocked).`
+            `${ERROR_CODES.IDOR_VIOLATION}: submissionId ini telah digunakan pada tiket atau teknisi lain (Cross-Ticket Replay Blocked).`,
           );
         }
 
@@ -571,16 +600,20 @@ export class TicketService {
           inMemRecord.ticketNumber === ticketId ||
           (preliminaryTicket !== null && inMemRecord.ticketId === preliminaryTicket.id);
         const isSameTech =
-          (!techContext?.username || !inMemRecord.techUsername || inMemRecord.techUsername === techContext.username) &&
+          (!techContext?.username ||
+            !inMemRecord.techUsername ||
+            inMemRecord.techUsername === techContext.username) &&
           (!techContext?.id || !inMemRecord.techId || inMemRecord.techId === techContext.id);
 
         if (!isSameTicket || !isSameTech) {
           throw new Error(
-            `${ERROR_CODES.IDOR_VIOLATION}: submissionId ini telah digunakan pada tiket atau teknisi lain (Cross-Ticket Replay Blocked).`
+            `${ERROR_CODES.IDOR_VIOLATION}: submissionId ini telah digunakan pada tiket atau teknisi lain (Cross-Ticket Replay Blocked).`,
           );
         }
 
-        const cachedTicket = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
+        const cachedTicket = FALLBACK_TICKETS.find(
+          (t) => t.id === ticketId || t.ticketNumber === ticketId,
+        );
         return {
           alreadyProcessed: true,
           ticket: cachedTicket,
@@ -599,14 +632,20 @@ export class TicketService {
         },
       });
 
-      if (statusCheckTicket && (statusCheckTicket.status === 'COMPLETED' || statusCheckTicket.status === 'CANCELLED')) {
+      if (
+        statusCheckTicket &&
+        (statusCheckTicket.status === 'COMPLETED' || statusCheckTicket.status === 'CANCELLED')
+      ) {
         throw new Error(
-          `${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${statusCheckTicket.ticketNumber} sudah berstatus ${statusCheckTicket.status} dan tidak dapat dimutasi.`
+          `${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${statusCheckTicket.ticketNumber} sudah berstatus ${statusCheckTicket.status} dan tidak dapat dimutasi.`,
         );
       }
     } catch (err: unknown) {
       const errMsg = (err as Error).message || '';
-      if (errMsg.includes(ERROR_CODES.TICKET_ALREADY_CLOSED) || errMsg.includes('tidak dapat dimutasi')) {
+      if (
+        errMsg.includes(ERROR_CODES.TICKET_ALREADY_CLOSED) ||
+        errMsg.includes('tidak dapat dimutasi')
+      ) {
         throw err;
       }
     }
@@ -616,7 +655,7 @@ export class TicketService {
     // ------------------------------------------------------------------
     if (input.isMockLocation) {
       throw new Error(
-        `${ERROR_CODES.MOCK_LOCATION_DETECTED}: Pengiriman ditolak. Perangkat terdeteksi menggunakan Mock Location / Fake GPS.`
+        `${ERROR_CODES.MOCK_LOCATION_DETECTED}: Pengiriman ditolak. Perangkat terdeteksi menggunakan Mock Location / Fake GPS.`,
       );
     }
 
@@ -642,7 +681,7 @@ export class TicketService {
           input.submittedLat,
           input.submittedLng,
           Number(targetSplitter.lat),
-          Number(targetSplitter.lng)
+          Number(targetSplitter.lng),
         );
         isLocationFlagged = distanceMeters > MAX_GEOFENCE_RADIUS_METERS;
 
@@ -661,11 +700,14 @@ export class TicketService {
         input.submittedLat,
         input.submittedLng,
         fallbackSplitterLat,
-        fallbackSplitterLng
+        fallbackSplitterLng,
       );
       isLocationFlagged = distanceMeters > MAX_GEOFENCE_RADIUS_METERS;
       // GPS Anomaly Detection: identical coordinates indicate GPS spoofing
-      if (input.submittedLat === fallbackSplitterLat && input.submittedLng === fallbackSplitterLng) {
+      if (
+        input.submittedLat === fallbackSplitterLat &&
+        input.submittedLng === fallbackSplitterLng
+      ) {
         isLocationFlagged = true;
       }
     }
@@ -694,12 +736,16 @@ export class TicketService {
 
         // Anti-IDOR: verify technician assignment (Rule 1)
         if (techContext?.id && ticket.assignedTechId && ticket.assignedTechId !== techContext.id) {
-          throw new Error(`${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${ticket.ticketNumber}.`);
+          throw new Error(
+            `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${ticket.ticketNumber}.`,
+          );
         }
 
         // Anti-Lifecycle violation: reject closed tickets (Rule 3)
         if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') {
-          throw new Error(`${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${ticket.ticketNumber} sudah berstatus ${ticket.status} dan tidak dapat dimutasi.`);
+          throw new Error(
+            `${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${ticket.ticketNumber} sudah berstatus ${ticket.status} dan tidak dapat dimutasi.`,
+          );
         }
 
         // 2. Fetch Splitter
@@ -716,7 +762,7 @@ export class TicketService {
         // Validate port capacity bounds
         if (input.portNumber > splitter.maxPorts) {
           throw new Error(
-            `Nomor port ${input.portNumber} melebihi batas kapasitas ODP (${splitter.maxPorts} port)`
+            `Nomor port ${input.portNumber} melebihi batas kapasitas ODP (${splitter.maxPorts} port)`,
           );
         }
 
@@ -732,7 +778,7 @@ export class TicketService {
 
         if (occupied) {
           throw new Error(
-            `${ERROR_CODES.PORT_OCCUPIED}: Port ${input.portNumber} pada ODP ${splitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName} - ${occupied.siaNumber}).`
+            `${ERROR_CODES.PORT_OCCUPIED}: Port ${input.portNumber} pada ODP ${splitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName} - ${occupied.siaNumber}).`,
           );
         }
 
@@ -760,7 +806,9 @@ export class TicketService {
             targetId: ticket.id,
             oldPayload: {
               status: ticket.status,
-              oldAttenuation: ticket.customer.currentAttenuation ? Number(ticket.customer.currentAttenuation) : null,
+              oldAttenuation: ticket.customer.currentAttenuation
+                ? Number(ticket.customer.currentAttenuation)
+                : null,
             },
             newPayload: {
               submissionId: input.submissionId,
@@ -832,7 +880,9 @@ export class TicketService {
     const ticket = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
     if (ticket) {
       if (ticket.status === 'Selesai' || ticket.status === 'Dibatalkan') {
-        throw new Error(`Tiket ${ticket.ticketNumber} sudah berstatus ${ticket.status} dan tidak dapat dimutasi.`);
+        throw new Error(
+          `Tiket ${ticket.ticketNumber} sudah berstatus ${ticket.status} dan tidak dapat dimutasi.`,
+        );
       }
       // Transition to 'Menunggu verifikasi' instead of 'Selesai'
       ticket.status = 'Menunggu verifikasi';
@@ -899,7 +949,7 @@ export class TicketService {
    */
   public static async approveTicketSubmission(
     ticketId: string,
-    adminContext?: { id?: string; username?: string }
+    adminContext?: { id?: string; username?: string },
   ): Promise<DbTicket> {
     const adminUser = adminContext?.username || 'superadmin';
     const adminId = adminContext?.id || 'admin-001';
@@ -942,7 +992,7 @@ export class TicketService {
 
             if (occupied) {
               throw new Error(
-                `${ERROR_CODES.PORT_OCCUPIED}: Port ${finalPort} pada ODP ${splitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName}).`
+                `${ERROR_CODES.PORT_OCCUPIED}: Port ${finalPort} pada ODP ${splitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName}).`,
               );
             }
 
@@ -974,7 +1024,9 @@ export class TicketService {
                   submittedLng: pending.submittedLng,
                   distanceToSplitterM: pending.distanceToSplitterM,
                   isLocationFlagged: pending.isLocationFlagged,
-                  clientRecordedAt: pending.clientRecordedAt ? new Date(pending.clientRecordedAt) : null,
+                  clientRecordedAt: pending.clientRecordedAt
+                    ? new Date(pending.clientRecordedAt)
+                    : null,
                 },
               });
             }
@@ -1065,7 +1117,7 @@ export class TicketService {
   public static async rejectTicketSubmission(
     ticketId: string,
     reason = 'Data redaman atau bukti foto OPM belum memenuhi standar operasional',
-    adminContext?: { id?: string; username?: string }
+    adminContext?: { id?: string; username?: string },
   ): Promise<DbTicket> {
     const adminUser = adminContext?.username || 'superadmin';
     const adminId = adminContext?.id || 'admin-001';
@@ -1133,7 +1185,7 @@ export class TicketService {
   public static async submitTicket(
     ticketId: string,
     input: SubmitTicketInput,
-    techUsername = 'andi.pratama'
+    techUsername = 'andi.pratama',
   ) {
     return this.submitTicketByTechnician(ticketId, input, { username: techUsername });
   }

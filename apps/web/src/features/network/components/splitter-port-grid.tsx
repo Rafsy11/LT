@@ -1,6 +1,11 @@
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
-import type { ClusterListItem, SplitterPortState, CustomerListItem, CreateTicketInput } from '@repo/shared';
+import type {
+  ClusterListItem,
+  SplitterPortState,
+  CustomerListItem,
+  CreateTicketInput,
+} from '@repo/shared';
 import { SignalStrengthBars } from '@/features/customers';
 import type { AttenuationMeta } from '../hooks/use-network';
 
@@ -130,7 +135,11 @@ export function SplitterPortGrid({
                 <React.Fragment key={port.portNumber}>
                   <tr
                     className={`odp-table-data-row ${isExpanded ? 'is-row-selected' : ''}`}
-                    onClick={() => setExpandedPortNum((prev) => (prev === port.portNumber ? null : port.portNumber))}
+                    onClick={() =>
+                      setExpandedPortNum((prev) =>
+                        prev === port.portNumber ? null : port.portNumber,
+                      )
+                    }
                     style={{ cursor: 'pointer' }}
                   >
                     {/* Chevron Expand */}
@@ -147,7 +156,9 @@ export function SplitterPortGrid({
 
                     {/* Alokasi */}
                     <td>
-                      <span className={`port-alokasi-dot-label ${isOccupied ? 'occupied' : 'available'}`}>
+                      <span
+                        className={`port-alokasi-dot-label ${isOccupied ? 'occupied' : 'available'}`}
+                      >
                         {isOccupied ? 'Terisi' : 'Siap PSB'}
                       </span>
                     </td>
@@ -156,7 +167,9 @@ export function SplitterPortGrid({
                     <td>
                       {isOccupied ? (
                         <div>
-                          <div className="customer-name-bold">{port.customerName || 'Pelanggan'}</div>
+                          <div className="customer-name-bold">
+                            {port.customerName || 'Pelanggan'}
+                          </div>
                           <div className="customer-sia-code">{port.siaNumber || '-'}</div>
                         </div>
                       ) : (
@@ -181,7 +194,13 @@ export function SplitterPortGrid({
                       {isOccupied ? (
                         <span className={`status-badge-clean-${attMeta.status}`}>
                           <span>✓</span>
-                          <span>{attMeta.status === 'normal' ? 'Normal' : attMeta.status === 'warning' ? 'Waspada' : 'Kritis'}</span>
+                          <span>
+                            {attMeta.status === 'normal'
+                              ? 'Normal'
+                              : attMeta.status === 'warning'
+                                ? 'Waspada'
+                                : 'Kritis'}
+                          </span>
                         </span>
                       ) : (
                         <span className="status-badge-clean-psb">
@@ -201,16 +220,12 @@ export function SplitterPortGrid({
                               {port.lastActivity.type === 'MAINTENANCE'
                                 ? 'Maintenance'
                                 : port.lastActivity.type === 'PEMASANGAN'
-                                ? 'Pemasangan'
-                                : 'Penarikan'}
+                                  ? 'Pemasangan'
+                                  : 'Penarikan'}
                             </span>
                           </span>
-                          <span className="activity-sub-clean">
-                            {port.lastActivity.technician}
-                          </span>
-                          <span className="activity-sub-clean">
-                            {port.lastActivity.date}
-                          </span>
+                          <span className="activity-sub-clean">{port.lastActivity.technician}</span>
+                          <span className="activity-sub-clean">{port.lastActivity.date}</span>
                         </div>
                       ) : (
                         <span style={{ color: '#94a3b8' }}>-</span>
@@ -218,12 +233,19 @@ export function SplitterPortGrid({
                     </td>
 
                     {/* Aksi */}
-                    <td style={{ textAlign: 'right', paddingRight: '18px' }} onClick={(e) => e.stopPropagation()}>
+                    <td
+                      style={{ textAlign: 'right', paddingRight: '18px' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                         <button
                           type="button"
                           className="action-detail-link"
-                          onClick={() => setExpandedPortNum((prev) => (prev === port.portNumber ? null : port.portNumber))}
+                          onClick={() =>
+                            setExpandedPortNum((prev) =>
+                              prev === port.portNumber ? null : port.portNumber,
+                            )
+                          }
                         >
                           Detail
                         </button>
@@ -246,20 +268,27 @@ export function SplitterPortGrid({
                       <td colSpan={8} style={{ padding: '8px 16px 14px 16px' }}>
                         <div className="inline-inspect-box-reference">
                           <div className="inline-inspect-box-title">
-                            Detail Inspeksi Port P{port.portNumber < 10 ? `0${port.portNumber}` : port.portNumber}
+                            Detail Inspeksi Port P
+                            {port.portNumber < 10 ? `0${port.portNumber}` : port.portNumber}
                           </div>
 
                           <div className="inline-inspect-ref-grid">
                             <div className="inline-inspect-col">
                               <span className="inline-inspect-col-label">Hasil Inspeksi</span>
-                              <span className="inline-inspect-col-val" style={{ color: isOccupied ? '#16a34a' : '#0284c7' }}>
+                              <span
+                                className="inline-inspect-col-val"
+                                style={{ color: isOccupied ? '#16a34a' : '#0284c7' }}
+                              >
                                 {isOccupied ? 'Normal' : 'Port Siap Alokasi PSB'}
                               </span>
                             </div>
 
                             <div className="inline-inspect-col">
                               <span className="inline-inspect-col-label">Foto</span>
-                              <span className="inline-inspect-col-val" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                              <span
+                                className="inline-inspect-col-val"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                              >
                                 <Icon name="camera" size={13} style={{ color: '#64748b' }} />
                                 <span>{isOccupied ? '2 foto' : 'Tidak ada foto'}</span>
                               </span>
@@ -267,13 +296,29 @@ export function SplitterPortGrid({
 
                             <div className="inline-inspect-col">
                               <span className="inline-inspect-col-label">Catatan</span>
-                              <span className="inline-inspect-col-val" style={{ fontWeight: 400, color: '#334155' }}>
-                                {port.lastActivity?.notes || (isOccupied ? 'Tidak ada kendala, sinyal stabil.' : 'Port bebas untuk aktivasi pelanggan baru.')}
+                              <span
+                                className="inline-inspect-col-val"
+                                style={{ fontWeight: 400, color: '#334155' }}
+                              >
+                                {port.lastActivity?.notes ||
+                                  (isOccupied
+                                    ? 'Tidak ada kendala, sinyal stabil.'
+                                    : 'Port bebas untuk aktivasi pelanggan baru.')}
                               </span>
                             </div>
 
-                            <div className="inline-inspect-col" style={{ alignItems: 'flex-end', gap: '8px' }}>
-                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                            <div
+                              className="inline-inspect-col"
+                              style={{ alignItems: 'flex-end', gap: '8px' }}
+                            >
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  gap: '8px',
+                                  flexWrap: 'wrap',
+                                  justifyContent: 'flex-end',
+                                }}
+                              >
                                 {isOccupied && port.customerName ? (
                                   <button
                                     type="button"
@@ -336,4 +381,3 @@ export function SplitterPortGrid({
     </div>
   );
 }
-

@@ -51,7 +51,8 @@ export function CustomersView() {
         <div className="overview-header-copy">
           <h1 className="overview-greeting">Master Data Pelanggan (SIA)</h1>
           <p className="overview-subtitle">
-            Pusat data pelanggan FTTH, pengikatan nomor SIA, alokasi fisik port splitter, dan riwayat redaman optik (PRD 3.1 &amp; 5.1).
+            Pusat data pelanggan FTTH, pengikatan nomor SIA, alokasi fisik port splitter, dan
+            riwayat redaman optik (PRD 3.1 &amp; 5.1).
           </p>
         </div>
 
@@ -149,10 +150,7 @@ export function CustomersView() {
         />
 
         {/* High-Agency Enterprise Data Table */}
-        <CustomerTable
-          customers={displayedCustomers}
-          onSelectCustomer={setSelectedCustomer}
-        />
+        <CustomerTable customers={displayedCustomers} onSelectCustomer={setSelectedCustomer} />
       </section>
 
       {/* Customer Detail & Attenuation Histories Modal */}
@@ -165,4 +163,3 @@ export function CustomersView() {
     </main>
   );
 }
-

@@ -19,11 +19,7 @@ const pageTitleMap: Record<string, string> = {
   '/ai': 'AI Assistant',
 };
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const title = pageTitleMap[pathname] || 'Dashboard';
   const [ticketCount, setTicketCount] = useState(24);
