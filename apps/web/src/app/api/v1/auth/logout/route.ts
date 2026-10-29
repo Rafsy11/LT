@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@repo/database';
-import { redisManager } from '@/lib/redis';
+import { redisManager } from '@/server/lib/redis';
 import { logoutRequestSchema } from '@repo/shared';
 
 export async function POST(request: NextRequest) {

@@ -15,10 +15,10 @@ process.env.JWT_SECRET =
 
 import { NextRequest } from 'next/server';
 import { middleware } from '../apps/web/src/middleware';
-import { checkRateLimit } from '../apps/web/src/lib/rate-limit';
-import { TicketService } from '../apps/web/src/services/ticket.service';
-import { generateSignedActionToken, verifySignedActionToken } from '../apps/web/src/services/ai.service';
-import { redisManager } from '../apps/web/src/lib/redis';
+import { checkRateLimit } from '../apps/web/src/server/lib/rate-limit';
+import { TicketService } from '../apps/web/src/server/services/ticket.service';
+import { generateSignedActionToken, verifySignedActionToken } from '../apps/web/src/server/services/ai.service';
+import { redisManager } from '../apps/web/src/server/lib/redis';
 import { ERROR_CODES, SubmitTicketInput } from '@repo/shared';
 
 interface TestResult {

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TicketService } from '@/services/ticket.service';
-import { redisManager } from '@/lib/redis';
+import { TicketService } from '@/server/services/ticket.service';
+import { redisManager } from '@/server/lib/redis';
 import { submitTicketSchema, ERROR_CODES } from '@repo/shared';
-import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/lib/rate-limit';
+import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
 import { prisma } from '@repo/database';
 
 export async function POST(

@@ -1,4 +1,4 @@
-import { sseBroadcaster } from '@/services/sse.service';
+import { sseBroadcaster } from '@/server/services/sse.service';
 import { SSE_HEADERS } from '@repo/shared';
 
 export const dynamic = 'force-dynamic';

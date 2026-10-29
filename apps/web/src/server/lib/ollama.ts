@@ -1,3 +1,5 @@
+import { env } from '../../env';
+
 export interface OllamaChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -17,8 +19,8 @@ class OllamaClient {
   private model: string;
 
   constructor() {
-    this.baseUrl = (process.env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\/+$/, '');
-    this.model = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
+    this.baseUrl = env.OLLAMA_BASE_URL.replace(/\/+$/, '');
+    this.model = env.OLLAMA_MODEL;
   }
 
   public async isHealthy(): Promise<boolean> {

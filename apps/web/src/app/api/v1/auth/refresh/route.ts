@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AuthService } from '@/services/auth.service';
+import { AuthService } from '@/server/services/auth.service';
 import { refreshTokenRequestSchema, ERROR_CODES } from '@repo/shared';
 
 export async function POST(request: NextRequest) {

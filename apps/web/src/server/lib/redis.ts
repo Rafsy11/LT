@@ -1,9 +1,10 @@
 import Redis from 'ioredis';
 import { ActivityFeedItem } from '@repo/shared';
+import { env } from '../../env';
 
 export const ISP_LIVE_REPORTS_CHANNEL = 'isp_live_reports';
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const redisUrl = env.REDIS_URL;
 
 class RedisManager {
   private publisher: Redis | null = null;

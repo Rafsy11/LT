@@ -1,11 +1,12 @@
 import * as Minio from 'minio';
+import { env } from '../../env';
 
-const minioEndpoint = process.env.MINIO_ENDPOINT || 'localhost';
-const minioPort = Number(process.env.MINIO_PORT) || 9000;
-const minioUseSSL = process.env.MINIO_USE_SSL === 'true';
-const minioAccessKey = process.env.MINIO_ACCESS_KEY || 'fiberops_minio_admin';
-const minioSecretKey = process.env.MINIO_SECRET_KEY || 'fiberops_minio_secret_pass';
-export const PROOF_BUCKET_NAME = process.env.MINIO_BUCKET || 'fiberops-proofs';
+const minioEndpoint = env.MINIO_ENDPOINT;
+const minioPort = env.MINIO_PORT;
+const minioUseSSL = env.MINIO_USE_SSL;
+const minioAccessKey = env.MINIO_ACCESS_KEY;
+const minioSecretKey = env.MINIO_SECRET_KEY;
+export const PROOF_BUCKET_NAME = env.MINIO_BUCKET;
 
 class MinioStorageManager {
   private client: Minio.Client;

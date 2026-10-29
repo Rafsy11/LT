@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { minioManager } from '@/lib/minio';
-import { redisManager } from '@/lib/redis';
+import { minioManager } from '@/server/lib/minio';
+import { redisManager } from '@/server/lib/redis';
 import { ERROR_CODES } from '@repo/shared';
-import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/lib/rate-limit';
+import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
 import { prisma } from '@repo/database';
 
 /**

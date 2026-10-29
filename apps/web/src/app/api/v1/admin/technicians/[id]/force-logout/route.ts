@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TechnicianService } from '@/services/technician.service';
+import { TechnicianService } from '@/server/services/technician.service';
 
 /**
  * POST /api/v1/admin/technicians/[id]/force-logout

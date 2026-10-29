@@ -2,7 +2,8 @@ import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { prisma } from '@repo/database';
-import { redisManager } from '@/lib/redis';
+import { env } from '../../env';
+import { redisManager } from '../lib/redis';
 import {
   RefreshTokenPayload,
   UserSessionContext,
@@ -10,9 +11,7 @@ import {
   UserTypeEnum,
 } from '@repo/shared';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'fiberops_on_premise_super_secure_jwt_secret_key_32chars'
-);
+const JWT_SECRET = new TextEncoder().encode(env.JWT_SECRET);
 
 const ACCESS_TOKEN_EXPIRY = '15m'; // Short-lived for technicians
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;

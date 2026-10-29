@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AiService, verifySignedActionToken } from '@/services/ai.service';
-import { AuthService } from '@/services/auth.service';
+import { AiService, verifySignedActionToken } from '@/server/services/ai.service';
+import { AuthService } from '@/server/services/auth.service';
 import { confirmActionSchema, ERROR_CODES, UserSessionContext } from '@repo/shared';
-import { redisManager } from '@/lib/redis';
+import { redisManager } from '@/server/lib/redis';
 
 export async function POST(request: NextRequest) {
   try {

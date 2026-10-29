@@ -3,7 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { SignJWT, jwtVerify } from 'jose';
 import crypto from 'crypto';
 import { prisma, Prisma } from '@repo/database';
-import { redisManager } from '@/lib/redis';
+import { redisManager } from '../lib/redis';
 import {
   getRecentReportsToolSchema,
   GetRecentReportsInput,
@@ -26,9 +26,10 @@ import { TicketService } from './ticket.service';
 import { TechnicianService } from './technician.service';
 import { CustomerService } from './customer.service';
 import { RoleService } from './role.service';
+import { env } from '../../env';
 
 const ACTION_TOKEN_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'fiberops_on_premise_super_secure_jwt_secret_key_32chars'
+  env.JWT_SECRET
 );
 
 const ACTION_TOKEN_EXPIRY = '5m'; // 5 minutes validity for human confirmation
@@ -578,11 +579,11 @@ export class AiService {
     permissions: string[] = ['*']
   ) {
     const ollama = createOpenAI({
-      baseURL: (process.env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\/+$/, '') + '/v1',
+      baseURL: env.OLLAMA_BASE_URL.replace(/\/+$/, '') + '/v1',
       apiKey: 'ollama',
     });
 
-    const model = ollama(process.env.OLLAMA_MODEL || 'qwen2.5:7b');
+    const model = ollama(env.OLLAMA_MODEL);
     const tools = this.getFilteredTools(adminContext, permissions);
 
     return streamText({

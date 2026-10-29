@@ -1,5 +1,5 @@
-﻿import { prisma } from '@repo/database';
-import { redisManager } from '@/lib/redis';
+import { prisma } from '@repo/database';
+import { redisManager } from '../lib/redis';
 import {
   CreateTicketInput,
   SubmitTicketInput,

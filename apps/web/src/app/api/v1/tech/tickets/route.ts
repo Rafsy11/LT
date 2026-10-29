@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@repo/database';
-import { redisManager } from '@/lib/redis';
-import { TicketService } from '@/services/ticket.service';
-import { NetworkService } from '@/services/network.service';
+import { redisManager } from '@/server/lib/redis';
+import { TicketService } from '@/server/services/ticket.service';
+import { NetworkService } from '@/server/services/network.service';
 import { ERROR_CODES } from '@repo/shared';
 
 export async function GET(request: NextRequest) {

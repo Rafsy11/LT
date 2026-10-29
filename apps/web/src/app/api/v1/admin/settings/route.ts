@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SystemService } from '@/services/system.service';
+import { SystemService } from '@/server/services/system.service';
 import {
   SystemSettingsSchema,
   UserSessionContext,

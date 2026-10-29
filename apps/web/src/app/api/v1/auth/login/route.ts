@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AuthService } from '@/services/auth.service';
+import { AuthService } from '@/server/services/auth.service';
 import { loginRequestSchema, ERROR_CODES } from '@repo/shared';
-import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/lib/rate-limit';
+import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {

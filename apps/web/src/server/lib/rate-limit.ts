@@ -1,4 +1,4 @@
-import { redisManager } from '@/lib/redis';
+import { redisManager } from './redis';
 
 /**
  * Configuration for a rate-limited endpoint.

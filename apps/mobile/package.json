@@ -2,9 +2,9 @@
   "name": "@repo/mobile",
   "version": "1.0.0",
   "private": true,
-  "main": "index.js",
   "scripts": {
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@repo/shared": "workspace:*"

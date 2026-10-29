@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TicketService } from '@/services/ticket.service';
+import { TicketService } from '@/server/services/ticket.service';
 import { createTicketSchema } from '@repo/shared';
 
 export async function GET(request: NextRequest) {

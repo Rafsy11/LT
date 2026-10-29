@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RoleService } from '@/services/role.service';
+import { RoleService } from '@/server/services/role.service';
 import {
   createRoleSchema,
   updateRolePermissionsSchema,
