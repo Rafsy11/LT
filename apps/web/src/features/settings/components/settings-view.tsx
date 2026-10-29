@@ -1,0 +1,155 @@
+'use client';
+
+import React from 'react';
+import { Icon } from '@/components/ui/Icon';
+import { useSettings } from '../hooks/use-settings';
+import { SettingsHeader } from './settings-header';
+import { SettingsTabs } from './settings-tabs';
+import { InfrastructurePanel } from './infrastructure-panel';
+import { GeofencingPanel } from './geofencing-panel';
+import { BackupPanel } from './backup-panel';
+import { NetworkSettingsPanel } from './network-settings-panel';
+
+export function SettingsView() {
+  const {
+    activeTab,
+    setActiveTab,
+    settings,
+    telemetry,
+    loading,
+    isSaving,
+    isBackingUp,
+    hasChanges,
+    isSuperAdmin,
+    user,
+    handleChange,
+    handleSaveSettings,
+    handleTriggerBackup,
+  } = useSettings();
+
+  return (
+    <main className="settings-page" style={{ paddingBottom: '48px', maxWidth: '1600px', margin: '0 auto' }}>
+      {/* Overview Command Header */}
+      <SettingsHeader
+        isSuperAdmin={isSuperAdmin}
+        roleName={user.roleName}
+        isSaving={isSaving}
+        hasChanges={hasChanges}
+        onSave={() => handleSaveSettings()}
+      />
+
+      {/* Modern Hairline Navigation Tabs */}
+      <SettingsTabs activeTab={activeTab} onTabChange={setActiveTab} />
+
+      <form onSubmit={handleSaveSettings}>
+        {/* Tab 1: Infrastruktur & Komputasi AI */}
+        {activeTab === 'infrastruktur' && (
+          <InfrastructurePanel
+            settings={settings}
+            telemetry={telemetry}
+            isSuperAdmin={isSuperAdmin}
+            handleChange={handleChange}
+          />
+        )}
+
+        {/* Tab 2: Validasi Lapangan & Geofencing */}
+        {activeTab === 'geofencing' && (
+          <GeofencingPanel
+            settings={settings}
+            isSuperAdmin={isSuperAdmin}
+            handleChange={handleChange}
+          />
+        )}
+
+        {/* Tab 3: Disaster Recovery & Backup 3-2-1 */}
+        {activeTab === 'backup' && (
+          <BackupPanel
+            settings={settings}
+            telemetry={telemetry}
+            isBackingUp={isBackingUp}
+            isSuperAdmin={isSuperAdmin}
+            onTriggerBackup={handleTriggerBackup}
+            handleChange={handleChange}
+          />
+        )}
+
+        {/* Tab 4: Jaringan & Distribusi APK */}
+        {activeTab === 'jaringan' && (
+          <NetworkSettingsPanel
+            settings={settings}
+            isSuperAdmin={isSuperAdmin}
+            handleChange={handleChange}
+          />
+        )}
+
+        {/* Integrated Clean Section Footer */}
+        <div
+          style={{
+            marginTop: '24px',
+            padding: '12px 18px',
+            background: '#ffffff',
+            border: '1px solid #e2ecf2',
+            borderRadius: '8px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            boxShadow: '0 1px 2px rgba(27, 92, 162, 0.02)',
+          }}
+        >
+          <div style={{ fontSize: '12px', color: '#64748b' }}>
+            {hasChanges ? (
+              <span style={{ color: '#0e5b92', fontWeight: 600 }}>
+                ● Terdapat perubahan konfigurasi yang belum disimpan.
+              </span>
+            ) : (
+              <span>Konfigurasi tersinkronisasi penuh dengan server on-premise PostgreSQL &amp; Docker.</span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              disabled={loading || isSaving || !hasChanges}
+              style={{
+                padding: '7px 14px',
+                fontSize: '12px',
+                fontWeight: 500,
+                color: '#475569',
+                border: '1px solid #dce7f0',
+                borderRadius: '6px',
+                background: '#ffffff',
+                cursor: !hasChanges ? 'not-allowed' : 'pointer',
+                opacity: !hasChanges ? 0.6 : 1,
+              }}
+            >
+              Reset
+            </button>
+
+            <button
+              type="submit"
+              disabled={!isSuperAdmin || isSaving || !hasChanges}
+              style={{
+                padding: '7px 18px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#ffffff',
+                background: !isSuperAdmin || !hasChanges ? '#94a3b8' : '#0e5b92',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: !isSuperAdmin || !hasChanges ? 'not-allowed' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              {isSaving && <Icon name="refresh" size={13} className="spin" />}
+              <span>{isSaving ? 'Menyimpan...' : 'Simpan Konfigurasi'}</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </main>
+  );
+}
+

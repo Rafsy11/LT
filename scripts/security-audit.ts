@@ -268,6 +268,12 @@ async function runSecurityAudit() {
   }
   console.log('================================================');
 
+  try {
+    await redisManager.close();
+  } catch {
+    // Ignore cleanup errors
+  }
+
   if (allPassed) {
     console.log('\n>>> ALL 6 ENTERPRISE SECURITY & IDEMPOTENCY AUDITS PASSED 100% <<<\n');
     process.exit(0);
@@ -277,4 +283,7 @@ async function runSecurityAudit() {
   }
 }
 
-void runSecurityAudit();
+runSecurityAudit().catch((err) => {
+  console.error('Fatal security audit error:', err);
+  process.exit(1);
+});

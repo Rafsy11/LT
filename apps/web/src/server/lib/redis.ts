@@ -258,6 +258,19 @@ class RedisManager {
       return false;
     }
   }
+
+  public async close(): Promise<void> {
+    try {
+      if (this.publisher) {
+        this.publisher.disconnect();
+      }
+      if (this.subscriber) {
+        this.subscriber.disconnect();
+      }
+    } catch {
+      // Ignore disconnect errors on shutdown
+    }
+  }
 }
 
 declare global {
