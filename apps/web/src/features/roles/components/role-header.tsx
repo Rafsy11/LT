@@ -10,7 +10,7 @@ export interface RoleHeaderProps {
 
 export function RoleHeader({ isFetching, onRefresh }: RoleHeaderProps) {
   return (
-    <div className="overview-header" style={{ marginBottom: '28px' }}>
+    <header className="overview-header" style={{ marginBottom: '28px' }}>
       <div className="overview-header-copy">
         <h1 className="overview-greeting">Role-Based Access Control</h1>
         <p className="overview-subtitle">
@@ -19,7 +19,7 @@ export function RoleHeader({ isFetching, onRefresh }: RoleHeaderProps) {
         </p>
       </div>
 
-      <div className="overview-toolbar">
+      <nav className="overview-toolbar" aria-label="Aksi kontrol peran">
         <div
           style={{
             display: 'inline-flex',
@@ -53,6 +53,7 @@ export function RoleHeader({ isFetching, onRefresh }: RoleHeaderProps) {
           onClick={onRefresh}
           disabled={isFetching}
           title="Segarkan data akses"
+          aria-label="Segarkan data akses"
           type="button"
           style={{
             padding: '6px 10px',
@@ -69,7 +70,7 @@ export function RoleHeader({ isFetching, onRefresh }: RoleHeaderProps) {
         >
           <Icon name="refresh" size={14} className={isFetching ? 'spin' : ''} />
         </button>
-      </div>
-    </div>
+      </nav>
+    </header>
   );
 }

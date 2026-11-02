@@ -22,7 +22,8 @@ export function AiMessageList({
   messagesEndRef,
 }: AiMessageListProps) {
   return (
-    <div
+    <section
+      aria-label="Riwayat Percakapan AI"
       style={{
         width: '100%',
         maxWidth: '920px',
@@ -36,7 +37,7 @@ export function AiMessageList({
       }}
     >
       {/* Subtle conversation toolbar */}
-      <div
+      <header
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -83,21 +84,34 @@ export function AiMessageList({
           <Icon name="refresh" size={12} />
           <span>Sesi Baru</span>
         </button>
-      </div>
+      </header>
 
-      {messages.map((m, i) => (
-        <div
-          key={i}
-          className={`message-row ${m.role === 'user' ? 'user' : 'assistant'}`}
-          style={{
-            display: 'flex',
-            gap: '12px',
+      <ol
+        role="log"
+        aria-live="polite"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '18px',
+          listStyle: 'none',
+          margin: 0,
+          padding: 0,
+          width: '100%',
+        }}
+      >
+        {messages.map((m, i) => (
+          <li
+            key={i}
+            className={`message-row ${m.role === 'user' ? 'user' : 'assistant'}`}
+            style={{
+              display: 'flex',
+              gap: '12px',
             width: '100%',
             justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start',
           }}
         >
           {m.role === 'assistant' && (
-            <div
+            <figure
               style={{
                 width: '34px',
                 height: '34px',
@@ -110,6 +124,7 @@ export function AiMessageList({
                 flexShrink: 0,
                 overflow: 'hidden',
                 padding: '2px',
+                margin: 0,
                 boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
               }}
             >
@@ -122,10 +137,10 @@ export function AiMessageList({
                   objectFit: 'contain',
                 }}
               />
-            </div>
+            </figure>
           )}
 
-          <div
+          <article
             style={{
               maxWidth: m.role === 'user' ? '76%' : '88%',
               background: m.role === 'user' ? '#0e5b92' : '#ffffff',
@@ -141,7 +156,7 @@ export function AiMessageList({
                   : '0 2px 8px rgba(0, 0, 0, 0.03)',
             }}
           >
-            <div
+            <header
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -160,16 +175,16 @@ export function AiMessageList({
                 {m.role === 'user' ? 'Aditya Saputra' : 'AI Assistant'}
               </span>
               {m.timestamp && (
-                <span
+                <time
                   style={{
                     fontSize: '10.5px',
                     color: m.role === 'user' ? 'rgba(255, 255, 255, 0.8)' : '#64748b',
                   }}
                 >
                   {m.timestamp}
-                </span>
+                </time>
               )}
-            </div>
+            </header>
 
             <p
               style={{
@@ -184,15 +199,20 @@ export function AiMessageList({
 
             {/* Draft Action Card (Human-in-the-Loop with 6-State Local Machine) */}
             {m.draft && <DraftActionCard draft={m.draft} formatPayloadEntry={formatPayloadEntry} />}
-          </div>
+          </article>
 
           {m.role === 'user' && <DefaultAvatar name="Aditya Saputra" size={32} />}
-        </div>
+        </li>
       ))}
+      </ol>
 
       {loading && (
-        <div style={{ display: 'flex', gap: '12px', width: '100%', justifyContent: 'flex-start' }}>
-          <div
+        <aside
+          role="status"
+          aria-live="polite"
+          style={{ display: 'flex', gap: '12px', width: '100%', justifyContent: 'flex-start' }}
+        >
+          <figure
             style={{
               width: '34px',
               height: '34px',
@@ -205,6 +225,7 @@ export function AiMessageList({
               flexShrink: 0,
               overflow: 'hidden',
               padding: '2px',
+              margin: 0,
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
             }}
           >
@@ -217,7 +238,7 @@ export function AiMessageList({
                 objectFit: 'contain',
               }}
             />
-          </div>
+          </figure>
           <div
             style={{
               background: '#f8fafc',
@@ -235,10 +256,10 @@ export function AiMessageList({
             <Icon name="refresh" size={14} className="animate-spin" />
             <span>Menjalankan inferensi model Qwen 2.5 di server internal...</span>
           </div>
-        </div>
+        </aside>
       )}
 
       <div ref={messagesEndRef} />
-    </div>
+    </section>
   );
 }

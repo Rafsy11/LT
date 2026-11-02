@@ -18,7 +18,8 @@ export function NetworkSettingsPanel({
   handleChange,
 }: NetworkSettingsPanelProps) {
   return (
-    <div
+    <section
+      aria-label="Akses Jaringan & Distribusi APK"
       style={{
         display: 'grid',
         gridTemplateColumns: 'minmax(0, 1.25fr) minmax(360px, 1fr)',
@@ -27,7 +28,7 @@ export function NetworkSettingsPanel({
       }}
     >
       {/* Left: Public Access & Workspace Identity */}
-      <div
+      <article
         style={{
           background: '#ffffff',
           border: '1px solid #e2ecf2',
@@ -36,16 +37,22 @@ export function NetworkSettingsPanel({
           boxShadow: '0 1px 3px rgba(27, 92, 162, 0.02)',
         }}
       >
-        <h2 style={{ fontSize: '15px', fontWeight: 600, color: '#182230', margin: '0 0 4px 0' }}>
-          Metode Akses Publik untuk 200 Teknisi
-        </h2>
-        <p style={{ fontSize: '12.5px', color: '#515a62', margin: '0 0 16px 0' }}>
-          Jalur koneksi terenkripsi HTTPS agar aplikasi mobile Android/iOS dapat mengakses API,
-          kamera, dan koordinat GPS.
-        </p>
+        <header>
+          <h2 style={{ fontSize: '15px', fontWeight: 600, color: '#182230', margin: '0 0 4px 0' }}>
+            Metode Akses Publik untuk 200 Teknisi
+          </h2>
+          <p style={{ fontSize: '12.5px', color: '#515a62', margin: '0 0 16px 0' }}>
+            Jalur koneksi terenkripsi HTTPS agar aplikasi mobile Android/iOS dapat mengakses API,
+            kamera, dan koordinat GPS.
+          </p>
+        </header>
 
-        <div
+        <fieldset
+          aria-label="Pilihan Metode Akses Publik"
           style={{
+            border: 0,
+            margin: 0,
+            padding: 0,
             display: 'grid',
             gridTemplateColumns: 'repeat(3, 1fr)',
             gap: '10px',
@@ -96,7 +103,7 @@ export function NetworkSettingsPanel({
               </div>
             </div>
           ))}
-        </div>
+        </fieldset>
 
         <div
           style={{
@@ -168,10 +175,15 @@ export function NetworkSettingsPanel({
         </div>
 
         {/* Nginx Reverse Proxy Config */}
-        <div style={{ borderTop: '1px solid #edf2f7', paddingTop: '16px' }}>
-          <h3 style={{ fontSize: '13px', fontWeight: 600, color: '#182230', margin: '0 0 10px 0' }}>
-            Konfigurasi Nginx Reverse Proxy (PRD 7.2 &amp; AGENT.md)
-          </h3>
+        <section
+          aria-label="Konfigurasi Nginx Reverse Proxy"
+          style={{ borderTop: '1px solid #edf2f7', paddingTop: '16px' }}
+        >
+          <header>
+            <h3 style={{ fontSize: '13px', fontWeight: 600, color: '#182230', margin: '0 0 10px 0' }}>
+              Konfigurasi Nginx Reverse Proxy (PRD 7.2 &amp; AGENT.md)
+            </h3>
+          </header>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div
               style={{
@@ -215,12 +227,15 @@ export function NetworkSettingsPanel({
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </section>
+      </article>
 
       {/* Right: Mobile Distribution & Self-Hosted OTA Update (PRD 7.3) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <div
+      <aside
+        aria-label="Distribusi Mobile & Self-Hosted OTA Update"
+        style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
+      >
+        <article
           style={{
             background: '#ffffff',
             border: '1px solid #e2ecf2',
@@ -229,7 +244,7 @@ export function NetworkSettingsPanel({
             boxShadow: '0 1px 3px rgba(27, 92, 162, 0.02)',
           }}
         >
-          <div
+          <header
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -253,7 +268,7 @@ export function NetworkSettingsPanel({
             >
               PRD 7.3 Siap
             </span>
-          </div>
+          </header>
 
           <p style={{ fontSize: '12px', color: '#515a62', margin: '0 0 16px 0', lineHeight: 1.4 }}>
             Mekanisme pembaruan aplikasi lapangan langsung melalui server internal tanpa harus
@@ -344,8 +359,8 @@ export function NetworkSettingsPanel({
               Bundle JavaScript dan perbaikan bug dapat langsung diunduh secara latar belakang.
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </article>
+      </aside>
+    </section>
   );
 }

@@ -20,7 +20,9 @@ export function AiAssistantView() {
   } = useAiAssistant();
 
   return (
-    <div
+    <section
+      className="ai-assistant-page"
+      aria-label="Ruang Kerja AI Assistant"
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -51,6 +53,6 @@ export function AiAssistantView() {
         loading={loading}
         onSubmit={(text) => sendMessage(text)}
       />
-    </div>
+    </section>
   );
 }

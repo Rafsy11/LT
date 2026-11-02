@@ -38,7 +38,8 @@ export function TechnicianGrid({
   }
 
   return (
-    <div
+    <section
+      aria-label="Daftar Teknisi"
       style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
@@ -56,6 +57,6 @@ export function TechnicianGrid({
           onToggleAccount={onToggleAccount}
         />
       ))}
-    </div>
+    </section>
   );
 }

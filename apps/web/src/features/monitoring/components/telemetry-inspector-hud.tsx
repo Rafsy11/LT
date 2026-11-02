@@ -22,14 +22,14 @@ export function TelemetryInspectorHud({
 
   return (
     <aside className="noc-inspector-panel" aria-label="Inspektor Telemetri Real-Time">
-      <div className="noc-inspector-header">
+      <header className="noc-inspector-header">
         <span className="noc-inspector-title">INSPEKTOR TELEMETRI</span>
         <span className="ticket-tag-mono">{activeReport.ticketNumber}</span>
-      </div>
+      </header>
 
       <div className="noc-inspector-body">
         {/* Optical HUD Gauge Card */}
-        <div className={`hud-gauge-card ${status.toLowerCase()}`}>
+        <section className={`hud-gauge-card ${status.toLowerCase()}`} aria-label="Pengukur Redaman Optik">
           <div className="hud-gauge-top">
             <div className={`hud-dbm-big ${tone}`}>
               {activeReport.currentAttenuation.toFixed(1)} <small>dBm</small>
@@ -44,13 +44,18 @@ export function TelemetryInspectorHud({
           <div
             className="hud-spectrum-bar"
             title={`Posisi spektrum ukur: ${activeReport.currentAttenuation} dBm`}
+            role="progressbar"
+            aria-valuenow={activeReport.currentAttenuation}
+            aria-valuemin={-30}
+            aria-valuemax={-10}
+            aria-label="Spektrum redaman"
           >
             <div
               className={`hud-spectrum-fill ${status.toLowerCase()}`}
               style={{ width: `${meterPct}%` }}
             />
           </div>
-          <div className="hud-spectrum-labels">
+          <div className="hud-spectrum-labels" aria-hidden="true">
             <span>-30 dBm</span>
             <span>-22.0</span>
             <span>-15.0</span>
@@ -77,11 +82,11 @@ export function TelemetryInspectorHud({
               </>
             )}
           </p>
-        </div>
+        </section>
 
         {/* Customer & Physical Network Spec */}
-        <div>
-          <div className="hud-section-label">IDENTITAS FISIK &amp; JARINGAN</div>
+        <section aria-labelledby="hud-identitas-label">
+          <h3 id="hud-identitas-label" className="hud-section-label">IDENTITAS FISIK &amp; JARINGAN</h3>
           <div className="hud-spec-grid">
             <div className="hud-spec-item full-width">
               <div className="hud-spec-key">Nama Pelanggan</div>
@@ -108,11 +113,11 @@ export function TelemetryInspectorHud({
               <div className="hud-spec-val">Port {activeReport.portNumber || 1}</div>
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Field Security & Verification (PRD 3.3) */}
-        <div>
-          <div className="hud-section-label">INTEGRITAS LAPANGAN &amp; ANTI-FAKE GPS</div>
+        <section aria-labelledby="hud-security-label">
+          <h3 id="hud-security-label" className="hud-section-label">INTEGRITAS LAPANGAN &amp; ANTI-FAKE GPS</h3>
           <div className="hud-security-box">
             <div className="hud-sec-row">
               <span className="hud-sec-label">Teknisi Bertugas</span>
@@ -139,10 +144,10 @@ export function TelemetryInspectorHud({
               <span className="hud-sec-val verified">MinIO Verified</span>
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Action Buttons */}
-        <div className="hud-actions">
+        <nav className="hud-actions" aria-label="Aksi Inspeksi Telemetri">
           <button
             className="hud-btn-primary"
             onClick={() => onOpenModal(activeReport)}
@@ -154,7 +159,7 @@ export function TelemetryInspectorHud({
           <Link href="/network" className="hud-btn-secondary">
             <span>Buka di Master Jaringan</span>
           </Link>
-        </div>
+        </nav>
       </div>
     </aside>
   );

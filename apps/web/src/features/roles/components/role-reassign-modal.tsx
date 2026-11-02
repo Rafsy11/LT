@@ -27,7 +27,12 @@ export function RoleReassignModal({
   if (!editingUser) return null;
 
   return (
-    <div
+    <dialog
+      className="overlay"
+      open
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="role-reassign-title"
       style={{
         position: 'fixed',
         inset: 0,
@@ -37,10 +42,16 @@ export function RoleReassignModal({
         placeItems: 'center',
         zIndex: 999,
         padding: '16px',
+        border: 'none',
+        width: '100%',
+        height: '100%',
+        maxWidth: 'none',
+        maxHeight: 'none',
       }}
       onClick={onClose}
     >
-      <div
+      <article
+        className="modal"
         style={{
           background: '#ffffff',
           borderRadius: '10px',
@@ -52,7 +63,7 @@ export function RoleReassignModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div
+        <header
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -60,12 +71,16 @@ export function RoleReassignModal({
             marginBottom: '16px',
           }}
         >
-          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#0f172a' }}>
+          <h3
+            id="role-reassign-title"
+            style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#0f172a' }}
+          >
             Ubah Peran Pengguna
           </h3>
           <button
             type="button"
             onClick={onClose}
+            aria-label="Tutup modal"
             style={{
               background: 'none',
               border: 'none',
@@ -76,9 +91,10 @@ export function RoleReassignModal({
           >
             <Icon name="x" size={16} />
           </button>
-        </div>
+        </header>
 
-        <div
+        <section
+          aria-label="Informasi Pengguna"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -96,10 +112,11 @@ export function RoleReassignModal({
             </div>
             <div style={{ fontSize: '11.5px', color: '#64748b' }}>{editingUser.email}</div>
           </div>
-        </div>
+        </section>
 
-        <div style={{ marginBottom: '20px' }}>
+        <fieldset style={{ marginBottom: '20px', border: 0, margin: 0, padding: 0 }}>
           <label
+            htmlFor="target-role-select"
             style={{
               display: 'block',
               fontSize: '12px',
@@ -111,6 +128,7 @@ export function RoleReassignModal({
             Pilih Peran Baru:
           </label>
           <select
+            id="target-role-select"
             value={targetRoleId}
             onChange={(e) => setTargetRoleId(e.target.value)}
             style={{
@@ -130,44 +148,50 @@ export function RoleReassignModal({
               </option>
             ))}
           </select>
-        </div>
+        </fieldset>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: '7px 14px',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              background: '#ffffff',
-              border: '1px solid #dce7f0',
-              color: '#475569',
-              cursor: 'pointer',
-            }}
+        <footer style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+          <div
+            role="group"
+            aria-label="Aksi perbarui peran"
+            style={{ display: 'flex', gap: '10px', alignItems: 'center' }}
           >
-            Batal
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={isLoading}
-            style={{
-              padding: '7px 16px',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 600,
-              background: '#0e5b92',
-              border: 'none',
-              color: '#ffffff',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {isLoading ? 'Menyimpan...' : 'Perbarui Peran'}
-          </button>
-        </div>
-      </div>
-    </div>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 500,
+                background: '#ffffff',
+                border: '1px solid #dce7f0',
+                color: '#475569',
+                cursor: 'pointer',
+              }}
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={isLoading}
+              style={{
+                padding: '7px 16px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 600,
+                background: '#0e5b92',
+                border: 'none',
+                color: '#ffffff',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isLoading ? 'Menyimpan...' : 'Perbarui Peran'}
+            </button>
+          </div>
+        </footer>
+      </article>
+    </dialog>
   );
 }

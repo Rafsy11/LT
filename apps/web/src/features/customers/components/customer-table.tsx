@@ -10,7 +10,7 @@ interface CustomerTableProps {
 
 export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProps) {
   return (
-    <div className="table-scroll">
+    <div className="table-scroll" tabIndex={0} role="region" aria-label="Tabel Direktori Pelanggan">
       <table
         style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}
       >
@@ -18,19 +18,28 @@ export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProp
           <tr
             style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}
           >
-            <th style={{ padding: '10px 14px', fontWeight: 600 }}>Pelanggan &amp; Nomor SIA</th>
-            <th style={{ padding: '10px 14px', fontWeight: 600 }}>Alamat Instalasi</th>
-            <th style={{ padding: '10px 14px', fontWeight: 600 }}>Cluster</th>
-            <th style={{ padding: '10px 14px', fontWeight: 600 }}>Splitter &amp; Port</th>
-            <th style={{ padding: '10px 14px', fontWeight: 600 }}>Status Layanan</th>
-            <th style={{ padding: '10px 14px', fontWeight: 600 }}>Redaman Terakhir</th>
-            <th style={{ padding: '10px 14px', fontWeight: 600, textAlign: 'right' }}>Aksi</th>
+            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600 }}>Pelanggan &amp; Nomor SIA</th>
+            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600 }}>Alamat Instalasi</th>
+            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600 }}>Cluster</th>
+            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600 }}>Splitter &amp; Port</th>
+            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600 }}>Status Layanan</th>
+            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600 }}>Redaman Terakhir</th>
+            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600, textAlign: 'right' }}>Aksi</th>
           </tr>
         </thead>
         <tbody>
           {customers.map((c) => (
             <tr
               key={c.siaNumber}
+              tabIndex={0}
+              role="button"
+              aria-label={`Lihat detail pelanggan ${c.fullName}`}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectCustomer(c);
+                }
+              }}
               style={{
                 borderBottom: '1px solid #f1f5f9',
                 transition: 'background 0.15s ease',

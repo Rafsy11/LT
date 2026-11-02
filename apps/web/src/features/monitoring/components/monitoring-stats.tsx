@@ -17,7 +17,19 @@ export function MonitoringStats({
 }: MonitoringStatsProps) {
   return (
     <section className="monitoring-stats-grid" aria-label="Statistik Telemetri Redaman Optik">
-      <article className="stat-card" onClick={() => onSelectTab('Semua')}>
+      <article
+        className="stat-card"
+        onClick={() => onSelectTab('Semua')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelectTab('Semua');
+          }
+        }}
+        aria-label="Filter semua laporan masuk"
+      >
         <div className="stat-card-inner">
           <div className="stat-card-top">
             <div className="stat-card-text">
@@ -31,12 +43,24 @@ export function MonitoringStats({
         </div>
       </article>
 
-      <article className="stat-card" onClick={() => onSelectTab('Normal')}>
+      <article
+        className="stat-card"
+        onClick={() => onSelectTab('Normal')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelectTab('Normal');
+          }
+        }}
+        aria-label="Filter laporan redaman normal"
+      >
         <div className="stat-card-inner">
           <div className="stat-card-top">
             <div className="stat-card-text">
               <div className="stat-card-label-with-dot">
-                <span className="optical-status-dot normal" />
+                <span className="optical-status-dot normal" aria-hidden="true" />
                 <span className="stat-card-label">Normal (-15 s/d -22 dBm)</span>
               </div>
               <div className="stat-card-value">{normalCount}</div>
@@ -48,12 +72,24 @@ export function MonitoringStats({
         </div>
       </article>
 
-      <article className="stat-card" onClick={() => onSelectTab('Warning')}>
+      <article
+        className="stat-card"
+        onClick={() => onSelectTab('Warning')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelectTab('Warning');
+          }
+        }}
+        aria-label="Filter laporan redaman warning"
+      >
         <div className="stat-card-inner">
           <div className="stat-card-top">
             <div className="stat-card-text">
               <div className="stat-card-label-with-dot">
-                <span className="optical-status-dot warning" />
+                <span className="optical-status-dot warning" aria-hidden="true" />
                 <span className="stat-card-label">Warning (-22.1 s/d -25 dBm)</span>
               </div>
               <div className="stat-card-value">{warningCount}</div>
@@ -65,12 +101,24 @@ export function MonitoringStats({
         </div>
       </article>
 
-      <article className="stat-card" onClick={() => onSelectTab('Critical')}>
+      <article
+        className="stat-card"
+        onClick={() => onSelectTab('Critical')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelectTab('Critical');
+          }
+        }}
+        aria-label="Filter laporan redaman critical"
+      >
         <div className="stat-card-inner">
           <div className="stat-card-top">
             <div className="stat-card-text">
               <div className="stat-card-label-with-dot">
-                <span className="optical-status-dot critical" />
+                <span className="optical-status-dot critical" aria-hidden="true" />
                 <span className="stat-card-label">Critical (&lt; -25 dBm / Drop)</span>
               </div>
               <div className="stat-card-value">{criticalCount}</div>

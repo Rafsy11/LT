@@ -106,7 +106,7 @@ export function NetworkView() {
               aria-label={`Detail ODP ${activeSplitter.name}`}
             >
               {/* Top Header for Selected ODP (Clean, No Progress Bar, No Percentage) */}
-              <div className="odp-hardware-chassis-top">
+              <header className="odp-hardware-chassis-top">
                 <div className="odp-id-left-group">
                   <div className="odp-switch-icon-box">
                     <Icon name="network" size={20} />
@@ -144,6 +144,7 @@ export function NetworkView() {
                     type="button"
                     className="odp-more-menu-btn"
                     title="Opsi ODP"
+                    aria-label={`Opsi ODP ${activeSplitter.splitterCode}`}
                     onClick={() =>
                       showSuccess(`ODP ${activeSplitter.splitterCode} beroperasi normal.`)
                     }
@@ -151,12 +152,14 @@ export function NetworkView() {
                     ⋮
                   </button>
                 </div>
-              </div>
+              </header>
 
               {/* Navigation Tabs matching reference */}
-              <div className="odp-navigation-tabs-bar" role="tablist">
+              <nav className="odp-navigation-tabs-bar" role="tablist" aria-label="Tab navigasi ODP">
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'ports'}
                   className={`odp-nav-tab-btn ${activeTab === 'ports' ? 'is-active' : ''}`}
                   onClick={() => setActiveTab('ports')}
                 >
@@ -164,6 +167,8 @@ export function NetworkView() {
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'inspeksi'}
                   className={`odp-nav-tab-btn ${activeTab === 'inspeksi' ? 'is-active' : ''}`}
                   onClick={() => setActiveTab('inspeksi')}
                 >
@@ -171,6 +176,8 @@ export function NetworkView() {
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'riwayat'}
                   className={`odp-nav-tab-btn ${activeTab === 'riwayat' ? 'is-active' : ''}`}
                   onClick={() => setActiveTab('riwayat')}
                 >
@@ -178,12 +185,14 @@ export function NetworkView() {
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'audit'}
                   className={`odp-nav-tab-btn ${activeTab === 'audit' ? 'is-active' : ''}`}
                   onClick={() => setActiveTab('audit')}
                 >
                   Audit
                 </button>
-              </div>
+              </nav>
 
               {activeTab === 'ports' && (
                 <SplitterPortGrid

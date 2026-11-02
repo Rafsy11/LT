@@ -33,7 +33,7 @@ export function TicketFilters({
       {/* Filter Toolbar without Clutter Pills */}
       <section className="tickets-toolbar">
         <div className="tickets-filter-group">
-          <div className="tickets-search-input">
+          <search className="tickets-search-input" role="search">
             <Icon name="search" size={15} />
             <input
               type="text"
@@ -42,7 +42,7 @@ export function TicketFilters({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-          </div>
+          </search>
 
           <div className="select-wrapper">
             <select
@@ -78,7 +78,7 @@ export function TicketFilters({
       </section>
 
       {/* Segmented Status Tabs Bar (3 Clean Tabs: Semua, Menunggu, Dalam proses) */}
-      <div className="tickets-tabs-bar" role="tablist" aria-label="Filter Status Tiket">
+      <nav className="tickets-tabs-bar" role="tablist" aria-label="Filter Status Tiket">
         {[
           { label: 'Semua', count: totalCount },
           { label: 'Menunggu', count: waitingCount },
@@ -95,7 +95,7 @@ export function TicketFilters({
             <span className="ticket-tab-count">{item.count}</span>
           </button>
         ))}
-      </div>
+      </nav>
     </>
   );
 }

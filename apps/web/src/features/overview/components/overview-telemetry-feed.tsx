@@ -11,26 +11,26 @@ export function OverviewTelemetryFeed({ feedItems }: OverviewTelemetryFeedProps)
   return (
     <section className="panel overview-feed-panel" aria-label="Feed Aktivitas Lapangan Real-time">
       <div className="panel-inner">
-        <div className="panel-heading">
+        <header className="panel-heading">
           <div className="panel-heading-left">
             <h2>
               Aktivitas terbaru{' '}
               <span className="live-feed-badge">
-                <span className="status-dot green" />
+                <span className="status-dot green" aria-hidden="true" />
                 LIVE
               </span>
             </h2>
           </div>
           <Link href="/monitoring" className="link-arrow">
             <span>Lihat semua</span>
-            <span className="arrow-sym">→</span>
+            <span className="arrow-sym" aria-hidden="true">→</span>
           </Link>
-        </div>
+        </header>
 
-        <div className="feed-stream">
+        <ol className="feed-stream" aria-label="Daftar aktivitas terkini">
           {feedItems.slice(0, 4).map((item) => (
-            <div className="feed-stream-item" key={item.id}>
-              <div className={`feed-stream-icon ${item.type}`}>
+            <li className="feed-stream-item" key={item.id}>
+              <div className={`feed-stream-icon ${item.type}`} aria-hidden="true">
                 <Icon
                   name={
                     item.type === 'critical'
@@ -44,17 +44,17 @@ export function OverviewTelemetryFeed({ feedItems }: OverviewTelemetryFeedProps)
                   size={15}
                 />
               </div>
-              <div className="feed-stream-body">
+              <article className="feed-stream-body">
                 <div className="feed-stream-top-row">
                   <b className="feed-stream-title">{item.title}</b>
-                  <span className="feed-stream-time">{item.timeAgo}</span>
+                  <time className="feed-stream-time">{item.timeAgo}</time>
                 </div>
                 <p className="feed-stream-subtitle">{item.clusterLine}</p>
                 <p className="feed-stream-subtitle muted-line">{item.customerLine}</p>
-              </div>
-            </div>
+              </article>
+            </li>
           ))}
-        </div>
+        </ol>
       </div>
     </section>
   );

@@ -37,64 +37,64 @@ export function PortDetailPanel({
 }: PortDetailPanelProps) {
   if (activeTab === 'inspeksi') {
     return (
-      <div className="odp-tab-pane">
+      <section className="odp-tab-pane" aria-label="Inspeksi Teknis">
         {/* Top Status Cards: Chassis & Environmental Quality */}
-        <div className="inspection-chassis-grid">
-          <div className="inspection-chassis-card">
-            <div className="inspection-chassis-card-header">
+        <section className="inspection-chassis-grid" aria-label="Kualitas Enclosure dan Sasis ODP">
+          <article className="inspection-chassis-card">
+            <header className="inspection-chassis-card-header">
               <Icon name="shield" size={13} style={{ color: '#16a34a' }} />
               <span>Enclosure ODP Box</span>
-            </div>
+            </header>
             <div className="inspection-chassis-val" style={{ color: '#16a34a' }}>
               Terkunci & Aman (IP65)
             </div>
             <div className="inspection-chassis-sub">
               Kondisi housing tertutup rapat, seal karet kedap air utuh tanpa retak.
             </div>
-          </div>
+          </article>
 
-          <div className="inspection-chassis-card">
-            <div className="inspection-chassis-card-header">
+          <article className="inspection-chassis-card">
+            <header className="inspection-chassis-card-header">
               <Icon name="sliders" size={13} style={{ color: '#0284c7' }} />
               <span>Manajemen Tray & Pigtail</span>
-            </div>
+            </header>
             <div className="inspection-chassis-val" style={{ color: '#0f172a' }}>
               Sesuai SOP (R &gt; 30mm)
             </div>
             <div className="inspection-chassis-sub">
               Radius bending serat optik terjaga, proteksi selongsong bakar rapi.
             </div>
-          </div>
+          </article>
 
-          <div className="inspection-chassis-card">
-            <div className="inspection-chassis-card-header">
+          <article className="inspection-chassis-card">
+            <header className="inspection-chassis-card-header">
               <Icon name="spark" size={13} style={{ color: '#0284c7' }} />
               <span>Kebersihan Ferrule</span>
-            </div>
+            </header>
             <div className="inspection-chassis-val" style={{ color: '#0f172a' }}>
               Bersih (Bebas Debu)
             </div>
             <div className="inspection-chassis-sub">
               Konektor SC/UPC telah di-clean menggunakan optical cassette cleaner.
             </div>
-          </div>
+          </article>
 
-          <div className="inspection-chassis-card">
-            <div className="inspection-chassis-card-header">
+          <article className="inspection-chassis-card">
+            <header className="inspection-chassis-card-header">
               <Icon name="activity" size={13} style={{ color: '#16a34a' }} />
               <span>Input Sinyal Feeder ODC</span>
-            </div>
+            </header>
             <div className="inspection-chassis-val" style={{ color: '#16a34a' }}>
               -12.5 dBm
             </div>
             <div className="inspection-chassis-sub">
               Daya optik feeder normal. Loss insertion splitter 1x16 PLC: 13.8 dB.
             </div>
-          </div>
-        </div>
+          </article>
+        </section>
 
         {/* Inspection Action Strip */}
-        <div className="inspection-action-strip">
+        <nav className="inspection-action-strip" aria-label="Aksi hasil inspeksi">
           <div className="inspection-action-info">
             <Icon name="check" size={14} />
             <span>
@@ -131,20 +131,20 @@ export function PortDetailPanel({
               </button>
             )}
           </div>
-        </div>
+        </nav>
 
         {/* Port Physical Inspection Table */}
-        <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+        <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }} tabIndex={0} role="region" aria-label="Tabel inspeksi fisik port">
           <table className="odp-clean-table">
             <thead>
               <tr>
-                <th>PORT</th>
-                <th>STATUS ALOKASI</th>
-                <th>PENGUKURAN REDAMAN</th>
-                <th>FOTO KERJA</th>
-                <th>TANGGAL & TEKNISI</th>
-                <th>CATATAN HASIL PEMERIKSAAN</th>
-                <th style={{ textAlign: 'right', paddingRight: '16px' }}>TINDAKAN</th>
+                <th scope="col">PORT</th>
+                <th scope="col">STATUS ALOKASI</th>
+                <th scope="col">PENGUKURAN REDAMAN</th>
+                <th scope="col">FOTO KERJA</th>
+                <th scope="col">TANGGAL & TEKNISI</th>
+                <th scope="col">CATATAN HASIL PEMERIKSAAN</th>
+                <th scope="col" style={{ textAlign: 'right', paddingRight: '16px' }}>TINDAKAN</th>
               </tr>
             </thead>
             <tbody>
@@ -246,15 +246,15 @@ export function PortDetailPanel({
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (activeTab === 'riwayat') {
     return (
-      <div className="odp-tab-pane">
+      <section className="odp-tab-pane" aria-label="Riwayat Aktivitas">
         {/* Riwayat Activity Filters */}
-        <div
+        <header
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -265,15 +265,15 @@ export function PortDetailPanel({
           }}
         >
           <div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
+            <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
               Log Histori Aktivitas Operasional {activeSplitter.splitterCode}
-            </div>
+            </h3>
             <div style={{ fontSize: '11px', color: '#64748b' }}>
               Jejak audit seluruh tiket maintenance, pemasangan baru (PSB), dan penarikan teknisi.
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '6px' }}>
+          <nav aria-label="Filter tipe riwayat" style={{ display: 'flex', gap: '6px' }}>
             {(['ALL', 'MAINTENANCE', 'PEMASANGAN', 'PENARIKAN'] as const).map((filterKey) => (
               <button
                 key={filterKey}
@@ -295,18 +295,18 @@ export function PortDetailPanel({
                 {filterKey === 'ALL' ? 'Semua Log' : filterKey}
               </button>
             ))}
-          </div>
-        </div>
+          </nav>
+        </header>
 
         {/* Timeline list */}
-        <div className="timeline-list">
+        <ol className="timeline-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {odpHistoryLogs
             .filter((log) => historyTypeFilter === 'ALL' || log.type === historyTypeFilter)
             .map((log, idx) => (
-              <div key={idx} className="timeline-entry">
+              <li key={idx} className="timeline-entry">
                 <div className="timeline-entry-dot" />
-                <div className="timeline-entry-card">
-                  <div className="timeline-entry-head">
+                <article className="timeline-entry-card">
+                  <header className="timeline-entry-head">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span
                         className={`status-badge-clean-${log.type === 'MAINTENANCE' ? 'normal' : log.type === 'PEMASANGAN' ? 'psb' : 'warning'}`}
@@ -318,12 +318,12 @@ export function PortDetailPanel({
                         {log.customerName || 'Alokasi Baru'}
                       </span>
                     </div>
-                    <span className="timeline-entry-date">{log.date}</span>
-                  </div>
+                    <time className="timeline-entry-date">{log.date}</time>
+                  </header>
 
                   <p className="timeline-entry-notes">{log.notes}</p>
 
-                  <div className="timeline-entry-meta">
+                  <footer className="timeline-entry-meta">
                     <span>
                       Teknisi: <strong>{log.technician}</strong>
                     </span>
@@ -339,21 +339,21 @@ export function PortDetailPanel({
                         </span>
                       </>
                     )}
-                  </div>
-                </div>
-              </div>
+                  </footer>
+                </article>
+              </li>
             ))}
-        </div>
-      </div>
+        </ol>
+      </section>
     );
   }
 
   if (activeTab === 'audit') {
     return (
-      <div className="odp-tab-pane">
+      <section className="odp-tab-pane" aria-label="Audit Konkurensi">
         {/* Concurrency Guard Overview */}
-        <div className="audit-overview-card">
-          <div className="audit-overview-header">
+        <article className="audit-overview-card">
+          <header className="audit-overview-header">
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="audit-spec-badge">🔒 idx_unique_active_splitter_port</span>
@@ -377,9 +377,9 @@ export function PortDetailPanel({
               <Icon name="refresh" size={12} />
               <span>{auditRunning ? 'Memvalidasi Skema...' : 'Jalankan Uji Integritas'}</span>
             </button>
-          </div>
+          </header>
 
-          <div className="audit-kpi-grid">
+          <section className="audit-kpi-grid" aria-label="Metrik KPI Audit">
             <div className="audit-kpi-box">
               <div className="audit-kpi-box-label">Tabrakan Port (Collision)</div>
               <div className="audit-kpi-box-val" style={{ color: '#16a34a' }}>
@@ -407,20 +407,20 @@ export function PortDetailPanel({
                 {auditTimestamp}
               </div>
             </div>
-          </div>
-        </div>
+          </section>
+        </article>
 
         {/* Audit Entries Table */}
-        <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+        <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }} tabIndex={0} role="region" aria-label="Tabel entri audit port">
           <table className="odp-clean-table">
             <thead>
               <tr>
-                <th>PORT</th>
-                <th>STATUS ALOKASI</th>
-                <th>KUNCI DATABASE</th>
-                <th>NOMOR SIA / PELANGGAN</th>
-                <th>HASH INTEGRITAS AUDIT</th>
-                <th style={{ textAlign: 'right', paddingRight: '16px' }}>VALIDASI CONSTRAINT</th>
+                <th scope="col">PORT</th>
+                <th scope="col">STATUS ALOKASI</th>
+                <th scope="col">KUNCI DATABASE</th>
+                <th scope="col">NOMOR SIA / PELANGGAN</th>
+                <th scope="col">HASH INTEGRITAS AUDIT</th>
+                <th scope="col" style={{ textAlign: 'right', paddingRight: '16px' }}>VALIDASI CONSTRAINT</th>
               </tr>
             </thead>
             <tbody>
@@ -501,7 +501,7 @@ export function PortDetailPanel({
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
     );
   }
 

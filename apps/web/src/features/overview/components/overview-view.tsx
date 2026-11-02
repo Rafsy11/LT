@@ -40,9 +40,9 @@ export function OverviewView() {
   } = useOverview();
 
   return (
-    <main className="overview-page">
+    <main className="overview-page" id="main-content">
       {/* Page Header with Integrated Command Bar */}
-      <div className="overview-header">
+      <header className="overview-header">
         <div className="overview-header-copy">
           <h1 className="overview-greeting">Selamat datang, {user.fullName || 'Operator'}</h1>
           <p className="overview-subtitle">
@@ -50,12 +50,12 @@ export function OverviewView() {
           </p>
         </div>
 
-        <div className="overview-toolbar">
-          <div className="date-time-badge" title="Waktu operasional aktif">
+        <nav className="overview-toolbar" role="toolbar" aria-label="Toolbar Operasional">
+          <time className="date-time-badge" title="Waktu operasional aktif">
             <Icon name="clock" size={14} />
             <span>{currentDateTime.date || 'Waktu Operasional'}</span>
             <span className="time-text">{currentDateTime.time || 'WIB'}</span>
-          </div>
+          </time>
 
           <div className="select-wrapper">
             <select
@@ -109,8 +109,8 @@ export function OverviewView() {
           >
             <Icon name="refresh" size={14} />
           </button>
-        </div>
-      </div>
+        </nav>
+      </header>
 
       {/* 4 Telemetry Metric Cards */}
       <OverviewStats
@@ -122,10 +122,10 @@ export function OverviewView() {
       />
 
       {/* Middle Grid: Sebaran Jaringan & Aktivitas Terbaru */}
-      <div className="overview-middle-grid">
+      <section className="overview-middle-grid" aria-label="Peta Topologi & Telemetri">
         <OverviewNetworkMap />
         <OverviewTelemetryFeed feedItems={feedItems} />
-      </div>
+      </section>
 
       {/* Ticket & Work Order Data Table */}
       <OverviewTicketQueue

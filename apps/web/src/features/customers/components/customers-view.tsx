@@ -47,7 +47,7 @@ export function CustomersView() {
   return (
     <main className="customers-page" style={{ paddingBottom: '32px' }}>
       {/* Overview Command Header */}
-      <div className="overview-header" style={{ marginBottom: '28px' }}>
+      <header className="overview-header" style={{ marginBottom: '28px' }}>
         <div className="overview-header-copy">
           <h1 className="overview-greeting">Master Data Pelanggan (SIA)</h1>
           <p className="overview-subtitle">
@@ -56,7 +56,7 @@ export function CustomersView() {
           </p>
         </div>
 
-        <div className="overview-toolbar">
+        <nav className="overview-toolbar" aria-label="Aksi bilah status pelanggan">
           <div
             style={{
               display: 'inline-flex',
@@ -90,6 +90,7 @@ export function CustomersView() {
             onClick={fetchCustomers}
             disabled={loading}
             title="Segarkan data pelanggan"
+            aria-label="Segarkan data pelanggan"
             type="button"
             style={{
               padding: '6px 10px',
@@ -106,8 +107,8 @@ export function CustomersView() {
           >
             <Icon name="refresh" size={14} />
           </button>
-        </div>
-      </div>
+        </nav>
+      </header>
 
       {/* 4 Telemetry Metric Cards */}
       <CustomerStats

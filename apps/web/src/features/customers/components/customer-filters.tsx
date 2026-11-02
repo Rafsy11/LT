@@ -65,9 +65,11 @@ export function CustomerFilters({
   return (
     <>
       {/* Cluster Tabs Navigation Bar */}
-      <div className="customer-cluster-tab-bar" role="tablist" aria-label="Filter Wilayah Cluster">
+      <nav className="customer-cluster-tab-bar" role="tablist" aria-label="Filter Wilayah Cluster">
         <button
           type="button"
+          role="tab"
+          aria-selected={cluster === 'Semua cluster'}
           className={`customer-cluster-tab-btn ${cluster === 'Semua cluster' ? 'is-active' : ''}`}
           onClick={() => setCluster('Semua cluster')}
         >
@@ -85,6 +87,8 @@ export function CustomerFilters({
             <button
               key={cName}
               type="button"
+              role="tab"
+              aria-selected={isAct}
               className={`customer-cluster-tab-btn ${isAct ? 'is-active' : ''}`}
               onClick={() => setCluster(cName)}
             >
@@ -93,13 +97,13 @@ export function CustomerFilters({
             </button>
           );
         })}
-      </div>
+      </nav>
 
       {/* Secondary Toolbar: Search + Filter Wilayah on Left, Segmented Status Filter Tabs on Right */}
       <div className="customer-sub-toolbar">
         {/* Left: Search Box + Integrated Filter Wilayah */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <div className="customer-search-box">
+          <search className="customer-search-box" role="search">
             <span
               style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', flexShrink: 0 }}
             >
@@ -122,11 +126,12 @@ export function CustomerFilters({
                 <Icon name="x" size={13} />
               </button>
             )}
-          </div>
+          </search>
 
           {/* Tombol Filter Wilayah (Kecamatan, Kelurahan, Jalan) */}
           <button
             type="button"
+            aria-expanded={isWilayahFilterOpen}
             onClick={() => setIsWilayahFilterOpen(!isWilayahFilterOpen)}
             title="Buka filter spesifikasi wilayah (Kecamatan, Kelurahan, Jalan)"
             className={`btn-wilayah-toggle ${isWilayahFilterOpen || activeWilayahCount > 0 ? 'is-active' : ''}`}
@@ -148,13 +153,15 @@ export function CustomerFilters({
         </div>
 
         {/* Right: Segmented Status Filter Tabs */}
-        <div
+        <nav
           className="customer-status-segmented-tabs"
           role="tablist"
           aria-label="Filter Status Layanan"
         >
           <button
             type="button"
+            role="tab"
+            aria-selected={statusTab === 'all'}
             onClick={() => setStatusTab('all')}
             className={`customer-status-tab-btn ${statusTab === 'all' ? 'is-active' : ''}`}
           >
@@ -163,6 +170,8 @@ export function CustomerFilters({
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={statusTab === 'ACTIVE'}
             onClick={() => setStatusTab('ACTIVE')}
             className={`customer-status-tab-btn ${statusTab === 'ACTIVE' ? 'is-active' : ''}`}
           >
@@ -172,6 +181,8 @@ export function CustomerFilters({
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={statusTab === 'PENDING_INSTALL'}
             onClick={() => setStatusTab('PENDING_INSTALL')}
             className={`customer-status-tab-btn ${statusTab === 'PENDING_INSTALL' ? 'is-active' : ''}`}
           >
@@ -181,6 +192,8 @@ export function CustomerFilters({
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={statusTab === 'critical'}
             onClick={() => setStatusTab('critical')}
             className={`customer-status-tab-btn ${statusTab === 'critical' ? 'is-active' : ''}`}
           >
@@ -190,6 +203,8 @@ export function CustomerFilters({
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={statusTab === 'ISOLATED'}
             onClick={() => setStatusTab('ISOLATED')}
             className={`customer-status-tab-btn ${statusTab === 'ISOLATED' ? 'is-active' : ''}`}
           >
@@ -197,12 +212,13 @@ export function CustomerFilters({
             <span>Terisolir</span>
             <span className="customer-status-tab-count">({isolatedCount})</span>
           </button>
-        </div>
+        </nav>
       </div>
 
       {/* Panel Filter Spesifikasi Wilayah (Kecamatan, Kelurahan, Jalan) */}
       {isWilayahFilterOpen && (
-        <div
+        <fieldset
+          aria-label="Filter Spesifikasi Wilayah"
           style={{
             background: '#f8fafc',
             border: '1px solid #e2e8f0',
@@ -381,12 +397,13 @@ export function CustomerFilters({
               </select>
             </div>
           </div>
-        </div>
+        </fieldset>
       )}
 
       {/* Active Wilayah Filter Badges */}
       {activeWilayahCount > 0 && (
-        <div
+        <aside
+          aria-label="Filter Wilayah Terpilih"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -528,7 +545,7 @@ export function CustomerFilters({
           >
             Hapus semua filter wilayah
           </button>
-        </div>
+        </aside>
       )}
     </>
   );

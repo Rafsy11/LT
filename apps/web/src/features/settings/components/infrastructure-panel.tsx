@@ -21,7 +21,8 @@ export function InfrastructurePanel({
   handleChange,
 }: InfrastructurePanelProps) {
   return (
-    <div
+    <section
+      aria-label="Pengaturan Infrastruktur & Komputasi AI"
       style={{
         display: 'grid',
         gridTemplateColumns: 'minmax(0, 1.45fr) minmax(360px, 1fr)',
@@ -32,7 +33,7 @@ export function InfrastructurePanel({
       {/* Left Column: Form Controls & AI Isolation Configuration */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {/* Local AI Engine Box */}
-        <div
+        <article
           style={{
             background: '#ffffff',
             border: '1px solid #e2ecf2',
@@ -41,7 +42,7 @@ export function InfrastructurePanel({
             boxShadow: '0 1px 3px rgba(27, 92, 162, 0.02)',
           }}
         >
-          <div
+          <header
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -73,7 +74,7 @@ export function InfrastructurePanel({
             >
               Ollama v0.3.14
             </span>
-          </div>
+          </header>
 
           {/* Inference Mode Option Cards */}
           <div
@@ -282,10 +283,10 @@ export function InfrastructurePanel({
               database PostgreSQL dan trafik 200 teknisi lapangan.
             </span>
           </div>
-        </div>
+        </article>
 
         {/* Docker Compose Container Resource Isolation */}
-        <div
+        <article
           style={{
             background: '#ffffff',
             border: '1px solid #e2ecf2',
@@ -294,7 +295,7 @@ export function InfrastructurePanel({
             boxShadow: '0 1px 3px rgba(27, 92, 162, 0.02)',
           }}
         >
-          <div
+          <header
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -316,7 +317,7 @@ export function InfrastructurePanel({
             <span style={{ fontSize: '11px', color: '#64748b', fontFamily: 'monospace' }}>
               docker-compose.yml (Enforced)
             </span>
-          </div>
+          </header>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {telemetry?.containers.map((c) => (
@@ -392,12 +393,13 @@ export function InfrastructurePanel({
               </div>
             ))}
           </div>
-        </div>
+        </article>
       </div>
 
       {/* Right Column: Server Cockpit HUD & Telemetry */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <div
+        <aside
+          aria-label="Telemetri Server On-Premise"
           style={{
             background: '#ffffff',
             border: '1px solid #e2ecf2',
@@ -406,7 +408,7 @@ export function InfrastructurePanel({
             boxShadow: '0 1px 3px rgba(27, 92, 162, 0.02)',
           }}
         >
-          <div
+          <header
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -430,7 +432,7 @@ export function InfrastructurePanel({
             >
               UPTIME: 42 Hari 18 Jam
             </span>
-          </div>
+          </header>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {/* CPU Gauge */}
@@ -687,8 +689,8 @@ export function InfrastructurePanel({
               <span style={{ fontWeight: 600, color: '#16a34a' }}>Aktif (Valid s/d 2027)</span>
             </div>
           </div>
-        </div>
+        </aside>
       </div>
-    </div>
+    </section>
   );
 }

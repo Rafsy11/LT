@@ -38,7 +38,7 @@ export function TechnicianCard({
       }}
     >
       {/* Card Header: Avatar, Name & Username, Last Active & Unified Status Pill */}
-      <div
+      <header
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -155,7 +155,7 @@ export function TechnicianCard({
             </span>
           )}
         </div>
-      </div>
+      </header>
 
       {/* Work Order Info Strip */}
       <div
@@ -213,7 +213,7 @@ export function TechnicianCard({
       </div>
 
       {/* Card Actions */}
-      <div
+      <footer
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -334,7 +334,7 @@ export function TechnicianCard({
             <Icon name={tech.isActive ? 'lock' : 'unlock'} size={13} />
           </button>
         )}
-      </div>
+      </footer>
     </article>
   );
 }

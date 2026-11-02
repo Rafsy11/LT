@@ -126,16 +126,16 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
   };
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div
+    <dialog className="overlay" open onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="ticket-modal-title">
+      <article
         className="modal"
         style={{ maxWidth: '620px', width: '100%' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="panel-heading">
+        <header className="panel-heading">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span className="ticket-number-tag">{ticket.ticketNumber}</span>
-            <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#0f172a' }}>
+            <h2 id="ticket-modal-title" style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#0f172a' }}>
               {isPendingApproval
                 ? 'Verifikasi & Persetujuan Super Admin'
                 : 'Rincian Work Order Lapangan'}
@@ -144,7 +144,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
           <button className="dots" onClick={onClose} aria-label="Tutup modal" type="button">
             ×
           </button>
-        </div>
+        </header>
 
         <div className="modal-body" style={{ padding: '16px 20px 24px' }}>
           {/* Status Workflow Banners without Cliché AI Icons */}
@@ -674,7 +674,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
           )}
 
           {/* Action Buttons Footer */}
-          <div
+          <footer
             style={{
               display: 'flex',
               gap: '8px',
@@ -685,95 +685,97 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
               flexWrap: 'wrap',
             }}
           >
-            {isPendingApproval ? (
-              <>
-                <button
-                  type="button"
-                  style={{
-                    background: '#ffffff',
-                    color: '#b91c1c',
-                    border: '1px solid #fca5a5',
-                    borderRadius: '6px',
-                    padding: '7px 14px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                  disabled={isSubmitting}
-                  onClick={() => setShowRejectInput(!showRejectInput)}
-                >
-                  <Icon name="x" size={13} />
-                  <span>Tolak Laporan</span>
-                </button>
+            <div role="group" aria-label="Aksi rincian work order" style={{ display: 'contents' }}>
+              {isPendingApproval ? (
+                <>
+                  <button
+                    type="button"
+                    style={{
+                      background: '#ffffff',
+                      color: '#b91c1c',
+                      border: '1px solid #fca5a5',
+                      borderRadius: '6px',
+                      padding: '7px 14px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                    disabled={isSubmitting}
+                    onClick={() => setShowRejectInput(!showRejectInput)}
+                  >
+                    <Icon name="x" size={13} />
+                    <span>Tolak Laporan</span>
+                  </button>
 
-                <button
-                  type="button"
-                  style={{
-                    background: '#16a34a',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '7px 16px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: '0 1px 2px rgba(22, 163, 74, 0.2)',
-                  }}
-                  disabled={isSubmitting}
-                  onClick={handleApprove}
-                >
-                  <Icon name="check" size={14} />
-                  <span>{isSubmitting ? 'Menerapkan...' : 'Setujui & Terapkan Data (Accept)'}</span>
-                </button>
+                  <button
+                    type="button"
+                    style={{
+                      background: '#16a34a',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '7px 16px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 1px 2px rgba(22, 163, 74, 0.2)',
+                    }}
+                    disabled={isSubmitting}
+                    onClick={handleApprove}
+                  >
+                    <Icon name="check" size={14} />
+                    <span>{isSubmitting ? 'Menerapkan...' : 'Setujui & Terapkan Data (Accept)'}</span>
+                  </button>
 
-                <button
-                  type="button"
-                  className="button secondary"
-                  style={{ fontSize: '11.5px', padding: '7px 12px', marginLeft: 'auto' }}
-                  onClick={onClose}
-                >
-                  Tutup
-                </button>
-              </>
-            ) : (
-              <>
-                <Link
-                  href={`/network?search=${encodeURIComponent(ticket.cluster)}`}
-                  className="button secondary"
-                  style={{ fontSize: '11.5px', padding: '7px 12px' }}
-                >
-                  <Icon name="network" size={13} />
-                  <span>Buka di Master Jaringan</span>
-                </Link>
+                  <button
+                    type="button"
+                    className="button secondary"
+                    style={{ fontSize: '11.5px', padding: '7px 12px', marginLeft: 'auto' }}
+                    onClick={onClose}
+                  >
+                    Tutup
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href={`/network?search=${encodeURIComponent(ticket.cluster)}`}
+                    className="button secondary"
+                    style={{ fontSize: '11.5px', padding: '7px 12px' }}
+                  >
+                    <Icon name="network" size={13} />
+                    <span>Buka di Master Jaringan</span>
+                  </Link>
 
-                <Link
-                  href="/monitoring"
-                  className="button secondary"
-                  style={{ fontSize: '11.5px', padding: '7px 12px' }}
-                >
-                  <Icon name="activity" size={13} />
-                  <span>Pantau di Live Stream</span>
-                </Link>
+                  <Link
+                    href="/monitoring"
+                    className="button secondary"
+                    style={{ fontSize: '11.5px', padding: '7px 12px' }}
+                  >
+                    <Icon name="activity" size={13} />
+                    <span>Pantau di Live Stream</span>
+                  </Link>
 
-                <button
-                  type="button"
-                  className="button primary"
-                  style={{ fontSize: '11.5px', padding: '7px 16px', marginLeft: 'auto' }}
-                  onClick={onClose}
-                >
-                  Tutup Rincian
-                </button>
-              </>
-            )}
-          </div>
+                  <button
+                    type="button"
+                    className="button primary"
+                    style={{ fontSize: '11.5px', padding: '7px 16px', marginLeft: 'auto' }}
+                    onClick={onClose}
+                  >
+                    Tutup Rincian
+                  </button>
+                </>
+              )}
+            </div>
+          </footer>
         </div>
-      </div>
-    </div>
+      </article>
+    </dialog>
   );
 }

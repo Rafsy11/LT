@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import Link from 'next/link';
@@ -29,13 +29,13 @@ export function TechnicianDetailModal({
   const isRevokedSession = technician.sessionStatus === 'REVOKED';
 
   return (
-    <div className="overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div
+    <dialog className="overlay" open onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="technician-modal-title">
+      <article
         className="modal"
         style={{ maxWidth: '640px', width: '100%' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div
+        <header
           className="panel-heading"
           style={{ borderBottom: '1px solid #e2e8f0', padding: '16px 20px' }}
         >
@@ -43,7 +43,7 @@ export function TechnicianDetailModal({
             <DefaultAvatar size={44} name={technician.fullName} />
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#0f172a' }}>
+                <h2 id="technician-modal-title" style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#0f172a' }}>
                   {technician.fullName}
                 </h2>
                 <span style={{ fontSize: '12px', color: '#64748b', fontFamily: 'monospace' }}>
@@ -55,10 +55,10 @@ export function TechnicianDetailModal({
               </p>
             </div>
           </div>
-          <button className="dots" onClick={onClose} aria-label="Tutup modal">
-            Ã—
+          <button className="dots" onClick={onClose} aria-label="Tutup modal" type="button">
+            ×
           </button>
-        </div>
+        </header>
 
         <div className="modal-body" style={{ padding: '20px' }}>
           {/* Security Status Banner */}
@@ -430,7 +430,7 @@ export function TechnicianDetailModal({
         </div>
 
         {/* Modal Footer Actions */}
-        <div
+        <footer
           style={{
             padding: '14px 20px',
             background: '#f8fafc',
@@ -441,7 +441,7 @@ export function TechnicianDetailModal({
             borderRadius: '0 0 12px 12px',
           }}
         >
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div role="group" aria-label="Aksi kontrol sesi teknisi" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {canManageTech ? (
               <>
                 {isActiveSession ? (
@@ -503,7 +503,7 @@ export function TechnicianDetailModal({
               </>
             ) : (
               <span style={{ fontSize: '11.5px', color: '#94a3b8' }}>
-                ðŸ”’ Mode Lihat Saja (Izin <code>tech:manage</code> diperlukan)
+                🔒 Mode Lihat Saja (Izin <code>tech:manage</code> diperlukan)
               </span>
             )}
           </div>
@@ -511,6 +511,7 @@ export function TechnicianDetailModal({
           <button
             className="button"
             onClick={onClose}
+            type="button"
             style={{
               background: '#0f172a',
               color: '#ffffff',
@@ -522,8 +523,8 @@ export function TechnicianDetailModal({
           >
             Tutup
           </button>
-        </div>
-      </div>
-    </div>
+        </footer>
+      </article>
+    </dialog>
   );
 }

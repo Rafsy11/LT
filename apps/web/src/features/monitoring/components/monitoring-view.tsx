@@ -42,11 +42,11 @@ export function MonitoringView() {
   } = useMonitoring();
 
   return (
-    <main className="monitoring-page">
+    <main className="monitoring-page" id="main-content">
       {/* Overview Command Header */}
-      <div className="overview-header">
+      <header className="overview-header">
         <div className="overview-header-copy">
-          <div className="eyebrow">NOC TELEMETRY & ATTENUATION STREAM</div>
+          <div className="eyebrow">NOC TELEMETRY &amp; ATTENUATION STREAM</div>
           <h1 className="overview-greeting">Live Monitoring Redaman</h1>
           <p className="overview-subtitle">
             Pusat kendali dan pemantauan sinyal redaman optik FTTH secara real-time via Server-Sent
@@ -54,7 +54,7 @@ export function MonitoringView() {
           </p>
         </div>
 
-        <div className="overview-toolbar">
+        <nav className="overview-toolbar" role="toolbar" aria-label="Toolbar Live Monitoring">
           {/* Live SSE Status Beacon */}
           <div
             className={`live-status-pill ${
@@ -66,7 +66,7 @@ export function MonitoringView() {
             }`}
             title={`Status SSE: ${sseState} · Heartbeat: ${lastHeartbeat}`}
           >
-            <span className="live-pulse-beacon" />
+            <span className="live-pulse-beacon" aria-hidden="true" />
             <span>
               {sseState === 'LIVE_CONNECTED' && 'Live SSE Active'}
               {sseState === 'CONNECTING' && 'Menghubungkan Stream...'}
@@ -84,8 +84,8 @@ export function MonitoringView() {
           >
             <Icon name="refresh" size={14} />
           </button>
-        </div>
-      </div>
+        </nav>
+      </header>
 
       {/* 4 Telemetry Metrics Bar */}
       <MonitoringStats
@@ -104,7 +104,7 @@ export function MonitoringView() {
       />
 
       {/* Master-Detail Console Layout */}
-      <div className="noc-console-layout">
+      <section className="noc-console-layout" aria-label="Konsol Pemantauan Redaman Real-Time">
         <TelemetryStreamPanel
           search={search}
           setSearch={setSearch}
@@ -135,7 +135,7 @@ export function MonitoringView() {
           getMeterPercentage={getMeterPercentage}
           onOpenModal={setModalTicket}
         />
-      </div>
+      </section>
 
       {/* Ticket Detail Modal */}
       <TicketDetailModal ticket={modalTicket} onClose={() => setModalTicket(null)} />

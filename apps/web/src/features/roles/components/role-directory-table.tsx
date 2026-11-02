@@ -39,9 +39,9 @@ export function RoleDirectoryTable({
   getRoleBadgeStyle,
 }: RoleDirectoryTableProps) {
   return (
-    <div>
+    <section aria-label="Direktori Pengguna & Hak Akses">
       {/* Search & Filter Toolbar */}
-      <div
+      <header
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -51,7 +51,9 @@ export function RoleDirectoryTable({
         }}
       >
         {/* Search input */}
-        <div
+        <search
+          role="search"
+          aria-label="Cari pengguna"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -96,7 +98,7 @@ export function RoleDirectoryTable({
               <Icon name="x" size={13} />
             </button>
           )}
-        </div>
+        </search>
 
         {/* Filter by Role */}
         <select
@@ -145,9 +147,9 @@ export function RoleDirectoryTable({
           <option>Bandung Utara</option>
           <option>Bandung Selatan</option>
         </select>
-      </div>
+      </header>
 
-      <div style={{ overflowX: 'auto' }}>
+      <div style={{ overflowX: 'auto' }} tabIndex={0} role="region" aria-label="Tabel Direktori Pengguna">
         <table
           style={{
             width: '100%',
@@ -166,11 +168,11 @@ export function RoleDirectoryTable({
                 letterSpacing: '0.5px',
               }}
             >
-              <th style={{ padding: '12px 16px', fontWeight: 600 }}>Pengguna</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600 }}>Peran Sistem</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600 }}>Cakupan Wilayah</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600 }}>Status Akses</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>Aksi</th>
+              <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>Pengguna</th>
+              <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>Peran Sistem</th>
+              <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>Cakupan Wilayah</th>
+              <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>Status Akses</th>
+              <th scope="col" style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -371,7 +373,7 @@ export function RoleDirectoryTable({
       </div>
 
       {/* Quick Context Footer */}
-      <div
+      <footer
         style={{
           marginTop: '16px',
           display: 'flex',
@@ -385,7 +387,7 @@ export function RoleDirectoryTable({
           Menampilkan {filteredUsers.length} dari {totalUsersCount} operator
         </span>
         <span>Hak akses dieksekusi secara instan dengan verifikasi sesi token</span>
-      </div>
-    </div>
+      </footer>
+    </section>
   );
 }

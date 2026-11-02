@@ -35,7 +35,7 @@ export function TechniciansView() {
   return (
     <main className="technicians-page" style={{ paddingBottom: '32px' }}>
       {/* Page Heading & Redis Telemetry Beacon */}
-      <div className="overview-header" style={{ marginBottom: '28px' }}>
+      <header className="overview-header" style={{ marginBottom: '28px' }}>
         <div className="overview-header-copy">
           <h1 className="overview-greeting">Manajemen Teknisi & Sesi Perangkat</h1>
           <p className="overview-subtitle">
@@ -44,7 +44,7 @@ export function TechniciansView() {
           </p>
         </div>
 
-        <div className="overview-toolbar">
+        <nav className="overview-toolbar" aria-label="Aksi bilah status teknisi">
           <div
             style={{
               display: 'inline-flex',
@@ -78,6 +78,7 @@ export function TechniciansView() {
             onClick={fetchTechs}
             disabled={loading}
             title="Segarkan data sesi teknisi"
+            aria-label="Segarkan data sesi teknisi"
             type="button"
             style={{
               padding: '6px 10px',
@@ -94,13 +95,14 @@ export function TechniciansView() {
           >
             <Icon name="refresh" size={14} />
           </button>
-        </div>
-      </div>
+        </nav>
+      </header>
 
       {/* Permission Guard Banner */}
       {!canManageTech && (
-        <div
+        <aside
           className="info-strip"
+          role="alert"
           style={{
             background: '#fffbeb',
             borderColor: '#fde68a',
@@ -120,7 +122,7 @@ export function TechniciansView() {
             <code>tech:manage</code>. Tombol Force Logout dan Kunci Akun dinonaktifkan secara
             kondisional.
           </span>
-        </div>
+        </aside>
       )}
 
       {/* 4 Telemetry Metric Cards */}

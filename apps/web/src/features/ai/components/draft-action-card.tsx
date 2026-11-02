@@ -130,7 +130,8 @@ export function DraftActionCard({
   };
 
   return (
-    <div
+    <article
+      aria-label={`Draf Aksi: ${draft.title}`}
       style={{
         marginTop: '14px',
         background: '#ffffff',
@@ -142,7 +143,7 @@ export function DraftActionCard({
       }}
     >
       {/* Card Header & Security Info */}
-      <div
+      <header
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -198,8 +199,10 @@ export function DraftActionCard({
           <div>
             HMAC: <code>{draft.actionToken.substring(0, 10)}...</code>
           </div>
-          <div
+          <time
+            dateTime={`PT${remainingSeconds}S`}
             style={{
+              display: 'block',
               fontSize: '11px',
               marginTop: '3px',
               fontWeight: 600,
@@ -208,9 +211,9 @@ export function DraftActionCard({
             }}
           >
             {state === 'PENDING' ? `Sisa: ${formatCountdown(remainingSeconds)}` : 'Kedaluwarsa'}
-          </div>
+          </time>
         </div>
-      </div>
+      </header>
 
       {/* Grid Parameters Layout */}
       {draft.payload && (
@@ -252,7 +255,9 @@ export function DraftActionCard({
 
       {/* Error / Failure Banner */}
       {errorMessage && (
-        <div
+        <aside
+          role="alert"
+          aria-live="assertive"
           style={{
             padding: '8px 12px',
             background: '#fef2f2',
@@ -268,11 +273,11 @@ export function DraftActionCard({
         >
           <Icon name="shield" size={14} />
           <span>{errorMessage}</span>
-        </div>
+        </aside>
       )}
 
       {/* Action / State Controls */}
-      <div>
+      <footer>
         {state === 'EXECUTED' ? (
           <div
             style={{
@@ -297,7 +302,11 @@ export function DraftActionCard({
             keamanan. Silakan minta AI membuat draf baru.
           </div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div
+            role="group"
+            aria-label="Aksi draf persetujuan"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
             <button
               className="button primary"
               disabled={state === 'EXECUTING'}
@@ -344,7 +353,7 @@ export function DraftActionCard({
             </button>
           </div>
         )}
-      </div>
-    </div>
+      </footer>
+    </article>
   );
 }

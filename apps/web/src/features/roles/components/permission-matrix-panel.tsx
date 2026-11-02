@@ -32,9 +32,10 @@ export function PermissionMatrixPanel({
   onBackToDirectory,
 }: PermissionMatrixPanelProps) {
   return (
-    <div>
+    <section aria-label="Matriks Hak Akses">
       {/* Role Selector Pills */}
-      <div
+      <nav
+        aria-label="Pilih Peran"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -67,10 +68,10 @@ export function PermissionMatrixPanel({
             </button>
           );
         })}
-      </div>
+      </nav>
 
       {/* Role Header Info */}
-      <div
+      <header
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -126,12 +127,12 @@ export function PermissionMatrixPanel({
             Hak Akses Terkunci Penuh (Wildcard)
           </div>
         )}
-      </div>
+      </header>
 
       {/* Matrix Table */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
         {categories.map(([categoryName, perms]) => (
-          <div
+          <fieldset
             key={categoryName}
             style={{
               background: '#ffffff',
@@ -141,8 +142,10 @@ export function PermissionMatrixPanel({
             }}
           >
             {/* Category Header */}
-            <div
+            <legend
               style={{
+                width: '100%',
+                boxSizing: 'border-box',
                 padding: '10px 16px',
                 background: '#f8fafc',
                 borderBottom: '1px solid #e2e8f0',
@@ -154,7 +157,7 @@ export function PermissionMatrixPanel({
               }}
             >
               {categoryName}
-            </div>
+            </legend>
 
             {/* Permissions rows */}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -246,13 +249,13 @@ export function PermissionMatrixPanel({
                 );
               })}
             </div>
-          </div>
+          </fieldset>
         ))}
       </div>
 
       {/* Bottom Save Action Bar */}
       {isEditable && (
-        <div
+        <footer
           style={{
             marginTop: '24px',
             paddingTop: '16px',
@@ -263,56 +266,67 @@ export function PermissionMatrixPanel({
             gap: '12px',
           }}
         >
-          <button
-            type="button"
-            onClick={onBackToDirectory}
+          <div
+            role="group"
+            aria-label="Aksi simpan matriks izin"
             style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              fontSize: '12.5px',
-              fontWeight: 500,
-              background: '#ffffff',
-              border: '1px solid #dce7f0',
-              color: '#475569',
-              cursor: 'pointer',
-            }}
-          >
-            Kembali ke Direktori
-          </button>
-
-          <button
-            type="button"
-            onClick={onSavePermissions}
-            disabled={isLoading}
-            style={{
-              padding: '8px 20px',
-              borderRadius: '6px',
-              fontSize: '12.5px',
-              fontWeight: 600,
-              background: '#0e5b92',
-              border: 'none',
-              color: '#ffffff',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              boxShadow: '0 1px 3px rgba(14, 91, 146, 0.2)',
-              display: 'inline-flex',
+              display: 'flex',
+              justifyContent: 'flex-end',
               alignItems: 'center',
-              gap: '8px',
+              gap: '12px',
             }}
           >
-            {isLoading ? (
-              <>
-                <Icon name="refresh" size={14} className="spin" />
-                Menyimpan...
-              </>
-            ) : (
-              <>
-                <Icon name="check" size={14} />
-                Simpan Matriks Izin
-              </>
-            )}
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={onBackToDirectory}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                fontSize: '12.5px',
+                fontWeight: 500,
+                background: '#ffffff',
+                border: '1px solid #dce7f0',
+                color: '#475569',
+                cursor: 'pointer',
+              }}
+            >
+              Kembali ke Direktori
+            </button>
+
+            <button
+              type="button"
+              onClick={onSavePermissions}
+              disabled={isLoading}
+              style={{
+                padding: '8px 20px',
+                borderRadius: '6px',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                background: '#0e5b92',
+                border: 'none',
+                color: '#ffffff',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                boxShadow: '0 1px 3px rgba(14, 91, 146, 0.2)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              {isLoading ? (
+                <>
+                  <Icon name="refresh" size={14} className="spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Icon name="check" size={14} />
+                  Simpan Matriks Izin
+                </>
+              )}
+            </button>
+          </div>
+        </footer>
       )}
-    </div>
+    </section>
   );
 }

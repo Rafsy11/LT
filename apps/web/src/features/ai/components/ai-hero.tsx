@@ -10,7 +10,8 @@ export interface AiHeroProps {
 
 export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
   return (
-    <div
+    <section
+      aria-label="Pengenalan AI Assistant"
       style={{
         margin: 'auto 0',
         textAlign: 'center',
@@ -22,18 +23,20 @@ export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
       }}
     >
       {/* Brand Logo Emblem from Logo.png */}
-      <img
-        src="/assets/Logo.png"
-        alt="AI Assistant"
-        width={64}
-        height={82}
-        style={{
-          display: 'block',
-          margin: '0 auto 20px',
-          objectFit: 'contain',
-          filter: 'drop-shadow(0 4px 12px rgba(0, 40, 85, 0.08))',
-        }}
-      />
+      <figure style={{ margin: '0 auto 20px' }}>
+        <img
+          src="/assets/Logo.png"
+          alt="AI Assistant"
+          width={64}
+          height={82}
+          style={{
+            display: 'block',
+            margin: '0 auto',
+            objectFit: 'contain',
+            filter: 'drop-shadow(0 4px 12px rgba(0, 40, 85, 0.08))',
+          }}
+        />
+      </figure>
 
       {/* Heading */}
       <h1
@@ -63,7 +66,8 @@ export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
       </p>
 
       {/* 2x2 Suggestion Grid (Exact match to reference image with high contrast text) */}
-      <div
+      <nav
+        aria-label="Saran Pertanyaan AI"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(2, minmax(0, 260px))',
@@ -107,7 +111,7 @@ export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
             {item.label}
           </button>
         ))}
-      </div>
-    </div>
+      </nav>
+    </section>
   );
 }

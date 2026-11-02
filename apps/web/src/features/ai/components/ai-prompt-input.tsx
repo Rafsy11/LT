@@ -13,6 +13,8 @@ export interface AiPromptInputProps {
 export function AiPromptInput({ prompt, setPrompt, loading, onSubmit }: AiPromptInputProps) {
   return (
     <form
+      role="search"
+      aria-label="Kirim pertanyaan ke AI"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit(prompt);
@@ -36,6 +38,7 @@ export function AiPromptInput({ prompt, setPrompt, loading, onSubmit }: AiPrompt
     >
       <input
         required
+        aria-label="Pertanyaan atau instruksi untuk AI"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         placeholder="Tanyakan sesuatu..."
@@ -55,6 +58,7 @@ export function AiPromptInput({ prompt, setPrompt, loading, onSubmit }: AiPrompt
       <button
         type="button"
         title="Lampirkan file atau data ukur"
+        aria-label="Lampirkan berkas"
         style={{
           background: 'transparent',
           border: 'none',
@@ -78,6 +82,7 @@ export function AiPromptInput({ prompt, setPrompt, loading, onSubmit }: AiPrompt
         type="submit"
         disabled={loading || !prompt.trim()}
         title="Kirim pesan"
+        aria-label="Kirim pesan"
         style={{
           width: '42px',
           height: '42px',

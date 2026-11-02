@@ -39,7 +39,7 @@ export function TicketsView() {
   return (
     <main className="tickets-page">
       {/* Page Heading matching Enterprise System */}
-      <div className="overview-header">
+      <header className="overview-header">
         <div className="overview-header-copy">
           <div className="eyebrow">WORK ORDER & FIELD DISPATCH MANAGEMENT</div>
           <h1 className="overview-greeting">Tiket & Penugasan Lapangan</h1>
@@ -49,7 +49,7 @@ export function TicketsView() {
           </p>
         </div>
 
-        <div className="overview-toolbar">
+        <nav className="overview-toolbar" aria-label="Aksi bilah status tiket">
           <button
             className="button secondary"
             onClick={handleSimulateSubmission}
@@ -89,8 +89,8 @@ export function TicketsView() {
           >
             <Icon name="refresh" size={14} />
           </button>
-        </div>
-      </div>
+        </nav>
+      </header>
 
       {/* 3 Telemetry Metrics Grid */}
       <TicketStats

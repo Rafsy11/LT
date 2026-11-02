@@ -25,9 +25,12 @@ export function BackupPanel({
   handleChange,
 }: BackupPanelProps) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <section
+      aria-label="Disaster Recovery & Backup 3-2-1"
+      style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
+    >
       {/* Top 3-2-1 Architecture Strip */}
-      <div
+      <article
         style={{
           background: '#ffffff',
           border: '1px solid #e2ecf2',
@@ -36,7 +39,7 @@ export function BackupPanel({
           boxShadow: '0 1px 3px rgba(27, 92, 162, 0.02)',
         }}
       >
-        <div
+        <header
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -78,10 +81,11 @@ export function BackupPanel({
             <Icon name="refresh" size={14} className={isBackingUp ? 'spin' : ''} />
             <span>{isBackingUp ? 'Memproses Snapshot...' : 'Jalankan Backup Sekarang'}</span>
           </button>
-        </div>
+        </header>
 
         {/* 3-2-1 Architecture Pill Cards */}
-        <div
+        <section
+          aria-label="Arsitektur 3-2-1"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(3, 1fr)',
@@ -143,17 +147,91 @@ export function BackupPanel({
               fisik.
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Backup Settings Form */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '16px',
-            marginBottom: '14px',
-          }}
+        <fieldset
+          aria-label="Jadwal dan Target Penyimpanan Backup"
+          style={{ border: 0, margin: 0, padding: 0 }}
         >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '16px',
+              marginBottom: '14px',
+            }}
+          >
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#334155',
+                  marginBottom: '6px',
+                }}
+              >
+                Jadwal Cronjob Otomatis Harian
+              </label>
+              <input
+                type="text"
+                value={settings.cronSchedule}
+                disabled={!isSuperAdmin}
+                onChange={(e) => handleChange('cronSchedule', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #dce7f0',
+                  fontSize: '12.5px',
+                  fontFamily: 'monospace',
+                  color: '#182230',
+                }}
+              />
+              <span
+                style={{ fontSize: '11.5px', color: '#64748b', display: 'block', marginTop: '4px' }}
+              >
+                Format cron: Pukul 02:00 WIB dini hari (
+                <code style={{ background: '#f1f5f9', padding: '1px 4px' }}>0 2 * * *</code>)
+              </span>
+            </div>
+
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#334155',
+                  marginBottom: '6px',
+                }}
+              >
+                Target Penyimpanan Kedua
+              </label>
+              <select
+                value={settings.secondaryBackupTarget}
+                disabled={!isSuperAdmin}
+                onChange={(e) => handleChange('secondaryBackupTarget', e.target.value as any)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #dce7f0',
+                  background: '#ffffff',
+                  fontSize: '12.5px',
+                  color: '#182230',
+                }}
+              >
+                <option value="EXTERNAL_NAS">NAS Eksternal (Gedung Terpisah · Rekomendasi)</option>
+                <option value="ENCRYPTED_CLOUD_BUCKET">
+                  Encrypted Cloud Storage Bucket (S3 Compatible)
+                </option>
+                <option value="OFFLINE_COLD_STORAGE">Cold Offline Hard Drive Vault</option>
+              </select>
+            </div>
+          </div>
+
           <div>
             <label
               style={{
@@ -164,13 +242,13 @@ export function BackupPanel({
                 marginBottom: '6px',
               }}
             >
-              Jadwal Cronjob Otomatis Harian
+              Lokasi / Path Penyimpanan Cadangan
             </label>
             <input
               type="text"
-              value={settings.cronSchedule}
+              value={settings.secondaryStoragePath}
               disabled={!isSuperAdmin}
-              onChange={(e) => handleChange('cronSchedule', e.target.value)}
+              onChange={(e) => handleChange('secondaryStoragePath', e.target.value)}
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -181,81 +259,12 @@ export function BackupPanel({
                 color: '#182230',
               }}
             />
-            <span
-              style={{ fontSize: '11.5px', color: '#64748b', display: 'block', marginTop: '4px' }}
-            >
-              Format cron: Pukul 02:00 WIB dini hari (
-              <code style={{ background: '#f1f5f9', padding: '1px 4px' }}>0 2 * * *</code>)
-            </span>
           </div>
-
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: '#334155',
-                marginBottom: '6px',
-              }}
-            >
-              Target Penyimpanan Kedua
-            </label>
-            <select
-              value={settings.secondaryBackupTarget}
-              disabled={!isSuperAdmin}
-              onChange={(e) => handleChange('secondaryBackupTarget', e.target.value as any)}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                border: '1px solid #dce7f0',
-                background: '#ffffff',
-                fontSize: '12.5px',
-                color: '#182230',
-              }}
-            >
-              <option value="EXTERNAL_NAS">NAS Eksternal (Gedung Terpisah · Rekomendasi)</option>
-              <option value="ENCRYPTED_CLOUD_BUCKET">
-                Encrypted Cloud Storage Bucket (S3 Compatible)
-              </option>
-              <option value="OFFLINE_COLD_STORAGE">Cold Offline Hard Drive Vault</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label
-            style={{
-              display: 'block',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: '#334155',
-              marginBottom: '6px',
-            }}
-          >
-            Lokasi / Path Penyimpanan Cadangan
-          </label>
-          <input
-            type="text"
-            value={settings.secondaryStoragePath}
-            disabled={!isSuperAdmin}
-            onChange={(e) => handleChange('secondaryStoragePath', e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '6px',
-              border: '1px solid #dce7f0',
-              fontSize: '12.5px',
-              fontFamily: 'monospace',
-              color: '#182230',
-            }}
-          />
-        </div>
-      </div>
+        </fieldset>
+      </article>
 
       {/* Snapshot History Table */}
-      <div
+      <article
         style={{
           background: '#ffffff',
           border: '1px solid #e2ecf2',
@@ -264,11 +273,18 @@ export function BackupPanel({
           boxShadow: '0 1px 3px rgba(27, 92, 162, 0.02)',
         }}
       >
-        <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#182230', margin: '0 0 12px 0' }}>
-          Riwayat Snapshot Backup Terenkripsi
-        </h3>
+        <header>
+          <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#182230', margin: '0 0 12px 0' }}>
+            Riwayat Snapshot Backup Terenkripsi
+          </h3>
+        </header>
 
-        <div style={{ overflowX: 'auto' }}>
+        <div
+          style={{ overflowX: 'auto' }}
+          tabIndex={0}
+          role="region"
+          aria-label="Tabel Riwayat Snapshot Backup"
+        >
           <table
             style={{
               width: '100%',
@@ -285,12 +301,24 @@ export function BackupPanel({
                   color: '#64748b',
                 }}
               >
-                <th style={{ padding: '8px 12px', fontWeight: 600 }}>Waktu Eksekusi</th>
-                <th style={{ padding: '8px 12px', fontWeight: 600 }}>Nama Berkas</th>
-                <th style={{ padding: '8px 12px', fontWeight: 600 }}>Ukuran</th>
-                <th style={{ padding: '8px 12px', fontWeight: 600 }}>Foto Disinkronkan</th>
-                <th style={{ padding: '8px 12px', fontWeight: 600 }}>Target Sinkronisasi</th>
-                <th style={{ padding: '8px 12px', fontWeight: 600 }}>Status</th>
+                <th scope="col" style={{ padding: '8px 12px', fontWeight: 600 }}>
+                  Waktu Eksekusi
+                </th>
+                <th scope="col" style={{ padding: '8px 12px', fontWeight: 600 }}>
+                  Nama Berkas
+                </th>
+                <th scope="col" style={{ padding: '8px 12px', fontWeight: 600 }}>
+                  Ukuran
+                </th>
+                <th scope="col" style={{ padding: '8px 12px', fontWeight: 600 }}>
+                  Foto Disinkronkan
+                </th>
+                <th scope="col" style={{ padding: '8px 12px', fontWeight: 600 }}>
+                  Target Sinkronisasi
+                </th>
+                <th scope="col" style={{ padding: '8px 12px', fontWeight: 600 }}>
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -326,7 +354,7 @@ export function BackupPanel({
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
+      </article>
+    </section>
   );
 }

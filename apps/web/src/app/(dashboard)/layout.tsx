@@ -44,7 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Header pageTitle={title} />
             {children}
             <footer>
-              <span>Â© 2025 Fiberops. All rights reserved. Single Source of Truth FTTH.</span>
+              <span>&copy; 2025 Fiberops. All rights reserved. Single Source of Truth FTTH.</span>
               <span style={{ paddingRight: '120px' }}>Versi 1.0.0 (On-Premise)</span>
             </footer>
           </div>

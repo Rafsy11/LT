@@ -86,7 +86,7 @@ export function SettingsView() {
         )}
 
         {/* Integrated Clean Section Footer */}
-        <div
+        <footer
           style={{
             marginTop: '24px',
             padding: '12px 18px',
@@ -111,7 +111,7 @@ export function SettingsView() {
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div role="group" aria-label="Aksi simpan konfigurasi" style={{ display: 'flex', gap: '8px' }}>
             <button
               type="button"
               onClick={() => window.location.reload()}
@@ -152,7 +152,7 @@ export function SettingsView() {
               <span>{isSaving ? 'Menyimpan...' : 'Simpan Konfigurasi'}</span>
             </button>
           </div>
-        </div>
+        </footer>
       </form>
     </main>
   );

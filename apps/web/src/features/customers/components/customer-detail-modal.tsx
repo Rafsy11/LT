@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -46,8 +46,8 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
   const tone = dbmTone(customer.currentAttenuation);
 
   return (
-    <div className="overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div
+    <dialog className="overlay" open onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="customer-detail-title">
+      <article
         className="modal"
         style={{
           maxWidth: '640px',
@@ -59,7 +59,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
+        <header
           className="panel-heading"
           style={{ borderBottom: '1px solid #e2e8f0', padding: '16px 20px', flexShrink: 0 }}
         >
@@ -82,7 +82,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#0f172a' }}>
+                <h2 id="customer-detail-title" style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#0f172a' }}>
                   {customer.fullName}
                 </h2>
                 <span
@@ -106,9 +106,9 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
             </div>
           </div>
           <button className="dots" onClick={onClose} aria-label="Tutup modal" type="button">
-            Ã—
+            ×
           </button>
-        </div>
+        </header>
 
         {/* Modal Body */}
         <div
@@ -345,10 +345,10 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                         color: '#64748b',
                       }}
                     >
-                      <th style={{ padding: '8px 10px', fontWeight: 600 }}>Waktu Pencatatan</th>
-                      <th style={{ padding: '8px 10px', fontWeight: 600 }}>Nilai Redaman</th>
-                      <th style={{ padding: '8px 10px', fontWeight: 600 }}>Splitter & Port</th>
-                      <th style={{ padding: '8px 10px', fontWeight: 600 }}>Teknisi</th>
+                      <th scope="col" style={{ padding: '8px 10px', fontWeight: 600 }}>Waktu Pencatatan</th>
+                      <th scope="col" style={{ padding: '8px 10px', fontWeight: 600 }}>Nilai Redaman</th>
+                      <th scope="col" style={{ padding: '8px 10px', fontWeight: 600 }}>Splitter & Port</th>
+                      <th scope="col" style={{ padding: '8px 10px', fontWeight: 600 }}>Teknisi</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -411,7 +411,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
         </div>
 
         {/* Modal Footer Links */}
-        <div
+        <footer
           style={{
             padding: '12px 20px',
             borderTop: '1px solid #e2e8f0',
@@ -422,7 +422,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
             flexShrink: 0,
           }}
         >
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div role="group" aria-label="Aksi rincian pelanggan" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <Link
               href={`/tickets?search=${encodeURIComponent(customer.siaNumber)}`}
               style={{
@@ -438,7 +438,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
               <Icon name="ticket" size={13} />
               Lihat Tiket Terkait
             </Link>
-            <span style={{ color: '#cbd5e1' }}>Â·</span>
+            <span style={{ color: '#cbd5e1' }}>·</span>
             <Link
               href={`/monitoring?search=${encodeURIComponent(customer.siaNumber)}`}
               style={{
@@ -473,8 +473,8 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
           >
             Tutup
           </button>
-        </div>
-      </div>
-    </div>
+        </footer>
+      </article>
+    </dialog>
   );
 }

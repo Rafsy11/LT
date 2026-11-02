@@ -55,6 +55,31 @@
   box-sizing: border-box;
 }
 
+fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+figure {
+  margin: 0;
+}
+
+dialog {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  max-width: none;
+  max-height: none;
+}
+
+search {
+  display: block;
+}
+
 body {
   margin: 0;
   background: #f2f8fb;

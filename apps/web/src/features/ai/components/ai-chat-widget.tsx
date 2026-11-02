@@ -86,17 +86,22 @@ export function AiChatWidget() {
       </button>
 
       {isOpen && (
-        <div className="chat">
-          <div className="panel-heading">
+        <aside className="chat" role="complementary" aria-label="Widget AI Assistant">
+          <header className="panel-heading">
             <h2>
               Fiberops Assistant <span className="ai-tag">LOCAL AI</span>
             </h2>
-            <button className="dots" onClick={() => setIsOpen(false)}>
+            <button
+              className="dots"
+              type="button"
+              onClick={() => setIsOpen(false)}
+              aria-label="Tutup widget AI Assistant"
+            >
               ×
             </button>
-          </div>
+          </header>
 
-          <div className="chat-body">
+          <section className="chat-body" aria-label="Riwayat Percakapan AI">
             {messages.map((m, idx) => (
               <div key={idx} className={m.role === 'user' ? 'user-message' : 'assistant-message'}>
                 <p style={{ whiteSpace: 'pre-wrap' }}>{m.text}</p>
@@ -120,9 +125,11 @@ export function AiChatWidget() {
                 ✓ {executedFeedback}
               </p>
             )}
-          </div>
+          </section>
 
           <form
+            role="search"
+            aria-label="Kirim pesan ke widget AI"
             onSubmit={(e) => {
               e.preventDefault();
               sendMessage(prompt);
@@ -134,12 +141,18 @@ export function AiChatWidget() {
               placeholder="Tanyakan analisis atau siapkan tiket..."
               disabled={loading}
               required
+              aria-label="Pesan untuk AI"
             />
-            <button className="button primary" type="submit" disabled={loading}>
+            <button
+              className="button primary"
+              type="submit"
+              disabled={loading}
+              aria-label="Kirim pesan"
+            >
               <Icon name="arrow" size={17} />
             </button>
           </form>
-        </div>
+        </aside>
       )}
     </>
   );

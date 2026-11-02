@@ -55,9 +55,9 @@ export function TelemetryStreamPanel({
   return (
     <section className="noc-stream-panel" aria-label="Aliran Telemetri Real-Time">
       {/* Stream Toolbar */}
-      <div className="noc-stream-toolbar">
+      <header className="noc-stream-toolbar">
         <div className="noc-toolbar-top">
-          <div className="noc-search-box">
+          <search className="noc-search-box" role="search">
             <Icon name="search" size={14} />
             <input
               aria-label="Cari data live stream"
@@ -65,7 +65,7 @@ export function TelemetryStreamPanel({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-          </div>
+          </search>
 
           <div className="noc-filters-group">
             <select
@@ -111,11 +111,13 @@ export function TelemetryStreamPanel({
         </div>
 
         <div className="noc-toolbar-bottom">
-          <div className="noc-status-tabs">
+          <nav className="noc-status-tabs" role="tablist" aria-label="Filter Tingkat Redaman">
             <button
               className={`noc-tab-btn ${tab === 'Semua' ? 'active' : ''}`}
               onClick={() => setTab('Semua')}
               type="button"
+              role="tab"
+              aria-selected={tab === 'Semua'}
             >
               <span>Semua Sinyal</span>
               <span className="noc-tab-count">{scopedReportsCount}</span>
@@ -124,6 +126,8 @@ export function TelemetryStreamPanel({
               className={`noc-tab-btn ${tab === 'Normal' ? 'active' : ''}`}
               onClick={() => setTab('Normal')}
               type="button"
+              role="tab"
+              aria-selected={tab === 'Normal'}
             >
               <span>Normal</span>
               <span className="noc-tab-count">{normalCount}</span>
@@ -132,6 +136,8 @@ export function TelemetryStreamPanel({
               className={`noc-tab-btn ${tab === 'Warning' ? 'active' : ''}`}
               onClick={() => setTab('Warning')}
               type="button"
+              role="tab"
+              aria-selected={tab === 'Warning'}
             >
               <span>Warning</span>
               <span className="noc-tab-count">{warningCount}</span>
@@ -140,20 +146,22 @@ export function TelemetryStreamPanel({
               className={`noc-tab-btn ${tab === 'Critical' ? 'active' : ''}`}
               onClick={() => setTab('Critical')}
               type="button"
+              role="tab"
+              aria-selected={tab === 'Critical'}
             >
               <span>Critical</span>
               <span className="noc-tab-count">{criticalCount}</span>
             </button>
-          </div>
+          </nav>
 
           <div className="noc-stream-count-text">
             Menampilkan <b>{filteredReports.length}</b> laporan · Stream aktif
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Stream Table Header */}
-      <div className="noc-stream-table-header">
+      <div className="noc-stream-table-header" role="row" aria-hidden="true">
         <div>WAKTU</div>
         <div>PELANGGAN &amp; SIA</div>
         <div>SPLITTER / PORT</div>
@@ -164,13 +172,13 @@ export function TelemetryStreamPanel({
       </div>
 
       {/* Stream Table Rows */}
-      <div className="noc-stream-list">
+      <ol className="noc-stream-list" role="list" aria-label="Daftar Laporan Telemetri">
         {loading ? (
-          <div className="noc-empty-stream">Memuat aliran sinyal live telemetri...</div>
+          <li className="noc-empty-stream" role="status">Memuat aliran sinyal live telemetri...</li>
         ) : filteredReports.length === 0 ? (
-          <div className="noc-empty-stream">
+          <li className="noc-empty-stream" role="status">
             Tidak ada laporan telemetri pada kriteria filter ini.
-          </div>
+          </li>
         ) : (
           filteredReports.map((report) => {
             const status = classifyDbm(report.currentAttenuation);
@@ -182,18 +190,28 @@ export function TelemetryStreamPanel({
             const isCritical = status === 'Critical';
 
             return (
-              <div
+              <li
                 key={report.id || report.ticketNumber}
                 className={`noc-stream-row ${isSelected ? 'active' : ''} ${isCritical ? 'critical-row' : ''}`}
                 onClick={() => onSelectReport(report)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectReport(report);
+                  }
+                }}
+                aria-label={`Laporan tiket ${report.ticketNumber}, pelanggan ${report.customerName}, redaman ${report.currentAttenuation.toFixed(1)} dBm`}
               >
                 {/* Time & Dot Indicator */}
                 <div className="col-time-status">
                   <span
                     className={`optical-status-dot ${status.toLowerCase()}`}
                     title={`Status: ${status}`}
+                    aria-hidden="true"
                   />
-                  <span>{formatTimestamp(report.createdAt)}</span>
+                  <time>{formatTimestamp(report.createdAt)}</time>
                 </div>
 
                 {/* Customer & SIA */}
@@ -203,7 +221,7 @@ export function TelemetryStreamPanel({
                   </div>
                   <div className="col-customer-meta">
                     <code>{report.siaNumber}</code>
-                    <span className="meta-separator">·</span>
+                    <span className="meta-separator" aria-hidden="true">·</span>
                     <span className="ticket-type-label">{report.ticketType}</span>
                   </div>
                 </div>
@@ -219,7 +237,7 @@ export function TelemetryStreamPanel({
 
                 {/* Field Technician */}
                 <div className="col-tech">
-                  <span className="col-tech-avatar">{report.techInitials || 'TK'}</span>
+                  <span className="col-tech-avatar" aria-hidden="true">{report.techInitials || 'TK'}</span>
                   <span className="col-tech-name" title={report.assignedTech}>
                     {report.assignedTech}
                   </span>
@@ -233,6 +251,7 @@ export function TelemetryStreamPanel({
                   <div
                     className="col-signal-bar-mini"
                     title={`Skala Optik: ${report.currentAttenuation} dBm`}
+                    aria-hidden="true"
                   >
                     <div
                       className={`col-signal-fill-mini ${status.toLowerCase()}`}
@@ -272,18 +291,19 @@ export function TelemetryStreamPanel({
                       onSelectReport(report);
                     }}
                     type="button"
+                    aria-label={`Lihat rincian telemetri ${report.ticketNumber}`}
                   >
                     {isSelected ? 'Aktif' : 'Detail'}
                   </button>
                 </div>
-              </div>
+              </li>
             );
           })
         )}
-      </div>
+      </ol>
 
       {/* Bottom Stream Metadata Strip */}
-      <div className="monitoring-info-strip">
+      <footer className="monitoring-info-strip">
         <div>
           Jalur SSE: <code>/api/v1/admin/stream/reports</code> (Nginx Unbuffered{' '}
           <code>X-Accel-Buffering: no</code>).
@@ -291,7 +311,7 @@ export function TelemetryStreamPanel({
         <div>
           Heartbeat: <b>{lastHeartbeat}</b> · Redis Bus Aktif.
         </div>
-      </div>
+      </footer>
     </section>
   );
 }

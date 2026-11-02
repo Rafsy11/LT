@@ -40,7 +40,7 @@ export function TicketGrid({ loading, tickets, onSelectTicket, getDbmBadge }: Ti
   }
 
   return (
-    <div className="tickets-cards-grid">
+    <section className="tickets-cards-grid" aria-label="Daftar Kartu Tiket">
       {tickets.map((ticket) => (
         <TicketCard
           key={ticket.ticketNumber}
@@ -49,6 +49,6 @@ export function TicketGrid({ loading, tickets, onSelectTicket, getDbmBadge }: Ti
           getDbmBadge={getDbmBadge}
         />
       ))}
-    </div>
+    </section>
   );
 }

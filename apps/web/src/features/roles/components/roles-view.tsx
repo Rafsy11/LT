@@ -55,7 +55,7 @@ export function RolesView() {
       {/* Main Container Card */}
       <section className="panel" style={{ padding: '20px 24px' }}>
         {/* Navigation Toolbar */}
-        <div
+        <header
           style={{
             display: 'flex',
             flexWrap: 'wrap',
@@ -68,7 +68,9 @@ export function RolesView() {
           }}
         >
           {/* Segmented View Switcher */}
-          <div
+          <nav
+            role="tablist"
+            aria-label="Navigasi Tampilan Peran"
             style={{
               display: 'inline-flex',
               background: '#f1f5f9',
@@ -79,6 +81,8 @@ export function RolesView() {
           >
             <button
               type="button"
+              role="tab"
+              aria-selected={activeView === 'users'}
               onClick={() => setActiveView('users')}
               style={{
                 display: 'inline-flex',
@@ -100,6 +104,8 @@ export function RolesView() {
 
             <button
               type="button"
+              role="tab"
+              aria-selected={activeView === 'matrix'}
               onClick={() => setActiveView('matrix')}
               style={{
                 display: 'inline-flex',
@@ -118,8 +124,8 @@ export function RolesView() {
             >
               Konfigurasi Matriks Izin
             </button>
-          </div>
-        </div>
+          </nav>
+        </header>
 
         {/* View 1: User Directory & Access Management */}
         {activeView === 'users' && (

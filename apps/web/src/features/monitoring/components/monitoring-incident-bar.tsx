@@ -16,10 +16,10 @@ export function MonitoringIncidentBar({
   if (!pinnedCriticalReport) return null;
 
   return (
-    <section className="noc-incident-bar" aria-label="Notifikasi Insiden Kritis">
+    <aside className="noc-incident-bar" aria-label="Notifikasi Insiden Kritis">
       <div className="noc-incident-left">
         <span className="noc-incident-badge">
-          <span className="noc-incident-dot" />
+          <span className="noc-incident-dot" aria-hidden="true" />
           INSIDEN KRITIS
         </span>
         <div className="noc-incident-summary">
@@ -30,7 +30,7 @@ export function MonitoringIncidentBar({
         </div>
       </div>
 
-      <div className="noc-incident-right">
+      <nav className="noc-incident-right" aria-label="Aksi Insiden Kritis">
         <span className="noc-incident-dbm">
           {pinnedCriticalReport.currentAttenuation.toFixed(1)} dBm
         </span>
@@ -52,7 +52,7 @@ export function MonitoringIncidentBar({
           <span>Buka Tiket</span>
           <Icon name="arrow" size={12} />
         </button>
-      </div>
-    </section>
+      </nav>
+    </aside>
   );
 }

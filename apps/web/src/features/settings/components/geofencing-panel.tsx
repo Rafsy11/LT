@@ -14,7 +14,8 @@ export interface GeofencingPanelProps {
 
 export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: GeofencingPanelProps) {
   return (
-    <div
+    <section
+      aria-label="Validasi Lapangan & Geofencing"
       style={{
         display: 'grid',
         gridTemplateColumns: 'minmax(0, 1.35fr) minmax(360px, 1fr)',
@@ -23,7 +24,7 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
       }}
     >
       {/* Left: Geofencing Radius & Location Policy */}
-      <div
+      <article
         style={{
           background: '#ffffff',
           border: '1px solid #e2ecf2',
@@ -32,17 +33,23 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
           boxShadow: '0 1px 3px rgba(27, 92, 162, 0.02)',
         }}
       >
-        <h2 style={{ fontSize: '15px', fontWeight: 600, color: '#182230', margin: '0 0 4px 0' }}>
-          Batas Toleransi Geofencing Teknisi Lapangan
-        </h2>
-        <p style={{ fontSize: '12.5px', color: '#515a62', margin: '0 0 16px 0' }}>
-          Jarak maksimal yang diizinkan antara koordinat GPS ponsel teknisi dengan koordinat tiang
-          ODP saat menekan tombol Submit.
-        </p>
+        <header>
+          <h2 style={{ fontSize: '15px', fontWeight: 600, color: '#182230', margin: '0 0 4px 0' }}>
+            Batas Toleransi Geofencing Teknisi Lapangan
+          </h2>
+          <p style={{ fontSize: '12.5px', color: '#515a62', margin: '0 0 16px 0' }}>
+            Jarak maksimal yang diizinkan antara koordinat GPS ponsel teknisi dengan koordinat tiang
+            ODP saat menekan tombol Submit.
+          </p>
+        </header>
 
         {/* 3 Radius Option Cards */}
-        <div
+        <fieldset
+          aria-label="Batas Jarak Radius ODP"
           style={{
+            border: 0,
+            margin: 0,
+            padding: 0,
             display: 'grid',
             gridTemplateColumns: 'repeat(3, 1fr)',
             gap: '10px',
@@ -88,11 +95,14 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
               </div>
             </div>
           ))}
-        </div>
+        </fieldset>
 
         {/* Policy Selection */}
-        <div style={{ borderTop: '1px solid #edf2f7', paddingTop: '18px' }}>
-          <label
+        <fieldset
+          aria-label="Kebijakan Penanganan Laporan di Luar Radius"
+          style={{ border: 0, margin: 0, padding: 0, borderTop: '1px solid #edf2f7', paddingTop: '18px' }}
+        >
+          <legend
             style={{
               display: 'block',
               fontSize: '13px',
@@ -102,7 +112,7 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
             }}
           >
             Kebijakan Penanganan Laporan di Luar Radius ODP
-          </label>
+          </legend>
           <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 12px 0' }}>
             Respon sistem saat teknisi berada di luar radius geofencing yang telah dikonfigurasi.
           </p>
@@ -178,12 +188,15 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
               </div>
             </label>
           </div>
-        </div>
-      </div>
+        </fieldset>
+      </article>
 
       {/* Right: Security & App Version Gate */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <div
+      <aside
+        aria-label="Perlindungan Integritas & Anti-Fake GPS"
+        style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
+      >
+        <article
           style={{
             background: '#ffffff',
             border: '1px solid #e2ecf2',
@@ -192,9 +205,11 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
             boxShadow: '0 1px 3px rgba(27, 92, 162, 0.02)',
           }}
         >
-          <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#182230', margin: '0 0 12px 0' }}>
-            Perlindungan Integritas &amp; Anti-Fake GPS
-          </h3>
+          <header>
+            <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#182230', margin: '0 0 12px 0' }}>
+              Perlindungan Integritas &amp; Anti-Fake GPS
+            </h3>
+          </header>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <label
@@ -268,8 +283,8 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
               />
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </article>
+      </aside>
+    </section>
   );
 }

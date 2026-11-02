@@ -31,7 +31,8 @@ export function TechnicianFilters({
   disabledCount,
 }: TechnicianFiltersProps) {
   return (
-    <div
+    <nav
+      aria-label="Bilah Filter Teknisi"
       style={{
         display: 'flex',
         flexWrap: 'wrap',
@@ -44,7 +45,9 @@ export function TechnicianFilters({
       }}
     >
       {/* Left: Clean Inline Search Box */}
-      <div
+      <search
+        role="search"
+        aria-label="Cari teknisi"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -94,7 +97,7 @@ export function TechnicianFilters({
             <Icon name="x" size={13} />
           </button>
         )}
-      </div>
+      </search>
 
       {/* Right: Cluster Dropdown beside Segmented Filter Tabs */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -125,6 +128,8 @@ export function TechnicianFilters({
 
         {/* Segmented Filter Tabs */}
         <div
+          role="tablist"
+          aria-label="Filter status sesi teknisi"
           style={{
             display: 'inline-flex',
             background: '#f1f5f9',
@@ -135,6 +140,8 @@ export function TechnicianFilters({
         >
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'all'}
             onClick={() => setActiveTab('all')}
             style={{
               padding: '4px 10px',
@@ -152,6 +159,8 @@ export function TechnicianFilters({
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'active_session'}
             onClick={() => setActiveTab('active_session')}
             style={{
               padding: '4px 10px',
@@ -169,6 +178,8 @@ export function TechnicianFilters({
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'busy'}
             onClick={() => setActiveTab('busy')}
             style={{
               padding: '4px 10px',
@@ -186,6 +197,8 @@ export function TechnicianFilters({
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'revoked'}
             onClick={() => setActiveTab('revoked')}
             style={{
               padding: '4px 10px',
@@ -203,6 +216,8 @@ export function TechnicianFilters({
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'inactive'}
             onClick={() => setActiveTab('inactive')}
             style={{
               padding: '4px 10px',
@@ -220,6 +235,6 @@ export function TechnicianFilters({
           </button>
         </div>
       </div>
-    </div>
+    </nav>
   );
 }

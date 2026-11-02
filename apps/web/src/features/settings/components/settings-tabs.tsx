@@ -18,7 +18,9 @@ const TABS: { key: SettingsTab; label: string; icon: string }[] = [
 
 export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
   return (
-    <div
+    <nav
+      role="tablist"
+      aria-label="Tab Kategori Pengaturan"
       style={{
         display: 'flex',
         gap: '24px',
@@ -33,6 +35,8 @@ export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
           <button
             key={t.key}
             type="button"
+            role="tab"
+            aria-selected={active}
             onClick={() => onTabChange(t.key)}
             style={{
               padding: '10px 4px 12px',
@@ -55,6 +59,6 @@ export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
           </button>
         );
       })}
-    </div>
+    </nav>
   );
 }

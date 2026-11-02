@@ -68,18 +68,19 @@ export function CreateTicketModal({
   };
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="panel-heading">
-          <h2>Buat tiket baru</h2>
-          <button className="dots" onClick={onClose}>
+    <dialog className="overlay" open onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="create-ticket-modal-title">
+      <article className="modal" onClick={(e) => e.stopPropagation()}>
+        <header className="panel-heading">
+          <h2 id="create-ticket-modal-title">Buat tiket baru</h2>
+          <button className="dots" onClick={onClose} type="button" aria-label="Tutup modal">
             ×
           </button>
-        </div>
+        </header>
 
         {!canCreateTicket && (
-          <div
+          <aside
             className="permission-lock-notice"
+            role="alert"
             style={{
               margin: '16px 20px',
               padding: '12px 14px',
@@ -91,7 +92,7 @@ export function CreateTicketModal({
           >
             <b>Akses Dibatasi:</b> Akun Anda tidak memiliki izin <code>ticket:create</code>. Tombol
             pembuatan tiket dikunci demi keamanan.
-          </div>
+          </aside>
         )}
 
         <form className="modal-body" onSubmit={handleSubmit}>
@@ -169,7 +170,7 @@ export function CreateTicketModal({
             {submitting ? 'Memproses Transaksi...' : 'Buat & Tugaskan Tiket'}
           </button>
         </form>
-      </div>
-    </div>
+      </article>
+    </dialog>
   );
 }

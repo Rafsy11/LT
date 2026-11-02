@@ -30,7 +30,7 @@ export function TicketCard({ ticket, onSelect, getDbmBadge }: TicketCardProps) {
       }}
     >
       {/* Header Row */}
-      <div className="ticket-card-header">
+      <header className="ticket-card-header">
         <span className="ticket-number-tag">{ticket.ticketNumber}</span>
         <div className="ticket-badges-group">
           <span
@@ -50,7 +50,7 @@ export function TicketCard({ ticket, onSelect, getDbmBadge }: TicketCardProps) {
             {ticket.status}
           </span>
         </div>
-      </div>
+      </header>
 
       {/* Customer Details */}
       <div className="ticket-card-body">
@@ -119,7 +119,7 @@ export function TicketCard({ ticket, onSelect, getDbmBadge }: TicketCardProps) {
       </div>
 
       {/* Footer Row */}
-      <div className="ticket-card-footer">
+      <footer className="ticket-card-footer">
         <div className="ticket-tech-assigned">
           <span className="tech-avatar-circle">{ticket.techInitials || 'TK'}</span>
           <span>{ticket.assignedTech}</span>
@@ -127,7 +127,7 @@ export function TicketCard({ ticket, onSelect, getDbmBadge }: TicketCardProps) {
         <span className="ticket-action-hint">
           {isPendingApproval ? 'Tinjau' : 'Detail'} <Icon name="arrow" size={12} />
         </span>
-      </div>
+      </footer>
     </article>
   );
 }

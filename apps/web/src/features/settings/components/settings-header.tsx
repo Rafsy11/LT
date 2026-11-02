@@ -19,7 +19,7 @@ export function SettingsHeader({
   onSave,
 }: SettingsHeaderProps) {
   return (
-    <div className="overview-header" style={{ marginBottom: '22px' }}>
+    <header className="overview-header" style={{ marginBottom: '22px' }}>
       <div className="overview-header-copy">
         <div
           style={{
@@ -40,8 +40,9 @@ export function SettingsHeader({
         </p>
       </div>
 
-      <div
+      <nav
         className="overview-toolbar"
+        aria-label="Aksi kontrol pengaturan"
         style={{ display: 'flex', gap: '8px', alignItems: 'center' }}
       >
         <div
@@ -119,7 +120,7 @@ export function SettingsHeader({
           )}
           <span>{isSaving ? 'Menyimpan...' : hasChanges ? 'Simpan Perubahan' : 'Tersimpan'}</span>
         </button>
-      </div>
-    </div>
+      </nav>
+    </header>
   );
 }

@@ -38,22 +38,24 @@ export function Header({ pageTitle: _pageTitle }: HeaderProps = {}) {
   return (
     <header className="app-global-header">
       {/* Search Bar - Active Global Search Form */}
-      <form className="header-search-wrap" onSubmit={handleSearchSubmit} role="search">
-        <Icon name="search" size={16} className="header-search-icon" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Cari lokasi, pelanggan, tiket, atau ID cluster..."
-          aria-label="Cari global"
-          className="header-search-input"
-        />
-        <kbd className="header-search-kbd">/</kbd>
-      </form>
+      <search role="search">
+        <form className="header-search-wrap" onSubmit={handleSearchSubmit}>
+          <Icon name="search" size={16} className="header-search-icon" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari lokasi, pelanggan, tiket, atau ID cluster..."
+            aria-label="Cari global"
+            className="header-search-input"
+          />
+          <kbd className="header-search-kbd">/</kbd>
+        </form>
+      </search>
 
       <div className="header-right">
         {/* Management Quick Actions: AI Assistant, Role & Akses, Pengaturan */}
-        <div className="header-nav-actions" role="toolbar" aria-label="Menu Pengelolaan">
+        <nav className="header-nav-actions" aria-label="Menu Pengelolaan">
           {canUseAi && (
             <Link
               href="/ai"
@@ -93,7 +95,7 @@ export function Header({ pageTitle: _pageTitle }: HeaderProps = {}) {
           >
             <Icon name="sliders" size={19} />
           </Link>
-        </div>
+        </nav>
 
         <div className="header-divider" aria-hidden="true" />
 
@@ -109,7 +111,7 @@ export function Header({ pageTitle: _pageTitle }: HeaderProps = {}) {
         </button>
 
         {/* Profil Akun Tunggal */}
-        <div className="header-user-profile" title="Profil Akun Aktif">
+        <figure className="header-user-profile" title="Profil Akun Aktif">
           <div className="header-avatar-circle" style={{ overflow: 'hidden', padding: 0 }}>
             <svg
               width="34"
@@ -117,6 +119,7 @@ export function Header({ pageTitle: _pageTitle }: HeaderProps = {}) {
               viewBox="0 0 36 36"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
             >
               <circle cx="18" cy="18" r="18" fill="#1e293b" />
               <circle cx="18" cy="13.5" r="5.5" fill="#fcd34d" />
@@ -129,19 +132,19 @@ export function Header({ pageTitle: _pageTitle }: HeaderProps = {}) {
               <polygon points="18,23 17,29 19,29" fill="#1b5ca2" />
             </svg>
           </div>
-          <div className="header-user-info">
+          <figcaption className="header-user-info">
             <span className="header-user-name">{user.fullName}</span>
             <span className="header-user-role">{user.roleName}</span>
-          </div>
-        </div>
+          </figcaption>
+        </figure>
       </div>
 
       {notice && (
-        <div className="notification-pop">
+        <aside className="notification-pop" aria-label="Notifikasi terbaru">
           <b>Notifikasi terbaru</b>
           <p>Gangguan koneksi - Critical pada SIA 100245 (Cluster Bandung Utara: -26.4 dBm).</p>
           <small>Feed real-time · 2 menit lalu</small>
-        </div>
+        </aside>
       )}
     </header>
   );

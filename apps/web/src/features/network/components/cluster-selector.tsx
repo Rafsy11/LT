@@ -26,22 +26,25 @@ export function ClusterSelector({
 }: ClusterSelectorProps) {
   return (
     <aside className="tree-sidebar-card" aria-label="Struktur Wilayah">
-      <div className="tree-sidebar-header">
-        <span className="tree-sidebar-title">Struktur Wilayah</span>
-      </div>
+      <header className="tree-sidebar-header">
+        <h2 className="tree-sidebar-title" style={{ margin: 0, fontSize: 'inherit', fontWeight: 'inherit', color: 'inherit' }}>
+          Struktur Wilayah
+        </h2>
+      </header>
 
-      <div className="tree-sidebar-search">
+      <search className="tree-sidebar-search" role="search">
         <span className="tree-sidebar-search-icon">
           <Icon name="search" size={13} />
         </span>
         <input
           type="text"
+          aria-label="Cari cluster atau ODP"
           className="tree-sidebar-search-input"
           placeholder="Cari cluster atau ODP..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-      </div>
+      </search>
 
       <div className="tree-clusters-accordion">
         {clusterGroups.map((group) => {
@@ -54,6 +57,7 @@ export function ClusterSelector({
             <div key={group.clusterCode} className="tree-cluster-node">
               <button
                 type="button"
+                aria-expanded={isExpanded}
                 className={`tree-cluster-head-btn ${hasActiveChild ? 'is-active-cluster' : ''}`}
                 onClick={() => toggleClusterExpand(group.clusterCode)}
               >
@@ -67,7 +71,7 @@ export function ClusterSelector({
               </button>
 
               {isExpanded && (
-                <div className="tree-odp-branches-clean">
+                <nav className="tree-odp-branches-clean" aria-label={`ODP ${group.name}`}>
                   {group.splitters.map((s) => {
                     const isSelected = activeSplitter?.splitterCode === s.splitterCode;
                     return (
@@ -90,7 +94,7 @@ export function ClusterSelector({
                       </button>
                     );
                   })}
-                </div>
+                </nav>
               )}
             </div>
           );

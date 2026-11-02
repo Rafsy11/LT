@@ -6,7 +6,7 @@ export function OverviewNetworkMap() {
   return (
     <section className="panel overview-map-panel" aria-label="Peta Sebaran Jaringan FTTH">
       <div className="panel-inner">
-        <div className="panel-heading">
+        <header className="panel-heading">
           <div>
             <h2>Sebaran Jaringan</h2>
             <p>Visibilitas seluruh cluster dan titik ODP</p>
@@ -14,9 +14,9 @@ export function OverviewNetworkMap() {
           <Link href="/network" className="link-arrow">
             <span>Lihat jaringan</span>
           </Link>
-        </div>
+        </header>
 
-        <div className="clean-map-container">
+        <figure className="clean-map-container">
           <svg
             viewBox="0 0 800 300"
             preserveAspectRatio="xMidYMid slice"
@@ -139,40 +139,40 @@ export function OverviewNetworkMap() {
           {/* Floating HUD Badges */}
           <div className="map-hud-top">
             <span className="map-hud-pill">
-              <span className="status-dot green" />
+              <span className="status-dot green" aria-hidden="true" />
               <b>12 cluster aktif</b>
-              <span className="sep">·</span>
+              <span className="sep" aria-hidden="true">·</span>
               <span>64 titik ODP</span>
             </span>
           </div>
 
           {/* Floating Zoom Controls matching image.png */}
-          <div className="map-zoom-controls">
-            <button type="button" className="map-zoom-btn" aria-label="Zoom in">
+          <nav className="map-zoom-controls" aria-label="Kontrol Zoom Peta">
+            <button type="button" className="map-zoom-btn" aria-label="Perbesar peta">
               +
             </button>
-            <button type="button" className="map-zoom-btn" aria-label="Zoom out">
+            <button type="button" className="map-zoom-btn" aria-label="Perkecil peta">
               −
             </button>
-            <button type="button" className="map-zoom-btn compass" aria-label="Reset arah">
+            <button type="button" className="map-zoom-btn compass" aria-label="Reset arah kompas">
               <Icon name="compass" size={13} />
             </button>
-          </div>
+          </nav>
 
-          <div className="map-hud-bottom">
+          <figcaption className="map-hud-bottom">
             <div className="map-legend-pills">
               <span className="legend-item">
-                <i className="legend-dot green-bg" /> Normal
+                <i className="legend-dot green-bg" aria-hidden="true" /> Normal
               </span>
               <span className="legend-item">
-                <i className="legend-dot amber-bg" /> Warning
+                <i className="legend-dot amber-bg" aria-hidden="true" /> Warning
               </span>
               <span className="legend-item">
-                <i className="legend-dot red-bg" /> Critical
+                <i className="legend-dot red-bg" aria-hidden="true" /> Critical
               </span>
             </div>
-          </div>
-        </div>
+          </figcaption>
+        </figure>
       </div>
     </section>
   );
