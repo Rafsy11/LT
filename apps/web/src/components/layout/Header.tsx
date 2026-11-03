@@ -9,9 +9,15 @@ import { PERMISSIONS } from '@repo/shared';
 
 interface HeaderProps {
   pageTitle?: string;
+  isMobileMenuOpen?: boolean;
+  onToggleMobileMenu?: () => void;
 }
 
-export function Header({ pageTitle: _pageTitle }: HeaderProps = {}) {
+export function Header({
+  pageTitle: _pageTitle,
+  isMobileMenuOpen = false,
+  onToggleMobileMenu,
+}: HeaderProps = {}) {
   const [notice, setNotice] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const pathname = usePathname();
@@ -37,8 +43,21 @@ export function Header({ pageTitle: _pageTitle }: HeaderProps = {}) {
 
   return (
     <header className="app-global-header">
+      {/* Mobile Hamburger Menu Toggle */}
+      <div className="header-left">
+        <button
+          type="button"
+          className="header-hamburger-btn"
+          onClick={onToggleMobileMenu}
+          aria-label={isMobileMenuOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi'}
+          aria-expanded={isMobileMenuOpen}
+        >
+          <Icon name={isMobileMenuOpen ? 'x' : 'menu'} size={20} />
+        </button>
+      </div>
+
       {/* Search Bar - Active Global Search Form */}
-      <search role="search">
+      <search role="search" className="header-search-container">
         <form className="header-search-wrap" onSubmit={handleSearchSubmit}>
           <Icon name="search" size={16} className="header-search-icon" />
           <input

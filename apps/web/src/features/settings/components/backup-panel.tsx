@@ -280,14 +280,17 @@ export function BackupPanel({
         </header>
 
         <div
-          style={{ overflowX: 'auto' }}
+          className="table-scroll"
+          style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}
           tabIndex={0}
           role="region"
           aria-label="Tabel Riwayat Snapshot Backup"
         >
           <table
+            className="lintasarta-table"
             style={{
               width: '100%',
+              minWidth: '640px',
               borderCollapse: 'collapse',
               textAlign: 'left',
               fontSize: '12px',

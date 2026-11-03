@@ -39,10 +39,11 @@ export function TechnicianGrid({
 
   return (
     <section
+      className="technicians-cards-grid"
       aria-label="Daftar Teknisi"
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))',
         gap: '14px',
       }}
     >

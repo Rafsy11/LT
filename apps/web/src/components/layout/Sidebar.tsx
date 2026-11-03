@@ -7,6 +7,8 @@ import { Icon } from '@/components/ui/Icon';
 
 interface SidebarProps {
   ticketCount?: number;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 interface NavItem {
@@ -18,7 +20,7 @@ interface NavItem {
   tag?: string;
 }
 
-export function Sidebar({ ticketCount = 3 }: SidebarProps) {
+export function Sidebar({ ticketCount = 3, isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   const navItems: NavItem[] = [
@@ -36,10 +38,25 @@ export function Sidebar({ ticketCount = 3 }: SidebarProps) {
   };
 
   return (
-    <aside className="sidebar" aria-label="Sidebar Navigasi">
-      <Link href="/" className="brand lintasarta-brand-wrap" aria-label="Beranda Lintasarta">
-        <img src="/assets/lintasarta-logo.png" alt="Lintasarta" className="brand-logo-img" />
-      </Link>
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`} aria-label="Sidebar Navigasi">
+      <div className="sidebar-header-row">
+        <Link
+          href="/"
+          className="brand lintasarta-brand-wrap"
+          aria-label="Beranda Lintasarta"
+          onClick={onClose}
+        >
+          <img src="/assets/lintasarta-logo.png" alt="Lintasarta" className="brand-logo-img" />
+        </Link>
+        <button
+          type="button"
+          className="sidebar-close-btn"
+          onClick={onClose}
+          aria-label="Tutup menu navigasi"
+        >
+          <Icon name="x" size={20} />
+        </button>
+      </div>
 
       <section className="sidebar-workspace-section" aria-label="Workspace">
         <h2 className="nav-label">WORKSPACE</h2>
@@ -52,6 +69,7 @@ export function Sidebar({ ticketCount = 3 }: SidebarProps) {
                 href={item.href}
                 className={`nav-item ${active ? 'active' : ''}`}
                 aria-current={active ? 'page' : undefined}
+                onClick={onClose}
               >
                 <Icon name={item.icon} size={18} />
                 <span>{item.label}</span>

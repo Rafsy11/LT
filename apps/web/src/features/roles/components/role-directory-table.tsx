@@ -149,10 +149,12 @@ export function RoleDirectoryTable({
         </select>
       </header>
 
-      <div style={{ overflowX: 'auto' }} tabIndex={0} role="region" aria-label="Tabel Direktori Pengguna">
+      <div className="table-scroll" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }} tabIndex={0} role="region" aria-label="Tabel Direktori Pengguna">
         <table
+          className="lintasarta-table"
           style={{
             width: '100%',
+            minWidth: '680px',
             borderCollapse: 'collapse',
             textAlign: 'left',
             fontSize: '12.5px',

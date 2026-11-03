@@ -23,6 +23,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const title = pageTitleMap[pathname] || 'Dashboard';
   const [ticketCount, setTicketCount] = useState(24);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     fetch('/api/v1/admin/tickets')
@@ -39,13 +44,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <AuthProvider>
       <ToastProvider>
         <div className="app">
-          <Sidebar ticketCount={ticketCount} />
+          {/* Mobile Off-Canvas Backdrop */}
+          <div
+            className={`sidebar-backdrop ${isMobileMenuOpen ? 'active' : ''}`}
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <Sidebar
+            ticketCount={ticketCount}
+            isOpen={isMobileMenuOpen}
+            onClose={() => setIsMobileMenuOpen(false)}
+          />
           <div className="main">
-            <Header pageTitle={title} />
+            <Header
+              pageTitle={title}
+              isMobileMenuOpen={isMobileMenuOpen}
+              onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
+            />
             {children}
             <footer>
               <span>&copy; 2025 Fiberops. All rights reserved. Single Source of Truth FTTH.</span>
-              <span style={{ paddingRight: '120px' }}>Versi 1.0.0 (On-Premise)</span>
+              <span className="footer-version">Versi 1.0.0 (On-Premise)</span>
             </footer>
           </div>
           <AiChatWidget />
