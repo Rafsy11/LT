@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
 
@@ -46,7 +47,20 @@ export function Sidebar({ ticketCount = 3, isOpen = false, onClose }: SidebarPro
           aria-label="Beranda Lintasarta"
           onClick={onClose}
         >
-          <img src="/assets/lintasarta-logo.png" alt="Lintasarta" className="brand-logo-img" />
+          <div className="lintasarta-brand-inner">
+            <Image
+              src="/assets/Logo.png"
+              alt="Lintasarta"
+              width={38}
+              height={48}
+              priority
+              className="lintasarta-emblem"
+            />
+            <div className="lintasarta-brand-text">
+              <span className="brand-title">lintasarta</span>
+              <span className="brand-tagline">Empowering Your Tomorrow</span>
+            </div>
+          </div>
         </Link>
         <button
           type="button"
