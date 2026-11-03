@@ -173,14 +173,14 @@ svg {
 }
 
 .sidebar {
-  width: 280px;
+  width: 320px;
   max-width: 85vw;
   height: 100vh;
   height: 100dvh;
   flex-shrink: 0;
   background: #d7edfe url("/assets/fiberops-sidebar-gradient.svg") center / 100% 100% no-repeat;
   border-right: 1px solid #c8e0f4;
-  padding: 16px 14px 24px;
+  padding: 16px 16px 24px;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -319,13 +319,13 @@ svg {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 9px 12px;
+  padding: 10px 14px;
   border-radius: 8px;
   text-align: left;
   color: #1e3a5f;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   margin-bottom: 4px;
   text-decoration: none;
@@ -494,8 +494,8 @@ main {
 
 .app-global-header {
   height: 56px;
-  background: #badefd url("/assets/fiberops-header-gradient.svg") center / 100% 100% no-repeat;
-  border-bottom: 1px solid #c8e0f4;
+  background: transparent;
+  border-bottom: 1px solid transparent;
   display: flex;
   justify-content: space-between;
   gap: 8px;
@@ -506,6 +506,8 @@ main {
   z-index: 30;
   width: 100%;
   min-width: 0;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .header-left {
@@ -2236,7 +2238,7 @@ footer {
     transform: none;
     box-shadow: none;
     z-index: 20;
-    padding: 20px 16px 28px;
+    padding: 22px 18px 28px;
   }
   .sidebar.open {
     box-shadow: none;
@@ -2248,8 +2250,8 @@ footer {
     display: none !important;
   }
   .main {
-    margin-left: 280px;
-    width: calc(100% - 280px);
+    margin-left: 320px;
+    width: calc(100% - 320px);
   }
   main {
     padding: 24px 28px 36px;

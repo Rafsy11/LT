@@ -93,6 +93,7 @@ export function MonitoringView() {
         normalCount={normalCount}
         warningCount={warningCount}
         criticalCount={criticalCount}
+        activeTab={tab}
         onSelectTab={setTab}
       />
 

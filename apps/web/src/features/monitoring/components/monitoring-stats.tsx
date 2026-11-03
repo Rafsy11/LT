@@ -5,6 +5,7 @@ export interface MonitoringStatsProps {
   normalCount: number;
   warningCount: number;
   criticalCount: number;
+  activeTab?: 'Semua' | 'Normal' | 'Warning' | 'Critical';
   onSelectTab: (tab: 'Semua' | 'Normal' | 'Warning' | 'Critical') => void;
 }
 
@@ -13,12 +14,13 @@ export function MonitoringStats({
   normalCount,
   warningCount,
   criticalCount,
+  activeTab,
   onSelectTab,
 }: MonitoringStatsProps) {
   return (
     <section className="monitoring-stats-grid" aria-label="Statistik Telemetri Redaman Optik">
       <article
-        className="stat-card"
+        className={`stat-card ${activeTab === 'Semua' ? 'active' : ''}`}
         onClick={() => onSelectTab('Semua')}
         role="button"
         tabIndex={0}
@@ -44,7 +46,7 @@ export function MonitoringStats({
       </article>
 
       <article
-        className="stat-card"
+        className={`stat-card ${activeTab === 'Normal' ? 'active' : ''}`}
         onClick={() => onSelectTab('Normal')}
         role="button"
         tabIndex={0}
@@ -73,7 +75,7 @@ export function MonitoringStats({
       </article>
 
       <article
-        className="stat-card"
+        className={`stat-card ${activeTab === 'Warning' ? 'active' : ''}`}
         onClick={() => onSelectTab('Warning')}
         role="button"
         tabIndex={0}
@@ -102,7 +104,7 @@ export function MonitoringStats({
       </article>
 
       <article
-        className="stat-card"
+        className={`stat-card ${activeTab === 'Critical' ? 'active' : ''}`}
         onClick={() => onSelectTab('Critical')}
         role="button"
         tabIndex={0}

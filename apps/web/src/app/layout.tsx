@@ -17,8 +17,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" className={plusJakartaSans.variable}>
-      <body className={plusJakartaSans.className}>{children}</body>
+    <html lang="id" className={plusJakartaSans.variable} suppressHydrationWarning>
+      <body className={plusJakartaSans.className} suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

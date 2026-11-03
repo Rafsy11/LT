@@ -14,8 +14,6 @@ export function AiChatWidget() {
   const [loading, setLoading] = useState(false);
   const { showError } = useToast();
 
-  if (pathname === '/' || pathname === '/ai') return null;
-
   const [messages, setMessages] = useState<
     Array<{ role: 'user' | 'assistant'; text: string; draft?: DraftActionCardData }>
   >([
@@ -25,6 +23,8 @@ export function AiChatWidget() {
     },
   ]);
   const [executedFeedback, setExecutedFeedback] = useState<string | null>(null);
+
+  if (pathname === '/' || pathname === '/ai') return null;
 
   const sendMessage = async (textToSend: string) => {
     if (!textToSend.trim() || loading) return;

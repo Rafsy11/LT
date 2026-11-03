@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
 import { useAuth } from '@/providers';
 import { PERMISSIONS } from '@repo/shared';
@@ -19,27 +19,11 @@ export function Header({
   onToggleMobileMenu,
 }: HeaderProps = {}) {
   const [notice, setNotice] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const pathname = usePathname();
-  const router = useRouter();
   const { hasPermission, user } = useAuth();
 
   const canEditRole = hasPermission(PERMISSIONS.ROLE_EDIT);
   const canUseAi = hasPermission(PERMISSIONS.AI_USE);
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = searchQuery.trim();
-    if (!q) return;
-
-    if (q.toUpperCase().startsWith('SLA') || q.toUpperCase().startsWith('TKT')) {
-      router.push(`/tickets?search=${encodeURIComponent(q)}`);
-    } else if (q.toUpperCase().startsWith('ODP') || q.toUpperCase().startsWith('BDG')) {
-      router.push(`/network?search=${encodeURIComponent(q)}`);
-    } else {
-      router.push(`/customers?search=${encodeURIComponent(q)}`);
-    }
-  };
 
   return (
     <header className="app-global-header">
@@ -60,22 +44,6 @@ export function Header({
           </span>
         )}
       </div>
-
-      {/* Search Bar - Active Global Search Form */}
-      <search role="search" className="header-search-container">
-        <form className="header-search-wrap" onSubmit={handleSearchSubmit}>
-          <Icon name="search" size={16} className="header-search-icon" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari lokasi, pelanggan, tiket, atau ID cluster..."
-            aria-label="Cari global"
-            className="header-search-input"
-          />
-          <kbd className="header-search-kbd">/</kbd>
-        </form>
-      </search>
 
       <div className="header-right">
         {/* Management Quick Actions: AI Assistant, Role & Akses, Pengaturan */}
