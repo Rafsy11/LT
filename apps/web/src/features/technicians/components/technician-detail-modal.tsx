@@ -159,10 +159,8 @@ export function TechnicianDetailModal({
               Spesifikasi Perangkat Terikat (Device Binding)
             </div>
             <div
+              className="modal-two-col-grid"
               style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '10px',
                 background: '#f8fafc',
                 border: '1px solid #e2e8f0',
                 borderRadius: '8px',

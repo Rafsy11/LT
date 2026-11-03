@@ -86,12 +86,8 @@ export function BackupPanel({
         {/* 3-2-1 Architecture Pill Cards */}
         <section
           aria-label="Arsitektur 3-2-1"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '12px',
-            marginBottom: '20px',
-          }}
+          className="settings-three-col-grid"
+          style={{ marginBottom: '20px' }}
         >
           <div
             style={{
@@ -155,12 +151,8 @@ export function BackupPanel({
           style={{ border: 0, margin: 0, padding: 0 }}
         >
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '16px',
-              marginBottom: '14px',
-            }}
+            className="settings-two-col-grid"
+            style={{ marginBottom: '14px' }}
           >
             <div>
               <label

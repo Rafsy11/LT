@@ -269,10 +269,8 @@ export function CustomerFilters({
           </div>
 
           <div
+            className="customer-wilayah-grid"
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '12px',
               alignItems: 'flex-end',
             }}
           >

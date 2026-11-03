@@ -22,13 +22,8 @@ export function InfrastructurePanel({
 }: InfrastructurePanelProps) {
   return (
     <section
+      className="settings-panel-grid"
       aria-label="Pengaturan Infrastruktur & Komputasi AI"
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1.45fr) minmax(360px, 1fr)',
-        gap: '24px',
-        alignItems: 'start',
-      }}
     >
       {/* Left Column: Form Controls & AI Isolation Configuration */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -78,12 +73,8 @@ export function InfrastructurePanel({
 
           {/* Inference Mode Option Cards */}
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '12px',
-              marginBottom: '18px',
-            }}
+            className="settings-two-col-grid"
+            style={{ marginBottom: '18px' }}
           >
             <div
               onClick={() => isSuperAdmin && handleChange('aiInferenceMode', 'GPU_ACCELERATED')}
@@ -170,12 +161,8 @@ export function InfrastructurePanel({
 
           {/* Form Inputs Grid */}
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1.4fr 1fr',
-              gap: '14px',
-              marginBottom: '18px',
-            }}
+            className="settings-two-col-grid"
+            style={{ marginBottom: '18px' }}
           >
             <div>
               <label

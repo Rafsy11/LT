@@ -123,10 +123,8 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
         >
           {/* Service Status & Physical Binding Strip */}
           <div
+            className="modal-three-col-grid"
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '12px',
               padding: '12px',
               background: '#f8fafc',
               border: '1px solid #e2e8f0',

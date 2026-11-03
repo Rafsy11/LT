@@ -54,6 +54,11 @@ export function Header({
         >
           <Icon name={isMobileMenuOpen ? 'x' : 'menu'} size={20} />
         </button>
+        {_pageTitle && (
+          <span className="header-page-title" title={_pageTitle}>
+            {_pageTitle}
+          </span>
+        )}
       </div>
 
       {/* Search Bar - Active Global Search Form */}

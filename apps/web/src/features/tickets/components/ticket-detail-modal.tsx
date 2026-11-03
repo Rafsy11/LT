@@ -329,10 +329,8 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
               </div>
 
               <div
+                className="modal-two-col-grid"
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '10px',
                   fontSize: '12px',
                 }}
               >

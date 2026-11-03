@@ -218,15 +218,12 @@ export function DraftActionCard({
       {/* Grid Parameters Layout */}
       {draft.payload && (
         <div
+          className="draft-action-kpi-grid"
           style={{
             paddingTop: '12px',
             paddingBottom: '12px',
             borderTop: '1px solid #edf2f7',
             borderBottom: '1px solid #edf2f7',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-            rowGap: '10px',
-            columnGap: '16px',
             marginBottom: '14px',
           }}
         >

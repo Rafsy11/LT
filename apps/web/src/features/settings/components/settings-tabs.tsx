@@ -21,13 +21,7 @@ export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
     <nav
       role="tablist"
       aria-label="Tab Kategori Pengaturan"
-      style={{
-        display: 'flex',
-        gap: '24px',
-        borderBottom: '1px solid #e2ecf2',
-        marginBottom: '24px',
-        overflowX: 'auto',
-      }}
+      className="settings-tab-list"
     >
       {TABS.map((t) => {
         const active = activeTab === t.key;

@@ -32,34 +32,14 @@ export function TechnicianFilters({
 }: TechnicianFiltersProps) {
   return (
     <nav
+      className="technician-sub-toolbar"
       aria-label="Bilah Filter Teknisi"
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '12px',
-        marginBottom: '16px',
-        paddingBottom: '14px',
-        borderBottom: '1px solid #f1f5f9',
-      }}
     >
       {/* Left: Clean Inline Search Box */}
       <search
         role="search"
         aria-label="Cari teknisi"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: '#ffffff',
-          border: '1px solid #dce7f0',
-          borderRadius: '6px',
-          padding: '6px 12px',
-          width: '320px',
-          color: '#64748b',
-          transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
-        }}
+        className="customer-search-box"
       >
         <span style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           <Icon name="search" size={14} />
@@ -69,15 +49,7 @@ export function TechnicianFilters({
           placeholder="Cari nama, username, ID perangkat..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            border: 'none',
-            background: 'transparent',
-            outline: 'none',
-            width: '100%',
-            fontSize: '12.5px',
-            color: '#0f172a',
-            padding: 0,
-          }}
+          className="customer-search-input"
         />
         {search && (
           <button

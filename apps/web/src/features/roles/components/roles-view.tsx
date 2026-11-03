@@ -71,13 +71,7 @@ export function RolesView() {
           <nav
             role="tablist"
             aria-label="Navigasi Tampilan Peran"
-            style={{
-              display: 'inline-flex',
-              background: '#f1f5f9',
-              padding: '3px',
-              borderRadius: '8px',
-              gap: '3px',
-            }}
+            className="roles-tab-list"
           >
             <button
               type="button"

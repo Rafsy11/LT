@@ -160,19 +160,20 @@ export function TelemetryStreamPanel({
         </div>
       </header>
 
-      {/* Stream Table Header */}
-      <div className="noc-stream-table-header" role="row" aria-hidden="true">
-        <div>WAKTU</div>
-        <div>PELANGGAN &amp; SIA</div>
-        <div>SPLITTER / PORT</div>
-        <div>TEKNISI</div>
-        <div>REDAMAN</div>
-        <div>VALIDASI</div>
-        <div style={{ textAlign: 'right' }}>AKSI</div>
-      </div>
+      {/* Stream Table Header & List wrapped in Horizontal Scroll Region for Mobile */}
+      <div className="noc-stream-scroll-wrap" tabIndex={0} role="region" aria-label="Tabel Telemetri Real-time">
+        <div className="noc-stream-table-header" role="row" aria-hidden="true">
+          <div>WAKTU</div>
+          <div>PELANGGAN &amp; SIA</div>
+          <div>SPLITTER / PORT</div>
+          <div>TEKNISI</div>
+          <div>REDAMAN</div>
+          <div>VALIDASI</div>
+          <div style={{ textAlign: 'right' }}>AKSI</div>
+        </div>
 
-      {/* Stream Table Rows */}
-      <ol className="noc-stream-list" role="list" aria-label="Daftar Laporan Telemetri">
+        {/* Stream Table Rows */}
+        <ol className="noc-stream-list" role="list" aria-label="Daftar Laporan Telemetri">
         {loading ? (
           <li className="noc-empty-stream" role="status">Memuat aliran sinyal live telemetri...</li>
         ) : filteredReports.length === 0 ? (
@@ -301,6 +302,7 @@ export function TelemetryStreamPanel({
           })
         )}
       </ol>
+      </div>
 
       {/* Bottom Stream Metadata Strip */}
       <footer className="monitoring-info-strip">

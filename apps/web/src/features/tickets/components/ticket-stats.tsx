@@ -12,7 +12,6 @@ export function TicketStats({ totalWorkOrder, waitingCount, inProgressCount }: T
     <section
       className="tickets-stats-grid"
       aria-label="Statistik Penugasan Tiket"
-      style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}
     >
       <article className="stat-card">
         <div className="stat-card-inner">

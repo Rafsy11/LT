@@ -15,13 +15,8 @@ export interface GeofencingPanelProps {
 export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: GeofencingPanelProps) {
   return (
     <section
+      className="settings-panel-grid"
       aria-label="Validasi Lapangan & Geofencing"
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1.35fr) minmax(360px, 1fr)',
-        gap: '24px',
-        alignItems: 'start',
-      }}
     >
       {/* Left: Geofencing Radius & Location Policy */}
       <article

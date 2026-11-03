@@ -19,13 +19,8 @@ export function NetworkSettingsPanel({
 }: NetworkSettingsPanelProps) {
   return (
     <section
+      className="settings-panel-grid"
       aria-label="Akses Jaringan & Distribusi APK"
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1.25fr) minmax(360px, 1fr)',
-        gap: '24px',
-        alignItems: 'start',
-      }}
     >
       {/* Left: Public Access & Workspace Identity */}
       <article
@@ -49,13 +44,11 @@ export function NetworkSettingsPanel({
 
         <fieldset
           aria-label="Pilihan Metode Akses Publik"
+          className="settings-three-col-grid"
           style={{
             border: 0,
             margin: 0,
             padding: 0,
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '10px',
             marginBottom: '20px',
           }}
         >
@@ -106,12 +99,8 @@ export function NetworkSettingsPanel({
         </fieldset>
 
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '14px',
-            marginBottom: '16px',
-          }}
+          className="settings-two-col-grid"
+          style={{ marginBottom: '16px' }}
         >
           <div>
             <label
@@ -184,7 +173,7 @@ export function NetworkSettingsPanel({
               Konfigurasi Nginx Reverse Proxy (PRD 7.2 &amp; AGENT.md)
             </h3>
           </header>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div className="settings-two-col-grid">
             <div
               style={{
                 background: '#f8fafc',

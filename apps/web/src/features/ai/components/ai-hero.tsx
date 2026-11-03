@@ -68,14 +68,7 @@ export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
       {/* 2x2 Suggestion Grid (Exact match to reference image with high contrast text) */}
       <nav
         aria-label="Saran Pertanyaan AI"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 260px))',
-          justifyContent: 'center',
-          gap: '14px 18px',
-          width: '100%',
-          margin: '0 auto',
-        }}
+        className="ai-hero-cards-grid"
       >
         {suggestions.map((item) => (
           <button
