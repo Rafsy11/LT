@@ -1,11 +1,13 @@
 FROM node:22-alpine AS base
+RUN apk add --no-cache libc6-compat openssl
 RUN corepack enable && corepack prepare pnpm@12.11.2 --activate
 
 FROM base AS builder
 WORKDIR /app
 COPY . .
+ENV NEXT_PHASE=phase-production-build
 RUN pnpm install --frozen-lockfile=false
-RUN pnpm --filter @repo/database run db:generate || true
+RUN pnpm --filter @repo/database run db:generate
 RUN pnpm --filter @repo/web run build
 
 FROM base AS runner

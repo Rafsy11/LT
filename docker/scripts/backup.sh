@@ -2,12 +2,24 @@
 # ==============================================================================
 # FiberOps FTTH Management System - Daily Disaster Recovery & Backup Script
 # PRD Section 7.2 & AGENT.md: PostgreSQL pg_dump + MinIO Object Storage Mirroring
+# Compatible with macOS (Apple Silicon M5 / BSD) & GNU/Linux
 # ==============================================================================
 
 set -euo pipefail
 
-# --- Configuration & Defaults ---
-BACKUP_BASE_DIR="${BACKUP_DIR:-/var/backups/fiberops}"
+# --- Environment & Toolchain Path ---
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+
+# --- Configuration & Storage Target Discovery (HW-02 External SSD) ---
+EXTERNAL_SSD_MOUNT="${EXTERNAL_SSD_PATH:-/Volumes/FiberOpsBackup}"
+if [ -d "${EXTERNAL_SSD_MOUNT}" ]; then
+    BACKUP_BASE_DIR="${EXTERNAL_SSD_MOUNT}/fiberops-backups"
+    STORAGE_TYPE="External NVMe SSD (${EXTERNAL_SSD_MOUNT})"
+else
+    BACKUP_BASE_DIR="${BACKUP_DIR:-./backups}"
+    STORAGE_TYPE="Local Fallback Storage (${BACKUP_BASE_DIR})"
+fi
+
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 TIMESTAMP="$(date +'%Y%m%d_%H%M%S')"
 DATE_LABEL="$(date +'%Y-%m-%d %H:%M:%S')"
@@ -37,6 +49,7 @@ log() {
 
 log "INFO" "=========================================================="
 log "INFO" "Starting FiberOps Automated Daily Backup Routine..."
+log "INFO" "Target Storage: ${STORAGE_TYPE}"
 log "INFO" "Backup Directory: ${BACKUP_BASE_DIR}"
 log "INFO" "Retention Period: ${RETENTION_DAYS} days"
 log "INFO" "=========================================================="
@@ -95,24 +108,21 @@ if [ -d "${TARGET_MINIO_SNAPSHOT}" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# STEP 3: Automated Retention Pruning (> 30 Days)
+# STEP 3: Automated Retention Pruning (> 30 Days - POSIX/BSD Safe)
 # ------------------------------------------------------------------------------
 log "INFO" "Applying backup retention policy: pruning files older than ${RETENTION_DAYS} days..."
 
 # Prune old PostgreSQL dumps
-find "${POSTGRES_BACKUP_DIR}" -type f -name "*.sql.gz" -mtime +"${RETENTION_DAYS}" -exec rm -vf {} \; | while read -r removed; do
-    log "INFO" "Pruned expired database backup: ${removed}"
-done
+find "${POSTGRES_BACKUP_DIR}" -type f -name "*.sql.gz" -mtime +"${RETENTION_DAYS}" -delete
+log "INFO" "Pruned expired database backups older than ${RETENTION_DAYS} days."
 
 # Prune old MinIO archives
-find "${MINIO_BACKUP_DIR}" -type f -name "*.tar.gz" -mtime +"${RETENTION_DAYS}" -exec rm -vf {} \; | while read -r removed; do
-    log "INFO" "Pruned expired MinIO backup: ${removed}"
-done
+find "${MINIO_BACKUP_DIR}" -type f -name "*.tar.gz" -mtime +"${RETENTION_DAYS}" -delete
+log "INFO" "Pruned expired MinIO archives older than ${RETENTION_DAYS} days."
 
 # Prune old logs
-find "${LOG_DIR}" -type f -name "*.log" -mtime +"${RETENTION_DAYS}" -exec rm -vf {} \; | while read -r removed; do
-    log "INFO" "Pruned expired log: ${removed}"
-done
+find "${LOG_DIR}" -type f -name "*.log" -mtime +"${RETENTION_DAYS}" -delete
+log "INFO" "Pruned expired backup logs older than ${RETENTION_DAYS} days."
 
 log "INFO" "=========================================================="
 log "INFO" "FiberOps Daily Backup Routine completed successfully!"

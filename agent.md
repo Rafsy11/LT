@@ -19,12 +19,31 @@ We use a **Turborepo (`pnpm`)** monorepo architecture:
 
 ```text
 ├── apps/
-│   ├── web/                  # Next.js 15 (App Router), Tailwind CSS, Shadcn UI, API Route Handlers
-│   └── mobile/               # React Native (Expo Prebuild/Dev Build), VisionCamera, MMKV/SQLite
+│   ├── web/                         # Next.js 15 (App Router), Tailwind CSS, Shadcn UI
+│   │   ├── src/
+│   │   │   ├── app/                 # Next.js App Router (pages, layouts, Route Handlers)
+│   │   │   ├── features/            # Domain-driven modular UI features & hooks
+│   │   │   │   ├── overview/        # Dashboard KPIs & ticket queue
+│   │   │   │   ├── network/         # Splitter, port visualizer & attenuation
+│   │   │   │   ├── tickets/         # PSB & Maintenance ticket management
+│   │   │   │   ├── customers/       # SIA customer directory & management
+│   │   │   │   ├── technicians/     # Field technician roster & location
+│   │   │   │   ├── monitoring/      # Live attenuation telemetry & SSE
+│   │   │   │   ├── roles/           # RBAC role & permission matrix
+│   │   │   │   ├── settings/        # System configuration & audit logs
+│   │   │   │   └── ai/              # Copilot interactive chat & action reviews
+│   │   │   ├── server/              # Isolated backend server-only layer
+│   │   │   │   ├── services/        # Core business logic services (*.service.ts)
+│   │   │   │   └── lib/             # Server-only utilities (redis, minio, rate-limit)
+│   │   │   ├── providers/           # Centralized React Context providers (auth, toast)
+│   │   │   ├── components/ui/       # Shared presentation atoms & primitives
+│   │   │   └── lib/                 # Shared client utilities (api-client, utils)
+│   └── mobile/                      # React Native (Expo Prebuild), VisionCamera, MMKV/SQLite
 ├── packages/
-│   ├── shared/               # Shared Zod schemas, TypeScript types, error codes, constants
-│   └── database/             # Prisma/Drizzle ORM schema, migrations, DB client instance
-└── docker/                   # Docker Compose & Nginx configurations for on-premise deployment
+│   ├── shared/                      # Shared Zod schemas, TypeScript types, error codes
+│   └── database/                    # Multi-arch Prisma schema, migrations, DB client
+├── docker/                          # Compose, Nginx, and automated backup scripts
+└── scripts/                         # Operational scripts (security-audit.ts, macos-m5-server.sh)
 ```
 
 ---
@@ -34,10 +53,10 @@ We use a **Turborepo (`pnpm`)** monorepo architecture:
 ### Law 1: NEVER Put Core Business Logic Inside Next.js Server Actions
 
 - **Why:** The React Native mobile app cannot invoke Next.js Server Actions.
-- **Rule:** Write all business logic, validation, and database transactions inside `apps/web/src/services/*.service.ts`.
+- **Rule:** Write all business logic, validation, and database transactions inside `apps/web/src/server/services/*.service.ts`.
 - **Exposure:**
   - Expose endpoints to React Native (and Web) via REST Route Handlers in `apps/web/src/app/api/v1/**/route.ts`.
-  - Web Server Components or Server Actions may call the `services` layer directly, but must never contain raw ORM queries or duplicate validation logic.
+  - Web Server Components or Server Actions may call the `server/services` layer directly, but must never contain raw ORM queries or duplicate validation logic.
 
 ### Law 2: Immutable History & Server-Side Timestamps Only
 
@@ -131,3 +150,25 @@ We run a local LLM (e.g., `Qwen 2.5 Instruct` via Ollama/vLLM) integrated with t
     | { success: false; error: { code: string; message: string; details?: unknown } };
   ```
 - **Database Migrations:** Never run `prisma db push` in production scripts. Always generate explicit SQL migration files (`prisma migrate dev` locally, `prisma migrate deploy` in production) and include custom SQL indexes (such as the partial unique index for active splitter ports).
+
+---
+
+## 8. Apple Silicon (MacBook Air M5) & Cross-Platform Deployment
+
+The production system supports deployment on a **13-inch MacBook Air (Apple M5, 10-core CPU, 10-core GPU Metal, 24GB Unified Memory, 512GB SSD)** using a hybrid setup alongside Windows/Linux x86_64 development environments:
+
+- **Hybrid AI & Container Architecture:**
+  - Native macOS Ollama runs directly on the host to leverage 10-core Apple Metal GPU acceleration (`port 11434`).
+  - Next.js Web connects from Docker/OrbStack via `host.docker.internal:host-gateway` (`OLLAMA_BASE_URL=http://host.docker.internal:11434/api`).
+  - Containerized Ollama in `docker-compose.yml` is protected with `profiles: ["linux-docker-ai"]`, preventing redundant container launches and CPU virtualization overhead on macOS.
+- **Fanless Thermal Guards:**
+  - MacBook Air M5 operates fanlessly; concurrency is throttled via `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_MAX_LOADED_MODELS=1`, and `OLLAMA_KEEP_ALIVE=10m` to prevent thermal saturation.
+- **24GB Unified Memory Budgeting:**
+  - Container services are capped at ~6.5GB total (`postgres` 2048M, `nextjs-web` 2048M, `minio` 1536M, `redis` 512M, `nginx` 256M).
+  - ~17.5GB headroom is reserved for macOS, file caches, and Metal GPU VRAM (`qwen2.5:7b` requires ~4.5GB VRAM).
+- **Multi-Architecture Binary Targets:**
+  - `packages/database/prisma/schema.prisma` targets `["native", "darwin-arm64", "linux-musl-arm64-openssl-3.0.x", "linux-musl-openssl-3.0.x"]`.
+- **System Keep-Alive & Daemon Management:**
+  - `scripts/macos-m5-server.sh` checks Ollama daemon/model availability, validates disk space and power adapter connection, and runs `caffeinate -dimsu` to prevent system sleep during on-premise operations.
+- **POSIX & External Backup Strategy:**
+  - `docker/scripts/backup.sh` auto-detects external NVMe 1TB SSD (`HW-02` mounted at `/Volumes/FiberOpsBackup`) with automatic local fallback (`./backups`) and 30-day POSIX-compliant retention pruning (`find ... -delete`).
