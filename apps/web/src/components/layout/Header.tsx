@@ -111,32 +111,12 @@ export function Header({ pageTitle: _pageTitle }: HeaderProps = {}) {
         </button>
 
         {/* Profil Akun Tunggal */}
-        <figure className="header-user-profile" title="Profil Akun Aktif">
-          <div className="header-avatar-circle" style={{ overflow: 'hidden', padding: 0 }}>
-            <svg
-              width="34"
-              height="34"
-              viewBox="0 0 36 36"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <circle cx="18" cy="18" r="18" fill="#1e293b" />
-              <circle cx="18" cy="13.5" r="5.5" fill="#fcd34d" />
-              <path
-                d="M13 13C13 9 15 7.5 18 7.5C21 7.5 23 9 23 13C23 11 21.5 9 18 9C14.5 9 13 11 13 13Z"
-                fill="#18181b"
-              />
-              <path d="M7.5 32C8 25 12.5 21.5 18 21.5C23.5 21.5 28 25 28.5 32" fill="#0f172a" />
-              <polygon points="18,21.5 15,26.5 21,26.5" fill="#ffffff" />
-              <polygon points="18,23 17,29 19,29" fill="#1b5ca2" />
-            </svg>
-          </div>
-          <figcaption className="header-user-info">
+        <div className="header-user-profile" title="Profil Akun Aktif">
+          <div className="header-user-info">
             <span className="header-user-name">{user.fullName}</span>
             <span className="header-user-role">{user.roleName}</span>
-          </figcaption>
-        </figure>
+          </div>
+        </div>
       </div>
 
       {notice && (
