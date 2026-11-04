@@ -32,7 +32,7 @@ export function TechnicianDetailModal({
     <dialog className="overlay" open onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="technician-modal-title">
       <article
         className="modal"
-        style={{ maxWidth: '640px', width: '100%' }}
+        style={{ maxWidth: '760px', width: '100%' }}
         onClick={(e) => e.stopPropagation()}
       >
         <header

@@ -48,28 +48,7 @@ export function RoleHeader({ isFetching, onRefresh }: RoleHeaderProps) {
           Otoritas Sistem Terpantau
         </div>
 
-        <button
-          className="button"
-          onClick={onRefresh}
-          disabled={isFetching}
-          title="Segarkan data akses"
-          aria-label="Segarkan data akses"
-          type="button"
-          style={{
-            padding: '6px 10px',
-            background: '#ffffff',
-            border: '1px solid #dce7f0',
-            borderRadius: '6px',
-            color: '#475569',
-            fontSize: '12px',
-            boxShadow: '0 1px 2px rgba(27, 92, 162, 0.03)',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-          }}
-        >
-          <Icon name="refresh" size={14} className={isFetching ? 'spin' : ''} />
-        </button>
+
       </nav>
     </header>
   );

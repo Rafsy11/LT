@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { CreateTicketModal, TicketDetailModal } from '@/features/tickets';
 import { useOverview } from '../hooks/use-overview';
@@ -39,25 +39,49 @@ export function OverviewView() {
     exportCsv,
   } = useOverview();
 
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  const actionMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
+        setActionMenuOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setActionMenuOpen(false);
+      }
+    }
+    if (actionMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [actionMenuOpen]);
+
+  useEffect(() => {
+    function handleGlobalRefresh() {
+      fetchTickets();
+    }
+    window.addEventListener('app:refresh-data', handleGlobalRefresh);
+    return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
+  }, [fetchTickets]);
+
   return (
     <main className="overview-page" id="main-content">
-      {/* Page Header with Integrated Command Bar */}
+      {/* Page Header with Reorganized Command Bar (Stage 2) */}
       <header className="overview-header">
-        <div className="overview-header-copy">
-          <h1 className="overview-greeting">Selamat datang, {user.fullName || 'Operator'}</h1>
-          <p className="overview-subtitle">
-            Berikut adalah ringkasan kondisi jaringan dan aktivitas operasional hari ini.
-          </p>
-        </div>
+        <div className="overview-header-left">
+          <div className="overview-datetime-header" title="Waktu operasional aktif">
+            <span className="overview-date-title">{currentDateTime.date || 'Rabu, 4 November 2026'}</span>
+            <span className="overview-time-title">{currentDateTime.time || '10.12 WIB'}</span>
+          </div>
 
-        <nav className="overview-toolbar" role="toolbar" aria-label="Toolbar Operasional">
-          <time className="date-time-badge" title="Waktu operasional aktif">
-            <Icon name="clock" size={14} />
-            <span>{currentDateTime.date || 'Waktu Operasional'}</span>
-            <span className="time-text">{currentDateTime.time || 'WIB'}</span>
-          </time>
-
-          <div className="select-wrapper">
+          <div className="select-wrapper overview-cluster-select-wrap">
             <select
               value={cluster}
               onChange={(e) => setCluster(e.target.value)}
@@ -72,44 +96,90 @@ export function OverviewView() {
               <option>Rancaekek</option>
             </select>
           </div>
+        </div>
 
-          <button className="button primary export-btn" onClick={exportCsv} type="button">
-            <Icon name="download" size={14} />
-            <span>Export laporan</span>
-          </button>
-
-          {canCreateTicket ? (
+        <div className="overview-header-right">
+          {/* Consolidated Action Menu (Accordion / Dropdown) */}
+          <div className="overview-action-accordion" ref={actionMenuRef}>
             <button
-              className="button primary buat-tiket-btn"
-              onClick={() => setModalOpen(true)}
               type="button"
+              className={`button primary overview-action-trigger ${actionMenuOpen ? 'open' : ''}`}
+              onClick={() => setActionMenuOpen((prev) => !prev)}
+              aria-expanded={actionMenuOpen}
+              aria-haspopup="menu"
             >
               <Icon name="plus" size={14} />
-              <span>Buat Tiket</span>
+              <span>Menu Tindakan</span>
+              <Icon
+                name="chevron"
+                size={14}
+                className={`accordion-chevron ${actionMenuOpen ? 'rotate-180' : ''}`}
+              />
             </button>
-          ) : (
-            <button
-              className="button disabled buat-tiket-btn"
-              disabled
-              title="Izin ticket:create diperlukan untuk membuat tiket baru"
-              style={{ opacity: 0.5, cursor: 'not-allowed' }}
-              type="button"
-            >
-              <Icon name="lock" size={13} />
-              <span>Buat Tiket</span>
-            </button>
-          )}
 
-          <button
-            className="refresh-btn"
-            onClick={fetchTickets}
-            type="button"
-            aria-label="Perbarui data"
-            title="Perbarui data"
-          >
-            <Icon name="refresh" size={14} />
-          </button>
-        </nav>
+            {actionMenuOpen && (
+              <div className="overview-action-dropdown" role="menu">
+                {canCreateTicket ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="action-dropdown-item"
+                    onClick={() => {
+                      setModalOpen(true);
+                      setActionMenuOpen(false);
+                    }}
+                  >
+                    <div className="action-item-icon create">
+                      <Icon name="plus" size={15} />
+                    </div>
+                    <div className="action-item-info">
+                      <span className="action-item-title">Buat Tiket Baru</span>
+                      <span className="action-item-desc">Registrasi tiket PSB atau maintenance</span>
+                    </div>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled
+                    className="action-dropdown-item disabled"
+                    title="Izin ticket:create diperlukan"
+                  >
+                    <div className="action-item-icon locked">
+                      <Icon name="lock" size={14} />
+                    </div>
+                    <div className="action-item-info">
+                      <span className="action-item-title">Buat Tiket Baru</span>
+                      <span className="action-item-desc">Akses terbatas (izin diperlukan)</span>
+                    </div>
+                  </button>
+                )}
+
+                <div className="action-dropdown-divider" />
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="action-dropdown-item"
+                  onClick={() => {
+                    exportCsv();
+                    setActionMenuOpen(false);
+                  }}
+                >
+                  <div className="action-item-icon export">
+                    <Icon name="download" size={15} />
+                  </div>
+                  <div className="action-item-info">
+                    <span className="action-item-title">Export Laporan</span>
+                    <span className="action-item-desc">Unduh berkas rekapitulasi data (CSV)</span>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
+
+        </div>
       </header>
 
       {/* 4 Telemetry Metric Cards */}

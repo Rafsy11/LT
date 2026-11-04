@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 export interface RoleStatsProps {
   totalUsers: number;
@@ -11,148 +12,75 @@ export function RoleStats({ totalUsers }: RoleStatsProps) {
     <section
       className="roles-stats-grid"
       aria-label="Statistik RBAC"
-      style={{ marginBottom: '24px' }}
     >
       <article className="stat-card">
+        <span className="stat-card-ribbon blue">USERS</span>
         <div className="stat-card-inner">
-          <div
-            className="stat-card-top"
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <span
-              className="stat-card-label"
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-                color: '#64748b',
-              }}
-            >
-              Total Pengguna Sistem
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round blue">
+              <Icon name="users" size={17} />
             </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Total Pengguna</span>
+              <div className="stat-card-value">{totalUsers}</div>
+            </div>
           </div>
-          <div
-            className="stat-card-value"
-            style={{ fontSize: '26px', fontWeight: 700, color: '#0f172a', margin: '8px 0 2px' }}
-          >
-            {totalUsers}
-          </div>
-          <div className="stat-card-footer" style={{ borderTop: 'none', padding: 0 }}>
-            <span className="caption" style={{ fontSize: '11.5px', color: '#64748b' }}>
-              Operator dan akun terdaftar
-            </span>
+          <div className="stat-card-footer">
+            <span className="caption">Operator dan akun terdaftar</span>
           </div>
         </div>
       </article>
 
       <article className="stat-card">
+        <span className="stat-card-ribbon purple">SUPER ADMIN</span>
         <div className="stat-card-inner">
-          <div
-            className="stat-card-top"
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <span
-              className="stat-card-label"
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-                color: '#64748b',
-              }}
-            >
-              Otoritas Penuh
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round purple">
+              <Icon name="shield" size={17} />
             </span>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '11px',
-                color: '#0e5b92',
-                fontWeight: 600,
-              }}
-            >
-              Root Access
-            </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Otoritas Penuh</span>
+              <div className="stat-card-value" style={{ color: '#6b21a8' }}>Super Admin</div>
+            </div>
           </div>
-          <div
-            className="stat-card-value"
-            style={{ fontSize: '26px', fontWeight: 700, color: '#0e5b92', margin: '8px 0 2px' }}
-          >
-            Super Admin
-          </div>
-          <div className="stat-card-footer" style={{ borderTop: 'none', padding: 0 }}>
-            <span className="caption" style={{ fontSize: '11.5px', color: '#64748b' }}>
-              Akses global konfigurasi sistem
-            </span>
+          <div className="stat-card-footer">
+            <span className="caption">Akses global konfigurasi sistem</span>
           </div>
         </div>
       </article>
 
       <article className="stat-card">
+        <span className="stat-card-ribbon blue">OPERASIONAL</span>
         <div className="stat-card-inner">
-          <div
-            className="stat-card-top"
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <span
-              className="stat-card-label"
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-                color: '#64748b',
-              }}
-            >
-              Admin Operasional
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round blue">
+              <Icon name="activity" size={17} />
             </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Admin Operasional</span>
+              <div className="stat-card-value" style={{ color: '#1d4ed8' }}>NOC &amp; Helpdesk</div>
+            </div>
           </div>
-          <div
-            className="stat-card-value"
-            style={{ fontSize: '26px', fontWeight: 700, color: '#1d4ed8', margin: '8px 0 2px' }}
-          >
-            NOC &amp; Helpdesk
-          </div>
-          <div className="stat-card-footer" style={{ borderTop: 'none', padding: 0 }}>
-            <span className="caption" style={{ fontSize: '11.5px', color: '#64748b' }}>
-              Cakupan wilayah &amp; penugasan tiket
-            </span>
+          <div className="stat-card-footer">
+            <span className="caption">Cakupan wilayah &amp; penugasan tiket</span>
           </div>
         </div>
       </article>
 
       <article className="stat-card">
+        <span className="stat-card-ribbon amber">FIELD TECH</span>
         <div className="stat-card-inner">
-          <div
-            className="stat-card-top"
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <span
-              className="stat-card-label"
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-                color: '#64748b',
-              }}
-            >
-              Akses Lapangan
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round amber">
+              <Icon name="user" size={17} />
             </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Akses Lapangan</span>
+              <div className="stat-card-value" style={{ color: '#475569' }}>Teknisi Mobile</div>
+            </div>
           </div>
-          <div
-            className="stat-card-value"
-            style={{ fontSize: '26px', fontWeight: 700, color: '#475569', margin: '8px 0 2px' }}
-          >
-            Teknisi Mobile
-          </div>
-          <div className="stat-card-footer" style={{ borderTop: 'none', padding: 0 }}>
-            <span className="caption" style={{ fontSize: '11.5px', color: '#64748b' }}>
-              Terikat tiket aktif &amp; validasi OPM
-            </span>
+          <div className="stat-card-footer">
+            <span className="caption">Terikat tiket aktif &amp; validasi OPM</span>
           </div>
         </div>
       </article>

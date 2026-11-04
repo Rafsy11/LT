@@ -20,9 +20,10 @@ export function OverviewStats({
     <section className="overview-stats-grid" aria-label="Ringkasan Operasional Utama">
       {/* Metric 1: Pelanggan Aktif */}
       <article className="stat-card">
+        <span className="stat-card-ribbon blue">TERDAFTAR</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round">
+            <span className="stat-card-icon-round blue">
               <Icon name="network" size={17} />
             </span>
             <div className="stat-card-text">
@@ -38,9 +39,10 @@ export function OverviewStats({
 
       {/* Metric 2: Tiket Aktif */}
       <article className="stat-card">
+        <span className="stat-card-ribbon amber">PRIORITAS</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round neutral">
+            <span className="stat-card-icon-round amber">
               <Icon name="ticket" size={17} />
             </span>
             <div className="stat-card-text">
@@ -57,9 +59,10 @@ export function OverviewStats({
 
       {/* Metric 3: Teknisi di Lapangan */}
       <article className="stat-card">
+        <span className="stat-card-ribbon green">ONLINE</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round neutral">
+            <span className="stat-card-icon-round green">
               <Icon name="wrench" size={17} />
             </span>
             <div className="stat-card-text">
@@ -77,10 +80,11 @@ export function OverviewStats({
 
       {/* Metric 4: Kesehatan Jaringan */}
       <article className="stat-card stat-card-health">
+        <span className="stat-card-ribbon cyan">SLA 99.8%</span>
         <div className="stat-card-inner">
           <div className="stat-card-top health-top">
             <div className="health-left">
-              <span className="stat-card-icon-round neutral">
+              <span className="stat-card-icon-round cyan">
                 <Icon name="shield" size={17} />
               </span>
               <div className="stat-card-text">

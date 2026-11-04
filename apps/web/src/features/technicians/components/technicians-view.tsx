@@ -32,6 +32,14 @@ export function TechniciansView() {
     displayedTechs,
   } = useTechnicians();
 
+  React.useEffect(() => {
+    function handleGlobalRefresh() {
+      fetchTechs();
+    }
+    window.addEventListener('app:refresh-data', handleGlobalRefresh);
+    return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
+  }, [fetchTechs]);
+
   return (
     <main className="technicians-page" style={{ paddingBottom: '32px' }}>
       {/* Page Heading & Redis Telemetry Beacon */}
@@ -73,28 +81,7 @@ export function TechniciansView() {
             Redis Session Store: Aktif
           </div>
 
-          <button
-            className="button"
-            onClick={fetchTechs}
-            disabled={loading}
-            title="Segarkan data sesi teknisi"
-            aria-label="Segarkan data sesi teknisi"
-            type="button"
-            style={{
-              padding: '6px 10px',
-              background: '#ffffff',
-              border: '1px solid #dce7f0',
-              borderRadius: '6px',
-              color: '#475569',
-              fontSize: '12px',
-              boxShadow: '0 1px 2px rgba(27, 92, 162, 0.03)',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-            }}
-          >
-            <Icon name="refresh" size={14} />
-          </button>
+
         </nav>
       </header>
 

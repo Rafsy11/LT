@@ -36,6 +36,14 @@ export function TicketsView() {
     getDbmBadge,
   } = useTickets();
 
+  React.useEffect(() => {
+    function handleGlobalRefresh() {
+      fetchTickets();
+    }
+    window.addEventListener('app:refresh-data', handleGlobalRefresh);
+    return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
+  }, [fetchTickets]);
+
   return (
     <main className="tickets-page">
       {/* Page Heading matching Enterprise System */}
@@ -80,23 +88,16 @@ export function TicketsView() {
             </button>
           )}
 
-          <button
-            className="refresh-btn"
-            onClick={fetchTickets}
-            type="button"
-            aria-label="Segarkan data tiket"
-            title="Segarkan data tiket"
-          >
-            <Icon name="refresh" size={14} />
-          </button>
+
         </nav>
       </header>
 
-      {/* 3 Telemetry Metrics Grid */}
+      {/* 4 Telemetry Metrics Grid (Harmonized with Overview) */}
       <TicketStats
         totalWorkOrder={scoped.length}
         waitingCount={waitingCount}
         inProgressCount={inProgressCount}
+        completedCount={scoped.filter((t) => t.status === 'Selesai').length}
       />
 
       {/* Filter Toolbar & Segmented Status Tabs Bar */}

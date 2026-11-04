@@ -21,16 +21,7 @@ export function SettingsHeader({
   return (
     <header className="overview-header" style={{ marginBottom: '22px' }}>
       <div className="overview-header-copy">
-        <div
-          style={{
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            color: '#0e5b92',
-            textTransform: 'uppercase',
-            marginBottom: '3px',
-          }}
-        >
+        <div className="eyebrow">
           KONSOL ON-PREMISE · DOCKER COMPOSE ORCHESTRATION
         </div>
         <h1 className="overview-greeting">Pengaturan Sistem &amp; Infrastruktur</h1>

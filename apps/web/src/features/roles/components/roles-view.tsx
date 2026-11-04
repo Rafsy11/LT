@@ -44,6 +44,14 @@ export function RolesView() {
     getRoleBadgeStyle,
   } = useRoles();
 
+  React.useEffect(() => {
+    function handleGlobalRefresh() {
+      fetchRoles();
+    }
+    window.addEventListener('app:refresh-data', handleGlobalRefresh);
+    return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
+  }, [fetchRoles]);
+
   return (
     <main className="roles-page" style={{ paddingBottom: '32px' }}>
       {/* Overview Header */}

@@ -128,8 +128,8 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
   return (
     <dialog className="overlay" open onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="ticket-modal-title">
       <article
-        className="modal"
-        style={{ maxWidth: '620px', width: '100%' }}
+        className="modal ticket-inspector-modal"
+        style={{ maxWidth: '780px', width: '100%' }}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="panel-heading">
@@ -467,7 +467,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                       marginTop: '4px',
                     }}
                   >
-                    "{pendingData.technicianNotes}"
+                    &ldquo;{pendingData.technicianNotes}&rdquo;
                   </div>
                 </div>
               )}
@@ -671,59 +671,24 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
             </div>
           )}
 
-          {/* Action Buttons Footer */}
-          <footer
-            style={{
-              display: 'flex',
-              gap: '8px',
-              marginTop: '18px',
-              paddingTop: '14px',
-              borderTop: '1px solid #f1f5f9',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-            }}
-          >
-            <div role="group" aria-label="Aksi rincian work order" style={{ display: 'contents' }}>
-              {isPendingApproval ? (
-                <>
-                  <button
-                    type="button"
-                    style={{
-                      background: '#ffffff',
-                      color: '#b91c1c',
-                      border: '1px solid #fca5a5',
-                      borderRadius: '6px',
-                      padding: '7px 14px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}
-                    disabled={isSubmitting}
-                    onClick={() => setShowRejectInput(!showRejectInput)}
-                  >
-                    <Icon name="x" size={13} />
-                    <span>Tolak Laporan</span>
-                  </button>
+          {/* Action Buttons Footer (Upgraded High-End Layout) */}
+          <footer className="modal-footer-bar">
+            {isPendingApproval ? (
+              <div className="modal-footer-pending-actions">
+                <button
+                  type="button"
+                  className="button reject-action-btn"
+                  disabled={isSubmitting}
+                  onClick={() => setShowRejectInput(!showRejectInput)}
+                >
+                  <Icon name="x" size={14} />
+                  <span>Tolak Laporan</span>
+                </button>
 
+                <div className="modal-footer-right-group">
                   <button
                     type="button"
-                    style={{
-                      background: '#16a34a',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '6px',
-                      padding: '7px 16px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      boxShadow: '0 1px 2px rgba(22, 163, 74, 0.2)',
-                    }}
+                    className="button approve-action-btn"
                     disabled={isSubmitting}
                     onClick={handleApprove}
                   >
@@ -733,44 +698,44 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
 
                   <button
                     type="button"
-                    className="button secondary"
-                    style={{ fontSize: '11.5px', padding: '7px 12px', marginLeft: 'auto' }}
+                    className="button secondary modal-close-btn"
                     onClick={onClose}
                   >
                     Tutup
                   </button>
-                </>
-              ) : (
-                <>
+                </div>
+              </div>
+            ) : (
+              <div className="modal-footer-standard-actions">
+                <div className="modal-footer-links-group">
                   <Link
                     href={`/network?search=${encodeURIComponent(ticket.cluster)}`}
-                    className="button secondary"
-                    style={{ fontSize: '11.5px', padding: '7px 12px' }}
+                    className="button secondary modal-link-btn"
                   >
-                    <Icon name="network" size={13} />
+                    <Icon name="network" size={14} />
                     <span>Buka di Master Jaringan</span>
                   </Link>
 
                   <Link
                     href="/monitoring"
-                    className="button secondary"
-                    style={{ fontSize: '11.5px', padding: '7px 12px' }}
+                    className="button secondary modal-link-btn"
                   >
-                    <Icon name="activity" size={13} />
+                    <Icon name="activity" size={14} />
                     <span>Pantau di Live Stream</span>
                   </Link>
+                </div>
 
+                <div className="modal-footer-primary-group">
                   <button
                     type="button"
-                    className="button primary"
-                    style={{ fontSize: '11.5px', padding: '7px 16px', marginLeft: 'auto' }}
+                    className="button primary modal-primary-close-btn"
                     onClick={onClose}
                   >
                     Tutup Rincian
                   </button>
-                </>
-              )}
-            </div>
+                </div>
+              </div>
+            )}
           </footer>
         </div>
       </article>

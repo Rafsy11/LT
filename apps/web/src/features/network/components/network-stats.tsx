@@ -10,51 +10,79 @@ export function NetworkStats({ networkStats }: NetworkStatsProps) {
   return (
     <section className="network-metrics-row-3" aria-label="Metrik Utama Jaringan">
       {/* Card 1: Total Cluster & ODP */}
-      <article className="metric-card-clean">
-        <div className="metric-card-header">
-          <div className="metric-icon-box">
-            <Icon name="network" size={20} />
+      <article className="stat-card">
+        <span className="stat-card-ribbon blue">ODP SPLITTER</span>
+        <div className="stat-card-inner">
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round blue">
+              <Icon name="network" size={17} />
+            </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Total ODP Splitter</span>
+              <div className="stat-card-value">{networkStats.totalSplitters}</div>
+            </div>
           </div>
-          <div className="metric-label-group">
-            <span className="metric-label-text">Total ODP Splitter</span>
-            <span className="metric-number-big">{networkStats.totalSplitters}</span>
+          <div className="stat-card-footer">
+            <span className="caption">terbagi dalam {networkStats.totalClusters} cluster wilayah</span>
           </div>
-        </div>
-        <div className="metric-footer-text">
-          <span>terbagi dalam {networkStats.totalClusters} cluster wilayah</span>
         </div>
       </article>
 
       {/* Card 2: Kapasitas Port Terpakai */}
-      <article className="metric-card-clean">
-        <div className="metric-card-header">
-          <div className="metric-icon-box">
-            <Icon name="activity" size={20} />
+      <article className="stat-card">
+        <span className="stat-card-ribbon amber">UTILISASI</span>
+        <div className="stat-card-inner">
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round amber">
+              <Icon name="activity" size={17} />
+            </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Port terpakai</span>
+              <div className="stat-card-value">{networkStats.usedCapacity}</div>
+            </div>
           </div>
-          <div className="metric-label-group">
-            <span className="metric-label-text">Port terpakai</span>
-            <span className="metric-number-big">{networkStats.usedCapacity}</span>
+          <div className="stat-card-footer">
+            <span className="highlight-pill blue-pill">{networkStats.totalCapacity} total</span>
+            <span className="caption">alokasi splitter</span>
           </div>
-        </div>
-        <div className="metric-footer-text">
-          <span className="metric-pill-chip">{networkStats.totalCapacity} kapasitas total</span>
-          <span>alokasi splitter</span>
         </div>
       </article>
 
       {/* Card 3: Port Siap PSB */}
-      <article className="metric-card-clean">
-        <div className="metric-card-header">
-          <div className="metric-icon-box">
-            <Icon name="check" size={20} />
+      <article className="stat-card">
+        <span className="stat-card-ribbon green">SIAP PSB</span>
+        <div className="stat-card-inner">
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round green">
+              <Icon name="check" size={17} />
+            </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Port siap PSB</span>
+              <div className="stat-card-value" style={{ color: '#166534' }}>{networkStats.availableCapacity}</div>
+            </div>
           </div>
-          <div className="metric-label-group">
-            <span className="metric-label-text">Port siap PSB</span>
-            <span className="metric-number-big">{networkStats.availableCapacity}</span>
+          <div className="stat-card-footer">
+            <span className="caption">siap untuk instalasi baru</span>
           </div>
         </div>
-        <div className="metric-footer-text">
-          <span>siap untuk instalasi baru</span>
+      </article>
+
+      {/* Card 4: Wilayah Cluster Aktif */}
+      <article className="stat-card">
+        <span className="stat-card-ribbon cyan">CAKUPAN</span>
+        <div className="stat-card-inner">
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round cyan">
+              <Icon name="mapPin" size={17} />
+            </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Cluster Wilayah</span>
+              <div className="stat-card-value">{networkStats.totalClusters}</div>
+            </div>
+          </div>
+          <div className="stat-card-footer">
+            <span className="caption">cakupan operasional jaringan</span>
+          </div>
         </div>
       </article>
     </section>

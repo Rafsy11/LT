@@ -392,5 +392,6 @@ export function useNetwork() {
     handleRunAudit,
     showSuccess,
     canCreateTicket,
+    fetchClusters,
   };
 }

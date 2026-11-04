@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
@@ -19,11 +19,40 @@ export function Header({
   onToggleMobileMenu,
 }: HeaderProps = {}) {
   const [notice, setNotice] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const noticeWrapRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { hasPermission, user } = useAuth();
 
+  useEffect(() => {
+    if (!notice) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (noticeWrapRef.current && !noticeWrapRef.current.contains(e.target as Node)) {
+        setNotice(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setNotice(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [notice]);
+
   const canEditRole = hasPermission(PERMISSIONS.ROLE_EDIT);
-  const canUseAi = hasPermission(PERMISSIONS.AI_USE);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('app:refresh-data'));
+    }
+    setTimeout(() => setIsRefreshing(false), 800);
+  };
 
   return (
     <header className="app-global-header">
@@ -46,18 +75,17 @@ export function Header({
       </div>
 
       <div className="header-right">
-        {/* Management Quick Actions: AI Assistant, Role & Akses, Pengaturan */}
+        {/* Management Quick Actions: Segarkan Data, Role & Akses, Pengaturan */}
         <nav className="header-nav-actions" aria-label="Menu Pengelolaan">
-          {canUseAi && (
-            <Link
-              href="/ai"
-              className={`icon-button header-action-btn ${pathname.startsWith('/ai') ? 'active' : ''}`}
-              title="AI Assistant Operasional"
-              aria-label="AI Assistant"
-            >
-              <Icon name="bot" size={19} />
-            </Link>
-          )}
+          <button
+            type="button"
+            className="icon-button header-action-btn"
+            title="Segarkan Data Halaman"
+            aria-label="Segarkan Data"
+            onClick={handleRefresh}
+          >
+            <Icon name="refresh" size={17} className={isRefreshing ? 'icon-spin' : ''} />
+          </button>
 
           {canEditRole ? (
             <Link
@@ -66,7 +94,7 @@ export function Header({
               title="Role & Akses (RBAC)"
               aria-label="Role & Akses"
             >
-              <Icon name="userCheck" size={19} />
+              <Icon name="user" size={19} />
             </Link>
           ) : (
             <div
@@ -75,7 +103,7 @@ export function Header({
               aria-label="Role & Akses (Terkunci)"
               style={{ opacity: 0.4, cursor: 'not-allowed' }}
             >
-              <Icon name="userCheck" size={19} />
+              <Icon name="user" size={19} />
             </div>
           )}
 
@@ -85,22 +113,33 @@ export function Header({
             title="Pengaturan Sistem"
             aria-label="Pengaturan"
           >
-            <Icon name="sliders" size={19} />
+            <Icon name="settings" size={19} />
           </Link>
         </nav>
 
         <div className="header-divider" aria-hidden="true" />
 
-        {/* Notifikasi Lonceng */}
-        <button
-          className="icon-button notification"
-          onClick={() => setNotice(!notice)}
-          aria-label="Notifikasi"
-          type="button"
-        >
-          <Icon name="bell" size={19} />
-          <i className="notification-dot" />
-        </button>
+        {/* Notifikasi Lonceng & Popover */}
+        <div className="notification-wrap" ref={noticeWrapRef}>
+          <button
+            className={`icon-button notification ${notice ? 'active' : ''}`}
+            onClick={() => setNotice((prev) => !prev)}
+            aria-label="Notifikasi"
+            aria-expanded={notice}
+            type="button"
+          >
+            <Icon name="bell" size={19} />
+            <i className="notification-dot" />
+          </button>
+
+          {notice && (
+            <aside className="notification-pop" role="dialog" aria-label="Notifikasi terbaru">
+              <b>Notifikasi terbaru</b>
+              <p>Gangguan koneksi - Critical pada SIA 100245 (Cluster Bandung Utara: -26.4 dBm).</p>
+              <small>Feed real-time · 2 menit lalu</small>
+            </aside>
+          )}
+        </div>
 
         {/* Profil Akun Tunggal */}
         <div className="header-user-profile" title="Profil Akun Aktif">
@@ -110,14 +149,6 @@ export function Header({
           </div>
         </div>
       </div>
-
-      {notice && (
-        <aside className="notification-pop" aria-label="Notifikasi terbaru">
-          <b>Notifikasi terbaru</b>
-          <p>Gangguan koneksi - Critical pada SIA 100245 (Cluster Bandung Utara: -26.4 dBm).</p>
-          <small>Feed real-time · 2 menit lalu</small>
-        </aside>
-      )}
     </header>
   );
 }

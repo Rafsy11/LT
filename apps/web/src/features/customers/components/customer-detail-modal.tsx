@@ -50,7 +50,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
       <article
         className="modal"
         style={{
-          maxWidth: '640px',
+          maxWidth: '760px',
           width: '100%',
           maxHeight: '90vh',
           display: 'flex',

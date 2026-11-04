@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 interface CustomerStatsProps {
   totalCount: number;
@@ -17,156 +18,77 @@ export function CustomerStats({
     <section
       className="customers-stats-grid"
       aria-label="Statistik Master Data Pelanggan"
-      style={{ marginBottom: '24px' }}
     >
       <article className="stat-card">
+        <span className="stat-card-ribbon blue">MASTER SIA</span>
         <div className="stat-card-inner">
-          <div
-            className="stat-card-top"
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <span
-              className="stat-card-label"
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-                color: '#64748b',
-              }}
-            >
-              Total Pelanggan
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round blue">
+              <Icon name="users" size={17} />
             </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Total Pelanggan</span>
+              <div className="stat-card-value">{totalCount}</div>
+            </div>
           </div>
-          <div
-            className="stat-card-value"
-            style={{ fontSize: '26px', fontWeight: 700, color: '#0f172a', margin: '8px 0 2px' }}
-          >
-            {totalCount}
-          </div>
-          <div className="stat-card-footer" style={{ borderTop: 'none', padding: 0 }}>
-            <span className="caption" style={{ fontSize: '11.5px', color: '#64748b' }}>
-              SIA terdaftar di wilayah terpilih
-            </span>
+          <div className="stat-card-footer">
+            <span className="caption">SIA terdaftar di wilayah terpilih</span>
           </div>
         </div>
       </article>
 
       <article className="stat-card">
+        <span className="stat-card-ribbon green">ONLINE</span>
         <div className="stat-card-inner">
-          <div
-            className="stat-card-top"
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <span
-              className="stat-card-label"
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-                color: '#64748b',
-              }}
-            >
-              Layanan Aktif
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round green">
+              <Icon name="network" size={17} />
             </span>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '11px',
-                color: '#166534',
-                fontWeight: 500,
-              }}
-            >
-              <span
-                style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }}
-              />
-              Online
-            </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Layanan Aktif</span>
+              <div className="stat-card-value" style={{ color: '#166534' }}>{activeCount}</div>
+            </div>
           </div>
-          <div
-            className="stat-card-value"
-            style={{ fontSize: '26px', fontWeight: 700, color: '#166534', margin: '8px 0 2px' }}
-          >
-            {activeCount}
-          </div>
-          <div className="stat-card-footer" style={{ borderTop: 'none', padding: 0 }}>
-            <span className="caption" style={{ fontSize: '11.5px', color: '#64748b' }}>
-              Port splitter terkunci aktif
-            </span>
+          <div className="stat-card-footer">
+            <span className="caption">Port splitter terkunci aktif</span>
           </div>
         </div>
       </article>
 
       <article className="stat-card">
+        <span className="stat-card-ribbon amber">ANTREAN</span>
         <div className="stat-card-inner">
-          <div
-            className="stat-card-top"
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <span
-              className="stat-card-label"
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-                color: '#64748b',
-              }}
-            >
-              Menunggu Instalasi
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round amber">
+              <Icon name="clock" size={17} />
             </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Menunggu Instalasi</span>
+              <div className="stat-card-value" style={{ color: '#b45309' }}>{pendingCount}</div>
+            </div>
           </div>
-          <div
-            className="stat-card-value"
-            style={{ fontSize: '26px', fontWeight: 700, color: '#b45309', margin: '8px 0 2px' }}
-          >
-            {pendingCount}
-          </div>
-          <div className="stat-card-footer" style={{ borderTop: 'none', padding: 0 }}>
-            <span className="caption" style={{ fontSize: '11.5px', color: '#64748b' }}>
-              Tiket PSB dalam antrean teknisi
-            </span>
+          <div className="stat-card-footer">
+            <span className="caption">Tiket PSB dalam antrean teknisi</span>
           </div>
         </div>
       </article>
 
       <article className="stat-card">
+        <span className="stat-card-ribbon red">ATTENUATION</span>
         <div className="stat-card-inner">
-          <div
-            className="stat-card-top"
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <span
-              className="stat-card-label"
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-                color: '#64748b',
-              }}
-            >
-              Redaman Kritis
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round red">
+              <Icon name="alert" size={17} />
             </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Redaman Kritis</span>
+              <div className="stat-card-value" style={{ color: criticalCount > 0 ? '#be123c' : '#0f172a' }}>
+                {criticalCount}
+              </div>
+            </div>
           </div>
-          <div
-            className="stat-card-value"
-            style={{
-              fontSize: '26px',
-              fontWeight: 700,
-              color: criticalCount > 0 ? '#be123c' : '#0f172a',
-              margin: '8px 0 2px',
-            }}
-          >
-            {criticalCount}
-          </div>
-          <div className="stat-card-footer" style={{ borderTop: 'none', padding: 0 }}>
-            <span className="caption" style={{ fontSize: '11.5px', color: '#64748b' }}>
-              Nilai redaman optik &lt; -25.0 dBm
-            </span>
+          <div className="stat-card-footer">
+            <span className="caption">Nilai redaman optik &lt; -25.0 dBm</span>
           </div>
         </div>
       </article>

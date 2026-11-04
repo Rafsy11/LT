@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 export interface MonitoringStatsProps {
   totalCount: number;
@@ -32,15 +33,19 @@ export function MonitoringStats({
         }}
         aria-label="Filter semua laporan masuk"
       >
+        <span className="stat-card-ribbon blue">LIVE STREAM</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
+            <span className="stat-card-icon-round blue">
+              <Icon name="activity" size={17} />
+            </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Total Laporan Masuk</span>
               <div className="stat-card-value">{totalCount}</div>
             </div>
           </div>
           <div className="stat-card-footer">
-            <span className="stat-card-caption">Stream aktif via Redis Pub/Sub</span>
+            <span className="caption">Stream aktif via Redis Pub/Sub</span>
           </div>
         </div>
       </article>
@@ -58,18 +63,19 @@ export function MonitoringStats({
         }}
         aria-label="Filter laporan redaman normal"
       >
+        <span className="stat-card-ribbon green">OPTIMAL</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
+            <span className="stat-card-icon-round green">
+              <Icon name="check" size={17} />
+            </span>
             <div className="stat-card-text">
-              <div className="stat-card-label-with-dot">
-                <span className="optical-status-dot normal" aria-hidden="true" />
-                <span className="stat-card-label">Normal (-15 s/d -22 dBm)</span>
-              </div>
+              <span className="stat-card-label">Normal (-15 s/d -22 dBm)</span>
               <div className="stat-card-value">{normalCount}</div>
             </div>
           </div>
           <div className="stat-card-footer">
-            <span className="stat-card-caption">Optimal · Kualitas optik standar</span>
+            <span className="caption">Optimal · Kualitas optik standar</span>
           </div>
         </div>
       </article>
@@ -87,18 +93,19 @@ export function MonitoringStats({
         }}
         aria-label="Filter laporan redaman warning"
       >
+        <span className="stat-card-ribbon amber">WASPADA</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
+            <span className="stat-card-icon-round amber">
+              <Icon name="alert" size={17} />
+            </span>
             <div className="stat-card-text">
-              <div className="stat-card-label-with-dot">
-                <span className="optical-status-dot warning" aria-hidden="true" />
-                <span className="stat-card-label">Warning (-22.1 s/d -25 dBm)</span>
-              </div>
+              <span className="stat-card-label">Warning (-22.1 s/d -25 dBm)</span>
               <div className="stat-card-value">{warningCount}</div>
             </div>
           </div>
           <div className="stat-card-footer">
-            <span className="stat-card-caption">Perlu Pantau · Potensi bending/kotor</span>
+            <span className="caption">Perlu Pantau · Potensi bending/kotor</span>
           </div>
         </div>
       </article>
@@ -114,20 +121,21 @@ export function MonitoringStats({
             onSelectTab('Critical');
           }
         }}
-        aria-label="Filter laporan redaman critical"
+        aria-label="Filter laporan redaman kritis"
       >
+        <span className="stat-card-ribbon red">INSIDEN</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
+            <span className="stat-card-icon-round red">
+              <Icon name="zap" size={17} />
+            </span>
             <div className="stat-card-text">
-              <div className="stat-card-label-with-dot">
-                <span className="optical-status-dot critical" aria-hidden="true" />
-                <span className="stat-card-label">Critical (&lt; -25 dBm / Drop)</span>
-              </div>
-              <div className="stat-card-value">{criticalCount}</div>
+              <span className="stat-card-label">Critical (&lt; -25 dBm / Drop)</span>
+              <div className="stat-card-value" style={{ color: '#be123c' }}>{criticalCount}</div>
             </div>
           </div>
           <div className="stat-card-footer">
-            <span className="stat-card-caption">Insiden Drop · Investigasi segera NOC</span>
+            <span className="caption">Insiden Drop · Investigasi segera NOC</span>
           </div>
         </div>
       </article>

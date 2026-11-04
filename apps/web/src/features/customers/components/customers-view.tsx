@@ -44,6 +44,14 @@ export function CustomersView() {
     displayedCustomers,
   } = useCustomers();
 
+  React.useEffect(() => {
+    function handleGlobalRefresh() {
+      fetchCustomers();
+    }
+    window.addEventListener('app:refresh-data', handleGlobalRefresh);
+    return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
+  }, [fetchCustomers]);
+
   return (
     <main className="customers-page" style={{ paddingBottom: '32px' }}>
       {/* Overview Command Header */}
@@ -85,28 +93,7 @@ export function CustomersView() {
             PostgreSQL Master Data: Aktif
           </div>
 
-          <button
-            className="button"
-            onClick={fetchCustomers}
-            disabled={loading}
-            title="Segarkan data pelanggan"
-            aria-label="Segarkan data pelanggan"
-            type="button"
-            style={{
-              padding: '6px 10px',
-              background: '#ffffff',
-              border: '1px solid #dce7f0',
-              borderRadius: '6px',
-              color: '#475569',
-              fontSize: '12px',
-              boxShadow: '0 1px 2px rgba(27, 92, 162, 0.03)',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-            }}
-          >
-            <Icon name="refresh" size={14} />
-          </button>
+
         </nav>
       </header>
 

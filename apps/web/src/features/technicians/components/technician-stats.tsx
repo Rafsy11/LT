@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from '@/components/ui/Icon';
 
 interface TechnicianStatsProps {
   totalCount: number;
@@ -19,156 +20,77 @@ export function TechnicianStats({
     <section
       className="technicians-stats-grid"
       aria-label="Statistik Teknisi & Sesi"
-      style={{ marginBottom: '24px' }}
     >
       <article className="stat-card">
+        <span className="stat-card-ribbon blue">ROSTER</span>
         <div className="stat-card-inner">
-          <div
-            className="stat-card-top"
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <span
-              className="stat-card-label"
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-                color: '#64748b',
-              }}
-            >
-              Teknisi Terdaftar
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round blue">
+              <Icon name="wrench" size={17} />
             </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Teknisi Terdaftar</span>
+              <div className="stat-card-value">{totalCount}</div>
+            </div>
           </div>
-          <div
-            className="stat-card-value"
-            style={{ fontSize: '26px', fontWeight: 700, color: '#0f172a', margin: '8px 0 2px' }}
-          >
-            {totalCount}
-          </div>
-          <div className="stat-card-footer" style={{ borderTop: 'none', padding: 0 }}>
-            <span className="caption" style={{ fontSize: '11.5px', color: '#64748b' }}>
-              Pengguna aplikasi mobile terdaftar
-            </span>
+          <div className="stat-card-footer">
+            <span className="caption">Pengguna aplikasi mobile terdaftar</span>
           </div>
         </div>
       </article>
 
       <article className="stat-card">
+        <span className="stat-card-ribbon green">ONLINE</span>
         <div className="stat-card-inner">
-          <div
-            className="stat-card-top"
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <span
-              className="stat-card-label"
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-                color: '#64748b',
-              }}
-            >
-              Sesi Mobile Aktif
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round green">
+              <Icon name="smartphone" size={17} />
             </span>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '11px',
-                color: '#166534',
-                fontWeight: 500,
-              }}
-            >
-              <span
-                style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }}
-              />
-              Online
-            </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Sesi Mobile Aktif</span>
+              <div className="stat-card-value" style={{ color: '#166534' }}>{activeSessionsCount}</div>
+            </div>
           </div>
-          <div
-            className="stat-card-value"
-            style={{ fontSize: '26px', fontWeight: 700, color: '#166534', margin: '8px 0 2px' }}
-          >
-            {activeSessionsCount}
-          </div>
-          <div className="stat-card-footer" style={{ borderTop: 'none', padding: 0 }}>
-            <span className="caption" style={{ fontSize: '11.5px', color: '#64748b' }}>
-              Token JWT sah tersinkron di Redis
-            </span>
+          <div className="stat-card-footer">
+            <span className="caption">Token JWT sah tersinkron di Redis</span>
           </div>
         </div>
       </article>
 
       <article className="stat-card">
+        <span className="stat-card-ribbon amber">DISPATCH</span>
         <div className="stat-card-inner">
-          <div
-            className="stat-card-top"
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <span
-              className="stat-card-label"
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-                color: '#64748b',
-              }}
-            >
-              Sedang Bertugas
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round amber">
+              <Icon name="clock" size={17} />
             </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Sedang Bertugas</span>
+              <div className="stat-card-value" style={{ color: '#1b5ca2' }}>{busyCount}</div>
+            </div>
           </div>
-          <div
-            className="stat-card-value"
-            style={{ fontSize: '26px', fontWeight: 700, color: '#1b5ca2', margin: '8px 0 2px' }}
-          >
-            {busyCount}
-          </div>
-          <div className="stat-card-footer" style={{ borderTop: 'none', padding: 0 }}>
-            <span className="caption" style={{ fontSize: '11.5px', color: '#64748b' }}>
-              Memegang tiket terbuka di lapangan
-            </span>
+          <div className="stat-card-footer">
+            <span className="caption">Memegang tiket terbuka di lapangan</span>
           </div>
         </div>
       </article>
 
       <article className="stat-card">
+        <span className="stat-card-ribbon red">REVOKED</span>
         <div className="stat-card-inner">
-          <div
-            className="stat-card-top"
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <span
-              className="stat-card-label"
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-                color: '#64748b',
-              }}
-            >
-              Sesi Dicabut / Kunci
+          <div className="stat-card-top">
+            <span className="stat-card-icon-round red">
+              <Icon name="lock" size={17} />
             </span>
+            <div className="stat-card-text">
+              <span className="stat-card-label">Sesi Dicabut / Kunci</span>
+              <div className="stat-card-value" style={{ color: revokedCount > 0 || disabledCount > 0 ? '#be123c' : '#0f172a' }}>
+                {revokedCount + disabledCount}
+              </div>
+            </div>
           </div>
-          <div
-            className="stat-card-value"
-            style={{
-              fontSize: '26px',
-              fontWeight: 700,
-              color: revokedCount > 0 || disabledCount > 0 ? '#be123c' : '#0f172a',
-              margin: '8px 0 2px',
-            }}
-          >
-            {revokedCount + disabledCount}
-          </div>
-          <div className="stat-card-footer" style={{ borderTop: 'none', padding: 0 }}>
-            <span className="caption" style={{ fontSize: '11.5px', color: '#64748b' }}>
-              {revokedCount} sesi dicabut · {disabledCount} akun dikunci
-            </span>
+          <div className="stat-card-footer">
+            <span className="caption">{revokedCount} sesi dicabut · {disabledCount} akun dikunci</span>
           </div>
         </div>
       </article>

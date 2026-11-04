@@ -46,7 +46,16 @@ export function NetworkView() {
     handleRunAudit,
     showSuccess,
     canCreateTicket,
+    fetchClusters,
   } = useNetwork();
+
+  React.useEffect(() => {
+    function handleGlobalRefresh() {
+      fetchClusters();
+    }
+    window.addEventListener('app:refresh-data', handleGlobalRefresh);
+    return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
+  }, [fetchClusters]);
 
   return (
     <main className="network-page-container">

@@ -41,6 +41,14 @@ export function MonitoringView() {
     fetchInitialReports,
   } = useMonitoring();
 
+  React.useEffect(() => {
+    function handleGlobalRefresh() {
+      fetchInitialReports();
+    }
+    window.addEventListener('app:refresh-data', handleGlobalRefresh);
+    return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
+  }, [fetchInitialReports]);
+
   return (
     <main className="monitoring-page" id="main-content">
       {/* Overview Command Header */}
@@ -75,15 +83,7 @@ export function MonitoringView() {
             </span>
           </div>
 
-          <button
-            className="refresh-btn"
-            onClick={fetchInitialReports}
-            type="button"
-            aria-label="Segarkan feed laporan"
-            title="Segarkan feed laporan"
-          >
-            <Icon name="refresh" size={14} />
-          </button>
+
         </nav>
       </header>
 
