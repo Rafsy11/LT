@@ -53,7 +53,7 @@ export function Sidebar({ ticketCount = 3, isOpen = false, onClose }: SidebarPro
           aria-label="Beranda Lintasarta"
           onClick={onClose}
         >
-          <img src="/assets/lintasarta-logo.png" alt="Lintasarta" className="brand-logo-img" />
+          <img src="/assets/lintasarta-logo.svg" alt="Lintasarta" className="brand-logo-img" />
         </Link>
         <button
           type="button"
@@ -95,25 +95,6 @@ export function Sidebar({ ticketCount = 3, isOpen = false, onClose }: SidebarPro
           })}
         </nav>
       </section>
-
-      <footer className="sidebar-bottom" aria-label="Profil dan Sesi Operator">
-        <div className="sidebar-profile-card">
-          <div className="sidebar-profile-meta">
-            <strong className="sidebar-profile-name">{user.fullName}</strong>
-            <span className="sidebar-profile-role">{user.roleName}</span>
-          </div>
-          <button
-            type="button"
-            className="sidebar-logout-btn"
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            aria-label="Keluar dari sesi sistem"
-          >
-            <Icon name="logOut" size={15} />
-            <span>{isLoggingOut ? 'Mengakhiri...' : 'Keluar Sesi'}</span>
-          </button>
-        </div>
-      </footer>
     </aside>
   );
 }

@@ -87,6 +87,15 @@ export function Header({
             <Icon name="refresh" size={17} className={isRefreshing ? 'icon-spin' : ''} />
           </button>
 
+          <Link
+            href="/ai"
+            className={`icon-button header-action-btn ${pathname.startsWith('/ai') ? 'active' : ''}`}
+            title="AI Assistant (On-Premise)"
+            aria-label="AI Assistant"
+          >
+            <Icon name="bot" size={18} />
+          </Link>
+
           {canEditRole ? (
             <Link
               href="/roles"
@@ -135,9 +144,7 @@ export function Header({
           {notice && (
             <aside className="notification-pop" role="dialog" aria-label="Notifikasi terbaru">
               <b>Notifikasi terbaru</b>
-              <p>
-                Gangguan koneksi - Critical pada SIA 100245 (Cluster Bandung Utara: -26.4 dBm).
-              </p>
+              <p>Gangguan koneksi - Critical pada SIA 100245 (Cluster Bandung Utara: -26.4 dBm).</p>
               <small>Feed real-time · 2 menit lalu</small>
             </aside>
           )}

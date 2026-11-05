@@ -76,15 +76,6 @@ export function AiChatWidget() {
 
   return (
     <>
-      <button
-        className="assistant-fab"
-        onClick={() => setIsOpen(!isOpen)}
-        aria-label="Tanya AI Assistant"
-      >
-        <Icon name="spark" size={20} />
-        <span>Tanya AI Assistant</span>
-      </button>
-
       {isOpen && (
         <aside className="chat" role="complementary" aria-label="Widget AI Assistant">
           <header className="panel-heading">
