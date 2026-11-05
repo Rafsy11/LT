@@ -53,29 +53,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 2. Web Admin Dashboard Login
-    const result = await AuthService.loginWeb(validated.username, validated.password);
+    // 2. Web Admin Dashboard Login (Step 1: Password Verification + Telegram 2FA OTP Dispatch)
+    const result = await AuthService.loginWeb(validated.username, validated.password, clientIp);
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
-      data: {
-        accessToken: result.token,
-        user: result.user,
-      },
+      data: result,
     });
-
-    if (result.user.userType !== 'TECHNICIAN') {
-      const isProd = process.env.NODE_ENV === 'production';
-      response.cookies.set('fiberops_session', result.token, {
-        httpOnly: true,
-        secure: isProd,
-        sameSite: isProd ? 'strict' : 'lax',
-        path: '/',
-        maxAge: 8 * 60 * 60,
-      });
-    }
-
-    return response;
   } catch (error: unknown) {
     const err = error as Error & {
       name?: string;

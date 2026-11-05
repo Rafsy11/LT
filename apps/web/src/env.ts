@@ -48,6 +48,11 @@ const envSchema = z.object({
   HMAC_ACTION_SECRET: z.string().default('fiberops_action_secret_token_default_32_chars'),
   SESSION_EXPIRY_SECONDS: z.coerce.number().default(28800),
 
+  // Telegram Bot 2FA OTP
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_BOT_USERNAME: z.string().default('FiberOpsNOCBot'),
+  TELEGRAM_DEFAULT_CHAT_ID: z.string().optional(),
+
   // Mobile App Gate
   MIN_MOBILE_APP_VERSION: z.string().default('1.0.0'),
 

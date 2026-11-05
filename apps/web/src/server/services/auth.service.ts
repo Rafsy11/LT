@@ -4,12 +4,26 @@ import crypto from 'crypto';
 import { prisma } from '@repo/database';
 import { env } from '../../env';
 import { redisManager } from '../lib/redis';
-import { RefreshTokenPayload, UserSessionContext, ERROR_CODES, UserTypeEnum } from '@repo/shared';
+import {
+  createOtpChallenge,
+  updateOtpChallengeDelivery,
+  rotateOtpChallenge,
+  verifyAndConsumeOtpChallenge,
+} from '../lib/otp-store';
+import { resolveTelegramChatId, sendTelegramOtpMessage } from '../lib/telegram';
+import {
+  RefreshTokenPayload,
+  UserSessionContext,
+  ERROR_CODES,
+  OTP_CONFIG,
+  UserTypeEnum,
+} from '@repo/shared';
 
 const JWT_SECRET = new TextEncoder().encode(env.JWT_SECRET);
 
 const ACCESS_TOKEN_EXPIRY = '15m'; // Short-lived for technicians
 const WEB_SESSION_TOKEN_EXPIRY = '8h'; // Web NOC dashboard session
+const PRE_AUTH_TOKEN_EXPIRY = '5m'; // 2FA OTP challenge token
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const BCRYPT_SALT_ROUNDS = 10;
 
@@ -18,6 +32,8 @@ interface FallbackAccount {
   username: string;
   fullName: string;
   passwordHash?: string;
+  telegramChatId?: string | null;
+  twoFactorEnabled?: boolean;
   userType: UserTypeEnum;
   isActive: boolean;
   assignedClusters: string[];
@@ -197,6 +213,9 @@ export class AuthService {
   public static async verifyAccessToken(token: string): Promise<UserSessionContext> {
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET);
+      if (payload.purpose === '2fa_pending') {
+        throw new Error(ERROR_CODES.UNAUTHORIZED);
+      }
       const userId = payload.sub as string;
       const deviceId = payload.deviceId as string | undefined;
 
@@ -247,11 +266,10 @@ export class AuthService {
   }
 
   /**
-   * Authenticates user for Web Admin Dashboard (HttpOnly Cookie mechanism).
+   * Resolves a web operator account by username from PostgreSQL or fallback seed accounts.
    */
-  public static async loginWeb(username: string, plainPassword: string) {
+  private static async resolveAccountByUsername(username: string): Promise<FallbackAccount | null> {
     const normalizedUsername = username.trim().toLowerCase();
-
     let dbUser: FallbackAccount | null = null;
 
     try {
@@ -265,6 +283,8 @@ export class AuthService {
           username: found.username,
           fullName: found.fullName,
           passwordHash: found.passwordHash,
+          telegramChatId: found.telegramChatId,
+          twoFactorEnabled: found.twoFactorEnabled,
           userType: found.userType as UserTypeEnum,
           isActive: found.isActive,
           assignedClusters: found.assignedClusters,
@@ -282,7 +302,69 @@ export class AuthService {
       // Fallback to in-memory seed accounts when DB is offline in local/on-premise environment
     }
 
-    const user: FallbackAccount | null = dbUser || FALLBACK_SEED_USERS[normalizedUsername] || null;
+    return dbUser || FALLBACK_SEED_USERS[normalizedUsername] || null;
+  }
+
+  /**
+   * Generates a short-lived (5-minute) isolated token representing a pending 2FA OTP challenge.
+   */
+  public static async generatePreAuthToken(params: {
+    userId: string;
+    username: string;
+    challengeId: string;
+  }): Promise<string> {
+    return await new SignJWT({
+      username: params.username,
+      challengeId: params.challengeId,
+      purpose: '2fa_pending',
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setSubject(params.userId)
+      .setIssuedAt()
+      .setExpirationTime(PRE_AUTH_TOKEN_EXPIRY)
+      .sign(JWT_SECRET);
+  }
+
+  /**
+   * Verifies a 2FA pre-auth token and extracts the challenge metadata.
+   */
+  public static async verifyPreAuthToken(preAuthToken: string): Promise<{
+    userId: string;
+    username: string;
+    challengeId: string;
+  }> {
+    try {
+      const { payload } = await jwtVerify(preAuthToken, JWT_SECRET);
+      if (
+        payload.purpose !== '2fa_pending' ||
+        typeof payload.sub !== 'string' ||
+        typeof payload.username !== 'string' ||
+        typeof payload.challengeId !== 'string'
+      ) {
+        throw new Error(ERROR_CODES.OTP_EXPIRED);
+      }
+
+      return {
+        userId: payload.sub,
+        username: payload.username,
+        challengeId: payload.challengeId,
+      };
+    } catch {
+      const err = new Error(
+        'Sesi tantangan 2FA telah kedaluwarsa (batas 5 menit). Silakan masuk ulang.',
+      );
+      (err as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.OTP_EXPIRED;
+      (err as Error & { code?: string; statusCode?: number }).statusCode = 401;
+      throw err;
+    }
+  }
+
+  /**
+   * Step 1 of Web Admin Dashboard 2FA Authentication:
+   * Verifies username + password, blocks field technicians, and dispatches a 6-digit OTP via Telegram Bot.
+   */
+  public static async loginWeb(username: string, plainPassword: string, clientIp?: string) {
+    const user = await this.resolveAccountByUsername(username);
 
     if (!user) {
       const authErr = new Error('Kombinasi username atau kata sandi tidak valid.');
@@ -313,6 +395,114 @@ export class AuthService {
       throw forbiddenErr;
     }
 
+    if (user.userType === 'TECHNICIAN' || user.role.name.toLowerCase().includes('teknisi')) {
+      const techErr = new Error(
+        'Akun Teknisi Lapangan hanya dapat mengakses sistem melalui Aplikasi Mobile FiberOps.',
+      );
+      (techErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
+      (techErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+      throw techErr;
+    }
+
+    // Mandatory 2FA OTP via Telegram Bot for all Web NOC accounts (Strict Pre-Bound Chat ID)
+    const resolvedChatId = resolveTelegramChatId({
+      dbChatId: user.telegramChatId,
+    });
+
+    if (!resolvedChatId) {
+      const bindErr = new Error(
+        'Akun ini belum memiliki ikatan Telegram Chat ID resmi di server. Hubungi Super Admin NOC.',
+      );
+      (bindErr as Error & { code?: string; statusCode?: number }).code =
+        ERROR_CODES.TELEGRAM_DELIVERY_FAILED;
+      (bindErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+      throw bindErr;
+    }
+
+    const { otpCode, record } = await createOtpChallenge({
+      userId: user.id,
+      username: user.username,
+      telegramChatId: resolvedChatId,
+      deliveryStatus: 'PENDING_BOT_START',
+    });
+
+    const delivery = await sendTelegramOtpMessage({
+      chatId: resolvedChatId,
+      otpCode,
+      username: user.username,
+      fullName: user.fullName,
+      clientIp,
+    });
+
+    if (!delivery.sent) {
+      const sendErr = new Error(
+        'Gagal mengirimkan kode OTP ke akun Telegram terdaftar. Pastikan layanan Telegram dapat dijangkau.',
+      );
+      (sendErr as Error & { code?: string; statusCode?: number }).code =
+        ERROR_CODES.TELEGRAM_DELIVERY_FAILED;
+      (sendErr as Error & { code?: string; statusCode?: number }).statusCode = 502;
+      throw sendErr;
+    }
+
+    await updateOtpChallengeDelivery(record.challengeId, {
+      deliveryStatus: 'SENT',
+      telegramChatId: resolvedChatId,
+    });
+
+    const preAuthToken = await this.generatePreAuthToken({
+      userId: user.id,
+      username: user.username,
+      challengeId: record.challengeId,
+    });
+
+    return {
+      requiresTwoFactor: true as const,
+      preAuthToken,
+      expiresIn: OTP_CONFIG.EXPIRY_SECONDS,
+      resendCooldown: OTP_CONFIG.RESEND_COOLDOWN_SECONDS,
+      deliveryStatus: 'SENT' as const,
+      maskedChatId: delivery.maskedChatId,
+      botUsername: delivery.botUsername,
+      user: {
+        id: user.id,
+        username: user.username,
+        fullName: user.fullName,
+        role: user.role.name,
+        roleName: user.role.name,
+        userType: user.userType as UserTypeEnum,
+        hierarchyLevel: user.role.hierarchyLevel,
+        permissions: user.role.permissions,
+        assignedClusters: user.assignedClusters,
+        isActive: user.isActive,
+      },
+    };
+  }
+
+  /**
+   * Step 2 of Web Admin Dashboard 2FA Authentication:
+   * Verifies the 6-digit OTP code against the challenge and issues the 8h HttpOnly session token.
+   */
+  public static async verifyWebOtp(preAuthToken: string, otpCode: string, clientIp?: string) {
+    const preAuth = await this.verifyPreAuthToken(preAuthToken);
+    await verifyAndConsumeOtpChallenge(preAuth.challengeId, otpCode);
+
+    const user = await this.resolveAccountByUsername(preAuth.username);
+    if (!user || !user.isActive) {
+      const forbiddenErr = new Error('Akun tidak ditemukan atau telah dinonaktifkan.');
+      (forbiddenErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
+      (forbiddenErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+      throw forbiddenErr;
+    }
+
+    if (user.userType === 'TECHNICIAN') {
+      const techErr = new Error(
+        'Akun Teknisi Lapangan hanya dapat mengakses sistem melalui Aplikasi Mobile FiberOps.',
+      );
+      (techErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
+      (techErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+      throw techErr;
+    }
+
     const token = await this.generateAccessToken(
       {
         id: user.id,
@@ -324,6 +514,24 @@ export class AuthService {
       },
       WEB_SESSION_TOKEN_EXPIRY,
     );
+
+    await prisma.activityLog
+      .create({
+        data: {
+          actorUserId: user.id,
+          actorRole: user.role.name,
+          actionType: 'WEB_2FA_LOGIN_SUCCESS',
+          targetEntity: 'user',
+          targetId: user.id,
+          ipAddress: clientIp || null,
+          newPayload: {
+            username: user.username,
+            twoFactorMethod: 'TELEGRAM_BOT_OTP',
+            authenticatedAt: new Date().toISOString(),
+          },
+        },
+      })
+      .catch(() => {});
 
     return {
       token,
@@ -339,6 +547,76 @@ export class AuthService {
         assignedClusters: user.assignedClusters,
         isActive: user.isActive,
       },
+    };
+  }
+
+  /**
+   * Rotates and resends a fresh 6-digit OTP to the operator's pre-bound Telegram Bot chat.
+   */
+  public static async resendWebOtp(preAuthToken: string, clientIp?: string) {
+    const preAuth = await this.verifyPreAuthToken(preAuthToken);
+    const user = await this.resolveAccountByUsername(preAuth.username);
+
+    if (!user || !user.isActive) {
+      const forbiddenErr = new Error('Akun tidak ditemukan atau telah dinonaktifkan.');
+      (forbiddenErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
+      (forbiddenErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+      throw forbiddenErr;
+    }
+
+    const resolvedChatId = resolveTelegramChatId({
+      dbChatId: user.telegramChatId,
+    });
+
+    if (!resolvedChatId) {
+      const bindErr = new Error(
+        'Akun ini belum memiliki ikatan Telegram Chat ID resmi di server. Hubungi Super Admin NOC.',
+      );
+      (bindErr as Error & { code?: string; statusCode?: number }).code =
+        ERROR_CODES.TELEGRAM_DELIVERY_FAILED;
+      (bindErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+      throw bindErr;
+    }
+
+    const { otpCode, record } = await rotateOtpChallenge(preAuth.challengeId);
+
+    const delivery = await sendTelegramOtpMessage({
+      chatId: resolvedChatId,
+      otpCode,
+      username: user.username,
+      fullName: user.fullName,
+      clientIp,
+    });
+
+    if (!delivery.sent) {
+      const sendErr = new Error(
+        'Gagal mengirim ulang kode OTP ke Telegram terdaftar. Coba kembali beberapa saat lagi.',
+      );
+      (sendErr as Error & { code?: string; statusCode?: number }).code =
+        ERROR_CODES.TELEGRAM_DELIVERY_FAILED;
+      (sendErr as Error & { code?: string; statusCode?: number }).statusCode = 502;
+      throw sendErr;
+    }
+
+    await updateOtpChallengeDelivery(record.challengeId, {
+      deliveryStatus: 'SENT',
+      telegramChatId: resolvedChatId,
+    });
+
+    const refreshedPreAuthToken = await this.generatePreAuthToken({
+      userId: user.id,
+      username: user.username,
+      challengeId: record.challengeId,
+    });
+
+    return {
+      requiresTwoFactor: true as const,
+      preAuthToken: refreshedPreAuthToken,
+      expiresIn: OTP_CONFIG.EXPIRY_SECONDS,
+      resendCooldown: OTP_CONFIG.RESEND_COOLDOWN_SECONDS,
+      deliveryStatus: 'SENT' as const,
+      maskedChatId: delivery.maskedChatId,
+      botUsername: delivery.botUsername,
     };
   }
 

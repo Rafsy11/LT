@@ -60,6 +60,8 @@ function stripSensitiveHeaders(original: Headers): Headers {
 
 const PUBLIC_API_ROUTES = [
   '/api/v1/auth/login',
+  '/api/v1/auth/verify-otp',
+  '/api/v1/auth/resend-otp',
   '/api/v1/auth/logout',
   '/api/v1/auth/refresh',
   '/api/v1/health',
@@ -131,6 +133,9 @@ export async function middleware(request: NextRequest) {
     const token = authHeader.substring(7).trim();
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET);
+      if (payload.purpose === '2fa_pending') {
+        throw new Error('INVALID_TOKEN_PURPOSE');
+      }
 
       // SECURITY: Strip ALL sensitive headers first, then inject verified claims only
       const requestHeaders = stripSensitiveHeaders(request.headers);
@@ -198,6 +203,9 @@ export async function middleware(request: NextRequest) {
 
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET);
+      if (payload.purpose === '2fa_pending') {
+        throw new Error('INVALID_TOKEN_PURPOSE');
+      }
 
       // SECURITY: Strip ALL sensitive headers first, then inject verified claims only
       const requestHeaders = stripSensitiveHeaders(request.headers);
@@ -249,7 +257,7 @@ export async function middleware(request: NextRequest) {
     if (cookieToken) {
       try {
         const { payload } = await jwtVerify(cookieToken, JWT_SECRET);
-        if (payload.userType !== 'TECHNICIAN') {
+        if (payload.userType !== 'TECHNICIAN' && payload.purpose !== '2fa_pending') {
           validWebPayload = payload as Record<string, unknown>;
         }
       } catch {

@@ -4,6 +4,13 @@ import React from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { useLogin } from '../hooks/use-login';
 
+function formatCountdown(seconds: number): string {
+  const safe = Math.max(0, seconds);
+  const mins = Math.floor(safe / 60);
+  const secs = safe % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
 export function LoginView() {
   const {
     username,
@@ -12,22 +19,31 @@ export function LoginView() {
     setPassword,
     showPassword,
     toggleShowPassword,
+    preAuthToken,
+    otpCode,
+    setOtpCode,
+    otpExpiresSeconds,
+    resendCooldownSeconds,
+    deliveryStatus,
+    maskedChatId,
+    botUsername,
+    isRequestingOtp,
     isSubmitting,
     errorMessage,
     errorCode,
     rateLimitSeconds,
-    fillDemoAccount,
+    requestOtpCode,
     handleSubmit,
   } = useLogin();
 
   const isLocked = isSubmitting || rateLimitSeconds > 0;
 
   return (
-    <main className="auth-page" aria-labelledby="login-title">
+    <main className="auth-page" aria-label="Portal Kendali NOC FiberOps">
       <article className="auth-card">
         <header className="auth-header">
           <div className="auth-brand-bar">
-            <img src="/assets/lintasarta-logo.png" alt="Lintasarta" className="auth-brand-logo" />
+            <img src="/assets/Logo.png" alt="Lintasarta" className="auth-brand-logo" />
           </div>
         </header>
 
@@ -110,14 +126,86 @@ export function LoginView() {
               </div>
             </div>
 
-            <button type="submit" className="auth-submit-btn" disabled={isLocked}>
+            <div className="auth-field">
+              <div className="auth-label-row">
+                <label htmlFor="auth-otp-code" className="auth-label">
+                  Kode OTP Telegram (6 Digit)
+                </label>
+                {otpExpiresSeconds > 0 && (
+                  <span className="auth-otp-timer" title="Masa berlaku kode OTP">
+                    <Icon name="clock" size={12} />
+                    <span>{formatCountdown(otpExpiresSeconds)}</span>
+                  </span>
+                )}
+              </div>
+
+              <div className="auth-otp-inline-row">
+                <div className="auth-input-wrap auth-otp-input-wrap">
+                  <span className="auth-input-icon" aria-hidden="true">
+                    <Icon name="shield" size={16} />
+                  </span>
+                  <input
+                    id="auth-otp-code"
+                    name="otpCode"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    pattern="\d{6}"
+                    placeholder="6 digit OTP"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    className="auth-input auth-otp-inline-input"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={requestOtpCode}
+                  disabled={
+                    isLocked ||
+                    isRequestingOtp ||
+                    resendCooldownSeconds > 0 ||
+                    !username.trim() ||
+                    !password
+                  }
+                  className="auth-request-otp-btn"
+                >
+                  <Icon name="send" size={14} />
+                  <span>
+                    {isRequestingOtp
+                      ? 'Mengirim...'
+                      : resendCooldownSeconds > 0
+                        ? `Tunggu (${resendCooldownSeconds}d)`
+                        : preAuthToken
+                          ? 'Kirim Ulang'
+                          : 'Kirim OTP'}
+                  </span>
+                </button>
+              </div>
+
+              {deliveryStatus === 'SENT' && (
+                <p className="auth-otp-hint auth-otp-hint-sent">
+                  Kode OTP telah dikirim oleh <strong>@{botUsername}</strong> ke Telegram terdaftar
+                  {maskedChatId ? ` (${maskedChatId})` : ''}.
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="auth-submit-btn"
+              disabled={isLocked || isRequestingOtp}
+            >
               <Icon name="shield" size={16} />
               <span>
                 {rateLimitSeconds > 0
                   ? `Terkunci Sementara (${rateLimitSeconds}d)`
                   : isSubmitting
-                    ? 'Memverifikasi Kredensial...'
-                    : 'Masuk'}
+                    ? 'Memverifikasi OTP & Sesi...'
+                    : isRequestingOtp
+                      ? 'Mengirim OTP ke Telegram...'
+                      : 'Masuk'}
               </span>
             </button>
           </fieldset>
@@ -125,7 +213,7 @@ export function LoginView() {
       </article>
 
       <footer className="auth-meta">
-        <span>JWT HttpOnly Session • Sliding-Window Rate Limiter</span>
+        <span>2FA Telegram Bot OTP • JWT HttpOnly Session</span>
         <span className="auth-meta-divider" aria-hidden="true">
           |
         </span>

@@ -196,6 +196,18 @@ export const ERROR_CODES = {
   TOKEN_EXPIRED: 'TOKEN_EXPIRED',
   CLUSTER_ACCESS_DENIED: 'CLUSTER_ACCESS_DENIED',
   RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
+  OTP_INVALID: 'OTP_INVALID',
+  OTP_EXPIRED: 'OTP_EXPIRED',
+  OTP_MAX_ATTEMPTS: 'OTP_MAX_ATTEMPTS',
+  OTP_COOLDOWN_ACTIVE: 'OTP_COOLDOWN_ACTIVE',
+  TELEGRAM_DELIVERY_FAILED: 'TELEGRAM_DELIVERY_FAILED',
+} as const;
+
+export const OTP_CONFIG = {
+  EXPIRY_SECONDS: 300,
+  RESEND_COOLDOWN_SECONDS: 60,
+  MAX_ATTEMPTS: 3,
+  CODE_LENGTH: 6,
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -256,6 +268,16 @@ export const ERROR_MESSAGES_MAP: Record<ErrorCode | string, string> = {
     'Akses ditolak: Anda tidak memiliki wewenang pada cluster wilayah ini.',
   [ERROR_CODES.RATE_LIMIT_EXCEEDED]:
     'Batas permintaan terlampaui. Silakan tunggu beberapa saat sebelum mencoba kembali.',
+  [ERROR_CODES.OTP_INVALID]:
+    'Kode OTP tidak sesuai. Periksa kembali pesan dari Bot Telegram Anda.',
+  [ERROR_CODES.OTP_EXPIRED]:
+    'Kode OTP telah kedaluwarsa (batas waktu 5 menit). Silakan minta kode OTP baru.',
+  [ERROR_CODES.OTP_MAX_ATTEMPTS]:
+    'Batas percobaan OTP terlampaui (maksimal 3x). Silakan masuk ulang dari halaman login.',
+  [ERROR_CODES.OTP_COOLDOWN_ACTIVE]:
+    'Harap tunggu jeda waktu sebelum meminta pengiriman ulang kode OTP.',
+  [ERROR_CODES.TELEGRAM_DELIVERY_FAILED]:
+    'Belum dapat mengirim kode OTP ke Telegram. Pastikan Anda telah menekan /start pada Bot Telegram NOC.',
 };
 
 /**
