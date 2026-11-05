@@ -105,6 +105,12 @@ export const RATE_LIMIT_PROFILES = {
   /** POST /api/v1/auth/login: Maksimal 5 request per 15 menit per IP + username */
   AUTH_LOGIN: { windowMs: 15 * 60_000, maxRequests: 5 } as const,
 
+  /** POST /api/v1/auth/verify-otp: Maksimal 6 request per 5 menit per IP */
+  AUTH_OTP_VERIFY: { windowMs: 5 * 60_000, maxRequests: 6 } as const,
+
+  /** POST /api/v1/auth/resend-otp: Maksimal 4 request per 5 menit per IP */
+  AUTH_OTP_RESEND: { windowMs: 5 * 60_000, maxRequests: 4 } as const,
+
   /** POST /api/v1/admin/ai/chat: Maksimal 10 request per menit per Admin user ID */
   AI_CHAT: { windowMs: 60_000, maxRequests: 10 } as const,
 

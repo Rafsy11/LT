@@ -56,6 +56,8 @@ model User {
   role             Role                 @relation(fields: [roleId], references: [id])
   userType         UserType             @map("user_type")
   isActive         Boolean              @default(true) @map("is_active")
+  telegramChatId   String?              @map("telegram_chat_id")
+  twoFactorEnabled Boolean              @default(true) @map("two_factor_enabled")
   assignedClusters String[]             @map("assigned_clusters") // Array cluster codes for RLS Scoping
   createdAt        DateTime             @default(now()) @map("created_at")
 

@@ -95,6 +95,7 @@ class RedisManager {
   private inMemoryRevokedSessions = new Set<string>();
   private inMemoryActionTokens = new Set<string>();
   private inMemoryRotatedTokens = new Set<string>();
+  private inMemoryKeyValue = new Map<string, { value: string; expiresAt: number }>();
 
   public async blacklistSession(sessionId: string, ttlSeconds = 604800): Promise<void> {
     this.inMemoryRevokedSessions.add(sessionId);
@@ -258,6 +259,47 @@ class RedisManager {
       return val === '1';
     } catch {
       return false;
+    }
+  }
+
+  public async setKeyWithTtl(key: string, value: string, ttlSeconds: number): Promise<void> {
+    this.inMemoryKeyValue.set(key, {
+      value,
+      expiresAt: Date.now() + ttlSeconds * 1000,
+    });
+    if (!this.publisher || !this.isAvailable) return;
+    try {
+      await this.publisher.set(key, value, 'EX', ttlSeconds);
+    } catch {
+      // Fallback to in-memory map
+    }
+  }
+
+  public async getKey(key: string): Promise<string | null> {
+    if (this.publisher && this.isAvailable) {
+      try {
+        const val = await this.publisher.get(key);
+        if (val !== null) return val;
+      } catch {
+        // Fallback to in-memory map
+      }
+    }
+    const entry = this.inMemoryKeyValue.get(key);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+      this.inMemoryKeyValue.delete(key);
+      return null;
+    }
+    return entry.value;
+  }
+
+  public async deleteKey(key: string): Promise<void> {
+    this.inMemoryKeyValue.delete(key);
+    if (!this.publisher || !this.isAvailable) return;
+    try {
+      await this.publisher.del(key);
+    } catch {
+      // Ignore delete error in fallback
     }
   }
 

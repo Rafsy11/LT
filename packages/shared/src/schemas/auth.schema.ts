@@ -43,3 +43,20 @@ export const loginResponseSchema = z.object({
 });
 
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
+
+export const verifyOtpRequestSchema = z.object({
+  preAuthToken: z.string().min(10, 'Token tantangan 2FA tidak valid'),
+  otpCode: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Kode OTP harus terdiri dari 6 digit angka'),
+});
+
+export type VerifyOtpRequest = z.infer<typeof verifyOtpRequestSchema>;
+
+export const resendOtpRequestSchema = z.object({
+  preAuthToken: z.string().min(10, 'Token tantangan 2FA tidak valid'),
+});
+
+export type ResendOtpRequest = z.infer<typeof resendOtpRequestSchema>;
+
