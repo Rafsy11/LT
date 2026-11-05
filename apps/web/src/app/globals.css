@@ -277,17 +277,16 @@ svg {
 }
 
 .sidebar {
-  width: 320px;
-  max-width: 85vw;
+  width: 250px;
+  max-width: 80vw;
   height: 100vh;
   height: 100dvh;
   flex-shrink: 0;
-  background: #d7edfe url('/assets/fiberops-sidebar-gradient.svg') center / 100% 100% no-repeat;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  border-right: 1px solid #c8e0f4;
+  border-right: 1px solid #b6defc;
   box-shadow: none;
-  padding: 16px 16px 24px;
+  padding: 16px 12px 24px;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -306,7 +305,6 @@ svg {
 .sidebar.open {
   transform: translateX(0);
   box-shadow: 4px 0 24px rgba(15, 23, 42, 0.15);
-  background: #d7edfe url('/assets/fiberops-sidebar-gradient.svg') center / 100% 100% no-repeat;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -370,8 +368,8 @@ svg {
   align-items: center;
   justify-content: flex-start;
   width: 100%;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.52);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -394,13 +392,13 @@ svg {
 .lintasarta-brand-inner {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
 }
 
 .lintasarta-emblem {
-  width: 36px;
-  height: 46px;
+  width: 32px;
+  height: 42px;
   object-fit: contain;
   flex-shrink: 0;
   filter: drop-shadow(0 1px 2px rgba(14, 91, 146, 0.12));
@@ -415,7 +413,7 @@ svg {
 }
 
 .brand-title {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.03em;
@@ -424,12 +422,6 @@ svg {
 }
 
 .brand-tagline {
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: 0.04em;
-  color: #0284c7;
-  margin-top: 3px;
   font-family: inherit;
   white-space: nowrap;
 }
@@ -501,28 +493,28 @@ svg {
 }
 
 .nav-label {
-  font-size: 11px;
+  font-size: 10.5px;
   color: #4b6b8b;
   font-weight: 700;
-  letter-spacing: 1.4px;
-  margin: 24px 12px 14px;
+  letter-spacing: 1.2px;
+  margin: 20px 10px 10px;
   text-transform: uppercase;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
-  padding: 12px 16px;
-  min-height: 46px;
-  border-radius: 10px;
+  padding: 10px 12px;
+  min-height: 42px;
+  border-radius: 8px;
   text-align: left;
   color: #1e3a5f;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   text-decoration: none;
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   border: 1px solid transparent;
@@ -2657,10 +2649,11 @@ footer {
     flex-direction: row;
   }
   .sidebar {
+    width: 250px;
     transform: none;
     box-shadow: none;
     z-index: 20;
-    padding: 22px 18px 28px;
+    padding: 20px 12px 28px;
   }
   .sidebar.open {
     box-shadow: none;
@@ -2678,7 +2671,7 @@ footer {
     justify-content: center;
     position: fixed;
     top: 64px;
-    left: 320px;
+    left: 250px;
     transform: translate(-50%, -50%);
     width: 28px;
     height: 28px;
@@ -2789,8 +2782,8 @@ footer {
     transform: translateX(-50%);
   }
   .main {
-    margin-left: 320px;
-    width: calc(100% - 320px);
+    margin-left: 250px;
+    width: calc(100% - 250px);
   }
   .main.sidebar-collapsed {
     margin-left: 80px;
@@ -8409,11 +8402,6 @@ button:disabled {
       transparent 100%
     ),
     radial-gradient(ellipse 55% 18% at 22% 2%, rgba(14, 165, 233, 0.12) 0%, transparent 75%),
-    url('/assets/fiberops-page-bg.svg?v=2');
-  background-size:
-    100% 100%,
-    100% 100%,
-    100% 100%;
   background-position: center top;
   background-repeat: no-repeat;
 }
