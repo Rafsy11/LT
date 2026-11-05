@@ -2,18 +2,14 @@
 
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
 import { useAuth } from '@/providers';
-import { PERMISSIONS } from '@repo/shared';
 
 interface SidebarProps {
   ticketCount?: number;
   isOpen?: boolean;
   onClose?: () => void;
-  isCollapsed?: boolean;
-  onToggleCollapse?: () => void;
 }
 
 interface NavItem {
@@ -25,16 +21,9 @@ interface NavItem {
   tag?: string;
 }
 
-export function Sidebar({
-  ticketCount = 3,
-  isOpen = false,
-  onClose,
-  isCollapsed = false,
-  onToggleCollapse,
-}: SidebarProps) {
+export function Sidebar({ ticketCount = 3, isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { hasPermission } = useAuth();
-  const canUseAi = hasPermission(PERMISSIONS.AI_USE);
+  const { user, logout, isLoggingOut } = useAuth();
 
   const navItems: NavItem[] = [
     { label: 'Overview', href: '/', icon: 'home' },
@@ -50,45 +39,33 @@ export function Sidebar({
     return pathname.startsWith(href);
   };
 
-  return (
-    <>
-      <aside
-        className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}
-        aria-label="Sidebar Navigasi"
-      >
-        <div className="sidebar-header-row">
-          <Link
-            href="/"
-            className="brand lintasarta-brand-wrap"
-            aria-label="Beranda Lintasarta"
-            onClick={onClose}
-          >
-            <div className="lintasarta-brand-inner">
-              <Image
-                src="/assets/Logo.png"
-                alt="Lintasarta"
-                width={38}
-                height={48}
-                priority
-                className="lintasarta-emblem"
-              />
-              <div className="lintasarta-brand-text">
-                <span className="brand-title">lintasarta</span>
-                <span className="brand-tagline">Empowering Your Tomorrow</span>
-              </div>
-            </div>
-          </Link>
-          <button
-            type="button"
-            className="sidebar-close-btn"
-            onClick={onClose}
-            aria-label="Tutup menu navigasi"
-          >
-            <Icon name="x" size={20} />
-          </button>
-        </div>
+  const handleLogout = async () => {
+    if (onClose) onClose();
+    await logout();
+  };
 
-        <section className="sidebar-workspace-section" aria-label="Workspace">
+  return (
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`} aria-label="Sidebar Navigasi">
+      <div className="sidebar-header-row">
+        <Link
+          href="/"
+          className="brand lintasarta-brand-wrap"
+          aria-label="Beranda Lintasarta"
+          onClick={onClose}
+        >
+          <img src="/assets/lintasarta-logo.png" alt="Lintasarta" className="brand-logo-img" />
+        </Link>
+        <button
+          type="button"
+          className="sidebar-close-btn"
+          onClick={onClose}
+          aria-label="Tutup menu navigasi"
+        >
+          <Icon name="x" size={20} />
+        </button>
+      </div>
+
+      <section className="sidebar-workspace-section" aria-label="Workspace">
         <h2 className="nav-label">WORKSPACE</h2>
         <nav aria-label="Navigasi Utama">
           {navItems.map((item) => {
@@ -100,47 +77,43 @@ export function Sidebar({
                 className={`nav-item ${active ? 'active' : ''}`}
                 aria-current={active ? 'page' : undefined}
                 onClick={onClose}
-                title={isCollapsed ? item.label : undefined}
               >
-                <Icon name={item.icon} size={20} />
+                <Icon name={item.icon} size={18} />
                 <span>{item.label}</span>
-                {active && item.href === '/' && <span className="nav-active-dot" aria-hidden="true" />}
+                {active && item.href === '/' && (
+                  <span className="nav-active-dot" aria-hidden="true" />
+                )}
                 {item.hasLiveDot && <i className="green-dot" aria-label="Status Live Aktif" />}
                 {item.tag && <span className="ai-tag">{item.tag}</span>}
-                {item.count !== undefined && <span className="nav-count" aria-label={`${item.count} tiket`}>{item.count}</span>}
+                {item.count !== undefined && (
+                  <span className="nav-count" aria-label={`${item.count} tiket`}>
+                    {item.count}
+                  </span>
+                )}
               </Link>
             );
           })}
         </nav>
       </section>
 
-        {canUseAi && (
-          <div className="sidebar-bottom-ai">
-            <Link
-              href="/ai"
-              className={`sidebar-floating-ai-btn ${pathname.startsWith('/ai') ? 'active' : ''}`}
-              title="AI Assistant Operasional"
-              aria-label="AI Assistant Operasional"
-              onClick={onClose}
-            >
-              <Icon name="chat" size={20} />
-              <span className="sidebar-ai-pulse" aria-hidden="true" />
-            </Link>
+      <footer className="sidebar-bottom" aria-label="Profil dan Sesi Operator">
+        <div className="sidebar-profile-card">
+          <div className="sidebar-profile-meta">
+            <strong className="sidebar-profile-name">{user.fullName}</strong>
+            <span className="sidebar-profile-role">{user.roleName}</span>
           </div>
-        )}
-      </aside>
-
-      {onToggleCollapse && (
-        <button
-          type="button"
-          className={`sidebar-toggle-btn ${isCollapsed ? 'collapsed' : ''}`}
-          onClick={onToggleCollapse}
-          aria-label={isCollapsed ? 'Perluas Sidebar' : 'Ciutkan Sidebar'}
-          title={isCollapsed ? 'Perluas Sidebar' : 'Ciutkan Sidebar'}
-        >
-          <Icon name={isCollapsed ? 'chevronRight' : 'chevronLeft'} size={15} />
-        </button>
-      )}
-    </>
+          <button
+            type="button"
+            className="sidebar-logout-btn"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            aria-label="Keluar dari sesi sistem"
+          >
+            <Icon name="logOut" size={15} />
+            <span>{isLoggingOut ? 'Mengakhiri...' : 'Keluar Sesi'}</span>
+          </button>
+        </div>
+      </footer>
+    </aside>
   );
 }

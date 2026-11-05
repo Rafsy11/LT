@@ -22,7 +22,7 @@ export function Header({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const noticeWrapRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  const { hasPermission, user } = useAuth();
+  const { hasPermission, user, logout, isLoggingOut } = useAuth();
 
   useEffect(() => {
     if (!notice) return;
@@ -135,18 +135,30 @@ export function Header({
           {notice && (
             <aside className="notification-pop" role="dialog" aria-label="Notifikasi terbaru">
               <b>Notifikasi terbaru</b>
-              <p>Gangguan koneksi - Critical pada SIA 100245 (Cluster Bandung Utara: -26.4 dBm).</p>
+              <p>
+                Gangguan koneksi - Critical pada SIA 100245 (Cluster Bandung Utara: -26.4 dBm).
+              </p>
               <small>Feed real-time · 2 menit lalu</small>
             </aside>
           )}
         </div>
 
-        {/* Profil Akun Tunggal */}
+        {/* Profil Akun Aktif & Logout */}
         <div className="header-user-profile" title="Profil Akun Aktif">
           <div className="header-user-info">
             <span className="header-user-name">{user.fullName}</span>
             <span className="header-user-role">{user.roleName}</span>
           </div>
+          <button
+            type="button"
+            className="icon-button header-action-btn header-logout-btn"
+            onClick={logout}
+            disabled={isLoggingOut}
+            title="Keluar Sesi (Logout)"
+            aria-label="Keluar Sesi"
+          >
+            <Icon name="logOut" size={17} />
+          </button>
         </div>
       </div>
     </header>

@@ -19,18 +19,20 @@ export async function POST(request: NextRequest) {
     const rateResult = await checkRateLimit(rateLimitKey, RATE_LIMIT_PROFILES.AUTH_LOGIN);
 
     if (!rateResult.allowed) {
+      const retrySeconds = Math.max(1, Math.ceil(rateResult.retryAfterMs / 1000));
       return NextResponse.json(
         {
           success: false,
           error: {
-            code: ERROR_CODES.RATE_LIMITED,
-            message: 'Terlalu banyak percobaan login untuk akun ini. Silakan tunggu 15 menit.',
+            code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
+            message: 'Terlalu banyak percobaan login untuk akun ini. Silakan tunggu beberapa saat.',
+            retryAfter: retrySeconds,
           },
-          meta: { retryAfterMs: rateResult.retryAfterMs },
+          meta: { retryAfterMs: rateResult.retryAfterMs, retryAfter: retrySeconds },
         },
         {
           status: 429,
-          headers: { 'Retry-After': String(Math.ceil(rateResult.retryAfterMs / 1000)) },
+          headers: { 'Retry-After': String(retrySeconds) },
         },
       );
     }
@@ -62,29 +64,43 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Set secure HttpOnly cookie for web admin session
-    response.cookies.set('fiberops_session', result.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 8 * 60 * 60, // 8 hours
-    });
+    if (result.user.userType !== 'TECHNICIAN') {
+      const isProd = process.env.NODE_ENV === 'production';
+      response.cookies.set('fiberops_session', result.token, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? 'strict' : 'lax',
+        path: '/',
+        maxAge: 8 * 60 * 60,
+      });
+    }
 
     return response;
   } catch (error: unknown) {
-    const err = error as Error & { name?: string; errors?: Array<{ message: string }> };
+    const err = error as Error & {
+      name?: string;
+      code?: string;
+      statusCode?: number;
+      errors?: Array<{ message: string }>;
+    };
     const isValidation = err.name === 'ZodError';
+    const statusCode = isValidation ? 400 : err.statusCode || 401;
+    const errorCode = isValidation
+      ? ERROR_CODES.VALIDATION_ERROR
+      : err.code || (statusCode === 403 ? ERROR_CODES.FORBIDDEN : ERROR_CODES.UNAUTHORIZED);
+
     return NextResponse.json(
       {
         success: false,
         error: {
-          code: isValidation ? ERROR_CODES.VALIDATION_ERROR : ERROR_CODES.UNAUTHORIZED,
-          message: isValidation ? err.errors?.[0]?.message : err.message,
+          code: errorCode,
+          message: isValidation
+            ? err.errors?.[0]?.message || 'Format kredensial tidak valid.'
+            : err.message || 'Kombinasi username atau kata sandi tidak valid.',
           details: err.errors,
         },
       },
-      { status: isValidation ? 400 : 401 },
+      { status: statusCode },
     );
   }
 }

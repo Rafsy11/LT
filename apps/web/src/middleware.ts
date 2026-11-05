@@ -58,8 +58,37 @@ function stripSensitiveHeaders(original: Headers): Headers {
   return cleaned;
 }
 
+const PUBLIC_API_ROUTES = [
+  '/api/v1/auth/login',
+  '/api/v1/auth/logout',
+  '/api/v1/auth/refresh',
+  '/api/v1/health',
+] as const;
+
+const PROTECTED_DASHBOARD_PREFIXES = [
+  '/monitoring',
+  '/tickets',
+  '/network',
+  '/customers',
+  '/technicians',
+  '/roles',
+  '/settings',
+  '/ai',
+] as const;
+
+function isProtectedDashboardPage(pathname: string): boolean {
+  if (pathname === '/') return true;
+  return PROTECTED_DASHBOARD_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (PUBLIC_API_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
+    return NextResponse.next();
+  }
 
   // ---------------------------------------------------------------------------
   // 1. Mobile Technician Gate: /api/v1/tech/*
@@ -206,9 +235,84 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // 3. Web Dashboard Page Guard: /login & Protected NOC Routes
+  // ---------------------------------------------------------------------------
+  const isLoginRoute = pathname === '/login' || pathname.startsWith('/login/');
+  const isDashboardPage = isProtectedDashboardPage(pathname);
+
+  if (isLoginRoute || isDashboardPage) {
+    const cookieToken =
+      request.cookies.get('fiberops_session')?.value || request.cookies.get('session')?.value;
+
+    let validWebPayload: Record<string, unknown> | null = null;
+    if (cookieToken) {
+      try {
+        const { payload } = await jwtVerify(cookieToken, JWT_SECRET);
+        if (payload.userType !== 'TECHNICIAN') {
+          validWebPayload = payload as Record<string, unknown>;
+        }
+      } catch {
+        validWebPayload = null;
+      }
+    }
+
+    if (isLoginRoute) {
+      if (validWebPayload) {
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+      return NextResponse.next();
+    }
+
+    if (isDashboardPage) {
+      if (!validWebPayload) {
+        const loginUrl = new URL('/login', request.url);
+        if (pathname !== '/') {
+          loginUrl.searchParams.set('callbackUrl', pathname);
+        }
+        return NextResponse.redirect(loginUrl);
+      }
+
+      const requestHeaders = stripSensitiveHeaders(request.headers);
+      if (validWebPayload.sub) requestHeaders.set('x-user-id', String(validWebPayload.sub));
+      if (validWebPayload.username)
+        requestHeaders.set('x-username', String(validWebPayload.username));
+      if (validWebPayload.role) requestHeaders.set('x-user-role', String(validWebPayload.role));
+      if (validWebPayload.userType)
+        requestHeaders.set('x-user-type', String(validWebPayload.userType));
+      if (validWebPayload.hierarchyLevel)
+        requestHeaders.set('x-hierarchy-level', String(validWebPayload.hierarchyLevel));
+      if (validWebPayload.assignedClusters) {
+        requestHeaders.set(
+          'x-assigned-clusters',
+          JSON.stringify(validWebPayload.assignedClusters),
+        );
+      }
+
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/api/v1/tech/:path*', '/api/v1/admin/:path*'],
+  matcher: [
+    '/',
+    '/login',
+    '/monitoring/:path*',
+    '/tickets/:path*',
+    '/network/:path*',
+    '/customers/:path*',
+    '/technicians/:path*',
+    '/roles/:path*',
+    '/settings/:path*',
+    '/ai/:path*',
+    '/api/v1/tech/:path*',
+    '/api/v1/admin/:path*',
+  ],
 };

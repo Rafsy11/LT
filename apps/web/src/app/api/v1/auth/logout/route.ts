@@ -12,19 +12,21 @@ export async function POST(request: NextRequest) {
 
     // 1. Invalidate device session in Redis & Postgres if mobile
     if (deviceId) {
-      await redisManager.blacklistSession(deviceId);
-      await prisma.userSession.updateMany({
-        where: {
-          deviceId,
-          revokedAt: null,
-        },
-        data: {
-          revokedAt: new Date(),
-        },
-      });
+      await redisManager.blacklistSession(deviceId).catch(() => {});
+      await prisma.userSession
+        .updateMany({
+          where: {
+            deviceId,
+            revokedAt: null,
+          },
+          data: {
+            revokedAt: new Date(),
+          },
+        })
+        .catch(() => {});
     }
 
-    // 2. Clear cookie for web sessions
+    // 2. Clear cookie for web sessions (HttpOnly, Secure, SameSite=Strict, Max-Age=0, Path=/)
     const response = NextResponse.json({
       success: true,
       data: {
@@ -32,8 +34,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    response.cookies.delete('fiberops_session');
-    response.cookies.delete('session');
+    const isProd = process.env.NODE_ENV === 'production';
+    response.cookies.set('fiberops_session', '', {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'strict',
+      maxAge: 0,
+      path: '/',
+    });
+    response.cookies.set('session', '', {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'strict',
+      maxAge: 0,
+      path: '/',
+    });
 
     return response;
   } catch (error: unknown) {
