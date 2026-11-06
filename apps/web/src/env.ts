@@ -1,4 +1,44 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { z } from 'zod';
+
+/**
+ * Loads environment variables from the monorepo root `.env` / `.env.local` if not already
+ * populated in `process.env` (e.g., when a contributor places `.env` at the repo root only).
+ */
+export function ensureRootEnvLoaded(): void {
+  const candidates = [
+    path.resolve(process.cwd(), '.env.local'),
+    path.resolve(process.cwd(), '.env'),
+    path.resolve(process.cwd(), '..', '..', '.env.local'),
+    path.resolve(process.cwd(), '..', '..', '.env'),
+  ];
+
+  for (const filePath of candidates) {
+    try {
+      if (!fs.existsSync(filePath)) continue;
+      const content = fs.readFileSync(filePath, 'utf8');
+      for (const rawLine of content.split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith('#')) continue;
+        const eqIndex = line.indexOf('=');
+        if (eqIndex <= 0) continue;
+
+        const key = line.slice(0, eqIndex).trim();
+        const rawVal = line.slice(eqIndex + 1).trim();
+        const unquoted = rawVal.replace(/^(['"])(.*)\1$/, '$2');
+
+        if (process.env[key] === undefined || process.env[key] === '') {
+          process.env[key] = unquoted;
+        }
+      }
+    } catch {
+      // Ignore fs errors in restricted runtimes
+    }
+  }
+}
+
+ensureRootEnvLoaded();
 
 const isProductionRuntime =
   process.env.NODE_ENV === 'production' &&
