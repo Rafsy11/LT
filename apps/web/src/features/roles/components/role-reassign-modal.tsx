@@ -53,9 +53,7 @@ export function RoleReassignModal({
       <article
         className="modal"
         style={{
-          background: '#ffffff',
           borderRadius: '10px',
-          border: '1px solid #e2e8f0',
           padding: '24px',
           width: '100%',
           maxWidth: '420px',
@@ -73,7 +71,7 @@ export function RoleReassignModal({
         >
           <h3
             id="role-reassign-title"
-            style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#0f172a' }}
+            style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'inherit' }}
           >
             Ubah Peran Pengguna
           </h3>
@@ -95,19 +93,19 @@ export function RoleReassignModal({
 
         <section
           aria-label="Informasi Pengguna"
+          className="modal-sub-card"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
             padding: '12px',
-            background: '#f8fafc',
             borderRadius: '8px',
             marginBottom: '16px',
           }}
         >
           <DefaultAvatar size={36} name={editingUser.name} />
           <div>
-            <div style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a' }}>
+            <div style={{ fontWeight: 600, fontSize: '13px', color: 'inherit' }}>
               {editingUser.name}
             </div>
             <div style={{ fontSize: '11.5px', color: '#64748b' }}>{editingUser.email}</div>
@@ -121,7 +119,7 @@ export function RoleReassignModal({
               display: 'block',
               fontSize: '12px',
               fontWeight: 600,
-              color: '#334155',
+              color: 'inherit',
               marginBottom: '6px',
             }}
           >
@@ -135,10 +133,7 @@ export function RoleReassignModal({
               width: '100%',
               padding: '8px 12px',
               borderRadius: '6px',
-              border: '1px solid #cbd5e1',
               fontSize: '12.5px',
-              color: '#0f172a',
-              background: '#ffffff',
               outline: 'none',
             }}
           >
@@ -159,16 +154,7 @@ export function RoleReassignModal({
             <button
               type="button"
               onClick={onClose}
-              style={{
-                padding: '7px 14px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: 500,
-                background: '#ffffff',
-                border: '1px solid #dce7f0',
-                color: '#475569',
-                cursor: 'pointer',
-              }}
+              className="button"
             >
               Batal
             </button>
@@ -176,15 +162,12 @@ export function RoleReassignModal({
               type="button"
               onClick={onSave}
               disabled={isLoading}
+              className="button primary"
               style={{
                 padding: '7px 16px',
                 borderRadius: '6px',
                 fontSize: '12px',
                 fontWeight: 600,
-                background: '#0e5b92',
-                border: 'none',
-                color: '#ffffff',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
               }}
             >
               {isLoading ? 'Menyimpan...' : 'Perbarui Peran'}

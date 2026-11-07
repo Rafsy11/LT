@@ -21,18 +21,15 @@ export function RoleHeader({ isFetching, onRefresh }: RoleHeaderProps) {
 
       <nav className="overview-toolbar" aria-label="Aksi kontrol peran">
         <div
+          className="overview-status-pill"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
             padding: '6px 12px',
-            background: '#ffffff',
-            border: '1px solid #dce7f0',
             borderRadius: '6px',
             fontSize: '11.5px',
             fontWeight: 500,
-            color: '#334155',
-            boxShadow: '0 1px 2px rgba(27, 92, 162, 0.03)',
           }}
         >
           <span

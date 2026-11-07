@@ -58,7 +58,7 @@ export function PortDetailPanel({
               <Icon name="sliders" size={13} style={{ color: '#0284c7' }} />
               <span>Manajemen Tray & Pigtail</span>
             </header>
-            <div className="inspection-chassis-val" style={{ color: '#0f172a' }}>
+            <div className="inspection-chassis-val">
               Sesuai SOP (R &gt; 30mm)
             </div>
             <div className="inspection-chassis-sub">
@@ -71,7 +71,7 @@ export function PortDetailPanel({
               <Icon name="spark" size={13} style={{ color: '#0284c7' }} />
               <span>Kebersihan Ferrule</span>
             </header>
-            <div className="inspection-chassis-val" style={{ color: '#0f172a' }}>
+            <div className="inspection-chassis-val">
               Bersih (Bebas Debu)
             </div>
             <div className="inspection-chassis-sub">
@@ -134,7 +134,7 @@ export function PortDetailPanel({
         </nav>
 
         {/* Port Physical Inspection Table */}
-        <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }} tabIndex={0} role="region" aria-label="Tabel inspeksi fisik port">
+        <div className="table-scroll" style={{ borderRadius: '8px', overflow: 'hidden' }} tabIndex={0} role="region" aria-label="Tabel inspeksi fisik port">
           <table className="odp-clean-table">
             <thead>
               <tr>
@@ -196,7 +196,7 @@ export function PortDetailPanel({
 
                     <td>
                       <div style={{ fontSize: '11.5px' }}>
-                        <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                        <div style={{ fontWeight: 600 }}>
                           {port.lastActivity?.date || '05 Okt 2026'}
                         </div>
                         <div style={{ color: '#64748b', fontSize: '10.5px' }}>
@@ -206,7 +206,7 @@ export function PortDetailPanel({
                     </td>
 
                     <td>
-                      <span style={{ fontSize: '11.5px', color: '#334155' }}>
+                      <span style={{ fontSize: '11.5px' }}>
                         {port.lastActivity?.notes ||
                           (isOccupied
                             ? 'Sinyal optik stabil, ferrule bersih.'
@@ -265,7 +265,7 @@ export function PortDetailPanel({
           }}
         >
           <div>
-            <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            <h3 style={{ fontSize: '13px', fontWeight: 700, margin: 0 }}>
               Log Histori Aktivitas Operasional {activeSplitter.splitterCode}
             </h3>
             <div style={{ fontSize: '11px', color: '#64748b' }}>
@@ -279,17 +279,6 @@ export function PortDetailPanel({
                 key={filterKey}
                 type="button"
                 className={`filter-chip ${historyTypeFilter === filterKey ? 'active' : ''}`}
-                style={{
-                  padding: '4px 10px',
-                  fontSize: '11px',
-                  borderRadius: '14px',
-                  border:
-                    historyTypeFilter === filterKey ? '1px solid #0284c7' : '1px solid #e2e8f0',
-                  background: historyTypeFilter === filterKey ? '#0284c7' : '#ffffff',
-                  color: historyTypeFilter === filterKey ? '#ffffff' : '#475569',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                }}
                 onClick={() => setHistoryTypeFilter(filterKey)}
               >
                 {filterKey === 'ALL' ? 'Semua Log' : filterKey}
@@ -363,11 +352,11 @@ export function PortDetailPanel({
                 </span>
               </div>
               <h3
-                style={{ fontSize: '13.5px', fontWeight: 700, color: '#0f172a', marginTop: '6px' }}
+                style={{ fontSize: '13.5px', fontWeight: 700, marginTop: '6px' }}
               >
                 Proteksi Integritas Konkurensi Database PostgreSQL (PRD Section 5.2)
               </h3>
-              <p style={{ fontSize: '11.5px', color: '#475569', marginTop: '3px' }}>
+              <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '3px' }}>
                 Partial unique constraint mencegah bentrokan penugasan port ganda secara paralel
                 antar teknisi lapangan.
               </p>
@@ -396,7 +385,7 @@ export function PortDetailPanel({
 
             <div className="audit-kpi-box">
               <div className="audit-kpi-box-label">Port Bebas (Siap PSB)</div>
-              <div className="audit-kpi-box-val" style={{ color: '#475569' }}>
+              <div className="audit-kpi-box-val" style={{ color: '#64748b' }}>
                 {activeSplitter.maxPorts - activeSplitter.usedPorts} Port
               </div>
             </div>
@@ -411,7 +400,7 @@ export function PortDetailPanel({
         </article>
 
         {/* Audit Entries Table */}
-        <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }} tabIndex={0} role="region" aria-label="Tabel entri audit port">
+        <div className="table-scroll" style={{ borderRadius: '8px', overflow: 'hidden' }} tabIndex={0} role="region" aria-label="Tabel entri audit port">
           <table className="odp-clean-table">
             <thead>
               <tr>
@@ -445,15 +434,7 @@ export function PortDetailPanel({
                     </td>
 
                     <td>
-                      <code
-                        style={{
-                          fontSize: '11px',
-                          color: '#1e40af',
-                          background: '#eff6ff',
-                          padding: '2px 5px',
-                          borderRadius: '4px',
-                        }}
-                      >
+                      <code className="modal-code-chip" style={{ fontSize: '10.5px' }}>
                         {isOccupied ? 'idx_unique_active_splitter_port' : 'FREE_POOL'}
                       </code>
                     </td>
@@ -461,7 +442,7 @@ export function PortDetailPanel({
                     <td>
                       {isOccupied ? (
                         <div>
-                          <span style={{ fontWeight: 600, color: '#0f172a' }}>
+                          <span style={{ fontWeight: 600 }}>
                             {port.customerName}
                           </span>
                           <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block' }}>

@@ -11,10 +11,9 @@ export function NetworkStats({ networkStats }: NetworkStatsProps) {
     <section className="network-metrics-row-3" aria-label="Metrik Utama Jaringan">
       {/* Card 1: Total Cluster & ODP */}
       <article className="stat-card">
-        <span className="stat-card-ribbon blue">ODP SPLITTER</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round blue">
+            <span className="stat-card-icon-round">
               <Icon name="network" size={17} />
             </span>
             <div className="stat-card-text">
@@ -30,10 +29,9 @@ export function NetworkStats({ networkStats }: NetworkStatsProps) {
 
       {/* Card 2: Kapasitas Port Terpakai */}
       <article className="stat-card">
-        <span className="stat-card-ribbon amber">UTILISASI</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round amber">
+            <span className="stat-card-icon-round">
               <Icon name="activity" size={17} />
             </span>
             <div className="stat-card-text">
@@ -42,23 +40,21 @@ export function NetworkStats({ networkStats }: NetworkStatsProps) {
             </div>
           </div>
           <div className="stat-card-footer">
-            <span className="highlight-pill blue-pill">{networkStats.totalCapacity} total</span>
-            <span className="caption">alokasi splitter</span>
+            <span className="caption">dari total {networkStats.totalCapacity} alokasi splitter</span>
           </div>
         </div>
       </article>
 
       {/* Card 3: Port Siap PSB */}
       <article className="stat-card">
-        <span className="stat-card-ribbon green">SIAP PSB</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round green">
+            <span className="stat-card-icon-round">
               <Icon name="check" size={17} />
             </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Port siap PSB</span>
-              <div className="stat-card-value" style={{ color: '#166534' }}>{networkStats.availableCapacity}</div>
+              <div className="stat-card-value">{networkStats.availableCapacity}</div>
             </div>
           </div>
           <div className="stat-card-footer">
@@ -69,10 +65,9 @@ export function NetworkStats({ networkStats }: NetworkStatsProps) {
 
       {/* Card 4: Wilayah Cluster Aktif */}
       <article className="stat-card">
-        <span className="stat-card-ribbon cyan">CAKUPAN</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round cyan">
+            <span className="stat-card-icon-round">
               <Icon name="mapPin" size={17} />
             </span>
             <div className="stat-card-text">

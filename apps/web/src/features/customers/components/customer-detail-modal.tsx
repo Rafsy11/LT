@@ -61,46 +61,22 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
         {/* Header */}
         <header
           className="panel-heading"
-          style={{ borderBottom: '1px solid #e2e8f0', padding: '16px 20px', flexShrink: 0 }}
+          style={{ padding: '16px 20px', flexShrink: 0 }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '8px',
-                background: '#f1f5f9',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#0e5b92',
-                border: '1px solid #e2e8f0',
-                flexShrink: 0,
-              }}
-            >
+            <div className="modal-icon-wrap">
               <Icon name="users" size={20} />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h2 id="customer-detail-title" style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#0f172a' }}>
+                <h2 id="customer-detail-title" className="modal-heading">
                   {customer.fullName}
                 </h2>
-                <span
-                  style={{
-                    fontSize: '11.5px',
-                    fontFamily: 'monospace',
-                    fontWeight: 600,
-                    padding: '2px 7px',
-                    background: '#f8fafc',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '4px',
-                    color: '#0e5b92',
-                  }}
-                >
+                <span className="modal-badge-mono">
                   {customer.siaNumber}
                 </span>
               </div>
-              <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>
+              <p className="modal-subheading">
                 Cluster: <b>{customer.cluster}</b> ({customer.clusterCode})
               </p>
             </div>
@@ -122,15 +98,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
           }}
         >
           {/* Service Status & Physical Binding Strip */}
-          <div
-            className="modal-three-col-grid"
-            style={{
-              padding: '12px',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-            }}
-          >
+          <div className="modal-three-col-grid">
             <div>
               <div
                 style={{
@@ -179,13 +147,13 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                   letterSpacing: '0.4px',
                 }}
               >
-                Alokasi Splitter & Port
+                Alokasi Splitter &amp; Port
               </div>
               <div
-                style={{ marginTop: '4px', fontSize: '12px', fontWeight: 600, color: '#0f172a' }}
+                style={{ marginTop: '4px', fontSize: '12px', fontWeight: 600 }}
               >
                 {customer.splitterCode}{' '}
-                <span style={{ color: '#0e5b92', fontFamily: 'monospace' }}>
+                <span style={{ fontFamily: 'var(--font-mono, monospace)' }}>
                   Port #{customer.portNumber}
                 </span>
               </div>
@@ -208,7 +176,6 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                   marginTop: '4px',
                   fontSize: '13px',
                   fontWeight: 700,
-                  color: tone === 'green' ? '#166534' : tone === 'orange' ? '#b45309' : '#be123c',
                 }}
               >
                 {customer.currentAttenuation.toFixed(1)} dBm{' '}
@@ -220,17 +187,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
           </div>
 
           {/* Alamat & Catatan Lokasi */}
-          <div
-            style={{
-              fontSize: '12px',
-              color: '#475569',
-              lineHeight: '1.5',
-              background: '#f8fafc',
-              padding: '10px 12px',
-              borderRadius: '6px',
-              border: '1px solid #e2e8f0',
-            }}
-          >
+          <div className="modal-sub-card">
             <div
               style={{
                 display: 'flex',
@@ -238,7 +195,6 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                 gap: '6px',
                 marginBottom: '4px',
                 fontWeight: 600,
-                color: '#1e3a5f',
               }}
             >
               <Icon name="pin" size={13} />
@@ -255,7 +211,6 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                   gap: '16px',
                   marginTop: '6px',
                   fontSize: '11.5px',
-                  color: '#334155',
                   flexWrap: 'wrap',
                 }}
               >
@@ -288,7 +243,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                 marginBottom: '8px',
               }}
             >
-              <div style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600 }}>
                 Riwayat Pengukuran Redaman (10 Laporan Terakhir)
               </div>
               <span style={{ fontSize: '11px', color: '#64748b' }}>
@@ -303,30 +258,12 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                 Memuat riwayat redaman...
               </div>
             ) : histories.length === 0 ? (
-              <div
-                style={{
-                  padding: '24px',
-                  textAlign: 'center',
-                  color: '#94a3b8',
-                  fontSize: '12px',
-                  background: '#f8fafc',
-                  border: '1px dashed #cbd5e1',
-                  borderRadius: '6px',
-                }}
-              >
+              <div className="modal-empty-box">
                 Belum ada data pengukuran redaman yang tercatat di{' '}
                 <code>attenuation_histories</code>.
               </div>
             ) : (
-              <div
-                style={{
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '6px',
-                  overflow: 'hidden',
-                  maxHeight: '260px',
-                  overflowY: 'auto',
-                }}
-              >
+              <div className="modal-table-wrap">
                 <table
                   style={{
                     width: '100%',
@@ -336,13 +273,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                   }}
                 >
                   <thead>
-                    <tr
-                      style={{
-                        background: '#f8fafc',
-                        borderBottom: '1px solid #e2e8f0',
-                        color: '#64748b',
-                      }}
-                    >
+                    <tr className="modal-table-header-row">
                       <th scope="col" style={{ padding: '8px 10px', fontWeight: 600 }}>Waktu Pencatatan</th>
                       <th scope="col" style={{ padding: '8px 10px', fontWeight: 600 }}>Nilai Redaman</th>
                       <th scope="col" style={{ padding: '8px 10px', fontWeight: 600 }}>Splitter & Port</th>
@@ -355,9 +286,9 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                       return (
                         <tr
                           key={h.id || h.submissionId}
-                          style={{ borderBottom: '1px solid #f1f5f9' }}
+                          className="modal-table-row"
                         >
-                          <td style={{ padding: '8px 10px', color: '#475569', fontSize: '11px' }}>
+                          <td className="modal-td-muted" style={{ padding: '8px 10px', fontSize: '11px' }}>
                             {new Date(h.recordedAt).toLocaleString('id-ID', {
                               day: '2-digit',
                               month: 'short',
@@ -389,13 +320,13 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                               </span>
                             )}
                           </td>
-                          <td style={{ padding: '8px 10px', color: '#334155' }}>
+                          <td className="modal-td-text" style={{ padding: '8px 10px' }}>
                             {h.splitterCode}{' '}
-                            <span style={{ color: '#0e5b92', fontFamily: 'monospace' }}>
+                            <span className="modal-td-highlight" style={{ fontFamily: 'monospace' }}>
                               #{h.portNumber}
                             </span>
                           </td>
-                          <td style={{ padding: '8px 10px', color: '#475569' }}>
+                          <td className="modal-td-muted" style={{ padding: '8px 10px' }}>
                             {h.technicianName}
                           </td>
                         </tr>
@@ -409,45 +340,19 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
         </div>
 
         {/* Modal Footer Links */}
-        <footer
-          style={{
-            padding: '12px 20px',
-            borderTop: '1px solid #e2e8f0',
-            background: '#f8fafc',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexShrink: 0,
-          }}
-        >
+        <footer className="modal-footer">
           <div role="group" aria-label="Aksi rincian pelanggan" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <Link
               href={`/tickets?search=${encodeURIComponent(customer.siaNumber)}`}
-              style={{
-                fontSize: '11.5px',
-                color: '#0e5b92',
-                textDecoration: 'none',
-                fontWeight: 500,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
+              className="modal-footer-link"
             >
               <Icon name="ticket" size={13} />
               Lihat Tiket Terkait
             </Link>
-            <span style={{ color: '#cbd5e1' }}>·</span>
+            <span className="modal-footer-sep">·</span>
             <Link
               href={`/monitoring?search=${encodeURIComponent(customer.siaNumber)}`}
-              style={{
-                fontSize: '11.5px',
-                color: '#0e5b92',
-                textDecoration: 'none',
-                fontWeight: 500,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
+              className="modal-footer-link"
             >
               <Icon name="activity" size={13} />
               Pantau di Live Stream
@@ -458,16 +363,6 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
             onClick={onClose}
             className="button"
             type="button"
-            style={{
-              padding: '6px 14px',
-              background: '#ffffff',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              color: '#334155',
-              cursor: 'pointer',
-            }}
           >
             Tutup
           </button>

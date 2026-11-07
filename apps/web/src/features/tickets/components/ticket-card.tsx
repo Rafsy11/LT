@@ -32,38 +32,38 @@ export function TicketCard({ ticket, onSelect, getDbmBadge }: TicketCardProps) {
         }
       }}
     >
-      {/* 1. Header: Ticket Number & Status Badges */}
+      {/* 1. Header: Ticket Number, Type Badge & Status */}
       <header className="ticket-card-header">
-        <span className="ticket-number-tag">{ticket.ticketNumber}</span>
-        <div className="ticket-badges-group">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+          <span className="ticket-number-tag">{ticket.ticketNumber}</span>
           <span
             className={`badge ${
               ticket.ticketType.includes('Pasang') || ticket.ticketType === 'PSB'
                 ? 'blue'
                 : 'neutral'
             }`}
-            style={{ fontSize: '10.5px' }}
+            style={{ fontSize: '10px', padding: '1px 6px' }}
           >
             {ticket.ticketType}
           </span>
-          <span
-            className={`badge ${
-              isCompleted
-                ? 'green'
-                : isPendingApproval
-                  ? 'orange'
-                  : isInProgress
-                    ? 'blue'
-                    : 'neutral'
-            }`}
-            style={{ fontSize: '10.5px' }}
-          >
-            {ticket.status}
-          </span>
         </div>
+        <span
+          className={`badge ${
+            isCompleted
+              ? 'green'
+              : isPendingApproval
+                ? 'orange'
+                : isInProgress
+                  ? 'blue'
+                  : 'neutral'
+          }`}
+          style={{ fontSize: '10px', padding: '1px 6px', flexShrink: 0 }}
+        >
+          {ticket.status}
+        </span>
       </header>
 
-      {/* 2. Customer Information */}
+      {/* 2. Customer & Cluster Info */}
       <div className="ticket-card-body">
         <div className="ticket-customer-header">
           <h3 className="ticket-customer-name" title={ticket.customerName}>
@@ -72,49 +72,36 @@ export function TicketCard({ ticket, onSelect, getDbmBadge }: TicketCardProps) {
           <div className="ticket-meta-row">
             <code className="ticket-sia-badge">{ticket.siaNumber}</code>
             <span>·</span>
-            <span>{ticket.cluster}</span>
-          </div>
-        </div>
-
-        {/* 3. Structured 2x2 Telemetry & Network Spec Grid (Consistent on EVERY card) */}
-        <div className="ticket-spec-grid">
-          <div className="ticket-spec-item">
-            <span className="ticket-spec-label">Titik ODP</span>
-            <span className="ticket-spec-value" title={splitter}>
-              {splitter}
-            </span>
-          </div>
-
-          <div className="ticket-spec-item">
-            <span className="ticket-spec-label">Port Splitter</span>
-            <span className="ticket-spec-value">
-              {port !== '-' ? `Port ${port}` : '-'}
-            </span>
-          </div>
-
-          <div className="ticket-spec-item">
-            <span className="ticket-spec-label">
-              {isPendingApproval ? 'Hasil Lapangan' : 'Redaman Optik'}
-            </span>
-            <span className="ticket-spec-value">
-              <span className={att.cls} style={{ fontSize: '10px', padding: '1px 5px' }}>
-                {att.label}
-              </span>
-            </span>
-          </div>
-
-          <div className="ticket-spec-item">
-            <span className="ticket-spec-label">Cluster</span>
-            <span className="ticket-spec-value" title={ticket.cluster}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {ticket.cluster}
             </span>
           </div>
         </div>
 
-        {/* 4. Optional Context Banner: Pending Approval Callout or Admin Notes */}
+        {/* 3. High-Density Telemetry & Optical Specs Strip */}
+        <div className="ticket-spec-compact-strip">
+          <div className="ticket-spec-compact-col">
+            <span className="ticket-spec-label">ODP & PORT</span>
+            <span className="ticket-spec-value" title={`${splitter} · Port ${port}`}>
+              {splitter} · {port !== '-' ? `Port ${port}` : '-'}
+            </span>
+          </div>
+          <div className="ticket-spec-compact-col" style={{ alignItems: 'flex-end', textAlign: 'right' }}>
+            <span className="ticket-spec-label">
+              {isPendingApproval ? 'UKUR LAPANGAN' : 'REDAMAN OPTIK'}
+            </span>
+            <span className="ticket-spec-value">
+              <span className={att.cls} style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px' }}>
+                {att.label}
+              </span>
+            </span>
+          </div>
+        </div>
+
+        {/* 4. Optional Context Banner */}
         {isPendingApproval && (
           <div className="ticket-status-callout ticket-callout-pending">
-            <Icon name="clock" size={13} />
+            <Icon name="clock" size={12} />
             <span>Verifikasi hasil ukur lapangan menunggu persetujuan admin</span>
           </div>
         )}

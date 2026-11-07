@@ -32,21 +32,7 @@ export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
             role="tab"
             aria-selected={active}
             onClick={() => onTabChange(t.key)}
-            style={{
-              padding: '10px 4px 12px',
-              fontSize: '13px',
-              fontWeight: active ? 600 : 500,
-              color: active ? '#0e5b92' : '#64748b',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: active ? '2px solid #0e5b92' : '2px solid transparent',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              transition: 'color 0.15s ease',
-              whiteSpace: 'nowrap',
-            }}
+            className={`settings-tab-btn ${active ? 'active' : ''}`}
           >
             <Icon name={t.icon} size={15} />
             <span>{t.label}</span>

@@ -37,18 +37,15 @@ export function SettingsHeader({
         style={{ display: 'flex', gap: '8px', alignItems: 'center' }}
       >
         <div
+          className="overview-status-pill"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
             padding: '6px 12px',
-            background: '#ffffff',
-            border: '1px solid #dce7f0',
             borderRadius: '6px',
             fontSize: '11.5px',
             fontWeight: 500,
-            color: '#334155',
-            boxShadow: '0 1px 2px rgba(27, 92, 162, 0.03)',
           }}
         >
           <span
@@ -63,20 +60,7 @@ export function SettingsHeader({
           <span>Docker: 6 Layanan Normal</span>
         </div>
 
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            background: '#f0f7ff',
-            border: '1px solid #c8e0f4',
-            borderRadius: '6px',
-            fontSize: '11.5px',
-            fontWeight: 600,
-            color: '#0e5b92',
-          }}
-        >
+        <div className="settings-role-badge">
           <Icon name="shield" size={13} />
           <span>
             {isSuperAdmin ? 'Super Admin (Level 100)' : `${roleName || 'Operator'} (Read-Only)`}
@@ -88,21 +72,7 @@ export function SettingsHeader({
           type="button"
           onClick={onSave}
           disabled={!isSuperAdmin || isSaving || !hasChanges}
-          style={{
-            padding: '6px 14px',
-            fontSize: '12px',
-            fontWeight: 600,
-            color: '#ffffff',
-            background: !isSuperAdmin || !hasChanges ? '#94a3b8' : '#0e5b92',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: !isSuperAdmin || !hasChanges ? 'not-allowed' : 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            boxShadow: hasChanges ? '0 1px 3px rgba(14, 91, 146, 0.25)' : 'none',
-            transition: 'all 0.15s ease',
-          }}
+          className={`settings-header-save-btn ${!isSuperAdmin || !hasChanges ? 'disabled' : ''}`}
         >
           {isSaving ? (
             <Icon name="refresh" size={13} className="spin" />

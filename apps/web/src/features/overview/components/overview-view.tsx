@@ -8,6 +8,7 @@ import { OverviewStats } from './overview-stats';
 import { OverviewNetworkMap } from './overview-network-map';
 import { OverviewTelemetryFeed } from './overview-telemetry-feed';
 import { OverviewTicketQueue } from './overview-ticket-queue';
+import { OverviewSkeleton } from '@/components/ui/PageSkeleton';
 
 export function OverviewView() {
   const {
@@ -70,6 +71,10 @@ export function OverviewView() {
     window.addEventListener('app:refresh-data', handleGlobalRefresh);
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
   }, [fetchTickets]);
+
+  if (loading && tickets.length === 0) {
+    return <OverviewSkeleton />;
+  }
 
   return (
     <main className="overview-page" id="main-content">

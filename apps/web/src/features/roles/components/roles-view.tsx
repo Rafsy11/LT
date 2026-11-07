@@ -86,20 +86,7 @@ export function RolesView() {
               role="tab"
               aria-selected={activeView === 'users'}
               onClick={() => setActiveView('users')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '7px 18px',
-                borderRadius: '6px',
-                fontSize: '12.5px',
-                fontWeight: activeView === 'users' ? 600 : 500,
-                background: activeView === 'users' ? '#ffffff' : 'transparent',
-                color: activeView === 'users' ? '#0e5b92' : '#64748b',
-                boxShadow: activeView === 'users' ? '0 1px 3px rgba(14, 91, 146, 0.08)' : 'none',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
+              className={`roles-nav-tab ${activeView === 'users' ? 'active' : ''}`}
             >
               Direktori Pengguna &amp; Akses
             </button>
@@ -109,20 +96,7 @@ export function RolesView() {
               role="tab"
               aria-selected={activeView === 'matrix'}
               onClick={() => setActiveView('matrix')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '7px 18px',
-                borderRadius: '6px',
-                fontSize: '12.5px',
-                fontWeight: activeView === 'matrix' ? 600 : 500,
-                background: activeView === 'matrix' ? '#ffffff' : 'transparent',
-                color: activeView === 'matrix' ? '#0e5b92' : '#64748b',
-                boxShadow: activeView === 'matrix' ? '0 1px 3px rgba(14, 91, 146, 0.08)' : 'none',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
+              className={`roles-nav-tab ${activeView === 'matrix' ? 'active' : ''}`}
             >
               Konfigurasi Matriks Izin
             </button>

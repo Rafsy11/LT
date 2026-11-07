@@ -22,13 +22,13 @@ export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
         alignItems: 'center',
       }}
     >
-      {/* Brand Logo Emblem from Logo.png */}
+      {/* Brand Logo Emblem from Logo.svg */}
       <figure style={{ margin: '0 auto 20px' }}>
         <img
-          src="/assets/Logo.png"
+          src="/assets/Logo.svg"
           alt="AI Assistant"
-          width={64}
-          height={82}
+          width={72}
+          height={72}
           style={{
             display: 'block',
             margin: '0 auto',
@@ -39,33 +39,16 @@ export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
       </figure>
 
       {/* Heading */}
-      <h1
-        style={{
-          fontSize: '34px',
-          fontWeight: 700,
-          color: '#082138',
-          letterSpacing: '-0.5px',
-          margin: '0 0 12px',
-          textAlign: 'center',
-        }}
-      >
+      <h1 className="ai-hero-title">
         AI Assistant
       </h1>
 
-      {/* Subtitle with High-Contrast Slate-700 */}
-      <p
-        style={{
-          fontSize: '15px',
-          color: '#334155',
-          margin: '0 0 40px',
-          textAlign: 'center',
-          fontWeight: 500,
-        }}
-      >
+      {/* Subtitle */}
+      <p className="ai-hero-desc">
         Tanyakan tentang jaringan, tiket, atau pekerjaan teknisi.
       </p>
 
-      {/* 2x2 Suggestion Grid (Exact match to reference image with high contrast text) */}
+      {/* 2x2 Suggestion Grid */}
       <nav
         aria-label="Saran Pertanyaan AI"
         className="ai-hero-cards-grid"
@@ -74,32 +57,8 @@ export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
           <button
             key={item.label}
             type="button"
+            className="ai-hero-suggestion-btn"
             onClick={() => onSelectSuggestion(item.label)}
-            style={{
-              background: 'rgba(238, 246, 255, 0.95)',
-              border: '1px solid rgba(200, 226, 252, 0.9)',
-              borderRadius: '8px',
-              padding: '16px 28px',
-              fontSize: '14.5px',
-              fontWeight: 600,
-              color: '#0f172a',
-              textAlign: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-              boxShadow: '0 1px 3px rgba(27, 92, 162, 0.04)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#e1f0fc';
-              e.currentTarget.style.borderColor = '#93c5fd';
-              e.currentTarget.style.color = '#0e5b92';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(238, 246, 255, 0.95)';
-              e.currentTarget.style.borderColor = 'rgba(200, 226, 252, 0.9)';
-              e.currentTarget.style.color = '#0f172a';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
           >
             {item.label}
           </button>

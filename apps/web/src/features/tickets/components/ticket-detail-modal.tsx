@@ -135,7 +135,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
         <header className="panel-heading">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span className="ticket-number-tag">{ticket.ticketNumber}</span>
-            <h2 id="ticket-modal-title" style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#0f172a' }}>
+            <h2 id="ticket-modal-title" className="ticket-modal-title">
               {isPendingApproval
                 ? 'Verifikasi & Persetujuan Super Admin'
                 : 'Rincian Work Order Lapangan'}
@@ -191,27 +191,12 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
           )}
 
           {isPendingApproval && (
-            <div
-              style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                padding: '12px 14px',
-                marginBottom: '16px',
-              }}
-            >
-              <div style={{ fontSize: '12px', lineHeight: 1.45, color: '#334155' }}>
-                <div
-                  style={{
-                    fontWeight: 700,
-                    fontSize: '13px',
-                    color: '#0f172a',
-                    marginBottom: '2px',
-                  }}
-                >
+            <div className="ticket-approval-callout">
+              <div className="ticket-approval-content">
+                <div className="ticket-approval-title">
                   Laporan Menunggu Persetujuan Super Admin
                 </div>
-                <div style={{ color: '#475569' }}>
+                <div className="ticket-approval-desc">
                   Teknisi telah mengirimkan data hasil ukur redaman dan alokasi port. Sesuai aturan
                   Master Data, data ini <strong>tidak dapat langsung masuk</strong> ke sistem
                   sebelum diperiksa dan disetujui (Accepted) oleh Super Admin.
@@ -243,15 +228,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
 
           {/* Quick Super Admin Trigger for Tickets not yet submitted */}
           {(isInProgress || isPending) && (
-            <div
-              style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                padding: '12px 14px',
-                marginBottom: '16px',
-              }}
-            >
+            <div className="ticket-admin-sim-card">
               <div
                 style={{
                   display: 'flex',
@@ -262,28 +239,17 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a' }}>
+                  <div className="ticket-admin-sim-title">
                     Alur Persetujuan Data Lapangan (Super Admin)
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                  <div className="ticket-admin-sim-desc">
                     Simulasikan kiriman data terbaru dari mobile app ({ticket.assignedTech}) untuk
                     menguji alur verifikasi.
                   </div>
                 </div>
                 <button
                   type="button"
-                  style={{
-                    background: '#0e5b92',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '6px 12px',
-                    fontSize: '11.5px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    boxShadow: '0 1px 2px rgba(14, 91, 146, 0.2)',
-                  }}
+                  className="ticket-admin-sim-btn"
                   disabled={isSubmitting}
                   onClick={handleSimulateMobileSubmission}
                 >
@@ -295,103 +261,45 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
 
           {/* Pending Submission Review Box (Active when Menunggu verifikasi) */}
           {isPendingApproval && (
-            <div
-              style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                padding: '14px',
-                marginBottom: '16px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.4px',
-                  color: '#475569',
-                  marginBottom: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <span
-                  style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    background: '#475569',
-                  }}
-                />
+            <div className="ticket-review-card">
+              <div className="ticket-review-header">
+                <span className="ticket-review-dot" />
                 <span>Data yang Diajukan oleh Teknisi ({ticket.assignedTech})</span>
               </div>
 
               <div
-                className="modal-two-col-grid"
                 style={{
-                  fontSize: '12px',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '12px',
+                  marginBottom: '12px',
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                  background: 'rgba(15, 23, 42, 0.6)',
+                  border: '1px solid #1E293B',
                 }}
               >
-                <div
-                  style={{
-                    background: '#ffffff',
-                    border: '1px solid #dce7f0',
-                    borderRadius: '6px',
-                    padding: '8px 10px',
-                  }}
-                >
-                  <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block' }}>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600 }}>
                     Hasil Ukur Redaman (OPM)
                   </span>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      marginTop: '4px',
-                    }}
-                  >
-                    <span className={attMeta.cls} style={{ fontSize: '11px', padding: '2px 8px' }}>
-                      {attMeta.label}
-                    </span>
+                  <div style={{ marginTop: '4px', fontWeight: 600, fontSize: '13px', color: '#F1F5F9' }}>
+                    {attMeta.label}
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    background: '#ffffff',
-                    border: '1px solid #dce7f0',
-                    borderRadius: '6px',
-                    padding: '8px 10px',
-                  }}
-                >
-                  <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block' }}>
-                    ODP & Port Splitter Diajukan
+                <div>
+                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600 }}>
+                    ODP &amp; Port Splitter Diajukan
                   </span>
-                  <div
-                    style={{
-                      fontWeight: 600,
-                      color: '#0f172a',
-                      marginTop: '4px',
-                      fontSize: '12px',
-                    }}
-                  >
+                  <div style={{ fontWeight: 600, marginTop: '4px', fontSize: '13px', color: '#F1F5F9' }}>
                     {pendingData?.splitterCode || ticket.splitterCode || 'ODP-BDG-03'} · Port{' '}
                     {pendingData?.portNumber || ticket.portNumber || 2}
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    background: '#ffffff',
-                    border: '1px solid #dce7f0',
-                    borderRadius: '6px',
-                    padding: '8px 10px',
-                  }}
-                >
-                  <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block' }}>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600 }}>
                     Integritas Lokasi (Anti-Fake GPS)
                   </span>
                   <div
@@ -399,10 +307,10 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                       marginTop: '4px',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '4px',
+                      gap: '6px',
                       fontWeight: 500,
-                      color: pendingData?.isLocationFlagged ? '#b91c1c' : '#15803d',
-                      fontSize: '11.5px',
+                      fontSize: '12px',
+                      color: pendingData?.isLocationFlagged ? '#ef4444' : '#22c55e',
                     }}
                   >
                     <span
@@ -410,7 +318,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                         width: '6px',
                         height: '6px',
                         borderRadius: '50%',
-                        background: pendingData?.isLocationFlagged ? '#dc2626' : '#16a34a',
+                        background: pendingData?.isLocationFlagged ? '#ef4444' : '#22c55e',
                       }}
                     />
                     <span>
@@ -421,23 +329,16 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    background: '#ffffff',
-                    border: '1px solid #dce7f0',
-                    borderRadius: '6px',
-                    padding: '8px 10px',
-                  }}
-                >
-                  <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block' }}>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600 }}>
                     Waktu Pengiriman Teknisi
                   </span>
                   <div
                     style={{
-                      color: '#334155',
+                      color: '#F1F5F9',
                       marginTop: '4px',
                       fontWeight: 500,
-                      fontSize: '11.5px',
+                      fontSize: '12px',
                     }}
                   >
                     {pendingData?.submittedAt
@@ -451,56 +352,29 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
               </div>
 
               {pendingData?.technicianNotes && (
-                <div style={{ marginTop: '10px' }}>
-                  <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block' }}>
+                <div style={{ marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(15, 23, 42, 0.4)', border: '1px solid #1E293B' }}>
+                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600 }}>
                     Catatan Teknisi:
                   </span>
-                  <div
-                    style={{
-                      background: '#ffffff',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '5px',
-                      padding: '6px 10px',
-                      fontSize: '11.5px',
-                      color: '#334155',
-                      fontStyle: 'italic',
-                      marginTop: '4px',
-                    }}
-                  >
+                  <div style={{ fontStyle: 'italic', marginTop: '4px', color: '#CBD5E1', fontSize: '12px' }}>
                     &ldquo;{pendingData.technicianNotes}&rdquo;
                   </div>
                 </div>
               )}
 
               {/* Photo Proof Card */}
-              <div
-                style={{
-                  marginTop: '10px',
-                  padding: '8px 10px',
-                  background: '#f1f5f9',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  fontSize: '11px',
-                }}
-              >
+              <div className="modal-proof-card">
                 <div
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#334155' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Icon name="camera" size={13} />
                   <span>
                     Bukti Foto OPM Terunggah:{' '}
-                    <code>{pendingData?.photoObjectKey || 'opm-proofs/2025/02/t-3-opm.webp'}</code>
+                    <code style={{ fontFamily: 'var(--font-mono, monospace)', color: '#F1F5F9' }}>{pendingData?.photoObjectKey || 'opm-proofs/2025/02/t-3-opm.webp'}</code>
                   </span>
                 </div>
                 <span
-                  style={{
-                    color: '#0e5b92',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '10.5px',
-                  }}
+                  className="modal-proof-action"
                   title="Lihat foto terunggah di MinIO Object Storage"
                 >
                   Periksa File
@@ -513,50 +387,29 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
           <div className="inspector-grid" style={{ gap: '12px' }}>
             <div className="inspector-field">
               <span className="inspector-field-label">Nama Pelanggan</span>
-              <span className="inspector-field-value" style={{ fontWeight: 600 }}>
+              <span className="inspector-field-value">
                 {ticket.customerName}
               </span>
             </div>
 
             <div className="inspector-field">
               <span className="inspector-field-label">Nomor SIA</span>
-              <span className="inspector-field-value">
-                <code
-                  style={{
-                    background: '#f1f5f9',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    fontSize: '11.5px',
-                  }}
-                >
-                  {ticket.siaNumber}
-                </code>
+              <span className="inspector-field-value" style={{ fontFamily: 'var(--font-mono, monospace)', letterSpacing: '0.3px' }}>
+                {ticket.siaNumber}
               </span>
             </div>
 
             <div className="inspector-field">
               <span className="inspector-field-label">Tipe Pekerjaan</span>
               <span className="inspector-field-value">
-                <span
-                  className={`badge ${
-                    ticket.ticketType.includes('Pasang') || ticket.ticketType === 'PSB'
-                      ? 'blue'
-                      : 'neutral'
-                  }`}
-                >
-                  {ticket.ticketType}
-                </span>
+                {ticket.ticketType}
               </span>
             </div>
 
             <div className="inspector-field">
               <span className="inspector-field-label">Status Penugasan</span>
               <span className="inspector-field-value">
-                <span
-                  className={`badge ${isCompleted ? 'green' : isInProgress ? 'blue' : 'neutral'}`}
-                >
-                  {ticket.status}
-                </span>
+                {ticket.status}
               </span>
             </div>
 
@@ -573,7 +426,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
             <div className="inspector-field">
               <span className="inspector-field-label">Redaman Saat Ini</span>
               <span className="inspector-field-value">
-                <span className={attMeta.cls}>{attMeta.label}</span>
+                {attMeta.label}
               </span>
             </div>
 
@@ -581,7 +434,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
               <span className="inspector-field-label">Waktu Dibuat</span>
               <span
                 className="inspector-field-value"
-                style={{ fontSize: '11.5px', color: '#64748b' }}
+                style={{ fontSize: '12px' }}
               >
                 {ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('id-ID') : '-'}
               </span>
@@ -600,39 +453,15 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
 
           {/* Rejection Input Box (when triggered) */}
           {isPendingApproval && showRejectInput && (
-            <div
-              style={{
-                marginTop: '16px',
-                padding: '12px',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                borderRadius: '8px',
-              }}
-            >
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '11.5px',
-                  fontWeight: 600,
-                  color: '#991b1b',
-                  marginBottom: '6px',
-                }}
-              >
+            <div className="ticket-reject-card">
+              <label className="ticket-reject-label">
                 Alasan Penolakan Laporan (Wajib Diisi):
               </label>
               <textarea
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 rows={2}
-                style={{
-                  width: '100%',
-                  padding: '8px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #fca5a5',
-                  fontSize: '12px',
-                  color: '#1e293b',
-                  resize: 'none',
-                }}
+                className="ticket-reject-textarea"
               />
               <div
                 style={{

@@ -20,10 +20,9 @@ export function CustomerStats({
       aria-label="Statistik Master Data Pelanggan"
     >
       <article className="stat-card">
-        <span className="stat-card-ribbon blue">MASTER SIA</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round blue">
+            <span className="stat-card-icon-round">
               <Icon name="users" size={17} />
             </span>
             <div className="stat-card-text">
@@ -38,15 +37,14 @@ export function CustomerStats({
       </article>
 
       <article className="stat-card">
-        <span className="stat-card-ribbon green">ONLINE</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round green">
+            <span className="stat-card-icon-round">
               <Icon name="network" size={17} />
             </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Layanan Aktif</span>
-              <div className="stat-card-value" style={{ color: '#166534' }}>{activeCount}</div>
+              <div className="stat-card-value">{activeCount}</div>
             </div>
           </div>
           <div className="stat-card-footer">
@@ -56,15 +54,14 @@ export function CustomerStats({
       </article>
 
       <article className="stat-card">
-        <span className="stat-card-ribbon amber">ANTREAN</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round amber">
+            <span className="stat-card-icon-round">
               <Icon name="clock" size={17} />
             </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Menunggu Instalasi</span>
-              <div className="stat-card-value" style={{ color: '#b45309' }}>{pendingCount}</div>
+              <div className="stat-card-value">{pendingCount}</div>
             </div>
           </div>
           <div className="stat-card-footer">
@@ -74,15 +71,14 @@ export function CustomerStats({
       </article>
 
       <article className="stat-card">
-        <span className="stat-card-ribbon red">ATTENUATION</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round red">
+            <span className="stat-card-icon-round">
               <Icon name="alert" size={17} />
             </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Redaman Kritis</span>
-              <div className="stat-card-value" style={{ color: criticalCount > 0 ? '#be123c' : '#0f172a' }}>
+              <div className="stat-card-value">
                 {criticalCount}
               </div>
             </div>

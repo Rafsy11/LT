@@ -22,10 +22,9 @@ export function TechnicianStats({
       aria-label="Statistik Teknisi & Sesi"
     >
       <article className="stat-card">
-        <span className="stat-card-ribbon blue">ROSTER</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round blue">
+            <span className="stat-card-icon-round">
               <Icon name="wrench" size={17} />
             </span>
             <div className="stat-card-text">
@@ -40,15 +39,14 @@ export function TechnicianStats({
       </article>
 
       <article className="stat-card">
-        <span className="stat-card-ribbon green">ONLINE</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round green">
+            <span className="stat-card-icon-round">
               <Icon name="smartphone" size={17} />
             </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Sesi Mobile Aktif</span>
-              <div className="stat-card-value" style={{ color: '#166534' }}>{activeSessionsCount}</div>
+              <div className="stat-card-value">{activeSessionsCount}</div>
             </div>
           </div>
           <div className="stat-card-footer">
@@ -58,15 +56,14 @@ export function TechnicianStats({
       </article>
 
       <article className="stat-card">
-        <span className="stat-card-ribbon amber">DISPATCH</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round amber">
+            <span className="stat-card-icon-round">
               <Icon name="clock" size={17} />
             </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Sedang Bertugas</span>
-              <div className="stat-card-value" style={{ color: '#1b5ca2' }}>{busyCount}</div>
+              <div className="stat-card-value">{busyCount}</div>
             </div>
           </div>
           <div className="stat-card-footer">
@@ -76,15 +73,14 @@ export function TechnicianStats({
       </article>
 
       <article className="stat-card">
-        <span className="stat-card-ribbon red">REVOKED</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round red">
+            <span className="stat-card-icon-round">
               <Icon name="lock" size={17} />
             </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Sesi Dicabut / Kunci</span>
-              <div className="stat-card-value" style={{ color: revokedCount > 0 || disabledCount > 0 ? '#be123c' : '#0f172a' }}>
+              <div className="stat-card-value">
                 {revokedCount + disabledCount}
               </div>
             </div>

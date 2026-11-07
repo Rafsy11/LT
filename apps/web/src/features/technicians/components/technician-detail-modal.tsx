@@ -37,13 +37,13 @@ export function TechnicianDetailModal({
       >
         <header
           className="panel-heading"
-          style={{ borderBottom: '1px solid #e2e8f0', padding: '16px 20px' }}
+          style={{ padding: '16px 20px' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <DefaultAvatar size={44} name={technician.fullName} />
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h2 id="technician-modal-title" style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#0f172a' }}>
+                <h2 id="technician-modal-title" style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
                   {technician.fullName}
                 </h2>
                 <span style={{ fontSize: '12px', color: '#64748b', fontFamily: 'monospace' }}>
@@ -63,21 +63,7 @@ export function TechnicianDetailModal({
         <div className="modal-body" style={{ padding: '20px' }}>
           {/* Security Status Banner */}
           {technician.isMockLocationDetected && (
-            <div
-              style={{
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                borderRadius: '6px',
-                padding: '10px 14px',
-                marginBottom: '16px',
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'flex-start',
-                color: '#991b1b',
-                fontSize: '12px',
-                lineHeight: '1.45',
-              }}
-            >
+            <div className="technician-banner mock-location">
               <Icon name="alert" size={16} />
               <div>
                 <b>Peringatan Integritas Lapangan (Anti-Fake GPS):</b>
@@ -91,20 +77,7 @@ export function TechnicianDetailModal({
           )}
 
           {isActiveSession && (
-            <div
-              style={{
-                background: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                borderRadius: '6px',
-                padding: '10px 14px',
-                marginBottom: '16px',
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'center',
-                color: '#166534',
-                fontSize: '12px',
-              }}
-            >
+            <div className="technician-banner active-session">
               <span
                 style={{
                   width: '8px',
@@ -122,20 +95,7 @@ export function TechnicianDetailModal({
           )}
 
           {isRevokedSession && (
-            <div
-              style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '6px',
-                padding: '10px 14px',
-                marginBottom: '16px',
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'center',
-                color: '#475569',
-                fontSize: '12px',
-              }}
-            >
+            <div className="technician-banner revoked-session">
               <Icon name="lock" size={16} />
               <div>
                 <b>Sesi Dicabut (Force Logout):</b> Token akses JWT perangkat telah dibatalkan di
@@ -147,10 +107,10 @@ export function TechnicianDetailModal({
           {/* Hardware & Device Binding Grid */}
           <div style={{ marginBottom: '18px' }}>
             <div
+              className="modal-section-title"
               style={{
                 fontSize: '11px',
                 fontWeight: 600,
-                color: '#64748b',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
                 marginBottom: '8px',
@@ -158,15 +118,7 @@ export function TechnicianDetailModal({
             >
               Spesifikasi Perangkat Terikat (Device Binding)
             </div>
-            <div
-              className="modal-two-col-grid"
-              style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                padding: '14px',
-              }}
-            >
+            <div className="modal-two-col-grid">
               <div>
                 <span
                   style={{
@@ -178,7 +130,7 @@ export function TechnicianDetailModal({
                 >
                   Model Perangkat & OS
                 </span>
-                <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
+                <span style={{ fontSize: '12.5px', fontWeight: 600 }}>
                   {technician.deviceModel || 'Belum terikat'}
                 </span>
               </div>
@@ -194,20 +146,9 @@ export function TechnicianDetailModal({
                 >
                   Versi Aplikasi Mobile
                 </span>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    background: '#e2e8f0',
-                    color: '#334155',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    fontFamily: 'monospace',
-                  }}
-                >
+                <code className="modal-code-chip">
                   {technician.appVersion || 'v1.0.0'}
-                </span>
+                </code>
               </div>
 
               <div>
@@ -221,17 +162,7 @@ export function TechnicianDetailModal({
                 >
                   Unique Device ID (UUID)
                 </span>
-                <code
-                  style={{
-                    fontSize: '11.5px',
-                    color: '#0f172a',
-                    background: '#ffffff',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    border: '1px solid #e2e8f0',
-                    display: 'inline-block',
-                  }}
-                >
+                <code className="modal-code-chip">
                   {technician.deviceId || 'DEV-UNBOUND'}
                 </code>
               </div>
@@ -247,7 +178,7 @@ export function TechnicianDetailModal({
                 >
                   Nomor Telepon Operasional
                 </span>
-                <span style={{ fontSize: '12.5px', fontWeight: 500, color: '#1e293b' }}>
+                <span style={{ fontSize: '12.5px', fontWeight: 500 }}>
                   {technician.phoneNumber || '+62 8xx-xxxx-xxxx'}
                 </span>
               </div>
@@ -304,7 +235,7 @@ export function TechnicianDetailModal({
                 >
                   Aktivitas Terakhir
                 </span>
-                <span style={{ fontSize: '12px', color: '#334155' }}>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
                   {technician.lastActiveAt || 'Belum ada aktivitas'}
                 </span>
               </div>
@@ -336,13 +267,11 @@ export function TechnicianDetailModal({
                 {technician.activeWorkOrders.map((wo) => (
                   <div
                     key={wo.ticketNumber}
+                    className="modal-sub-card"
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      background: '#ffffff',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '6px',
                       padding: '10px 14px',
                     }}
                   >
@@ -353,20 +282,11 @@ export function TechnicianDetailModal({
                             fontFamily: 'monospace',
                             fontWeight: 600,
                             fontSize: '12px',
-                            color: '#1b5ca2',
                           }}
                         >
                           {wo.ticketNumber}
                         </span>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                            background: '#f1f5f9',
-                            color: '#475569',
-                          }}
-                        >
+                        <span className="modal-code-chip" style={{ fontSize: '10.5px' }}>
                           {wo.ticketType}
                         </span>
                       </div>
@@ -374,7 +294,6 @@ export function TechnicianDetailModal({
                         style={{
                           fontSize: '12px',
                           fontWeight: 500,
-                          color: '#1e293b',
                           marginTop: '2px',
                         }}
                       >
@@ -395,32 +314,17 @@ export function TechnicianDetailModal({
                       </span>
                       <Link
                         href={`/tickets?search=${wo.ticketNumber}`}
-                        style={{
-                          fontSize: '11px',
-                          color: '#1b5ca2',
-                          textDecoration: 'none',
-                          fontWeight: 500,
-                        }}
+                        className="action-detail-link"
                         onClick={onClose}
                       >
-                        Lihat Tiket â†’
+                        Lihat Tiket →
                       </Link>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div
-                style={{
-                  padding: '14px',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  color: '#64748b',
-                  textAlign: 'center',
-                }}
-              >
+              <div className="modal-empty-box">
                 Tidak ada tiket aktif yang sedang dipegang oleh teknisi ini saat ini.
               </div>
             )}
@@ -428,38 +332,15 @@ export function TechnicianDetailModal({
         </div>
 
         {/* Modal Footer Actions */}
-        <footer
-          style={{
-            padding: '14px 20px',
-            background: '#f8fafc',
-            borderTop: '1px solid #e2e8f0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderRadius: '0 0 12px 12px',
-          }}
-        >
+        <footer className="modal-footer">
           <div role="group" aria-label="Aksi kontrol sesi teknisi" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {canManageTech ? (
               <>
                 {isActiveSession ? (
                   <button
-                    className="button"
+                    className="button modal-danger-btn"
                     disabled={isProcessing}
                     onClick={() => onForceLogout(technician.username)}
-                    style={{
-                      background: '#ffffff',
-                      border: '1px solid #fecdd3',
-                      color: '#b91c1c',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      padding: '7px 14px',
-                      borderRadius: '6px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      transition: 'all 0.15s ease',
-                    }}
                   >
                     <Icon name="logOut" size={13} />
                     {isProcessing ? 'Memproses...' : 'Cabut Sesi (Force Logout)'}
@@ -483,9 +364,6 @@ export function TechnicianDetailModal({
                   disabled={isProcessing}
                   onClick={() => onToggleAccount(technician.username)}
                   style={{
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    color: '#334155',
                     fontSize: '12px',
                     fontWeight: 500,
                     padding: '7px 12px',
@@ -507,16 +385,15 @@ export function TechnicianDetailModal({
           </div>
 
           <button
-            className="button"
+            className="button primary"
             onClick={onClose}
             type="button"
             style={{
-              background: '#0f172a',
-              color: '#ffffff',
-              fontSize: '12px',
-              fontWeight: 500,
               padding: '7px 16px',
               borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 500,
+              cursor: 'pointer',
             }}
           >
             Tutup

@@ -40,68 +40,29 @@ export function SplitterPortGrid({
 }: SplitterPortGridProps) {
   return (
     <section className="odp-table-wrapper" aria-label="Daftar Port Splitter">
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '10px 16px',
-          borderBottom: '1px solid #f1f5f9',
-          background: '#fbfcfd',
-        }}
-      >
-        <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', marginRight: '4px' }}>
+      <header className="odp-port-filter-bar">
+        <span className="odp-port-filter-label">
           Filter Port:
         </span>
-        <nav aria-label="Filter status port" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+        <nav aria-label="Filter status port" className="odp-port-filter-nav">
           <button
             type="button"
             onClick={() => setPortFilter('ALL')}
-            style={{
-              padding: '4px 10px',
-              fontSize: '11.5px',
-              fontWeight: 600,
-              borderRadius: '4px',
-              border: '1px solid',
-              borderColor: portFilter === 'ALL' ? '#0e5b92' : '#dce7f0',
-              background: portFilter === 'ALL' ? '#eef5fa' : '#ffffff',
-              color: portFilter === 'ALL' ? '#0e5b92' : '#64748b',
-              cursor: 'pointer',
-            }}
+            className={`odp-port-filter-btn ${portFilter === 'ALL' ? 'active' : ''}`}
           >
             Semua Port ({activeSplitter.ports.length})
           </button>
           <button
             type="button"
             onClick={() => setPortFilter('OCCUPIED')}
-            style={{
-              padding: '4px 10px',
-              fontSize: '11.5px',
-              fontWeight: 600,
-              borderRadius: '4px',
-              border: '1px solid',
-              borderColor: portFilter === 'OCCUPIED' ? '#0e5b92' : '#dce7f0',
-              background: portFilter === 'OCCUPIED' ? '#eef5fa' : '#ffffff',
-              color: portFilter === 'OCCUPIED' ? '#0e5b92' : '#64748b',
-              cursor: 'pointer',
-            }}
+            className={`odp-port-filter-btn ${portFilter === 'OCCUPIED' ? 'active' : ''}`}
           >
             Terpakai ({activeSplitter.ports.filter((p) => p.isOccupied).length})
           </button>
           <button
             type="button"
             onClick={() => setPortFilter('AVAILABLE')}
-            style={{
-              padding: '4px 10px',
-              fontSize: '11.5px',
-              fontWeight: 600,
-              borderRadius: '4px',
-              border: '1px solid',
-              borderColor: portFilter === 'AVAILABLE' ? '#0e5b92' : '#dce7f0',
-              background: portFilter === 'AVAILABLE' ? '#eef5fa' : '#ffffff',
-              color: portFilter === 'AVAILABLE' ? '#0e5b92' : '#64748b',
-              cursor: 'pointer',
-            }}
+            className={`odp-port-filter-btn ${portFilter === 'AVAILABLE' ? 'active' : ''}`}
           >
             Tersedia ({activeSplitter.ports.filter((p) => !p.isOccupied).length})
           </button>
@@ -280,7 +241,7 @@ export function SplitterPortGrid({
 
                     {/* Expanded Detail Inspeksi Row */}
                     {isExpanded && (
-                      <tr style={{ background: '#f8fafc' }}>
+                      <tr className="odp-table-expanded-row">
                         <td colSpan={8} style={{ padding: '8px 16px 14px 16px' }}>
                           <article className="inline-inspect-box-reference">
                             <header className="inline-inspect-box-title">

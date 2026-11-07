@@ -219,27 +219,17 @@ export function CustomerFilters({
       {isWilayahFilterOpen && (
         <fieldset
           aria-label="Filter Spesifikasi Wilayah"
-          style={{
-            background: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
-            padding: '14px 16px',
-            marginBottom: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-          }}
+          className="customer-filter-subpanel"
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div
+              className="customer-filter-subpanel-title"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
                 fontSize: '12px',
                 fontWeight: 600,
-                color: '#1e3a5f',
               }}
             >
               <Icon name="pin" size={14} />
@@ -295,17 +285,7 @@ export function CustomerFilters({
                   setJalan('Semua jalan');
                 }}
                 aria-label="Filter Kecamatan"
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  padding: '6px 10px',
-                  fontSize: '12px',
-                  color: '#0f172a',
-                  outline: 'none',
-                  height: '32px',
-                  cursor: 'pointer',
-                }}
+                className="customer-filter-select"
               >
                 <option>Semua kecamatan</option>
                 {availableKecamatans.map((k) => (
@@ -336,17 +316,7 @@ export function CustomerFilters({
                   setJalan('Semua jalan');
                 }}
                 aria-label="Filter Kelurahan"
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  padding: '6px 10px',
-                  fontSize: '12px',
-                  color: '#0f172a',
-                  outline: 'none',
-                  height: '32px',
-                  cursor: 'pointer',
-                }}
+                className="customer-filter-select"
               >
                 <option>Semua kelurahan</option>
                 {availableKelurahans.map((kl) => (
@@ -374,17 +344,7 @@ export function CustomerFilters({
                 value={jalan}
                 onChange={(e) => setJalan(e.target.value)}
                 aria-label="Filter Jalan"
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  padding: '6px 10px',
-                  fontSize: '12px',
-                  color: '#0f172a',
-                  outline: 'none',
-                  height: '32px',
-                  cursor: 'pointer',
-                }}
+                className="customer-filter-select"
               >
                 <option>Semua jalan</option>
                 {availableJalans.map((j) => (
@@ -402,59 +362,21 @@ export function CustomerFilters({
       {activeWilayahCount > 0 && (
         <aside
           aria-label="Filter Wilayah Terpilih"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            flexWrap: 'wrap',
-            marginBottom: '14px',
-            padding: '6px 10px',
-            background: '#f0f9ff',
-            border: '1px solid #bae6fd',
-            borderRadius: '6px',
-            fontSize: '11.5px',
-          }}
+          className="customer-active-filter-strip"
         >
-          <span
-            style={{
-              color: '#0369a1',
-              fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
+          <span className="customer-active-filter-title">
             <Icon name="filter" size={12} />
             Filter Wilayah:
           </span>
 
           {kecamatan !== 'Semua kecamatan' && (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: '#ffffff',
-                border: '1px solid #7dd3fc',
-                color: '#0369a1',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 500,
-              }}
-            >
+            <span className="customer-active-filter-badge">
               Kecamatan: <b>{kecamatan}</b>
               <button
                 type="button"
                 onClick={() => setKecamatan('Semua kecamatan')}
                 aria-label="Hapus filter kecamatan"
-                style={{
-                  border: 'none',
-                  background: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
-                  color: '#0369a1',
-                  display: 'flex',
-                }}
+                className="customer-filter-badge-remove"
               >
                 <Icon name="x" size={11} />
               </button>
@@ -462,32 +384,13 @@ export function CustomerFilters({
           )}
 
           {kelurahan !== 'Semua kelurahan' && (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: '#ffffff',
-                border: '1px solid #7dd3fc',
-                color: '#0369a1',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 500,
-              }}
-            >
+            <span className="customer-active-filter-badge">
               Kelurahan: <b>{kelurahan}</b>
               <button
                 type="button"
                 onClick={() => setKelurahan('Semua kelurahan')}
                 aria-label="Hapus filter kelurahan"
-                style={{
-                  border: 'none',
-                  background: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
-                  color: '#0369a1',
-                  display: 'flex',
-                }}
+                className="customer-filter-badge-remove"
               >
                 <Icon name="x" size={11} />
               </button>
@@ -495,32 +398,13 @@ export function CustomerFilters({
           )}
 
           {jalan !== 'Semua jalan' && (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: '#ffffff',
-                border: '1px solid #7dd3fc',
-                color: '#0369a1',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontWeight: 500,
-              }}
-            >
+            <span className="customer-active-filter-badge">
               Jalan: <b>{jalan}</b>
               <button
                 type="button"
                 onClick={() => setJalan('Semua jalan')}
                 aria-label="Hapus filter jalan"
-                style={{
-                  border: 'none',
-                  background: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
-                  color: '#0369a1',
-                  display: 'flex',
-                }}
+                className="customer-filter-badge-remove"
               >
                 <Icon name="x" size={11} />
               </button>

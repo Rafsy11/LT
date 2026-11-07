@@ -87,25 +87,23 @@ export function SettingsView() {
 
         {/* Integrated Clean Section Footer */}
         <footer
+          className="settings-save-footer"
           style={{
             marginTop: '24px',
             padding: '12px 18px',
-            background: '#ffffff',
-            border: '1px solid #e2ecf2',
             borderRadius: '8px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            boxShadow: '0 1px 2px rgba(27, 92, 162, 0.02)',
           }}
         >
-          <div style={{ fontSize: '12px', color: '#64748b' }}>
+          <div style={{ fontSize: '12px' }}>
             {hasChanges ? (
-              <span style={{ color: '#0e5b92', fontWeight: 600 }}>
+              <span className="settings-footer-alert" style={{ fontWeight: 600 }}>
                 ● Terdapat perubahan konfigurasi yang belum disimpan.
               </span>
             ) : (
-              <span>
+              <span className="settings-footer-text">
                 Konfigurasi tersinkronisasi penuh dengan server on-premise PostgreSQL &amp; Docker.
               </span>
             )}
@@ -116,14 +114,8 @@ export function SettingsView() {
               type="button"
               onClick={() => window.location.reload()}
               disabled={loading || isSaving || !hasChanges}
+              className="settings-reset-btn"
               style={{
-                padding: '7px 14px',
-                fontSize: '12px',
-                fontWeight: 500,
-                color: '#475569',
-                border: '1px solid #dce7f0',
-                borderRadius: '6px',
-                background: '#ffffff',
                 cursor: !hasChanges ? 'not-allowed' : 'pointer',
                 opacity: !hasChanges ? 0.6 : 1,
               }}
@@ -134,14 +126,8 @@ export function SettingsView() {
             <button
               type="submit"
               disabled={!isSuperAdmin || isSaving || !hasChanges}
+              className="settings-submit-btn"
               style={{
-                padding: '7px 18px',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: '#ffffff',
-                background: !isSuperAdmin || !hasChanges ? '#94a3b8' : '#0e5b92',
-                border: 'none',
-                borderRadius: '6px',
                 cursor: !isSuperAdmin || !hasChanges ? 'not-allowed' : 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',

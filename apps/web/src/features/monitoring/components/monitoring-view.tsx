@@ -3,6 +3,7 @@
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { TicketDetailModal } from '@/features/tickets';
+import { MonitoringSkeleton } from '@/components/ui/PageSkeleton';
 import { useMonitoring } from '../hooks/use-monitoring';
 import { MonitoringStats } from './monitoring-stats';
 import { MonitoringIncidentBar } from './monitoring-incident-bar';
@@ -48,6 +49,10 @@ export function MonitoringView() {
     window.addEventListener('app:refresh-data', handleGlobalRefresh);
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
   }, [fetchInitialReports]);
+
+  if (loading && scopedReports.length === 0) {
+    return <MonitoringSkeleton />;
+  }
 
   return (
     <main className="monitoring-page" id="main-content">

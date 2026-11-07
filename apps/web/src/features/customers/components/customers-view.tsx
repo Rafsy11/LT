@@ -65,21 +65,7 @@ export function CustomersView() {
         </div>
 
         <nav className="overview-toolbar" aria-label="Aksi bilah status pelanggan">
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              background: '#ffffff',
-              border: '1px solid #dce7f0',
-              borderRadius: '6px',
-              fontSize: '11.5px',
-              fontWeight: 500,
-              color: '#334155',
-              boxShadow: '0 1px 2px rgba(27, 92, 162, 0.03)',
-            }}
-          >
+          <div className="overview-status-pill">
             <span
               style={{
                 width: '6px',
@@ -138,7 +124,11 @@ export function CustomersView() {
         />
 
         {/* High-Agency Enterprise Data Table */}
-        <CustomerTable customers={displayedCustomers} onSelectCustomer={setSelectedCustomer} />
+        <CustomerTable
+          customers={displayedCustomers}
+          onSelectCustomer={setSelectedCustomer}
+          loading={loading}
+        />
       </section>
 
       {/* Customer Detail & Attenuation Histories Modal */}

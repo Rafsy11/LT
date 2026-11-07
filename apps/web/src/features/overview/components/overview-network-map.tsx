@@ -27,6 +27,7 @@ export function OverviewNetworkMap() {
             <defs>
               <pattern id="cleanGrid" width="40" height="40" patternUnits="userSpaceOnUse">
                 <path
+                  className="map-grid-line"
                   d="M 40 0 L 0 0 0 40"
                   fill="none"
                   stroke="#e8f2f8"
@@ -37,11 +38,12 @@ export function OverviewNetworkMap() {
             </defs>
 
             {/* Base Surface */}
-            <rect width="800" height="300" fill="#f7fafd" />
+            <rect className="map-base-rect" width="800" height="300" fill="#f7fafd" />
             <rect width="800" height="300" fill="url(#cleanGrid)" />
 
             {/* River / Fiber Spine Arterial Trace */}
             <path
+              className="map-river-bg"
               d="M80 0Q150 80 310 100T440 210T780 300"
               fill="none"
               stroke="#e0edf7"
@@ -49,6 +51,7 @@ export function OverviewNetworkMap() {
               strokeLinecap="round"
             />
             <path
+              className="map-river-fg"
               d="M80 0Q150 80 310 100T440 210T780 300"
               fill="none"
               stroke="#bfdaf0"
@@ -57,8 +60,9 @@ export function OverviewNetworkMap() {
             />
 
             {/* Road Network Grid Lines */}
-            <path d="M0 230 800 60 M270 0 500 300 M0 80 800 190" stroke="#ffffff" strokeWidth="8" />
+            <path className="map-road-bg" d="M0 230 800 60 M270 0 500 300 M0 80 800 190" stroke="#ffffff" strokeWidth="8" />
             <path
+              className="map-road-fg"
               d="M0 230 800 60 M270 0 500 300 M0 80 800 190"
               stroke="#e5eef5"
               strokeWidth="2.5"
@@ -66,6 +70,7 @@ export function OverviewNetworkMap() {
 
             {/* Cluster Zones with Lintasarta Blue Polygons */}
             <polygon
+              className="map-zone-poly"
               points="140,45 285,35 330,130 220,190 120,140"
               fill="#1b5ca2"
               fillOpacity="0.06"
@@ -74,6 +79,7 @@ export function OverviewNetworkMap() {
               strokeDasharray="5 4"
             />
             <polygon
+              className="map-zone-poly"
               points="440,65 640,80 695,200 550,230 425,165"
               fill="#1b5ca2"
               fillOpacity="0.06"
@@ -100,9 +106,10 @@ export function OverviewNetworkMap() {
               const halo = isCrit ? '#fee2e2' : isWarn ? '#fef3c7' : '#dcfce7';
 
               return (
-                <g key={i}>
-                  <circle cx={node.x} cy={node.y} r={isCrit ? '12' : '9'} fill={halo} />
+                <g key={i} className="map-node-group">
+                  <circle className="map-node-halo" cx={node.x} cy={node.y} r={isCrit ? '12' : '9'} fill={halo} />
                   <circle
+                    className="map-node-dot"
                     cx={node.x}
                     cy={node.y}
                     r="4"
@@ -116,21 +123,22 @@ export function OverviewNetworkMap() {
 
             {/* Topographic Typography matching image.png */}
             <g
+              className="map-city-labels"
               fill="#475569"
               fontSize="13"
               fontWeight="600"
               fontFamily="Plus Jakarta Sans, sans-serif"
             >
-              <text x="330" y="38" fill="#334155" fontWeight="600">
+              <text className="map-label-sub" x="330" y="38" fill="#334155" fontWeight="600">
                 Bandung Utara
               </text>
-              <text x="305" y="152" fontSize="16" fontWeight="800" fill="#0f172a">
+              <text className="map-label-main" x="305" y="152" fontSize="16" fontWeight="800" fill="#0f172a">
                 Bandung
               </text>
-              <text x="75" y="210" fill="#64748b" fontWeight="500">
+              <text className="map-label-sub" x="75" y="210" fill="#64748b" fontWeight="500">
                 Sukajadi
               </text>
-              <text x="560" y="240" fill="#64748b" fontWeight="500">
+              <text className="map-label-sub" x="560" y="240" fill="#64748b" fontWeight="500">
                 Antapani
               </text>
             </g>

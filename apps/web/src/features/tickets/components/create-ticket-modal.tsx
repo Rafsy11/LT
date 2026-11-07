@@ -81,14 +81,6 @@ export function CreateTicketModal({
           <aside
             className="permission-lock-notice"
             role="alert"
-            style={{
-              margin: '16px 20px',
-              padding: '12px 14px',
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
-              borderRadius: '6px',
-              color: '#991b1b',
-            }}
           >
             <b>Akses Dibatasi:</b> Akun Anda tidak memiliki izin <code>ticket:create</code>. Tombol
             pembuatan tiket dikunci demi keamanan.

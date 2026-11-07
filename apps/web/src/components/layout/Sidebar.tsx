@@ -4,12 +4,14 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
-import { useAuth } from '@/providers';
+import { useAuth, useTheme } from '@/providers';
 
 interface SidebarProps {
   ticketCount?: number;
   isOpen?: boolean;
   onClose?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 interface NavItem {
@@ -21,9 +23,22 @@ interface NavItem {
   tag?: string;
 }
 
-export function Sidebar({ ticketCount = 3, isOpen = false, onClose }: SidebarProps) {
+export function Sidebar({
+  ticketCount = 3,
+  isOpen = false,
+  onClose,
+  isCollapsed = false,
+  onToggleCollapse,
+}: SidebarProps) {
   const pathname = usePathname();
   const { user, logout, isLoggingOut } = useAuth();
+  const { theme } = useTheme();
+
+  const logoSrc = isCollapsed
+    ? '/assets/Logo.svg'
+    : theme === 'dark'
+      ? '/assets/Lintasarta-Logo-Dark.svg'
+      : '/assets/Lintasarta-Logo.svg';
 
   const navItems: NavItem[] = [
     { label: 'Overview', href: '/', icon: 'home' },
@@ -45,56 +60,86 @@ export function Sidebar({ ticketCount = 3, isOpen = false, onClose }: SidebarPro
   };
 
   return (
-    <aside className={`sidebar ${isOpen ? 'open' : ''}`} aria-label="Sidebar Navigasi">
-      <div className="sidebar-header-row">
-        <Link
-          href="/"
-          className="brand lintasarta-brand-wrap"
-          aria-label="Beranda Lintasarta"
-          onClick={onClose}
-        >
-          <img src="/assets/lintasarta-logo.svg" alt="Lintasarta" className="brand-logo-img" />
-        </Link>
+    <>
+      <aside
+        className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}
+        aria-label="Sidebar Navigasi"
+      >
+        <div className="sidebar-header-row">
+          <Link
+            href="/"
+            className="brand lintasarta-brand-wrap"
+            aria-label="Beranda Lintasarta"
+            onClick={onClose}
+          >
+            <img
+              src={logoSrc}
+              alt="Lintasarta"
+              className="brand-logo-img"
+              style={{
+                height: isCollapsed ? '38px' : '46px',
+                width: isCollapsed ? '38px' : 'auto',
+                maxWidth: isCollapsed ? '38px' : '204px',
+                objectFit: 'contain',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+            />
+          </Link>
+          <button
+            type="button"
+            className="sidebar-close-btn"
+            onClick={onClose}
+            aria-label="Tutup menu navigasi"
+          >
+            <Icon name="x" size={20} />
+          </button>
+        </div>
+
+        <section className="sidebar-workspace-section" aria-label="Workspace">
+          <h2 className="nav-label">WORKSPACE</h2>
+          <nav aria-label="Navigasi Utama">
+            {navItems.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`nav-item ${active ? 'active' : ''}`}
+                  aria-current={active ? 'page' : undefined}
+                  onClick={onClose}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <Icon name={item.icon} size={18} />
+                  <span>{item.label}</span>
+                  {active && item.href === '/' && (
+                    <span className="nav-active-dot" aria-hidden="true" />
+                  )}
+                  {item.hasLiveDot && <i className="green-dot" aria-label="Status Live Aktif" />}
+                  {item.tag && <span className="ai-tag">{item.tag}</span>}
+                  {item.count !== undefined && (
+                    <span className="nav-count" aria-label={`${item.count} tiket`}>
+                      {item.count}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+        </section>
+      </aside>
+
+      {/* Floating Toggle Button at Junction Corner (Sidebar + Header + Page) */}
+      {onToggleCollapse && (
         <button
           type="button"
-          className="sidebar-close-btn"
-          onClick={onClose}
-          aria-label="Tutup menu navigasi"
+          className={`sidebar-toggle-btn ${isCollapsed ? 'collapsed' : ''}`}
+          onClick={onToggleCollapse}
+          aria-label={isCollapsed ? 'Perlebar sidebar navigasi' : 'Ciutkan sidebar navigasi'}
+          title={isCollapsed ? 'Perlebar sidebar navigasi' : 'Ciutkan sidebar navigasi'}
         >
-          <Icon name="x" size={20} />
+          <Icon name={isCollapsed ? 'chevronRight' : 'chevronLeft'} size={14} />
         </button>
-      </div>
-
-      <section className="sidebar-workspace-section" aria-label="Workspace">
-        <h2 className="nav-label">WORKSPACE</h2>
-        <nav aria-label="Navigasi Utama">
-          {navItems.map((item) => {
-            const active = isActive(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`nav-item ${active ? 'active' : ''}`}
-                aria-current={active ? 'page' : undefined}
-                onClick={onClose}
-              >
-                <Icon name={item.icon} size={18} />
-                <span>{item.label}</span>
-                {active && item.href === '/' && (
-                  <span className="nav-active-dot" aria-hidden="true" />
-                )}
-                {item.hasLiveDot && <i className="green-dot" aria-label="Status Live Aktif" />}
-                {item.tag && <span className="ai-tag">{item.tag}</span>}
-                {item.count !== undefined && (
-                  <span className="nav-count" aria-label={`${item.count} tiket`}>
-                    {item.count}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-      </section>
-    </aside>
+      )}
+    </>
   );
 }

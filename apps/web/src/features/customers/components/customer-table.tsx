@@ -2,29 +2,74 @@ import React from 'react';
 import { Icon } from '@/components/ui/Icon';
 import type { CustomerListItem } from '@repo/shared';
 import { SignalStrengthBars } from './signal-strength-bars';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface CustomerTableProps {
   customers: CustomerListItem[];
   onSelectCustomer: (customer: CustomerListItem) => void;
+  loading?: boolean;
 }
 
-export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProps) {
+export function CustomerTable({ customers, onSelectCustomer, loading }: CustomerTableProps) {
+  if (loading) {
+    return (
+      <div className="table-scroll" tabIndex={0} role="region" aria-label="Tabel Direktori Pelanggan" aria-busy="true">
+        <table className="lintasarta-table customer-table">
+          <thead>
+            <tr>
+              <th scope="col">Pelanggan &amp; Nomor SIA</th>
+              <th scope="col">Alamat Instalasi</th>
+              <th scope="col">Cluster</th>
+              <th scope="col">Splitter &amp; Port</th>
+              <th scope="col">Status Layanan</th>
+              <th scope="col">Redaman Terakhir</th>
+              <th scope="col" style={{ textAlign: 'right' }}>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <tr key={idx} className="skeleton-row" aria-hidden="true">
+                <td>
+                  <Skeleton width="65%" height={16} />
+                </td>
+                <td style={{ maxWidth: '300px' }}>
+                  <Skeleton width="85%" height={14} />
+                </td>
+                <td>
+                  <Skeleton width={80} height={20} borderRadius={10} />
+                </td>
+                <td>
+                  <Skeleton width={65} height={14} />
+                </td>
+                <td>
+                  <Skeleton width={60} height={20} borderRadius={10} />
+                </td>
+                <td>
+                  <Skeleton width={90} height={14} />
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  <Skeleton width={28} height={28} borderRadius={6} style={{ display: 'inline-block' }} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   return (
     <div className="table-scroll" tabIndex={0} role="region" aria-label="Tabel Direktori Pelanggan">
-      <table
-        style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}
-      >
+      <table className="lintasarta-table customer-table">
         <thead>
-          <tr
-            style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}
-          >
-            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600 }}>Pelanggan &amp; Nomor SIA</th>
-            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600 }}>Alamat Instalasi</th>
-            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600 }}>Cluster</th>
-            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600 }}>Splitter &amp; Port</th>
-            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600 }}>Status Layanan</th>
-            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600 }}>Redaman Terakhir</th>
-            <th scope="col" style={{ padding: '10px 14px', fontWeight: 600, textAlign: 'right' }}>Aksi</th>
+          <tr>
+            <th scope="col">Pelanggan &amp; Nomor SIA</th>
+            <th scope="col">Alamat Instalasi</th>
+            <th scope="col">Cluster</th>
+            <th scope="col">Splitter &amp; Port</th>
+            <th scope="col">Status Layanan</th>
+            <th scope="col">Redaman Terakhir</th>
+            <th scope="col" style={{ textAlign: 'right' }}>Aksi</th>
           </tr>
         </thead>
         <tbody>
@@ -40,62 +85,28 @@ export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProp
                   onSelectCustomer(c);
                 }
               }}
-              style={{
-                borderBottom: '1px solid #f1f5f9',
-                transition: 'background 0.15s ease',
-                cursor: 'pointer',
-              }}
               onClick={() => onSelectCustomer(c)}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
-              <td style={{ padding: '12px 14px' }}>
-                <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '13px' }}>
+              <td>
+                <div className="customer-name-heading">
                   {c.fullName}
                 </div>
                 <div style={{ marginTop: '2px' }}>
-                  <span
-                    style={{
-                      fontFamily: 'monospace',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      padding: '1px 6px',
-                      background: '#f1f5f9',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '4px',
-                      color: '#0e5b92',
-                    }}
-                  >
+                  <span className="customer-sia-mono">
                     {c.siaNumber}
                   </span>
                 </div>
               </td>
 
-              <td style={{ padding: '12px 14px', color: '#475569', maxWidth: '300px' }}>
+              <td style={{ maxWidth: '300px' }}>
                 <div
                   style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}
                   title={c.address}
                 >
-                  <span
-                    style={{
-                      fontWeight: 500,
-                      color: '#0f172a',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
+                  <span className="customer-street-name">
                     {c.street || c.address.split(',')[0]}
                   </span>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      color: '#64748b',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '3px',
-                    }}
-                  >
+                  <span className="customer-address-sub">
                     <Icon name="pin" size={11} />
                     {c.kelurahan && c.kecamatan
                       ? `Kel. ${c.kelurahan}, Kec. ${c.kecamatan}`
@@ -104,21 +115,21 @@ export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProp
                 </div>
               </td>
 
-              <td style={{ padding: '12px 14px' }}>
-                <span style={{ fontWeight: 500, color: '#334155' }}>{c.cluster}</span>
-                <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block' }}>
+              <td>
+                <span className="customer-cluster-name">{c.cluster}</span>
+                <span className="customer-cluster-code">
                   {c.clusterCode}
                 </span>
               </td>
 
-              <td style={{ padding: '12px 14px' }}>
-                <div style={{ fontWeight: 600, color: '#0f172a' }}>{c.splitterCode}</div>
-                <div style={{ fontSize: '11px', color: '#0e5b92', fontFamily: 'monospace' }}>
+              <td>
+                <div className="customer-splitter-name">{c.splitterCode}</div>
+                <div className="customer-port-name">
                   Port #{c.portNumber}
                 </div>
               </td>
 
-              <td style={{ padding: '12px 14px' }}>
+              <td>
                 <span className="customer-status-badge">
                   <span
                     className={`customer-status-dot ${
@@ -143,16 +154,8 @@ export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProp
                 </span>
               </td>
 
-              <td style={{ padding: '12px 14px' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    fontWeight: 600,
-                    fontSize: '12.5px',
-                    color: '#0f172a',
-                  }}
-                >
+              <td>
+                <div className="customer-dbm-row">
                   <span>{c.currentAttenuation.toFixed(1)} dBm</span>
                   <SignalStrengthBars
                     status={
@@ -164,7 +167,7 @@ export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProp
                     }
                   />
                 </div>
-                <span style={{ fontSize: '10.5px', color: '#64748b' }}>
+                <span className="customer-dbm-label">
                   {c.currentAttenuation >= -22.0 && c.currentAttenuation <= -15.0
                     ? 'Normal'
                     : c.currentAttenuation < -22.0 && c.currentAttenuation >= -25.0
@@ -173,26 +176,13 @@ export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProp
                 </span>
               </td>
 
-              <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+              <td style={{ textAlign: 'right' }}>
                 <button
                   type="button"
-                  className="button"
+                  className="button customer-action-btn"
                   onClick={(e) => {
                     e.stopPropagation();
                     onSelectCustomer(c);
-                  }}
-                  style={{
-                    padding: '5px 10px',
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '11px',
-                    fontWeight: 500,
-                    color: '#334155',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
                   }}
                 >
                   Detail SIA
@@ -204,18 +194,7 @@ export function CustomerTable({ customers, onSelectCustomer }: CustomerTableProp
       </table>
 
       {customers.length === 0 && (
-        <div
-          style={{
-            padding: '48px 24px',
-            textAlign: 'center',
-            color: '#94a3b8',
-            fontSize: '13px',
-            background: '#f8fafc',
-            borderRadius: '8px',
-            border: '1px dashed #cbd5e1',
-            margin: '16px 0',
-          }}
-        >
+        <div className="customer-table-empty">
           Data pelanggan tidak ditemukan untuk filter ini.
         </div>
       )}

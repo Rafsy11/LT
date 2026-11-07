@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
-import { useAuth } from '@/providers';
+import { useAuth, useTheme } from '@/providers';
 import { PERMISSIONS } from '@repo/shared';
 
 interface HeaderProps {
@@ -23,6 +23,7 @@ export function Header({
   const noticeWrapRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { hasPermission, user, logout, isLoggingOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (!notice) return;
@@ -124,6 +125,16 @@ export function Header({
           >
             <Icon name="settings" size={19} />
           </Link>
+
+          <button
+            type="button"
+            className={`icon-button header-action-btn theme-switcher-btn ${theme === 'dark' ? 'dark-active' : ''}`}
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Beralih ke Mode Terang (Light Mode)' : 'Beralih ke Mode Gelap (Dark Mode)'}
+            aria-label={theme === 'dark' ? 'Beralih ke Mode Terang' : 'Beralih ke Mode Gelap'}
+          >
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
+          </button>
         </nav>
 
         <div className="header-divider" aria-hidden="true" />

@@ -23,10 +23,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const title = pageTitleMap[pathname] || 'Dashboard';
   const [ticketCount, setTicketCount] = useState(24);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
+
+  // Restore persisted collapsed state from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('fiberops_sidebar_collapsed');
+      if (saved !== null) {
+        setIsSidebarCollapsed(saved === 'true');
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleToggleSidebarCollapse = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('fiberops_sidebar_collapsed', String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     fetch('/api/v1/admin/tickets')
@@ -51,8 +76,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         ticketCount={ticketCount}
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={handleToggleSidebarCollapse}
       />
-      <div className="main">
+      <div className={`main ${isSidebarCollapsed ? 'sidebar-collapsed collapsed' : ''}`}>
         <Header
           pageTitle={title}
           isMobileMenuOpen={isMobileMenuOpen}

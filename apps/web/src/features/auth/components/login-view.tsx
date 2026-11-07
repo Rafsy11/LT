@@ -43,7 +43,16 @@ export function LoginView() {
       <article className="auth-card">
         <header className="auth-header">
           <div className="auth-brand-bar">
-            <img src="/assets/Logo.png" alt="Lintasarta" className="auth-brand-logo" />
+            <img
+              src="/assets/Lintasarta-Logo.svg"
+              alt="Lintasarta"
+              className="auth-brand-logo auth-brand-logo-light"
+            />
+            <img
+              src="/assets/Lintasarta-Logo-Dark.svg"
+              alt="Lintasarta"
+              className="auth-brand-logo auth-brand-logo-dark"
+            />
           </div>
         </header>
 

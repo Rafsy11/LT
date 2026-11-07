@@ -19,15 +19,7 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
       aria-label="Validasi Lapangan & Geofencing"
     >
       {/* Left: Geofencing Radius & Location Policy */}
-      <article
-        style={{
-          background: '#ffffff',
-          border: '1px solid #e2ecf2',
-          borderRadius: '8px',
-          padding: '22px',
-          boxShadow: '0 1px 3px rgba(27, 92, 162, 0.02)',
-        }}
-      >
+      <article className="settings-card">
         <header>
           <h2 style={{ fontSize: '15px', fontWeight: 600, color: '#182230', margin: '0 0 4px 0' }}>
             Batas Toleransi Geofencing Teknisi Lapangan
@@ -71,21 +63,15 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
             <div
               key={item.val}
               onClick={() => isSuperAdmin && handleChange('geofenceRadiusMeters', item.val)}
+              className={`settings-option-card ${settings.geofenceRadiusMeters === item.val ? 'active' : ''}`}
               style={{
-                padding: '14px 12px',
-                borderRadius: '6px',
-                border: `1.5px solid ${settings.geofenceRadiusMeters === item.val ? '#0e5b92' : '#e2ecf2'}`,
-                background: settings.geofenceRadiusMeters === item.val ? '#f0f7ff' : '#ffffff',
                 cursor: isSuperAdmin ? 'pointer' : 'default',
-                transition: 'all 0.15s ease',
               }}
             >
-              <div
-                style={{ fontWeight: 600, fontSize: '13px', color: '#182230', marginBottom: '3px' }}
-              >
+              <div className="settings-option-title">
                 {item.title}
               </div>
-              <div style={{ fontSize: '11.5px', color: '#64748b', lineHeight: 1.35 }}>
+              <div className="settings-option-desc">
                 {item.desc}
               </div>
             </div>
@@ -114,18 +100,8 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <label
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '12px',
-                padding: '12px 14px',
-                borderRadius: '6px',
-                border: `1.5px solid ${settings.locationViolationPolicy === 'SOFT_WARNING' ? '#0e5b92' : '#e2ecf2'}`,
-                background:
-                  settings.locationViolationPolicy === 'SOFT_WARNING' ? '#f0f7ff' : '#ffffff',
-                cursor: isSuperAdmin ? 'pointer' : 'default',
-                transition: 'all 0.15s ease',
-              }}
+              className={`settings-policy-radio-card ${settings.locationViolationPolicy === 'SOFT_WARNING' ? 'active' : ''}`}
+              style={{ cursor: isSuperAdmin ? 'pointer' : 'default' }}
             >
               <input
                 type="radio"
@@ -136,12 +112,10 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
                 style={{ marginTop: '2px' }}
               />
               <div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#182230' }}>
+                <div className="settings-policy-radio-title">
                   Tandai untuk Ditinjau Admin (Soft Warning · LOCATION_MISMATCH_WARNING)
                 </div>
-                <div
-                  style={{ fontSize: '12px', color: '#515a62', marginTop: '2px', lineHeight: 1.4 }}
-                >
+                <div className="settings-policy-radio-desc">
                   Laporan tetap tersimpan ke PostgreSQL agar pekerjaan lapangan tidak tertunda,
                   namun disorot dengan badge merah pada Live Monitoring untuk verifikasi Admin/NOC.
                 </div>
@@ -149,18 +123,8 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
             </label>
 
             <label
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '12px',
-                padding: '12px 14px',
-                borderRadius: '6px',
-                border: `1.5px solid ${settings.locationViolationPolicy === 'HARD_BLOCK' ? '#0e5b92' : '#e2ecf2'}`,
-                background:
-                  settings.locationViolationPolicy === 'HARD_BLOCK' ? '#f0f7ff' : '#ffffff',
-                cursor: isSuperAdmin ? 'pointer' : 'default',
-                transition: 'all 0.15s ease',
-              }}
+              className={`settings-policy-radio-card ${settings.locationViolationPolicy === 'HARD_BLOCK' ? 'active' : ''}`}
+              style={{ cursor: isSuperAdmin ? 'pointer' : 'default' }}
             >
               <input
                 type="radio"
@@ -171,12 +135,10 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
                 style={{ marginTop: '2px' }}
               />
               <div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#182230' }}>
+                <div className="settings-policy-radio-title">
                   Tolak Laporan Langsung (Hard Block · HTTP 400 Out of Geofence)
                 </div>
-                <div
-                  style={{ fontSize: '12px', color: '#515a62', marginTop: '2px', lineHeight: 1.4 }}
-                >
+                <div className="settings-policy-radio-desc">
                   Backend langsung menolak transaksi dan aplikasi mobile menampilkan peringatan agar
                   teknisi berpindah mendekati tiang ODP yang benar sebelum mengirim data.
                 </div>
@@ -191,15 +153,7 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
         aria-label="Perlindungan Integritas & Anti-Fake GPS"
         style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
       >
-        <article
-          style={{
-            background: '#ffffff',
-            border: '1px solid #e2ecf2',
-            borderRadius: '8px',
-            padding: '22px',
-            boxShadow: '0 1px 3px rgba(27, 92, 162, 0.02)',
-          }}
-        >
+        <article className="settings-card">
           <header>
             <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#182230', margin: '0 0 12px 0' }}>
               Perlindungan Integritas &amp; Anti-Fake GPS
@@ -237,7 +191,7 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
                   }}
                 >
                   Memeriksa bendera sistem operasi Android (
-                  <code style={{ background: '#f1f5f9', padding: '1px 4px' }}>location.mocked</code>
+                  <code className="settings-inline-code">location.mocked</code>
                   ). Tombol submit dikunci seketika jika aplikasi fake GPS aktif.
                 </span>
               </div>
@@ -249,7 +203,7 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
                   display: 'block',
                   fontSize: '12.5px',
                   fontWeight: 600,
-                  color: '#334155',
+                  color: 'inherit',
                   marginBottom: '4px',
                 }}
               >
@@ -257,7 +211,7 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
               </label>
               <p style={{ fontSize: '11.5px', color: '#64748b', margin: '0 0 8px 0' }}>
                 Request dari aplikasi mobile yang menyertakan header{' '}
-                <code style={{ background: '#f1f5f9', padding: '1px 4px' }}>X-App-Version</code> di
+                <code className="settings-inline-code">X-App-Version</code> di
                 bawah versi ini akan menerima respon <b>HTTP 426 Upgrade Required</b>.
               </p>
               <input
@@ -266,14 +220,13 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
                 disabled={!isSuperAdmin}
                 onChange={(e) => handleChange('minAppVersion', e.target.value)}
                 placeholder="1.0.0"
+                className="settings-mono-input"
                 style={{
                   width: '120px',
                   padding: '7px 10px',
                   borderRadius: '6px',
-                  border: '1px solid #dce7f0',
                   fontSize: '13px',
                   fontFamily: 'monospace',
-                  color: '#182230',
                 }}
               />
             </div>

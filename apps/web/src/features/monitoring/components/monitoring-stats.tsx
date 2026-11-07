@@ -33,10 +33,9 @@ export function MonitoringStats({
         }}
         aria-label="Filter semua laporan masuk"
       >
-        <span className="stat-card-ribbon blue">LIVE STREAM</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round blue">
+            <span className="stat-card-icon-round">
               <Icon name="activity" size={17} />
             </span>
             <div className="stat-card-text">
@@ -63,10 +62,9 @@ export function MonitoringStats({
         }}
         aria-label="Filter laporan redaman normal"
       >
-        <span className="stat-card-ribbon green">OPTIMAL</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round green">
+            <span className="stat-card-icon-round">
               <Icon name="check" size={17} />
             </span>
             <div className="stat-card-text">
@@ -93,10 +91,9 @@ export function MonitoringStats({
         }}
         aria-label="Filter laporan redaman warning"
       >
-        <span className="stat-card-ribbon amber">WASPADA</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round amber">
+            <span className="stat-card-icon-round">
               <Icon name="alert" size={17} />
             </span>
             <div className="stat-card-text">
@@ -123,15 +120,14 @@ export function MonitoringStats({
         }}
         aria-label="Filter laporan redaman kritis"
       >
-        <span className="stat-card-ribbon red">INSIDEN</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round red">
+            <span className="stat-card-icon-round">
               <Icon name="zap" size={17} />
             </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Critical (&lt; -25 dBm / Drop)</span>
-              <div className="stat-card-value" style={{ color: '#be123c' }}>{criticalCount}</div>
+              <div className="stat-card-value">{criticalCount}</div>
             </div>
           </div>
           <div className="stat-card-footer">

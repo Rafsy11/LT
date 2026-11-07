@@ -22,6 +22,22 @@ export interface RoleDirectoryTableProps {
   getRoleBadgeStyle: (roleName: string) => React.CSSProperties;
 }
 
+function getRoleBadgeSlug(roleName: string): string {
+  switch (roleName) {
+    case 'Super Admin':
+      return 'super-admin';
+    case 'Admin Operasional':
+      return 'admin-ops';
+    case 'NOC Monitoring':
+      return 'noc';
+    case 'Customer Support':
+      return 'support';
+    case 'Teknisi Lapangan':
+    default:
+      return 'field-tech';
+  }
+}
+
 export function RoleDirectoryTable({
   searchQuery,
   setSearchQuery,
@@ -54,17 +70,8 @@ export function RoleDirectoryTable({
         <search
           role="search"
           aria-label="Cari pengguna"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: '#ffffff',
-            border: '1px solid #dce7f0',
-            borderRadius: '6px',
-            padding: '6px 12px',
-            width: '260px',
-            color: '#64748b',
-          }}
+          className="table-search-box"
+          style={{ width: '260px' }}
         >
           <Icon name="search" size={14} />
           <input
@@ -72,15 +79,6 @@ export function RoleDirectoryTable({
             placeholder="Cari nama, email, username..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              outline: 'none',
-              width: '100%',
-              fontSize: '12px',
-              color: '#0f172a',
-              padding: 0,
-            }}
           />
           {searchQuery && (
             <button
@@ -105,17 +103,7 @@ export function RoleDirectoryTable({
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
           aria-label="Filter Peran"
-          style={{
-            background: '#ffffff',
-            border: '1px solid #dce7f0',
-            borderRadius: '6px',
-            padding: '6px 10px',
-            fontSize: '12px',
-            color: '#334155',
-            height: '32px',
-            cursor: 'pointer',
-            outline: 'none',
-          }}
+          className="role-filter-select"
         >
           <option>Semua Peran</option>
           <option>Super Admin</option>
@@ -130,17 +118,7 @@ export function RoleDirectoryTable({
           value={clusterFilter}
           onChange={(e) => setClusterFilter(e.target.value)}
           aria-label="Filter Wilayah"
-          style={{
-            background: '#ffffff',
-            border: '1px solid #dce7f0',
-            borderRadius: '6px',
-            padding: '6px 10px',
-            fontSize: '12px',
-            color: '#334155',
-            height: '32px',
-            cursor: 'pointer',
-            outline: 'none',
-          }}
+          className="role-filter-select"
         >
           <option>Semua Wilayah</option>
           <option>Global Scope</option>
@@ -188,18 +166,14 @@ export function RoleDirectoryTable({
                 </td>
               </tr>
             ) : (
-              filteredUsers.map((u, idx) => {
+              filteredUsers.map((u) => {
                 const isCurrentUser = currentUsername === u.username;
                 const badgeStyle = getRoleBadgeStyle(u.role);
 
                 return (
                   <tr
                     key={u.id}
-                    style={{
-                      borderBottom: '1px solid #f1f5f9',
-                      background: idx % 2 === 0 ? '#ffffff' : '#fafcff',
-                      transition: 'background 0.15s ease',
-                    }}
+                    className="role-user-row"
                   >
                     {/* User Avatar + Name + Email */}
                     <td style={{ padding: '14px 16px' }}>
@@ -207,9 +181,9 @@ export function RoleDirectoryTable({
                         <DefaultAvatar size={34} name={u.name} />
                         <div>
                           <div
+                            className="role-user-name"
                             style={{
                               fontWeight: 600,
-                              color: '#0f172a',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '6px',
@@ -217,16 +191,7 @@ export function RoleDirectoryTable({
                           >
                             {u.name}
                             {isCurrentUser && (
-                              <span
-                                style={{
-                                  fontSize: '10px',
-                                  background: '#f1f5f9',
-                                  color: '#475569',
-                                  padding: '1px 5px',
-                                  borderRadius: '4px',
-                                  fontWeight: 500,
-                                }}
-                              >
+                              <span className="role-self-badge">
                                 Anda
                               </span>
                             )}
@@ -238,33 +203,16 @@ export function RoleDirectoryTable({
                       </div>
                     </td>
 
-                    {/* Role Pill Badge */}
+                    {/* User Role (Clean Typography, Anti-Slop) */}
                     <td style={{ padding: '14px 16px' }}>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          padding: '3px 10px',
-                          borderRadius: '6px',
-                          fontSize: '11.5px',
-                          fontWeight: 600,
-                          ...badgeStyle,
-                        }}
-                      >
+                      <span className="role-name-clean">
                         {u.role}
                       </span>
                     </td>
 
                     {/* Cluster / Wilayah */}
                     <td style={{ padding: '14px 16px' }}>
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          fontSize: '11.5px',
-                          color: '#334155',
-                        }}
-                      >
+                      <span className="role-cluster-text">
                         {u.cluster}
                       </span>
                     </td>
@@ -331,18 +279,7 @@ export function RoleDirectoryTable({
                         <button
                           type="button"
                           onClick={() => onInspectRolePermissions(u.role)}
-                          style={{
-                            padding: '5px 12px',
-                            borderRadius: '6px',
-                            fontSize: '11.5px',
-                            fontWeight: 500,
-                            background: '#ffffff',
-                            border: '1px solid #dce7f0',
-                            color: '#0e5b92',
-                            cursor: 'pointer',
-                            boxShadow: '0 1px 2px rgba(14, 91, 146, 0.04)',
-                            transition: 'all 0.15s ease',
-                          }}
+                          className="role-action-btn"
                         >
                           Atur Izin
                         </button>
@@ -350,17 +287,7 @@ export function RoleDirectoryTable({
                         <button
                           type="button"
                           onClick={() => onEditUserRole(u)}
-                          style={{
-                            padding: '5px 10px',
-                            borderRadius: '6px',
-                            fontSize: '11.5px',
-                            fontWeight: 500,
-                            background: '#f8fafc',
-                            border: '1px solid #e2e8f0',
-                            color: '#475569',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                          }}
+                          className="role-action-btn secondary"
                         >
                           Ubah Peran
                         </button>

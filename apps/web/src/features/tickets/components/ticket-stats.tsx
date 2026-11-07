@@ -15,10 +15,9 @@ export function TicketStats({ totalWorkOrder, waitingCount, inProgressCount, com
       aria-label="Statistik Penugasan Tiket"
     >
       <article className="stat-card">
-        <span className="stat-card-ribbon blue">SEMUA WO</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round blue">
+            <span className="stat-card-icon-round">
               <Icon name="ticket" size={17} />
             </span>
             <div className="stat-card-text">
@@ -33,10 +32,9 @@ export function TicketStats({ totalWorkOrder, waitingCount, inProgressCount, com
       </article>
 
       <article className="stat-card">
-        <span className="stat-card-ribbon amber">PENDING</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round amber">
+            <span className="stat-card-icon-round">
               <Icon name="clock" size={17} />
             </span>
             <div className="stat-card-text">
@@ -51,15 +49,14 @@ export function TicketStats({ totalWorkOrder, waitingCount, inProgressCount, com
       </article>
 
       <article className="stat-card">
-        <span className="stat-card-ribbon green">PROGRES</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round green">
+            <span className="stat-card-icon-round">
               <Icon name="wrench" size={17} />
             </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Dalam Pengerjaan</span>
-              <div className="stat-card-value" style={{ color: '#166534' }}>
+              <div className="stat-card-value">
                 {inProgressCount}
               </div>
             </div>
@@ -71,15 +68,14 @@ export function TicketStats({ totalWorkOrder, waitingCount, inProgressCount, com
       </article>
 
       <article className="stat-card">
-        <span className="stat-card-ribbon cyan">RESOLVED</span>
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round cyan">
+            <span className="stat-card-icon-round">
               <Icon name="check" size={17} />
             </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Selesai Ditangani</span>
-              <div className="stat-card-value" style={{ color: '#0e7490' }}>
+              <div className="stat-card-value">
                 {completedCount ?? Math.max(0, totalWorkOrder - waitingCount - inProgressCount)}
               </div>
             </div>

@@ -132,15 +132,7 @@ export function DraftActionCard({
   return (
     <article
       aria-label={`Draf Aksi: ${draft.title}`}
-      style={{
-        marginTop: '14px',
-        background: '#ffffff',
-        border: '1px solid #e2e8f0',
-        borderRadius: '10px',
-        padding: '16px 18px',
-        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.02)',
-        color: '#0f172a',
-      }}
+      className="draft-card"
     >
       {/* Card Header & Security Info */}
       <header
@@ -180,10 +172,10 @@ export function DraftActionCard({
             {state === 'EXPIRED' && '⏱ Masa Aktif Token Kedaluwarsa'}
             {state === 'FAILED_REPLAY_BLOCKED' && '⚠ Penolakan Server / Replay Blocked'}
           </div>
-          <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: '0 0 3px' }}>
+          <h3 className="draft-card-title">
             {draft.title}
           </h3>
-          <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.4 }}>{draft.summary}</div>
+          <div className="draft-card-summary">{draft.summary}</div>
         </div>
 
         {/* Monospace HMAC Verification & Live Countdown */}
@@ -217,31 +209,15 @@ export function DraftActionCard({
 
       {/* Grid Parameters Layout */}
       {draft.payload && (
-        <div
-          className="draft-action-kpi-grid"
-          style={{
-            paddingTop: '12px',
-            paddingBottom: '12px',
-            borderTop: '1px solid #edf2f7',
-            borderBottom: '1px solid #edf2f7',
-            marginBottom: '14px',
-          }}
-        >
+        <div className="draft-action-kpi-grid">
           {Object.entries(draft.payload).map(([k, v]) => {
             const entry = formatPayloadEntry(k, v);
             return (
               <div key={k} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <span style={{ fontSize: '10.5px', fontWeight: 500, color: '#64748b' }}>
+                <span className="draft-kpi-lbl">
                   {entry.label}
                 </span>
-                <span
-                  style={{
-                    fontSize: '12.5px',
-                    fontWeight: 600,
-                    color: '#0f172a',
-                    wordBreak: 'break-word',
-                  }}
-                >
+                <span className="draft-kpi-val">
                   {entry.value}
                 </span>
               </div>

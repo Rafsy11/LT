@@ -77,17 +77,7 @@ export function TechnicianFilters({
           value={cluster}
           onChange={(e) => setCluster(e.target.value)}
           aria-label="Filter Cluster"
-          style={{
-            background: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '6px',
-            padding: '5px 10px',
-            fontSize: '12px',
-            color: '#334155',
-            height: '31px',
-            cursor: 'pointer',
-            outline: 'none',
-          }}
+          className="technician-cluster-select"
         >
           <option>Semua cluster</option>
           <option>Bandung Utara</option>
@@ -102,30 +92,14 @@ export function TechnicianFilters({
         <div
           role="tablist"
           aria-label="Filter status sesi teknisi"
-          style={{
-            display: 'inline-flex',
-            background: '#f1f5f9',
-            padding: '3px',
-            borderRadius: '6px',
-            gap: '2px',
-          }}
+          className="technician-status-tabs"
         >
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === 'all'}
             onClick={() => setActiveTab('all')}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '4px',
-              fontSize: '11.5px',
-              fontWeight: activeTab === 'all' ? 600 : 500,
-              background: activeTab === 'all' ? '#ffffff' : 'transparent',
-              color: activeTab === 'all' ? '#0f172a' : '#64748b',
-              boxShadow: activeTab === 'all' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-              border: 'none',
-              cursor: 'pointer',
-            }}
+            className={`technician-tab-btn ${activeTab === 'all' ? 'is-active' : ''}`}
           >
             Semua ({clusterScopedLength})
           </button>
@@ -134,17 +108,7 @@ export function TechnicianFilters({
             role="tab"
             aria-selected={activeTab === 'active_session'}
             onClick={() => setActiveTab('active_session')}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '4px',
-              fontSize: '11.5px',
-              fontWeight: activeTab === 'active_session' ? 600 : 500,
-              background: activeTab === 'active_session' ? '#ffffff' : 'transparent',
-              color: activeTab === 'active_session' ? '#0f172a' : '#64748b',
-              boxShadow: activeTab === 'active_session' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-              border: 'none',
-              cursor: 'pointer',
-            }}
+            className={`technician-tab-btn ${activeTab === 'active_session' ? 'is-active' : ''}`}
           >
             Sesi Aktif ({activeSessionsCount})
           </button>
@@ -153,17 +117,7 @@ export function TechnicianFilters({
             role="tab"
             aria-selected={activeTab === 'busy'}
             onClick={() => setActiveTab('busy')}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '4px',
-              fontSize: '11.5px',
-              fontWeight: activeTab === 'busy' ? 600 : 500,
-              background: activeTab === 'busy' ? '#ffffff' : 'transparent',
-              color: activeTab === 'busy' ? '#0f172a' : '#64748b',
-              boxShadow: activeTab === 'busy' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-              border: 'none',
-              cursor: 'pointer',
-            }}
+            className={`technician-tab-btn ${activeTab === 'busy' ? 'is-active' : ''}`}
           >
             Bertugas ({busyCount})
           </button>
@@ -172,17 +126,7 @@ export function TechnicianFilters({
             role="tab"
             aria-selected={activeTab === 'revoked'}
             onClick={() => setActiveTab('revoked')}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '4px',
-              fontSize: '11.5px',
-              fontWeight: activeTab === 'revoked' ? 600 : 500,
-              background: activeTab === 'revoked' ? '#ffffff' : 'transparent',
-              color: activeTab === 'revoked' ? '#0f172a' : '#64748b',
-              boxShadow: activeTab === 'revoked' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-              border: 'none',
-              cursor: 'pointer',
-            }}
+            className={`technician-tab-btn ${activeTab === 'revoked' ? 'is-active' : ''}`}
           >
             Sesi Dicabut ({revokedCount})
           </button>
@@ -191,17 +135,7 @@ export function TechnicianFilters({
             role="tab"
             aria-selected={activeTab === 'inactive'}
             onClick={() => setActiveTab('inactive')}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '4px',
-              fontSize: '11.5px',
-              fontWeight: activeTab === 'inactive' ? 600 : 500,
-              background: activeTab === 'inactive' ? '#ffffff' : 'transparent',
-              color: activeTab === 'inactive' ? '#0f172a' : '#64748b',
-              boxShadow: activeTab === 'inactive' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-              border: 'none',
-              cursor: 'pointer',
-            }}
+            className={`technician-tab-btn ${activeTab === 'inactive' ? 'is-active' : ''}`}
           >
             Nonaktif ({disabledCount})
           </button>
