@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { NetworkConsoleSkeleton } from '@/components/ui/PageSkeleton';
 import { CustomerDetailModal } from '@/features/customers';
 import { CreateTicketModal } from '@/features/tickets/components/create-ticket-modal';
 import { useNetwork } from '../hooks/use-network';
@@ -52,7 +52,7 @@ export function NetworkView() {
 
   React.useEffect(() => {
     function handleGlobalRefresh() {
-      fetchClusters();
+      fetchClusters(true);
     }
     window.addEventListener('app:refresh-data', handleGlobalRefresh);
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
@@ -75,36 +75,7 @@ export function NetworkView() {
 
       {/* Main Content Area: Master-Detail Console View OR Balanced 2x2 Grid View */}
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: '20px' }}>
-          <aside className="panel skeleton-card" style={{ height: '480px', padding: '16px' }}>
-            <Skeleton width={140} height={18} style={{ marginBottom: '14px' }} />
-            <Skeleton width="100%" height={32} borderRadius={6} style={{ marginBottom: '14px' }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <Skeleton width="100%" height={44} borderRadius={6} />
-              <Skeleton width="100%" height={44} borderRadius={6} />
-              <Skeleton width="100%" height={44} borderRadius={6} />
-              <Skeleton width="100%" height={44} borderRadius={6} />
-            </div>
-          </aside>
-          <section className="odp-main-panel-card skeleton-card" style={{ height: '480px', padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Skeleton width={40} height={40} borderRadius={8} />
-                <div>
-                  <Skeleton width={200} height={20} style={{ marginBottom: '4px' }} />
-                  <Skeleton width={260} height={13} />
-                </div>
-              </div>
-              <Skeleton width={140} height={28} borderRadius={6} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '8px', marginBottom: '20px' }}>
-              {Array.from({ length: 16 }).map((_, i) => (
-                <Skeleton key={i} width="100%" height={56} borderRadius={6} />
-              ))}
-            </div>
-            <Skeleton width="100%" height={160} borderRadius={8} />
-          </section>
-        </div>
+        <NetworkConsoleSkeleton />
       ) : filteredClusters.length === 0 ? (
         <div className="empty-state-card">
           <p style={{ fontWeight: 600, color: 'inherit' }}>

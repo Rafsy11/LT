@@ -1,8 +1,10 @@
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { TelemetryStreamSkeletonRows } from '@/components/ui/PageSkeleton';
 import { classifyDbm, dbmTone } from '@repo/shared';
 import type { LiveReportItem } from '../hooks/use-monitoring';
+
+const STREAM_SKELETON_ROW_COUNT = 5;
 
 export interface TelemetryStreamPanelProps {
   search: string;
@@ -176,31 +178,7 @@ export function TelemetryStreamPanel({
         {/* Stream Table Rows */}
         <ol className="noc-stream-list" role="list" aria-label="Daftar Laporan Telemetri">
         {loading ? (
-          Array.from({ length: 4 }).map((_, idx) => (
-            <li key={idx} className="noc-stream-row skeleton-stream-row" aria-hidden="true" style={{ cursor: 'default' }}>
-              <div className="col-time-status">
-                <Skeleton width={60} height={14} />
-              </div>
-              <div className="col-customer">
-                <Skeleton width="75%" height={14} />
-              </div>
-              <div className="col-splitter">
-                <Skeleton width="65%" height={14} />
-              </div>
-              <div className="col-tech">
-                <Skeleton width={75} height={14} />
-              </div>
-              <div className="col-dbm">
-                <Skeleton width={50} height={16} borderRadius={4} />
-              </div>
-              <div className="col-validation">
-                <Skeleton width={65} height={14} />
-              </div>
-              <div className="col-action" style={{ textAlign: 'right' }}>
-                <Skeleton width={44} height={24} borderRadius={4} style={{ display: 'inline-block' }} />
-              </div>
-            </li>
-          ))
+          <TelemetryStreamSkeletonRows count={STREAM_SKELETON_ROW_COUNT} />
         ) : filteredReports.length === 0 ? (
           <li className="noc-empty-stream" role="status">
             Tidak ada laporan telemetri pada kriteria filter ini.

@@ -66,7 +66,7 @@ export function OverviewView() {
 
   useEffect(() => {
     function handleGlobalRefresh() {
-      fetchTickets();
+      fetchTickets(true);
     }
     window.addEventListener('app:refresh-data', handleGlobalRefresh);
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
@@ -224,6 +224,7 @@ export function OverviewView() {
       <TicketDetailModal
         ticket={selectedTicket}
         onClose={() => setSelectedTicket(null)}
+        onTicketUpdated={() => fetchTickets(true)}
         onMarkCompleted={handleMarkCompleted}
       />
     </main>

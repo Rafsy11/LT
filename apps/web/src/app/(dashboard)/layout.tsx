@@ -1,10 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { AiChatWidget } from '@/features/ai';
+import {
+  fetchWithCache,
+  getCachedData,
+  subscribeQueryCache,
+} from '@/lib/query-cache';
+
+const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
 
 const pageTitleMap: Record<string, string> = {
   '/': 'Overview',
@@ -20,6 +27,8 @@ const pageTitleMap: Record<string, string> = {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
   const title = pageTitleMap[pathname] || 'Dashboard';
   const [ticketCount, setTicketCount] = useState(24);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -54,15 +63,54 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   useEffect(() => {
-    fetch('/api/v1/admin/tickets')
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success && json.meta?.count !== undefined) {
-          setTicketCount(json.meta.count);
-        }
-      })
-      .catch(() => {});
-  }, [pathname]);
+    const syncTicketCountFromCache = () => {
+      const cached = getCachedData<unknown[]>(TICKETS_CACHE_KEY);
+      if (Array.isArray(cached)) {
+        setTicketCount(cached.length);
+      }
+    };
+
+    const fetchTicketCount = (force = false) =>
+      fetchWithCache<unknown[]>(
+        TICKETS_CACHE_KEY,
+        async () => {
+          const res = await fetch(TICKETS_CACHE_KEY);
+          const json = await res.json();
+          if (!res.ok || !json.success || !Array.isArray(json.data)) {
+            throw new Error(json.error?.message || 'Gagal memuat daftar tiket');
+          }
+          return json.data;
+        },
+        { force },
+      )
+        .then((list) => {
+          setTicketCount(list.length);
+        })
+        .catch(() => {});
+
+    syncTicketCountFromCache();
+    const unsubscribe = subscribeQueryCache(TICKETS_CACHE_KEY, syncTicketCountFromCache);
+
+    // Avoid firing duplicate /tickets call when landing directly on / which fetches /overview and seeds this cache
+    if (pathnameRef.current !== '/' && !getCachedData<unknown[]>(TICKETS_CACHE_KEY)) {
+      fetchTicketCount();
+    }
+
+    const handleGlobalRefresh = () => {
+      const currentPath = pathnameRef.current;
+      // Overview, Tickets, and Monitoring views already force-refresh or seed TICKETS_CACHE_KEY on global refresh
+      if (currentPath !== '/' && currentPath !== '/tickets' && currentPath !== '/monitoring') {
+        fetchTicketCount(true);
+      }
+    };
+
+    window.addEventListener('app:refresh-data', handleGlobalRefresh);
+
+    return () => {
+      window.removeEventListener('app:refresh-data', handleGlobalRefresh);
+      unsubscribe();
+    };
+  }, []);
 
   return (
     <div className="app">

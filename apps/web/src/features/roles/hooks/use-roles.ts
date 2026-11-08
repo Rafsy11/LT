@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth, useToast } from '@/providers';
+import { fetchWithCache, getCachedData, setCachedData } from '@/lib/query-cache';
+
+const ROLES_CACHE_KEY = '/api/v1/admin/roles';
 
 export interface RoleApiItem {
   id: string;
@@ -228,7 +231,9 @@ export const INITIAL_USERS: UserAccessItem[] = [
 
 export function useRoles() {
   const [activeView, setActiveView] = useState<'users' | 'matrix'>('users');
-  const [roleList, setRoleList] = useState<RoleApiItem[]>(INITIAL_FALLBACK_ROLES);
+  const [roleList, setRoleList] = useState<RoleApiItem[]>(
+    () => getCachedData<RoleApiItem[]>(ROLES_CACHE_KEY) ?? INITIAL_FALLBACK_ROLES,
+  );
   const [userList, setUserList] = useState<UserAccessItem[]>(INITIAL_USERS);
   const [selectedRoleName, setSelectedRoleName] = useState('Admin Operasional');
   const [activePermissions, setActivePermissions] = useState<Set<string>>(new Set());
@@ -249,24 +254,39 @@ export function useRoles() {
   const { canEditRole, user } = useAuth();
   const { showSuccess, showError } = useToast();
 
-  const fetchRoles = async () => {
-    try {
-      setIsFetching(true);
-      const res = await fetch('/api/v1/admin/roles');
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-        setRoleList(json.data);
+  const fetchRoles = useCallback(
+    async (force = false) => {
+      try {
+        if (!getCachedData<RoleApiItem[]>(ROLES_CACHE_KEY)) {
+          setIsFetching(true);
+        }
+        const data = await fetchWithCache<RoleApiItem[]>(
+          ROLES_CACHE_KEY,
+          async () => {
+            const res = await fetch(ROLES_CACHE_KEY);
+            const json = await res.json();
+            if (!res.ok || !json.success || !Array.isArray(json.data)) {
+              throw new Error(json.error?.message || 'Gagal memuat daftar peran');
+            }
+            return json.data as RoleApiItem[];
+          },
+          { force },
+        );
+        if (data.length > 0) {
+          setRoleList(data);
+        }
+      } catch (err) {
+        showError(err);
+      } finally {
+        setIsFetching(false);
       }
-    } catch (err) {
-      showError(err);
-    } finally {
-      setIsFetching(false);
-    }
-  };
+    },
+    [showError],
+  );
 
   useEffect(() => {
     fetchRoles();
-  }, []);
+  }, [fetchRoles]);
 
   const selectedRole = useMemo(() => {
     return roleList.find((r) => r.name === selectedRoleName) || roleList[0] || null;
@@ -339,11 +359,13 @@ export function useRoles() {
         throw new Error(json.error?.message || 'Gagal menyimpan perubahan hak akses');
       }
 
-      setRoleList((prev) =>
-        prev.map((r) =>
+      setRoleList((prev) => {
+        const next = prev.map((r) =>
           r.id === selectedRole.id ? { ...r, permissions: Array.from(activePermissions) } : r,
-        ),
-      );
+        );
+        setCachedData(ROLES_CACHE_KEY, next);
+        return next;
+      });
 
       showSuccess(`Matriks izin untuk ${selectedRole.name} berhasil diperbarui.`);
     } catch (err: unknown) {

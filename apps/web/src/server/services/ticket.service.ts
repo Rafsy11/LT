@@ -1,4 +1,4 @@
-import { prisma } from '@repo/database';
+import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 import { redisManager } from '../lib/redis';
 import {
   CreateTicketInput,
@@ -197,103 +197,106 @@ export class TicketService {
     params: Partial<TicketQuery> = {},
     userContext?: UserSessionContext,
   ): Promise<DbTicket[]> {
-    try {
-      // Build Prisma where clause with cluster scoping (Law 4)
-      const whereClause: Record<string, unknown> = {};
+    if (await isDatabaseAvailable()) {
+      try {
+        // Build Prisma where clause with cluster scoping (Law 4)
+        const whereClause: Record<string, unknown> = {};
 
-      if (
-        userContext &&
-        userContext.userType !== 'SUPER_ADMIN' &&
-        userContext.assignedClusters.length > 0
-      ) {
-        whereClause.customer = {
-          cluster: {
-            clusterCode: { in: userContext.assignedClusters },
-          },
-        };
-      }
-
-      if (params.cluster && params.cluster !== 'Semua cluster') {
-        const clusterFilter = params.cluster.replace('Bandung ', '');
-        whereClause.customer = {
-          ...(whereClause.customer as object),
-          cluster: {
-            OR: [
-              { name: { contains: clusterFilter, mode: 'insensitive' } },
-              { clusterCode: { contains: clusterFilter, mode: 'insensitive' } },
-            ],
-          },
-        };
-      }
-
-      if (params.status && params.status !== 'Semua') {
-        const statusMap: Record<string, string> = {
-          Menunggu: 'OPEN',
-          'Dalam proses': 'IN_PROGRESS',
-          'Menunggu verifikasi': 'IN_PROGRESS',
-          PENDING_APPROVAL: 'IN_PROGRESS',
-          Selesai: 'COMPLETED',
-          Dibatalkan: 'CANCELLED',
-          OPEN: 'OPEN',
-          IN_PROGRESS: 'IN_PROGRESS',
-          COMPLETED: 'COMPLETED',
-          CANCELLED: 'CANCELLED',
-        };
-        const mappedStatus = statusMap[params.status];
-        if (mappedStatus) {
-          whereClause.status = mappedStatus;
-        }
-      }
-
-      const tickets = await prisma.ticket.findMany({
-        where: whereClause,
-        include: {
-          customer: {
-            include: {
-              cluster: true,
-              splitter: true,
+        if (
+          userContext &&
+          userContext.userType !== 'SUPER_ADMIN' &&
+          userContext.assignedClusters.length > 0
+        ) {
+          whereClause.customer = {
+            cluster: {
+              clusterCode: { in: userContext.assignedClusters },
             },
+          };
+        }
+
+        if (params.cluster && params.cluster !== 'Semua cluster') {
+          const clusterFilter = params.cluster.replace('Bandung ', '');
+          whereClause.customer = {
+            ...(whereClause.customer as object),
+            cluster: {
+              OR: [
+                { name: { contains: clusterFilter, mode: 'insensitive' } },
+                { clusterCode: { contains: clusterFilter, mode: 'insensitive' } },
+              ],
+            },
+          };
+        }
+
+        if (params.status && params.status !== 'Semua') {
+          const statusMap: Record<string, string> = {
+            Menunggu: 'OPEN',
+            'Dalam proses': 'IN_PROGRESS',
+            'Menunggu verifikasi': 'IN_PROGRESS',
+            PENDING_APPROVAL: 'IN_PROGRESS',
+            Selesai: 'COMPLETED',
+            Dibatalkan: 'CANCELLED',
+            OPEN: 'OPEN',
+            IN_PROGRESS: 'IN_PROGRESS',
+            COMPLETED: 'COMPLETED',
+            CANCELLED: 'CANCELLED',
+          };
+          const mappedStatus = statusMap[params.status];
+          if (mappedStatus) {
+            whereClause.status = mappedStatus;
+          }
+        }
+
+        const tickets = await prisma.ticket.findMany({
+          where: whereClause,
+          include: {
+            customer: {
+              include: {
+                cluster: true,
+                splitter: true,
+              },
+            },
+            assignedTech: true,
           },
-          assignedTech: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: params.limit || 50,
-        skip: params.offset || 0,
-      });
+          orderBy: { createdAt: 'desc' },
+          take: params.limit || 50,
+          skip: params.offset || 0,
+        });
 
-      if (tickets.length > 0) {
-        const statusMapReverse: Record<
-          string,
-          'Menunggu' | 'Dalam proses' | 'Menunggu verifikasi' | 'Selesai' | 'Dibatalkan'
-        > = {
-          OPEN: 'Menunggu',
-          IN_PROGRESS: 'Dalam proses',
-          COMPLETED: 'Selesai',
-          CANCELLED: 'Dibatalkan',
-        };
+        if (tickets.length > 0) {
+          const statusMapReverse: Record<
+            string,
+            'Menunggu' | 'Dalam proses' | 'Menunggu verifikasi' | 'Selesai' | 'Dibatalkan'
+          > = {
+            OPEN: 'Menunggu',
+            IN_PROGRESS: 'Dalam proses',
+            COMPLETED: 'Selesai',
+            CANCELLED: 'Dibatalkan',
+          };
 
-        return tickets.map((t) => ({
-          id: t.id,
-          ticketNumber: t.ticketNumber,
-          customerName: t.customer.fullName,
-          siaNumber: t.customer.siaNumber,
-          ticketType: t.ticketType === 'PSB' ? 'Pasang baru' : 'Maintenance',
-          cluster: t.customer.cluster.name,
-          assignedTech: t.assignedTech?.fullName || 'Belum Ditugaskan',
-          techInitials: t.assignedTech ? getInitials(t.assignedTech.fullName) : 'TK',
-          status: statusMapReverse[t.status] || 'Menunggu',
-          currentAttenuation: t.customer.currentAttenuation
-            ? Number(t.customer.currentAttenuation)
-            : -20.0,
-          adminNotes: t.adminNotes || undefined,
-          createdAt: t.createdAt.toISOString(),
-          completedAt: t.completedAt ? t.completedAt.toISOString() : undefined,
-          splitterCode: t.customer.splitter?.splitterCode,
-          portNumber: t.customer.portNumber || undefined,
-        }));
+          return tickets.map((t) => ({
+            id: t.id,
+            ticketNumber: t.ticketNumber,
+            customerName: t.customer.fullName,
+            siaNumber: t.customer.siaNumber,
+            ticketType: t.ticketType === 'PSB' ? 'Pasang baru' : 'Maintenance',
+            cluster: t.customer.cluster.name,
+            assignedTech: t.assignedTech?.fullName || 'Belum Ditugaskan',
+            techInitials: t.assignedTech ? getInitials(t.assignedTech.fullName) : 'TK',
+            status: statusMapReverse[t.status] || 'Menunggu',
+            currentAttenuation: t.customer.currentAttenuation
+              ? Number(t.customer.currentAttenuation)
+              : -20.0,
+            adminNotes: t.adminNotes || undefined,
+            createdAt: t.createdAt.toISOString(),
+            completedAt: t.completedAt ? t.completedAt.toISOString() : undefined,
+            splitterCode: t.customer.splitter?.splitterCode,
+            portNumber: t.customer.portNumber || undefined,
+          }));
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        // In-memory fallback if database connection fails
       }
-    } catch {
-      // In-memory fallback if database connection is pending
     }
 
     // Fallback: In-memory store
@@ -338,53 +341,56 @@ export class TicketService {
    * Retrieves single ticket by internal ID or ticketNumber.
    */
   public static async getTicketById(id: string): Promise<DbTicket> {
-    try {
-      const ticket = await prisma.ticket.findFirst({
-        where: {
-          OR: [{ id }, { ticketNumber: id }],
-        },
-        include: {
-          customer: {
-            include: {
-              cluster: true,
-              splitter: true,
-            },
+    if (await isDatabaseAvailable()) {
+      try {
+        const ticket = await prisma.ticket.findFirst({
+          where: {
+            OR: [{ id }, { ticketNumber: id }],
           },
-          assignedTech: true,
-        },
-      });
+          include: {
+            customer: {
+              include: {
+                cluster: true,
+                splitter: true,
+              },
+            },
+            assignedTech: true,
+          },
+        });
 
-      if (ticket) {
-        const statusMapReverse: Record<
-          string,
-          'Menunggu' | 'Dalam proses' | 'Menunggu verifikasi' | 'Selesai' | 'Dibatalkan'
-        > = {
-          OPEN: 'Menunggu',
-          IN_PROGRESS: 'Dalam proses',
-          COMPLETED: 'Selesai',
-          CANCELLED: 'Dibatalkan',
-        };
+        if (ticket) {
+          const statusMapReverse: Record<
+            string,
+            'Menunggu' | 'Dalam proses' | 'Menunggu verifikasi' | 'Selesai' | 'Dibatalkan'
+          > = {
+            OPEN: 'Menunggu',
+            IN_PROGRESS: 'Dalam proses',
+            COMPLETED: 'Selesai',
+            CANCELLED: 'Dibatalkan',
+          };
 
-        return {
-          id: ticket.id,
-          ticketNumber: ticket.ticketNumber,
-          customerName: ticket.customer.fullName,
-          siaNumber: ticket.customer.siaNumber,
-          ticketType: ticket.ticketType === 'PSB' ? 'Pasang baru' : 'Maintenance',
-          cluster: ticket.customer.cluster.name,
-          assignedTech: ticket.assignedTech?.fullName || 'Belum Ditugaskan',
-          techInitials: ticket.assignedTech ? getInitials(ticket.assignedTech.fullName) : 'TK',
-          status: statusMapReverse[ticket.status] || 'Menunggu',
-          currentAttenuation: ticket.customer.currentAttenuation
-            ? Number(ticket.customer.currentAttenuation)
-            : -20.0,
-          adminNotes: ticket.adminNotes || undefined,
-          createdAt: ticket.createdAt.toISOString(),
-          completedAt: ticket.completedAt ? ticket.completedAt.toISOString() : undefined,
-        };
+          return {
+            id: ticket.id,
+            ticketNumber: ticket.ticketNumber,
+            customerName: ticket.customer.fullName,
+            siaNumber: ticket.customer.siaNumber,
+            ticketType: ticket.ticketType === 'PSB' ? 'Pasang baru' : 'Maintenance',
+            cluster: ticket.customer.cluster.name,
+            assignedTech: ticket.assignedTech?.fullName || 'Belum Ditugaskan',
+            techInitials: ticket.assignedTech ? getInitials(ticket.assignedTech.fullName) : 'TK',
+            status: statusMapReverse[ticket.status] || 'Menunggu',
+            currentAttenuation: ticket.customer.currentAttenuation
+              ? Number(ticket.customer.currentAttenuation)
+              : -20.0,
+            adminNotes: ticket.adminNotes || undefined,
+            createdAt: ticket.createdAt.toISOString(),
+            completedAt: ticket.completedAt ? ticket.completedAt.toISOString() : undefined,
+          };
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        // Fallback below
       }
-    } catch {
-      // Fallback below
     }
 
     const cached = FALLBACK_TICKETS.find((t) => t.id === id || t.ticketNumber === id);
@@ -443,36 +449,39 @@ export class TicketService {
     sseBroadcaster.broadcast(liveItem);
 
     // Persist to database if available
-    try {
-      const dbCustomer = await prisma.customer.findFirst({
-        where: { siaNumber: input.siaNumber },
-      });
+    if (await isDatabaseAvailable()) {
+      try {
+        const dbCustomer = await prisma.customer.findFirst({
+          where: { siaNumber: input.siaNumber },
+        });
 
-      const dbAdmin = await prisma.user.findFirst({
-        where: { OR: [{ id: adminId }, { username: adminId }] },
-      });
+        const dbAdmin = await prisma.user.findFirst({
+          where: { OR: [{ id: adminId }, { username: adminId }] },
+        });
 
-      const dbTech = await prisma.user.findFirst({
-        where: {
-          OR: [{ username: input.assignedTechUsername }, { fullName: input.assignedTechUsername }],
-        },
-      });
-
-      if (dbCustomer && dbAdmin) {
-        await prisma.ticket.create({
-          data: {
-            ticketNumber: newTicket.ticketNumber,
-            ticketType: input.ticketType,
-            customerId: dbCustomer.id,
-            assignedTechId: dbTech?.id,
-            createdByAdminId: dbAdmin.id,
-            status: 'OPEN',
-            adminNotes: input.adminNotes,
+        const dbTech = await prisma.user.findFirst({
+          where: {
+            OR: [{ username: input.assignedTechUsername }, { fullName: input.assignedTechUsername }],
           },
         });
+
+        if (dbCustomer && dbAdmin) {
+          await prisma.ticket.create({
+            data: {
+              ticketNumber: newTicket.ticketNumber,
+              ticketType: input.ticketType,
+              customerId: dbCustomer.id,
+              assignedTechId: dbTech?.id,
+              createdByAdminId: dbAdmin.id,
+              status: 'OPEN',
+              adminNotes: input.adminNotes,
+            },
+          });
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        // Ignored if DB is in local seedless mode
       }
-    } catch {
-      // Ignored if DB is in local seedless mode
     }
 
     return newTicket;
@@ -496,6 +505,7 @@ export class TicketService {
     input: SubmitTicketInput,
     techContext?: { id?: string; username?: string },
   ) {
+    const dbAvailable = await isDatabaseAvailable();
     let preliminaryTicket: {
       id: string;
       ticketNumber: string;
@@ -505,28 +515,31 @@ export class TicketService {
     // ------------------------------------------------------------------
     // 1. TICKET OWNERSHIP VERIFICATION (Rule 1: Anti-IDOR)
     // ------------------------------------------------------------------
-    try {
-      preliminaryTicket = await prisma.ticket.findFirst({
-        where: {
-          OR: [{ id: ticketId }, { ticketNumber: ticketId }],
-        },
-      });
+    if (dbAvailable) {
+      try {
+        preliminaryTicket = await prisma.ticket.findFirst({
+          where: {
+            OR: [{ id: ticketId }, { ticketNumber: ticketId }],
+          },
+        });
 
-      if (preliminaryTicket) {
-        if (
-          techContext?.id &&
-          preliminaryTicket.assignedTechId &&
-          preliminaryTicket.assignedTechId !== techContext.id
-        ) {
-          throw new Error(
-            `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${preliminaryTicket.ticketNumber}.`,
-          );
+        if (preliminaryTicket) {
+          if (
+            techContext?.id &&
+            preliminaryTicket.assignedTechId &&
+            preliminaryTicket.assignedTechId !== techContext.id
+          ) {
+            throw new Error(
+              `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${preliminaryTicket.ticketNumber}.`,
+            );
+          }
         }
-      }
-    } catch (err: unknown) {
-      const errMsg = (err as Error).message || '';
-      if (errMsg.includes(ERROR_CODES.IDOR_VIOLATION)) {
-        throw err;
+      } catch (err: unknown) {
+        const errMsg = (err as Error).message || '';
+        if (errMsg.includes(ERROR_CODES.IDOR_VIOLATION)) {
+          throw err;
+        }
+        markDatabaseUnavailable(err);
       }
     }
 
@@ -551,47 +564,55 @@ export class TicketService {
     // ------------------------------------------------------------------
     // 2. IDEMPOTENCY CHECK (Rule 2: Before Ticket Status Check with Cross-Ticket Guard)
     // ------------------------------------------------------------------
-    try {
-      const existingHistory = await prisma.attenuationHistory.findUnique({
-        where: { submissionId: input.submissionId },
-        include: {
-          ticket: {
-            include: {
-              customer: {
-                include: { cluster: true, splitter: true },
+    let checkedDbIdempotency = false;
+    if (await isDatabaseAvailable()) {
+      try {
+        const existingHistory = await prisma.attenuationHistory.findUnique({
+          where: { submissionId: input.submissionId },
+          include: {
+            ticket: {
+              include: {
+                customer: {
+                  include: { cluster: true, splitter: true },
+                },
+                assignedTech: true,
               },
-              assignedTech: true,
             },
           },
-        },
-      });
+        });
+        checkedDbIdempotency = true;
 
-      if (existingHistory) {
-        // Cross-Ticket Idempotency Guard (Task 8 Section 1)
-        const isSameTicket =
-          existingHistory.ticketId === ticketId ||
-          existingHistory.ticket?.ticketNumber === ticketId ||
-          (preliminaryTicket !== null && existingHistory.ticketId === preliminaryTicket.id);
-        const isSameTech =
-          !techContext?.id || !existingHistory.techId || existingHistory.techId === techContext.id;
+        if (existingHistory) {
+          // Cross-Ticket Idempotency Guard (Task 8 Section 1)
+          const isSameTicket =
+            existingHistory.ticketId === ticketId ||
+            existingHistory.ticket?.ticketNumber === ticketId ||
+            (preliminaryTicket !== null && existingHistory.ticketId === preliminaryTicket.id);
+          const isSameTech =
+            !techContext?.id || !existingHistory.techId || existingHistory.techId === techContext.id;
 
-        if (!isSameTicket || !isSameTech) {
-          throw new Error(
-            `${ERROR_CODES.IDOR_VIOLATION}: submissionId ini telah digunakan pada tiket atau teknisi lain (Cross-Ticket Replay Blocked).`,
-          );
+          if (!isSameTicket || !isSameTech) {
+            throw new Error(
+              `${ERROR_CODES.IDOR_VIOLATION}: submissionId ini telah digunakan pada tiket atau teknisi lain (Cross-Ticket Replay Blocked).`,
+            );
+          }
+
+          return {
+            alreadyProcessed: true,
+            ticket: existingHistory.ticket,
+            message: 'Laporan telah berhasil diproses sebelumnya (Idempotent response)',
+          };
         }
+      } catch (dbErr: unknown) {
+        const dbErrMsg = (dbErr as Error).message || '';
+        if (dbErrMsg.includes(ERROR_CODES.IDOR_VIOLATION)) {
+          throw dbErr;
+        }
+        markDatabaseUnavailable(dbErr);
+      }
+    }
 
-        return {
-          alreadyProcessed: true,
-          ticket: existingHistory.ticket,
-          message: 'Laporan telah berhasil diproses sebelumnya (Idempotent response)',
-        };
-      }
-    } catch (dbErr: unknown) {
-      const dbErrMsg = (dbErr as Error).message || '';
-      if (dbErrMsg.includes(ERROR_CODES.IDOR_VIOLATION)) {
-        throw dbErr;
-      }
+    if (!checkedDbIdempotency) {
       // Check in-memory processed submissions with Cross-Ticket Guard
       const inMemRecord = inMemoryProcessedSubmissions.get(input.submissionId);
       if (inMemRecord) {
@@ -625,28 +646,31 @@ export class TicketService {
     // ------------------------------------------------------------------
     // 3. TICKET LIFECYCLE STATUS (Rule 3: Reject new submissions on closed tickets)
     // ------------------------------------------------------------------
-    try {
-      const statusCheckTicket = await prisma.ticket.findFirst({
-        where: {
-          OR: [{ id: ticketId }, { ticketNumber: ticketId }],
-        },
-      });
+    if (await isDatabaseAvailable()) {
+      try {
+        const statusCheckTicket = await prisma.ticket.findFirst({
+          where: {
+            OR: [{ id: ticketId }, { ticketNumber: ticketId }],
+          },
+        });
 
-      if (
-        statusCheckTicket &&
-        (statusCheckTicket.status === 'COMPLETED' || statusCheckTicket.status === 'CANCELLED')
-      ) {
-        throw new Error(
-          `${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${statusCheckTicket.ticketNumber} sudah berstatus ${statusCheckTicket.status} dan tidak dapat dimutasi.`,
-        );
-      }
-    } catch (err: unknown) {
-      const errMsg = (err as Error).message || '';
-      if (
-        errMsg.includes(ERROR_CODES.TICKET_ALREADY_CLOSED) ||
-        errMsg.includes('tidak dapat dimutasi')
-      ) {
-        throw err;
+        if (
+          statusCheckTicket &&
+          (statusCheckTicket.status === 'COMPLETED' || statusCheckTicket.status === 'CANCELLED')
+        ) {
+          throw new Error(
+            `${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${statusCheckTicket.ticketNumber} sudah berstatus ${statusCheckTicket.status} dan tidak dapat dimutasi.`,
+          );
+        }
+      } catch (err: unknown) {
+        const errMsg = (err as Error).message || '';
+        if (
+          errMsg.includes(ERROR_CODES.TICKET_ALREADY_CLOSED) ||
+          errMsg.includes('tidak dapat dimutasi')
+        ) {
+          throw err;
+        }
+        markDatabaseUnavailable(err);
       }
     }
 
@@ -666,33 +690,41 @@ export class TicketService {
     let isLocationFlagged = false;
     let splitterDbId = input.splitterId;
     let splitterCode = input.splitterId;
+    let splitterResolvedFromDb = false;
 
-    try {
-      const targetSplitter = await prisma.networkSplitter.findFirst({
-        where: {
-          OR: [{ id: input.splitterId }, { splitterCode: input.splitterId }],
-        },
-      });
+    if (await isDatabaseAvailable()) {
+      try {
+        const targetSplitter = await prisma.networkSplitter.findFirst({
+          where: {
+            OR: [{ id: input.splitterId }, { splitterCode: input.splitterId }],
+          },
+        });
 
-      if (targetSplitter) {
-        splitterDbId = targetSplitter.id;
-        splitterCode = targetSplitter.splitterCode;
-        distanceMeters = calculateHaversineDistance(
-          input.submittedLat,
-          input.submittedLng,
-          Number(targetSplitter.lat),
-          Number(targetSplitter.lng),
-        );
-        isLocationFlagged = distanceMeters > MAX_GEOFENCE_RADIUS_METERS;
+        if (targetSplitter) {
+          splitterResolvedFromDb = true;
+          splitterDbId = targetSplitter.id;
+          splitterCode = targetSplitter.splitterCode;
+          distanceMeters = calculateHaversineDistance(
+            input.submittedLat,
+            input.submittedLng,
+            Number(targetSplitter.lat),
+            Number(targetSplitter.lng),
+          );
+          isLocationFlagged = distanceMeters > MAX_GEOFENCE_RADIUS_METERS;
 
-        // GPS Anomaly Detection: identical coordinates indicate GPS spoofing
-        const splitterLat = Number(targetSplitter.lat);
-        const splitterLng = Number(targetSplitter.lng);
-        if (input.submittedLat === splitterLat && input.submittedLng === splitterLng) {
-          isLocationFlagged = true;
+          // GPS Anomaly Detection: identical coordinates indicate GPS spoofing
+          const splitterLat = Number(targetSplitter.lat);
+          const splitterLng = Number(targetSplitter.lng);
+          if (input.submittedLat === splitterLat && input.submittedLng === splitterLng) {
+            isLocationFlagged = true;
+          }
         }
+      } catch (err) {
+        markDatabaseUnavailable(err);
       }
-    } catch {
+    }
+
+    if (!splitterResolvedFromDb) {
       // In-memory fallback for splitter coordinates (Bandung default)
       const fallbackSplitterLat = -6.914744;
       const fallbackSplitterLng = 107.60981;
@@ -717,143 +749,146 @@ export class TicketService {
     // ------------------------------------------------------------------
     let completedTicketResult: unknown = null;
 
-    try {
-      completedTicketResult = await prisma.$transaction(async (tx) => {
-        // 1. Fetch Ticket
-        const ticket = await tx.ticket.findFirst({
-          where: {
-            OR: [{ id: ticketId }, { ticketNumber: ticketId }],
-          },
-          include: {
-            customer: true,
-            assignedTech: true,
-          },
-        });
+    if (await isDatabaseAvailable()) {
+      try {
+        completedTicketResult = await prisma.$transaction(async (tx) => {
+          // 1. Fetch Ticket
+          const ticket = await tx.ticket.findFirst({
+            where: {
+              OR: [{ id: ticketId }, { ticketNumber: ticketId }],
+            },
+            include: {
+              customer: true,
+              assignedTech: true,
+            },
+          });
 
-        if (!ticket) {
-          throw new Error(`Tiket ${ticketId} tidak ditemukan`);
-        }
-
-        // Anti-IDOR: verify technician assignment (Rule 1)
-        if (techContext?.id && ticket.assignedTechId && ticket.assignedTechId !== techContext.id) {
-          throw new Error(
-            `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${ticket.ticketNumber}.`,
-          );
-        }
-
-        // Anti-Lifecycle violation: reject closed tickets (Rule 3)
-        if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') {
-          throw new Error(
-            `${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${ticket.ticketNumber} sudah berstatus ${ticket.status} dan tidak dapat dimutasi.`,
-          );
-        }
-
-        // 2. Fetch Splitter
-        const splitter = await tx.networkSplitter.findFirst({
-          where: {
-            OR: [{ id: splitterDbId }, { splitterCode: input.splitterId }],
-          },
-        });
-
-        if (!splitter) {
-          throw new Error(`ODP Splitter ${input.splitterId} tidak ditemukan`);
-        }
-
-        // Validate port capacity bounds
-        if (input.portNumber > splitter.maxPorts) {
-          throw new Error(
-            `Nomor port ${input.portNumber} melebihi batas kapasitas ODP (${splitter.maxPorts} port)`,
-          );
-        }
-
-        // 3. Concurrency check: Ensure port is not occupied by another ACTIVE customer
-        const occupied = await tx.customer.findFirst({
-          where: {
-            splitterId: splitter.id,
-            portNumber: input.portNumber,
-            status: 'ACTIVE',
-            id: { not: ticket.customerId },
-          },
-        });
-
-        if (occupied) {
-          throw new Error(
-            `${ERROR_CODES.PORT_OCCUPIED}: Port ${input.portNumber} pada ODP ${splitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName} - ${occupied.siaNumber}).`,
-          );
-        }
-
-        // 4. Resolve Tech User
-        let techUserId: string | null = ticket.assignedTechId;
-        if (!techUserId && techContext?.username) {
-          const u = await tx.user.findFirst({ where: { username: techContext.username } });
-          if (u) {
-            techUserId = u.id;
+          if (!ticket) {
+            throw new Error(`Tiket ${ticketId} tidak ditemukan`);
           }
-        }
-        if (!techUserId) {
-          const firstTech = await tx.user.findFirst({ where: { userType: 'TECHNICIAN' } });
-          techUserId = firstTech ? firstTech.id : ticket.createdByAdminId;
-        }
 
-        // 5. Audit Trail in Activity Log (Law 2: APPEND-ONLY)
-        // Technician submission recorded for Super Admin verification
-        await tx.activityLog.create({
-          data: {
-            actorUserId: techUserId,
-            actorRole: 'Technician',
-            actionType: 'TICKET_SUBMITTED_FOR_VERIFICATION',
-            targetEntity: 'ticket',
-            targetId: ticket.id,
-            oldPayload: {
-              status: ticket.status,
-              oldAttenuation: ticket.customer.currentAttenuation
-                ? Number(ticket.customer.currentAttenuation)
-                : null,
+          // Anti-IDOR: verify technician assignment (Rule 1)
+          if (techContext?.id && ticket.assignedTechId && ticket.assignedTechId !== techContext.id) {
+            throw new Error(
+              `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${ticket.ticketNumber}.`,
+            );
+          }
+
+          // Anti-Lifecycle violation: reject closed tickets (Rule 3)
+          if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') {
+            throw new Error(
+              `${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${ticket.ticketNumber} sudah berstatus ${ticket.status} dan tidak dapat dimutasi.`,
+            );
+          }
+
+          // 2. Fetch Splitter
+          const splitter = await tx.networkSplitter.findFirst({
+            where: {
+              OR: [{ id: splitterDbId }, { splitterCode: input.splitterId }],
             },
-            newPayload: {
-              submissionId: input.submissionId,
-              status: 'PENDING_APPROVAL',
-              attenuationDbm: input.attenuationDbm,
-              splitterCode: splitter.splitterCode,
+          });
+
+          if (!splitter) {
+            throw new Error(`ODP Splitter ${input.splitterId} tidak ditemukan`);
+          }
+
+          // Validate port capacity bounds
+          if (input.portNumber > splitter.maxPorts) {
+            throw new Error(
+              `Nomor port ${input.portNumber} melebihi batas kapasitas ODP (${splitter.maxPorts} port)`,
+            );
+          }
+
+          // 3. Concurrency check: Ensure port is not occupied by another ACTIVE customer
+          const occupied = await tx.customer.findFirst({
+            where: {
+              splitterId: splitter.id,
               portNumber: input.portNumber,
-              distanceMeters: Math.round(distanceMeters),
-              isLocationFlagged,
-              technicianNotes: input.technicianNotes,
+              status: 'ACTIVE',
+              id: { not: ticket.customerId },
             },
-          },
-        });
+          });
 
-        // 6. Hold ticket in IN_PROGRESS on DB until Super Admin Acceptance
-        const updatedTicket = await tx.ticket.update({
-          where: { id: ticket.id },
-          data: {
-            status: 'IN_PROGRESS',
-            adminNotes: ticket.adminNotes
-              ? `${ticket.adminNotes} Â· Menunggu verifikasi Super Admin`
-              : 'Menunggu verifikasi Super Admin',
-          },
-          include: {
-            customer: {
-              include: { cluster: true, splitter: true },
+          if (occupied) {
+            throw new Error(
+              `${ERROR_CODES.PORT_OCCUPIED}: Port ${input.portNumber} pada ODP ${splitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName} - ${occupied.siaNumber}).`,
+            );
+          }
+
+          // 4. Resolve Tech User
+          let techUserId: string | null = ticket.assignedTechId;
+          if (!techUserId && techContext?.username) {
+            const u = await tx.user.findFirst({ where: { username: techContext.username } });
+            if (u) {
+              techUserId = u.id;
+            }
+          }
+          if (!techUserId) {
+            const firstTech = await tx.user.findFirst({ where: { userType: 'TECHNICIAN' } });
+            techUserId = firstTech ? firstTech.id : ticket.createdByAdminId;
+          }
+
+          // 5. Audit Trail in Activity Log (Law 2: APPEND-ONLY)
+          // Technician submission recorded for Super Admin verification
+          await tx.activityLog.create({
+            data: {
+              actorUserId: techUserId,
+              actorRole: 'Technician',
+              actionType: 'TICKET_SUBMITTED_FOR_VERIFICATION',
+              targetEntity: 'ticket',
+              targetId: ticket.id,
+              oldPayload: {
+                status: ticket.status,
+                oldAttenuation: ticket.customer.currentAttenuation
+                  ? Number(ticket.customer.currentAttenuation)
+                  : null,
+              },
+              newPayload: {
+                submissionId: input.submissionId,
+                status: 'PENDING_APPROVAL',
+                attenuationDbm: input.attenuationDbm,
+                splitterCode: splitter.splitterCode,
+                portNumber: input.portNumber,
+                distanceMeters: Math.round(distanceMeters),
+                isLocationFlagged,
+                technicianNotes: input.technicianNotes,
+              },
             },
-            assignedTech: true,
-          },
-        });
+          });
 
-        return updatedTicket;
-      });
-    } catch (dbErr) {
-      // Re-throw validation/concurrency errors immediately
-      const errMsg = (dbErr as Error).message;
-      if (
-        errMsg.includes(ERROR_CODES.PORT_OCCUPIED) ||
-        errMsg.includes('kapasitas ODP') ||
-        errMsg.includes(ERROR_CODES.MOCK_LOCATION_DETECTED)
-      ) {
-        throw dbErr;
+          // 6. Hold ticket in IN_PROGRESS on DB until Super Admin Acceptance
+          const updatedTicket = await tx.ticket.update({
+            where: { id: ticket.id },
+            data: {
+              status: 'IN_PROGRESS',
+              adminNotes: ticket.adminNotes
+                ? `${ticket.adminNotes} Â· Menunggu verifikasi Super Admin`
+                : 'Menunggu verifikasi Super Admin',
+            },
+            include: {
+              customer: {
+                include: { cluster: true, splitter: true },
+              },
+              assignedTech: true,
+            },
+          });
+
+          return updatedTicket;
+        });
+      } catch (dbErr) {
+        // Re-throw validation/concurrency errors immediately
+        const errMsg = (dbErr as Error).message;
+        if (
+          errMsg.includes(ERROR_CODES.PORT_OCCUPIED) ||
+          errMsg.includes('kapasitas ODP') ||
+          errMsg.includes(ERROR_CODES.MOCK_LOCATION_DETECTED)
+        ) {
+          throw dbErr;
+        }
+        markDatabaseUnavailable(dbErr);
+        // If DB error is connection related, fallback to in-memory store
+        console.warn('[TicketService] DB transaction failed, syncing in-memory store:', errMsg);
       }
-      // If DB error is connection related, fallback to in-memory store
-      console.warn('[TicketService] DB transaction failed, syncing in-memory store:', errMsg);
     }
 
     // ------------------------------------------------------------------
@@ -965,107 +1000,110 @@ export class TicketService {
     const finalPort = pending ? pending.portNumber : ticket.portNumber || 1;
 
     // Interactive DB transaction if PostgreSQL is available
-    try {
-      const dbTicket = await prisma.ticket.findFirst({
-        where: { OR: [{ id: ticketId }, { ticketNumber: ticketId }] },
-        include: { customer: true, assignedTech: true },
-      });
+    if (await isDatabaseAvailable()) {
+      try {
+        const dbTicket = await prisma.ticket.findFirst({
+          where: { OR: [{ id: ticketId }, { ticketNumber: ticketId }] },
+          include: { customer: true, assignedTech: true },
+        });
 
-      if (dbTicket) {
-        await prisma.$transaction(async (tx) => {
-          const splitter = await tx.networkSplitter.findFirst({
-            where: {
-              OR: [{ id: finalSplitter }, { splitterCode: finalSplitter }],
-            },
-          });
-
-          if (splitter) {
-            // Concurrency check
-            const occupied = await tx.customer.findFirst({
+        if (dbTicket) {
+          await prisma.$transaction(async (tx) => {
+            const splitter = await tx.networkSplitter.findFirst({
               where: {
-                splitterId: splitter.id,
-                portNumber: finalPort,
-                status: 'ACTIVE',
-                id: { not: dbTicket.customerId },
+                OR: [{ id: finalSplitter }, { splitterCode: finalSplitter }],
               },
             });
 
-            if (occupied) {
-              throw new Error(
-                `${ERROR_CODES.PORT_OCCUPIED}: Port ${finalPort} pada ODP ${splitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName}).`,
-              );
-            }
-
-            // Update customer master data
-            await tx.customer.update({
-              where: { id: dbTicket.customerId },
-              data: {
-                status: 'ACTIVE',
-                splitterId: splitter.id,
-                portNumber: finalPort,
-                currentAttenuation: finalAttenuation,
-                updatedAt: new Date(),
-              },
-            });
-
-            // Append-only Attenuation History
-            if (pending) {
-              await tx.attenuationHistory.create({
-                data: {
-                  submissionId: pending.submissionId,
-                  ticketId: dbTicket.id,
-                  customerId: dbTicket.customerId,
-                  techId: dbTicket.assignedTechId || adminId,
-                  newAttenuation: finalAttenuation,
+            if (splitter) {
+              // Concurrency check
+              const occupied = await tx.customer.findFirst({
+                where: {
                   splitterId: splitter.id,
                   portNumber: finalPort,
-                  photoObjectKey: pending.photoObjectKey,
-                  submittedLat: pending.submittedLat,
-                  submittedLng: pending.submittedLng,
-                  distanceToSplitterM: pending.distanceToSplitterM,
-                  isLocationFlagged: pending.isLocationFlagged,
-                  clientRecordedAt: pending.clientRecordedAt
-                    ? new Date(pending.clientRecordedAt)
-                    : null,
+                  status: 'ACTIVE',
+                  id: { not: dbTicket.customerId },
                 },
               });
+
+              if (occupied) {
+                throw new Error(
+                  `${ERROR_CODES.PORT_OCCUPIED}: Port ${finalPort} pada ODP ${splitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName}).`,
+                );
+              }
+
+              // Update customer master data
+              await tx.customer.update({
+                where: { id: dbTicket.customerId },
+                data: {
+                  status: 'ACTIVE',
+                  splitterId: splitter.id,
+                  portNumber: finalPort,
+                  currentAttenuation: finalAttenuation,
+                  updatedAt: new Date(),
+                },
+              });
+
+              // Append-only Attenuation History
+              if (pending) {
+                await tx.attenuationHistory.create({
+                  data: {
+                    submissionId: pending.submissionId,
+                    ticketId: dbTicket.id,
+                    customerId: dbTicket.customerId,
+                    techId: dbTicket.assignedTechId || adminId,
+                    newAttenuation: finalAttenuation,
+                    splitterId: splitter.id,
+                    portNumber: finalPort,
+                    photoObjectKey: pending.photoObjectKey,
+                    submittedLat: pending.submittedLat,
+                    submittedLng: pending.submittedLng,
+                    distanceToSplitterM: pending.distanceToSplitterM,
+                    isLocationFlagged: pending.isLocationFlagged,
+                    clientRecordedAt: pending.clientRecordedAt
+                      ? new Date(pending.clientRecordedAt)
+                      : null,
+                  },
+                });
+              }
             }
-          }
 
-          // Append-only Activity Log (Law 2)
-          await tx.activityLog.create({
-            data: {
-              actorUserId: adminId,
-              actorRole: 'Super Admin',
-              actionType: 'TICKET_APPROVED_BY_ADMIN',
-              targetEntity: 'ticket',
-              targetId: dbTicket.id,
-              newPayload: {
-                status: 'COMPLETED',
-                approvedBy: adminUser,
-                attenuationDbm: finalAttenuation,
-                splitterCode: finalSplitter,
-                portNumber: finalPort,
+            // Append-only Activity Log (Law 2)
+            await tx.activityLog.create({
+              data: {
+                actorUserId: adminId,
+                actorRole: 'Super Admin',
+                actionType: 'TICKET_APPROVED_BY_ADMIN',
+                targetEntity: 'ticket',
+                targetId: dbTicket.id,
+                newPayload: {
+                  status: 'COMPLETED',
+                  approvedBy: adminUser,
+                  attenuationDbm: finalAttenuation,
+                  splitterCode: finalSplitter,
+                  portNumber: finalPort,
+                },
               },
-            },
-          });
+            });
 
-          // Mark ticket as COMPLETED
-          await tx.ticket.update({
-            where: { id: dbTicket.id },
-            data: {
-              status: 'COMPLETED',
-              completedAt: new Date(),
-            },
+            // Mark ticket as COMPLETED
+            await tx.ticket.update({
+              where: { id: dbTicket.id },
+              data: {
+                status: 'COMPLETED',
+                completedAt: new Date(),
+              },
+            });
           });
-        });
+        }
+      } catch (err) {
+        const errMsg = (err as Error).message;
+        if (errMsg.includes(ERROR_CODES.PORT_OCCUPIED)) {
+          throw err;
+        }
+        markDatabaseUnavailable(err);
+        console.warn('[TicketService] DB approval transaction failed or skipped:', errMsg);
       }
-    } catch (err) {
-      const errMsg = (err as Error).message;
-      if (errMsg.includes(ERROR_CODES.PORT_OCCUPIED)) {
-        throw err;
-      }
-      console.warn('[TicketService] DB approval transaction failed or skipped:', errMsg);
     }
 
     // Update in-memory ticket state
@@ -1128,28 +1166,31 @@ export class TicketService {
     }
 
     // Activity log in DB if available (Law 2)
-    try {
-      const dbTicket = await prisma.ticket.findFirst({
-        where: { OR: [{ id: ticketId }, { ticketNumber: ticketId }] },
-      });
-      if (dbTicket) {
-        await prisma.activityLog.create({
-          data: {
-            actorUserId: adminId,
-            actorRole: 'Super Admin',
-            actionType: 'TICKET_REJECTED_BY_ADMIN',
-            targetEntity: 'ticket',
-            targetId: dbTicket.id,
-            newPayload: {
-              status: 'IN_PROGRESS',
-              rejectedBy: adminUser,
-              reason,
-            },
-          },
+    if (await isDatabaseAvailable()) {
+      try {
+        const dbTicket = await prisma.ticket.findFirst({
+          where: { OR: [{ id: ticketId }, { ticketNumber: ticketId }] },
         });
+        if (dbTicket) {
+          await prisma.activityLog.create({
+            data: {
+              actorUserId: adminId,
+              actorRole: 'Super Admin',
+              actionType: 'TICKET_REJECTED_BY_ADMIN',
+              targetEntity: 'ticket',
+              targetId: dbTicket.id,
+              newPayload: {
+                status: 'IN_PROGRESS',
+                rejectedBy: adminUser,
+                reason,
+              },
+            },
+          });
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        // Ignore DB error in fallback mode
       }
-    } catch {
-      // Ignore DB error in fallback mode
     }
 
     ticket.status = 'Dalam proses';

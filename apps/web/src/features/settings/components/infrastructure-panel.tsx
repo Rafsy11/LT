@@ -63,7 +63,6 @@ export function InfrastructurePanel({
                 padding: '14px',
                 borderRadius: '6px',
                 cursor: isSuperAdmin ? 'pointer' : 'default',
-                transition: 'all 0.15s ease',
               }}
             >
               <div
@@ -94,7 +93,6 @@ export function InfrastructurePanel({
                 padding: '14px',
                 borderRadius: '6px',
                 cursor: isSuperAdmin ? 'pointer' : 'default',
-                transition: 'all 0.15s ease',
               }}
             >
               <div

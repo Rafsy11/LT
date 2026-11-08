@@ -146,7 +146,6 @@ export function CustomerFilters({
               size={12}
               style={{
                 transform: isWilayahFilterOpen ? 'rotate(180deg)' : 'none',
-                transition: 'transform 0.15s ease',
               }}
             />
           </button>

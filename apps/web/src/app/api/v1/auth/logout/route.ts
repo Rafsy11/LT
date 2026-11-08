@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@repo/database';
+import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 import { redisManager } from '@/server/lib/redis';
 import { logoutRequestSchema } from '@repo/shared';
 
@@ -13,17 +13,19 @@ export async function POST(request: NextRequest) {
     // 1. Invalidate device session in Redis & Postgres if mobile
     if (deviceId) {
       await redisManager.blacklistSession(deviceId).catch(() => {});
-      await prisma.userSession
-        .updateMany({
-          where: {
-            deviceId,
-            revokedAt: null,
-          },
-          data: {
-            revokedAt: new Date(),
-          },
-        })
-        .catch(() => {});
+      if (await isDatabaseAvailable()) {
+        await prisma.userSession
+          .updateMany({
+            where: {
+              deviceId,
+              revokedAt: null,
+            },
+            data: {
+              revokedAt: new Date(),
+            },
+          })
+          .catch((err) => markDatabaseUnavailable(err));
+      }
     }
 
     // 2. Clear cookie for web sessions (HttpOnly, Secure, SameSite=Strict, Max-Age=0, Path=/)

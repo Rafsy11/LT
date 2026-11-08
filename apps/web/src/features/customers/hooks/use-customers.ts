@@ -3,13 +3,20 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { classifyDbm, type CustomerListItem } from '@repo/shared';
 import type { CustomerStatusTab } from '../components/customer-filters';
+import { fetchWithCache, getCachedData } from '@/lib/query-cache';
+
+const CUSTOMERS_CACHE_KEY = '/api/v1/admin/customers';
 
 export function useCustomers() {
   const [search, setSearch] = useState('');
   const [cluster, setCluster] = useState('Semua cluster');
   const [statusTab, setStatusTab] = useState<CustomerStatusTab>('all');
-  const [customers, setCustomers] = useState<CustomerListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [customers, setCustomers] = useState<CustomerListItem[]>(
+    () => getCachedData<CustomerListItem[]>(CUSTOMERS_CACHE_KEY) ?? [],
+  );
+  const [loading, setLoading] = useState<boolean>(
+    () => !getCachedData<CustomerListItem[]>(CUSTOMERS_CACHE_KEY),
+  );
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem | null>(null);
 
   // Filter Spesifikasi Wilayah: Kecamatan, Kelurahan, Jalan
@@ -18,14 +25,24 @@ export function useCustomers() {
   const [jalan, setJalan] = useState('Semua jalan');
   const [isWilayahFilterOpen, setIsWilayahFilterOpen] = useState(false);
 
-  const fetchCustomers = useCallback(async () => {
+  const fetchCustomers = useCallback(async (force = false) => {
     try {
-      setLoading(true);
-      const res = await fetch('/api/v1/admin/customers');
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setCustomers(json.data);
+      if (!getCachedData<CustomerListItem[]>(CUSTOMERS_CACHE_KEY)) {
+        setLoading(true);
       }
+      const data = await fetchWithCache<CustomerListItem[]>(
+        CUSTOMERS_CACHE_KEY,
+        async () => {
+          const res = await fetch(CUSTOMERS_CACHE_KEY);
+          const json = await res.json();
+          if (!res.ok || !json.success || !Array.isArray(json.data)) {
+            throw new Error(json.error?.message || 'Gagal mengambil data pelanggan');
+          }
+          return json.data as CustomerListItem[];
+        },
+        { force },
+      );
+      setCustomers(data);
     } catch (err) {
       console.error('[useCustomers] Gagal mengambil data pelanggan:', err);
     } finally {

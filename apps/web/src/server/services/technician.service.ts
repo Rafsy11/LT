@@ -1,4 +1,4 @@
-import { prisma } from '@repo/database';
+import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 import { type TechnicianListItem } from '@repo/shared';
 
 export type { TechnicianListItem };
@@ -158,6 +158,31 @@ const FALLBACK_TECHS: TechnicianListItem[] = [
 ];
 
 export class TechnicianService {
+  public static async getOverviewStats(): Promise<{ total: number; active: number }> {
+    if (await isDatabaseAvailable()) {
+      try {
+        const techs = await prisma.user.findMany({
+          where: { userType: 'TECHNICIAN' },
+          select: { isActive: true },
+        });
+        if (techs.length > 0) {
+          const active = techs.filter((t) => t.isActive).length;
+          return { total: techs.length, active: active || techs.length };
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+      }
+    }
+
+    const active = FALLBACK_TECHS.filter(
+      (tk) => tk.sessionStatus === 'ACTIVE_SESSION' || tk.isActive,
+    ).length;
+    return {
+      total: FALLBACK_TECHS.length,
+      active: active || FALLBACK_TECHS.length,
+    };
+  }
+
   /**
    * Retrieves technicians list with real-time active/completed ticket counts from PostgreSQL.
    */
@@ -165,62 +190,65 @@ export class TechnicianService {
     search = '',
     cluster = 'Semua cluster',
   ): Promise<TechnicianListItem[]> {
-    try {
-      const techs = await prisma.user.findMany({
-        where: { userType: 'TECHNICIAN' },
-        include: {
-          role: true,
-          assignedTickets: {
-            select: { id: true, status: true },
+    if (await isDatabaseAvailable()) {
+      try {
+        const techs = await prisma.user.findMany({
+          where: { userType: 'TECHNICIAN' },
+          include: {
+            role: true,
+            assignedTickets: {
+              select: { id: true, status: true },
+            },
           },
-        },
-        orderBy: { fullName: 'asc' },
-      });
-
-      if (techs.length > 0) {
-        const result: TechnicianListItem[] = techs.map((t) => {
-          const activeTicketsCount = t.assignedTickets.filter(
-            (ticket) => ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS',
-          ).length;
-          const completedTicketsCount = t.assignedTickets.filter(
-            (ticket) => ticket.status === 'COMPLETED',
-          ).length;
-
-          const clusterName =
-            t.assignedClusters.length > 0 ? t.assignedClusters[0] : 'Bandung Utara';
-
-          return {
-            id: t.id,
-            username: t.username,
-            fullName: t.fullName,
-            cluster: clusterName.includes('Bandung') ? clusterName : `Bandung ${clusterName}`,
-            initials: getInitials(t.fullName),
-            isActive: t.isActive,
-            activeTicketsCount,
-            completedTicketsCount,
-          };
+          orderBy: { fullName: 'asc' },
         });
 
-        let filtered = result;
-        if (cluster && cluster !== 'Semua cluster') {
-          filtered = filtered.filter((t) => t.cluster.includes(cluster.replace('Bandung ', '')));
+        if (techs.length > 0) {
+          const result: TechnicianListItem[] = techs.map((t) => {
+            const activeTicketsCount = t.assignedTickets.filter(
+              (ticket) => ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS',
+            ).length;
+            const completedTicketsCount = t.assignedTickets.filter(
+              (ticket) => ticket.status === 'COMPLETED',
+            ).length;
+
+            const clusterName =
+              t.assignedClusters.length > 0 ? t.assignedClusters[0] : 'Bandung Utara';
+
+            return {
+              id: t.id,
+              username: t.username,
+              fullName: t.fullName,
+              cluster: clusterName.includes('Bandung') ? clusterName : `Bandung ${clusterName}`,
+              initials: getInitials(t.fullName),
+              isActive: t.isActive,
+              activeTicketsCount,
+              completedTicketsCount,
+            };
+          });
+
+          let filtered = result;
+          if (cluster && cluster !== 'Semua cluster') {
+            filtered = filtered.filter((t) => t.cluster.includes(cluster.replace('Bandung ', '')));
+          }
+          if (search.trim()) {
+            const q = search.toLowerCase();
+            filtered = filtered.filter(
+              (t) =>
+                t.fullName.toLowerCase().includes(q) ||
+                t.username.toLowerCase().includes(q) ||
+                t.cluster.toLowerCase().includes(q),
+            );
+          }
+          return filtered;
         }
-        if (search.trim()) {
-          const q = search.toLowerCase();
-          filtered = filtered.filter(
-            (t) =>
-              t.fullName.toLowerCase().includes(q) ||
-              t.username.toLowerCase().includes(q) ||
-              t.cluster.toLowerCase().includes(q),
-          );
-        }
-        return filtered;
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        console.warn(
+          '[TechnicianService] DB listTechnicians failed, using fallback:',
+          (err as Error).message,
+        );
       }
-    } catch (err) {
-      console.warn(
-        '[TechnicianService] DB listTechnicians failed, using fallback:',
-        (err as Error).message,
-      );
     }
 
     // Graceful fallback
@@ -249,59 +277,62 @@ export class TechnicianService {
     reason?: string,
     actorId = 'superadmin',
   ) {
-    try {
-      const user = await prisma.user.findFirst({
-        where: {
-          OR: [{ username }, { fullName: { contains: username, mode: 'insensitive' } }],
-        },
-      });
-
-      if (user) {
-        const nextState = setActive !== undefined ? setActive : !user.isActive;
-
-        const updated = await prisma.user.update({
-          where: { id: user.id },
-          data: { isActive: nextState },
-        });
-
-        // Revoke active sessions if account deactivated
-        if (!nextState) {
-          await prisma.userSession.updateMany({
-            where: { userId: user.id, revokedAt: null },
-            data: { revokedAt: new Date() },
-          });
-        }
-
-        // Audit log
-        await prisma.activityLog.create({
-          data: {
-            actorUserId: actorId,
-            actorRole: 'Admin',
-            actionType: nextState ? 'TECH_ACCOUNT_ACTIVATED' : 'TECH_ACCOUNT_DEACTIVATED',
-            targetEntity: 'user',
-            targetId: user.id,
-            oldPayload: { isActive: user.isActive },
-            newPayload: { isActive: nextState, reason },
+    if (await isDatabaseAvailable()) {
+      try {
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [{ username }, { fullName: { contains: username, mode: 'insensitive' } }],
           },
         });
 
-        return {
-          id: updated.id,
-          username: updated.username,
-          fullName: updated.fullName,
-          cluster: updated.assignedClusters[0] || 'Bandung Utara',
-          initials: getInitials(updated.fullName),
-          isActive: updated.isActive,
-          activeTicketsCount: 0,
-          completedTicketsCount: 0,
-          sessionStatus: !nextState ? ('REVOKED' as const) : ('NO_SESSION' as const),
-        };
+        if (user) {
+          const nextState = setActive !== undefined ? setActive : !user.isActive;
+
+          const updated = await prisma.user.update({
+            where: { id: user.id },
+            data: { isActive: nextState },
+          });
+
+          // Revoke active sessions if account deactivated
+          if (!nextState) {
+            await prisma.userSession.updateMany({
+              where: { userId: user.id, revokedAt: null },
+              data: { revokedAt: new Date() },
+            });
+          }
+
+          // Audit log
+          await prisma.activityLog.create({
+            data: {
+              actorUserId: actorId,
+              actorRole: 'Admin',
+              actionType: nextState ? 'TECH_ACCOUNT_ACTIVATED' : 'TECH_ACCOUNT_DEACTIVATED',
+              targetEntity: 'user',
+              targetId: user.id,
+              oldPayload: { isActive: user.isActive },
+              newPayload: { isActive: nextState, reason },
+            },
+          });
+
+          return {
+            id: updated.id,
+            username: updated.username,
+            fullName: updated.fullName,
+            cluster: updated.assignedClusters[0] || 'Bandung Utara',
+            initials: getInitials(updated.fullName),
+            isActive: updated.isActive,
+            activeTicketsCount: 0,
+            completedTicketsCount: 0,
+            sessionStatus: !nextState ? ('REVOKED' as const) : ('NO_SESSION' as const),
+          };
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        console.warn(
+          '[TechnicianService] DB toggle failed, fallback memory:',
+          (err as Error).message,
+        );
       }
-    } catch (err) {
-      console.warn(
-        '[TechnicianService] DB toggle failed, fallback memory:',
-        (err as Error).message,
-      );
     }
 
     const tech = FALLBACK_TECHS.find(
@@ -336,61 +367,64 @@ export class TechnicianService {
     reason = 'Admin Force Logout (Sesi Dicabut)',
     actorId = 'usr-admin-01',
   ): Promise<TechnicianListItem> {
-    try {
-      const user = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { id: idOrUsername },
-            { username: idOrUsername },
-            { fullName: { contains: idOrUsername, mode: 'insensitive' } },
-          ],
-        },
-      });
-
-      if (user) {
-        // 1. Revoke active sessions in user_sessions table
-        const now = new Date();
-        await prisma.userSession.updateMany({
+    if (await isDatabaseAvailable()) {
+      try {
+        const user = await prisma.user.findFirst({
           where: {
-            userId: user.id,
-            revokedAt: null,
-          },
-          data: {
-            revokedAt: now,
-          },
-        });
-
-        // 2. Audit log immutable record (agent.md Law 2 & PRD Section 5.1)
-        await prisma.activityLog.create({
-          data: {
-            actorUserId: actorId,
-            actorRole: 'Admin',
-            actionType: 'TECH_FORCE_LOGOUT',
-            targetEntity: 'user',
-            targetId: user.id,
-            oldPayload: { sessionStatus: 'ACTIVE_SESSION' },
-            newPayload: { sessionStatus: 'REVOKED', reason, timestamp: now.toISOString() },
+            OR: [
+              { id: idOrUsername },
+              { username: idOrUsername },
+              { fullName: { contains: idOrUsername, mode: 'insensitive' } },
+            ],
           },
         });
 
-        return {
-          id: user.id,
-          username: user.username,
-          fullName: user.fullName,
-          cluster: user.assignedClusters[0] || 'Bandung Utara',
-          initials: getInitials(user.fullName),
-          isActive: user.isActive,
-          activeTicketsCount: 0,
-          completedTicketsCount: 0,
-          sessionStatus: 'REVOKED',
-          lastActiveAt: 'Baru saja dicabut oleh Admin',
-        };
+        if (user) {
+          // 1. Revoke active sessions in user_sessions table
+          const now = new Date();
+          await prisma.userSession.updateMany({
+            where: {
+              userId: user.id,
+              revokedAt: null,
+            },
+            data: {
+              revokedAt: now,
+            },
+          });
+
+          // 2. Audit log immutable record (agent.md Law 2 & PRD Section 5.1)
+          await prisma.activityLog.create({
+            data: {
+              actorUserId: actorId,
+              actorRole: 'Admin',
+              actionType: 'TECH_FORCE_LOGOUT',
+              targetEntity: 'user',
+              targetId: user.id,
+              oldPayload: { sessionStatus: 'ACTIVE_SESSION' },
+              newPayload: { sessionStatus: 'REVOKED', reason, timestamp: now.toISOString() },
+            },
+          });
+
+          return {
+            id: user.id,
+            username: user.username,
+            fullName: user.fullName,
+            cluster: user.assignedClusters[0] || 'Bandung Utara',
+            initials: getInitials(user.fullName),
+            isActive: user.isActive,
+            activeTicketsCount: 0,
+            completedTicketsCount: 0,
+            sessionStatus: 'REVOKED',
+            lastActiveAt: 'Baru saja dicabut oleh Admin',
+          };
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        console.warn(
+          '[TechnicianService] DB forceLogout failed, fallback memory:',
+          (err as Error).message,
+        );
       }
-    } catch (err) {
-      console.warn(
-        '[TechnicianService] DB forceLogout failed, fallback memory:',
-        (err as Error).message,
-      );
     }
 
     // Graceful fallback memory

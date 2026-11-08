@@ -1,8 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth, useToast } from '@/providers';
 import type { DbTicket } from '@repo/shared';
+import {
+  fetchWithCache,
+  getCachedData,
+  invalidateQueryCache,
+  setCachedData,
+} from '@/lib/query-cache';
+
+const OVERVIEW_CACHE_KEY = '/api/v1/admin/overview';
+const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
+
+interface OverviewPayload {
+  tickets: DbTicket[];
+  stats: {
+    customerCount: number;
+    technicianTotal: number;
+    technicianActive: number;
+  };
+}
 
 export interface OverviewFeedItem {
   id: string;
@@ -24,12 +42,26 @@ export interface OverviewFeedItem {
 export function useOverview() {
   const [cluster, setCluster] = useState('Semua cluster');
   const [query, setQuery] = useState('');
-  const [tickets, setTickets] = useState<DbTicket[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tickets, setTickets] = useState<DbTicket[]>(
+    () =>
+      getCachedData<OverviewPayload>(OVERVIEW_CACHE_KEY)?.tickets ??
+      getCachedData<DbTicket[]>(TICKETS_CACHE_KEY) ??
+      [],
+  );
+  const [loading, setLoading] = useState<boolean>(
+    () => !getCachedData<OverviewPayload>(OVERVIEW_CACHE_KEY),
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<DbTicket | null>(null);
-  const [customerCount, setCustomerCount] = useState<number | null>(null);
-  const [techStats, setTechStats] = useState<{ total: number; active: number } | null>(null);
+  const [customerCount, setCustomerCount] = useState<number | null>(
+    () => getCachedData<OverviewPayload>(OVERVIEW_CACHE_KEY)?.stats.customerCount ?? null,
+  );
+  const [techStats, setTechStats] = useState<{ total: number; active: number } | null>(() => {
+    const cachedStats = getCachedData<OverviewPayload>(OVERVIEW_CACHE_KEY)?.stats;
+    return cachedStats
+      ? { total: cachedStats.technicianTotal, active: cachedStats.technicianActive }
+      : null;
+  });
   const [currentDateTime, setCurrentDateTime] = useState({ date: '', time: '' });
   const [statusFilter, setStatusFilter] = useState('Semua');
 
@@ -79,49 +111,43 @@ export function useOverview() {
     },
   ]);
 
-  const fetchTickets = async () => {
-    try {
-      const res = await fetch('/api/v1/admin/tickets');
-      const json = await res.json();
-      if (json.success) {
-        setTickets(json.data);
+  const fetchOverview = useCallback(
+    async (force = false) => {
+      try {
+        if (!getCachedData<OverviewPayload>(OVERVIEW_CACHE_KEY)) {
+          setLoading(true);
+        }
+        const data = await fetchWithCache<OverviewPayload>(
+          OVERVIEW_CACHE_KEY,
+          async () => {
+            const res = await fetch(OVERVIEW_CACHE_KEY);
+            const json = await res.json();
+            if (!res.ok || !json.success || !json.data) {
+              throw new Error(json.error?.message || 'Gagal memuat ringkasan operasional');
+            }
+            return json.data as OverviewPayload;
+          },
+          { force },
+        );
+
+        setTickets(data.tickets);
+        setCustomerCount(data.stats.customerCount);
+        setTechStats({
+          total: data.stats.technicianTotal,
+          active: data.stats.technicianActive,
+        });
+        setCachedData(TICKETS_CACHE_KEY, data.tickets);
+      } catch (e: unknown) {
+        showError(e);
+      } finally {
+        setLoading(false);
       }
-    } catch (e: unknown) {
-      showError(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [showError],
+  );
 
   useEffect(() => {
-    fetchTickets();
-
-    const fetchStats = async () => {
-      try {
-        const [cRes, tRes] = await Promise.all([
-          fetch('/api/v1/admin/customers')
-            .then((r) => r.json())
-            .catch(() => null),
-          fetch('/api/v1/admin/technicians')
-            .then((r) => r.json())
-            .catch(() => null),
-        ]);
-        if (cRes?.success && Array.isArray(cRes.data)) {
-          setCustomerCount(cRes.data.length);
-        }
-        if (tRes?.success && Array.isArray(tRes.data)) {
-          const active = tRes.data.filter(
-            (tk: any) =>
-              tk.hasActiveSession ||
-              tk.sessionActive ||
-              tk.status === 'BUSY' ||
-              tk.status === 'AVAILABLE',
-          ).length;
-          setTechStats({ total: tRes.data.length, active: active || tRes.data.length });
-        }
-      } catch {}
-    };
-    fetchStats();
+    fetchOverview();
 
     const updateClock = () => {
       const now = new Date();
@@ -139,10 +165,10 @@ export function useOverview() {
     const interval = setInterval(updateClock, 60000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchOverview]);
 
   const handleCreateTicket = async (data: any) => {
-    const res = await fetch('/api/v1/admin/tickets', {
+    const res = await fetch(TICKETS_CACHE_KEY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -151,7 +177,8 @@ export function useOverview() {
     if (!json.success) {
       throw json.error;
     }
-    fetchTickets();
+    invalidateQueryCache(OVERVIEW_CACHE_KEY, TICKETS_CACHE_KEY);
+    await fetchOverview(true);
   };
 
   const handleMarkCompleted = async (ticketNumber: string) => {
@@ -244,7 +271,7 @@ export function useOverview() {
     activeTicketsCount,
     waitingTicketsCount,
     networkHealthPct,
-    fetchTickets,
+    fetchTickets: fetchOverview,
     handleCreateTicket,
     handleMarkCompleted,
     exportCsv,

@@ -14,6 +14,16 @@ export const metadata: Metadata = {
   title: 'FiberOps: On-Premise FTTH Operations & Network Monitoring',
   description:
     'Single Source of Truth untuk Pengelolaan Master Data Jaringan, Tiket Lapangan, Monitoring Redaman Optik, dan Asisten AI On-Premise.',
+  icons: {
+    icon: [
+      {
+        url: '/assets/Lintasarta-Icon.svg',
+        type: 'image/svg+xml',
+      },
+    ],
+    shortcut: '/assets/Lintasarta-Icon.svg',
+    apple: '/assets/Lintasarta-Icon.svg',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -22,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('fiberops_theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('fiberops_theme');var isDark=t==='dark'||((!t||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(isDark){document.documentElement.classList.add('dark');document.documentElement.setAttribute('data-theme','dark');}else{document.documentElement.classList.remove('dark');document.documentElement.setAttribute('data-theme','light');}}catch(e){}})();`,
           }}
         />
       </head>

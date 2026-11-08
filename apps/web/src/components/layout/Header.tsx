@@ -13,17 +13,25 @@ interface HeaderProps {
   onToggleMobileMenu?: () => void;
 }
 
+const THEME_OPTIONS: Array<{ value: 'light' | 'dark' | 'system'; label: string; icon: string }> = [
+  { value: 'light', label: 'Terang (Light)', icon: 'sun' },
+  { value: 'dark', label: 'Gelap (Dark)', icon: 'moon' },
+  { value: 'system', label: 'Sistem (Otomatis)', icon: 'monitor' },
+];
+
 export function Header({
   pageTitle: _pageTitle,
   isMobileMenuOpen = false,
   onToggleMobileMenu,
 }: HeaderProps = {}) {
   const [notice, setNotice] = useState(false);
+  const [isThemeOpen, setIsThemeOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const noticeWrapRef = useRef<HTMLDivElement>(null);
+  const themeWrapRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { hasPermission, user, logout, isLoggingOut } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
 
   useEffect(() => {
     if (!notice) return;
@@ -44,6 +52,26 @@ export function Header({
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [notice]);
+
+  useEffect(() => {
+    if (!isThemeOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (themeWrapRef.current && !themeWrapRef.current.contains(e.target as Node)) {
+        setIsThemeOpen(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setIsThemeOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isThemeOpen]);
 
   const canEditRole = hasPermission(PERMISSIONS.ROLE_EDIT);
 
@@ -126,15 +154,57 @@ export function Header({
             <Icon name="settings" size={19} />
           </Link>
 
-          <button
-            type="button"
-            className={`icon-button header-action-btn theme-switcher-btn ${theme === 'dark' ? 'dark-active' : ''}`}
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Beralih ke Mode Terang (Light Mode)' : 'Beralih ke Mode Gelap (Dark Mode)'}
-            aria-label={theme === 'dark' ? 'Beralih ke Mode Terang' : 'Beralih ke Mode Gelap'}
-          >
-            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
-          </button>
+          <div className="theme-dropdown-wrap" ref={themeWrapRef}>
+            <button
+              type="button"
+              className={`icon-button header-action-btn theme-switcher-btn ${resolvedTheme === 'dark' ? 'dark-active' : ''} ${isThemeOpen ? 'dropdown-open' : ''}`}
+              onClick={() => setIsThemeOpen((prev) => !prev)}
+              title={`Tema saat ini: ${theme === 'system' ? 'Sistem' : theme === 'dark' ? 'Gelap' : 'Terang'}. Klik untuk memilih tema.`}
+              aria-label={`Pilih Tema Antarmuka (Aktif: ${theme === 'system' ? 'Sistem' : theme === 'dark' ? 'Gelap' : 'Terang'})`}
+              aria-expanded={isThemeOpen}
+              aria-haspopup="listbox"
+            >
+              <Icon
+                name={theme === 'system' ? 'monitor' : theme === 'dark' ? 'moon' : 'sun'}
+                size={18}
+              />
+            </button>
+
+            {isThemeOpen && (
+              <div
+                className="theme-dropdown-menu"
+                role="listbox"
+                aria-label="Pilihan Tema Antarmuka"
+              >
+                {THEME_OPTIONS.map((opt) => {
+                  const isSelected = theme === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      className={`theme-dropdown-item ${isSelected ? 'selected' : ''}`}
+                      onClick={() => {
+                        setTheme(opt.value);
+                        setIsThemeOpen(false);
+                      }}
+                    >
+                      <span className="theme-item-left">
+                        <Icon name={opt.icon} size={15} />
+                        <span>{opt.label}</span>
+                      </span>
+                      {isSelected && (
+                        <span className="theme-item-check" aria-hidden="true">
+                          <Icon name="check" size={13} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </nav>
 
         <div className="header-divider" aria-hidden="true" />

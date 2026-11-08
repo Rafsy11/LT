@@ -1,89 +1,96 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
-export type Theme = 'light' | 'dark';
+export type Theme = 'light' | 'dark' | 'system';
+export type ResolvedTheme = 'light' | 'dark';
 
 interface ThemeContextType {
   theme: Theme;
+  resolvedTheme: ResolvedTheme;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function getSystemTheme(): ResolvedTheme {
+  if (typeof window === 'undefined') return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyThemeToDOM(resolved: ResolvedTheme) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (resolved === 'dark') {
+    root.classList.add('dark');
+    root.setAttribute('data-theme', 'dark');
+  } else {
+    root.classList.remove('dark');
+    root.setAttribute('data-theme', 'light');
+  }
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('light');
+  const [theme, setThemeState] = useState<Theme>('system');
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem('fiberops_theme') as Theme | null;
-      if (saved === 'dark' || saved === 'light') {
-        setThemeState(saved);
-        applyTheme(saved);
-      } else {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const initial: Theme = prefersDark ? 'dark' : 'light';
-        setThemeState(initial);
-        applyTheme(initial);
-      }
+      const initialTheme: Theme =
+        saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system';
+      const actualResolved = initialTheme === 'system' ? getSystemTheme() : initialTheme;
+
+      setThemeState(initialTheme);
+      setResolvedTheme(actualResolved);
+      applyThemeToDOM(actualResolved);
     } catch {
       // ignore
     }
   }, []);
 
-  const applyTheme = (t: Theme) => {
-    if (typeof document === 'undefined') return;
-    const root = document.documentElement;
-    if (t === 'dark') {
-      root.classList.add('dark');
-      root.setAttribute('data-theme', 'dark');
-    } else {
-      root.classList.remove('dark');
-      root.setAttribute('data-theme', 'light');
-    }
-  };
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-  const setTheme = (newTheme: Theme) => {
+    const handleSystemChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (theme === 'system') {
+        const nextResolved: ResolvedTheme = e.matches ? 'dark' : 'light';
+        setResolvedTheme(nextResolved);
+        applyThemeToDOM(nextResolved);
+      }
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleSystemChange);
+      return () => mediaQuery.removeEventListener('change', handleSystemChange);
+    } else {
+      mediaQuery.addListener(handleSystemChange);
+      return () => mediaQuery.removeListener(handleSystemChange);
+    }
+  }, [theme]);
+
+  const setTheme = useCallback((newTheme: Theme) => {
+    const nextResolved = newTheme === 'system' ? getSystemTheme() : newTheme;
     setThemeState(newTheme);
-    applyTheme(newTheme);
+    setResolvedTheme(nextResolved);
+    applyThemeToDOM(nextResolved);
     try {
       localStorage.setItem('fiberops_theme', newTheme);
     } catch {
       // ignore
     }
-  };
+  }, []);
 
-  const toggleTheme = () => {
-    const nextTheme: Theme = theme === 'dark' ? 'light' : 'dark';
-
-    if (typeof document === 'undefined') {
-      setTheme(nextTheme);
-      return;
-    }
-
-    const prefersReducedMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    // 1. Modern View Transition API for top-to-bottom waterfall curtain sweep
-    if ('startViewTransition' in document && !prefersReducedMotion) {
-      (document as any).startViewTransition(() => {
-        setTheme(nextTheme);
-      });
-    } else {
-      // 2. Fallback smooth CSS transition class
-      const root = document.documentElement;
-      root.classList.add('theme-transitioning');
-      setTheme(nextTheme);
-      window.setTimeout(() => {
-        root.classList.remove('theme-transitioning');
-      }, 450);
-    }
-  };
+  const toggleTheme = useCallback(() => {
+    const nextTheme: Theme =
+      theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
+    setTheme(nextTheme);
+  }, [theme, setTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme, toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -93,7 +100,8 @@ export function useTheme() {
   const context = useContext(ThemeContext);
   if (!context) {
     return {
-      theme: 'light' as Theme,
+      theme: 'system' as Theme,
+      resolvedTheme: 'light' as ResolvedTheme,
       toggleTheme: () => {},
       setTheme: () => {},
     };

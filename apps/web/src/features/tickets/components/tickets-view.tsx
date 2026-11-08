@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { TicketsSkeleton } from '@/components/ui/PageSkeleton';
 import { useTickets } from '../hooks/use-tickets';
 import { TicketStats } from './ticket-stats';
 import { TicketFilters } from './ticket-filters';
@@ -19,6 +20,7 @@ export function TicketsView() {
     setCluster,
     typeFilter,
     setTypeFilter,
+    tickets,
     loading,
     modalOpen,
     setModalOpen,
@@ -38,11 +40,15 @@ export function TicketsView() {
 
   React.useEffect(() => {
     function handleGlobalRefresh() {
-      fetchTickets();
+      fetchTickets(true);
     }
     window.addEventListener('app:refresh-data', handleGlobalRefresh);
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
   }, [fetchTickets]);
+
+  if (loading && tickets.length === 0) {
+    return <TicketsSkeleton />;
+  }
 
   return (
     <main className="tickets-page">
@@ -134,7 +140,7 @@ export function TicketsView() {
       <TicketDetailModal
         ticket={selectedTicket}
         onClose={() => setSelectedTicket(null)}
-        onTicketUpdated={fetchTickets}
+        onTicketUpdated={() => fetchTickets(true)}
       />
     </main>
   );

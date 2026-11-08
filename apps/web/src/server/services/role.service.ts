@@ -1,4 +1,4 @@
-import { prisma } from '@repo/database';
+import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 import { CreateRoleInput, UserSessionContext, ERROR_CODES } from '@repo/shared';
 
 // In-memory fallback seed roles according to PRD Sections 2.1 & 2.2
@@ -89,27 +89,30 @@ export class RoleService {
    * Lists all roles in the system, optionally filtering out roles higher than actor's hierarchy.
    */
   public static async listRoles(actorHierarchyLevel?: number) {
-    try {
-      const roles = await prisma.role.findMany({
-        orderBy: { hierarchyLevel: 'desc' },
-        include: {
-          _count: {
-            select: { users: true },
+    if (await isDatabaseAvailable()) {
+      try {
+        const roles = await prisma.role.findMany({
+          orderBy: { hierarchyLevel: 'desc' },
+          include: {
+            _count: {
+              select: { users: true },
+            },
           },
-        },
-      });
+        });
 
-      if (roles && roles.length > 0) {
-        if (actorHierarchyLevel !== undefined) {
-          return roles.filter((r) => r.hierarchyLevel <= actorHierarchyLevel);
+        if (roles && roles.length > 0) {
+          if (actorHierarchyLevel !== undefined) {
+            return roles.filter((r) => r.hierarchyLevel <= actorHierarchyLevel);
+          }
+          return roles;
         }
-        return roles;
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        console.warn(
+          '[RoleService] DB query failed, falling back to in-memory roles:',
+          (err as Error).message,
+        );
       }
-    } catch (err) {
-      console.warn(
-        '[RoleService] DB query failed, falling back to in-memory roles:',
-        (err as Error).message,
-      );
     }
 
     // Fallback to in-memory seeded roles
@@ -123,20 +126,30 @@ export class RoleService {
    * Retrieves role details by ID.
    */
   public static async getRoleById(roleId: string) {
-    const role = await prisma.role.findUnique({
-      where: { id: roleId },
-      include: {
-        _count: {
-          select: { users: true },
-        },
-      },
-    });
+    if (await isDatabaseAvailable()) {
+      try {
+        const role = await prisma.role.findUnique({
+          where: { id: roleId },
+          include: {
+            _count: {
+              select: { users: true },
+            },
+          },
+        });
 
-    if (!role) {
-      throw new Error('Role tidak ditemukan');
+        if (role) {
+          return role;
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+      }
     }
 
-    return role;
+    const fallback = MEMORY_ROLES.find((r) => r.id === roleId || r.name === roleId);
+    if (!fallback) {
+      throw new Error('Role tidak ditemukan');
+    }
+    return fallback;
   }
 
   /**
@@ -146,40 +159,49 @@ export class RoleService {
     // 1. Hierarchy Check: actor must have strictly higher hierarchy
     this.checkHierarchyProtection(actor.hierarchyLevel, data.hierarchyLevel);
 
-    // 2. Permission Check: actor cannot grant permissions they do not possess
-    const actorRole = await prisma.role.findFirst({
-      where: { name: actor.role },
-    });
+    if (!(await isDatabaseAvailable())) {
+      throw new Error('Database PostgreSQL sedang offline.');
+    }
 
-    const actorPermissions = (actorRole?.permissions as string[]) || [];
-    this.validateGrantablePermissions(actorPermissions, data.permissions);
+    try {
+      // 2. Permission Check: actor cannot grant permissions they do not possess
+      const actorRole = await prisma.role.findFirst({
+        where: { name: actor.role },
+      });
 
-    // 3. Create role
-    const newRole = await prisma.role.create({
-      data: {
-        name: data.name,
-        permissions: data.permissions,
-        hierarchyLevel: data.hierarchyLevel,
-      },
-    });
+      const actorPermissions = (actorRole?.permissions as string[]) || [];
+      this.validateGrantablePermissions(actorPermissions, data.permissions);
 
-    // 4. Audit Log
-    await prisma.activityLog.create({
-      data: {
-        actorUserId: actor.userId,
-        actorRole: actor.role,
-        actionType: 'ROLE_CREATED',
-        targetEntity: 'role',
-        targetId: newRole.id,
-        newPayload: {
-          name: newRole.name,
-          permissions: newRole.permissions,
-          hierarchyLevel: newRole.hierarchyLevel,
+      // 3. Create role
+      const newRole = await prisma.role.create({
+        data: {
+          name: data.name,
+          permissions: data.permissions,
+          hierarchyLevel: data.hierarchyLevel,
         },
-      },
-    });
+      });
 
-    return newRole;
+      // 4. Audit Log
+      await prisma.activityLog.create({
+        data: {
+          actorUserId: actor.userId,
+          actorRole: actor.role,
+          actionType: 'ROLE_CREATED',
+          targetEntity: 'role',
+          targetId: newRole.id,
+          newPayload: {
+            name: newRole.name,
+            permissions: newRole.permissions,
+            hierarchyLevel: newRole.hierarchyLevel,
+          },
+        },
+      });
+
+      return newRole;
+    } catch (err) {
+      markDatabaseUnavailable(err);
+      throw err;
+    }
   }
 
   /**
@@ -194,15 +216,23 @@ export class RoleService {
       null;
     let actorPermissions: string[] = [];
 
-    try {
-      targetRole = await prisma.role.findUnique({
-        where: { id: roleId },
-      });
-      const actorRole = await prisma.role.findFirst({
-        where: { name: actor.role },
-      });
-      actorPermissions = (actorRole?.permissions as string[]) || [];
-    } catch {
+    const dbAvailable = await isDatabaseAvailable();
+    if (dbAvailable) {
+      try {
+        targetRole = await prisma.role.findUnique({
+          where: { id: roleId },
+        });
+        const actorRole = await prisma.role.findFirst({
+          where: { name: actor.role },
+        });
+        actorPermissions = (actorRole?.permissions as string[]) || [];
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        targetRole = null;
+      }
+    }
+
+    if (!targetRole) {
       // In-memory fallback lookup
       targetRole = MEMORY_ROLES.find((r) => r.id === roleId || r.name === roleId) || null;
       const actorRole = MEMORY_ROLES.find((r) => r.name === actor.role);
@@ -224,36 +254,40 @@ export class RoleService {
     this.validateGrantablePermissions(actorPermissions, newPermissions);
 
     // 3. Update permissions in DB or in-memory
-    try {
-      const oldPermissions = targetRole.permissions;
-      const updated = await prisma.role.update({
-        where: { id: roleId },
-        data: { permissions: newPermissions },
-      });
+    if (await isDatabaseAvailable()) {
+      try {
+        const oldPermissions = targetRole.permissions;
+        const updated = await prisma.role.update({
+          where: { id: roleId },
+          data: { permissions: newPermissions },
+        });
 
-      // 4. Audit Log
-      await prisma.activityLog.create({
-        data: {
-          actorUserId: actor.userId,
-          actorRole: actor.role,
-          actionType: 'ROLE_PERMISSIONS_UPDATED',
-          targetEntity: 'role',
-          targetId: roleId,
-          oldPayload: { permissions: oldPermissions },
-          newPayload: { permissions: newPermissions },
-        },
-      });
+        // 4. Audit Log
+        await prisma.activityLog.create({
+          data: {
+            actorUserId: actor.userId,
+            actorRole: actor.role,
+            actionType: 'ROLE_PERMISSIONS_UPDATED',
+            targetEntity: 'role',
+            targetId: roleId,
+            oldPayload: { permissions: oldPermissions },
+            newPayload: { permissions: newPermissions },
+          },
+        });
 
-      return updated;
-    } catch (err) {
-      // In-memory update fallback
-      targetRole.permissions = [...newPermissions];
-      const memIndex = MEMORY_ROLES.findIndex((r) => r.id === targetRole?.id);
-      if (memIndex !== -1) {
-        MEMORY_ROLES[memIndex].permissions = [...newPermissions];
+        return updated;
+      } catch (err) {
+        markDatabaseUnavailable(err);
       }
-      return targetRole;
     }
+
+    // In-memory update fallback
+    targetRole.permissions = [...newPermissions];
+    const memIndex = MEMORY_ROLES.findIndex((r) => r.id === targetRole?.id);
+    if (memIndex !== -1) {
+      MEMORY_ROLES[memIndex].permissions = [...newPermissions];
+    }
+    return targetRole;
   }
 
   /**
@@ -264,66 +298,70 @@ export class RoleService {
     targetUserId: string,
     newRoleId: string,
   ) {
-    try {
-      // 1. Target user check
-      const targetUser = await prisma.user.findUnique({
-        where: { id: targetUserId },
-        include: { role: true },
-      });
+    if (await isDatabaseAvailable()) {
+      try {
+        // 1. Target user check
+        const targetUser = await prisma.user.findUnique({
+          where: { id: targetUserId },
+          include: { role: true },
+        });
 
-      if (!targetUser) {
-        throw new Error('Pengguna tidak ditemukan');
+        if (!targetUser) {
+          throw new Error('Pengguna tidak ditemukan');
+        }
+
+        // Actor cannot modify users of equal or higher hierarchy
+        this.checkHierarchyProtection(actor.hierarchyLevel, targetUser.role.hierarchyLevel);
+
+        // 2. Destination role check
+        const newRole = await prisma.role.findUnique({
+          where: { id: newRoleId },
+        });
+
+        if (!newRole) {
+          throw new Error('Role tujuan tidak ditemukan');
+        }
+
+        // Actor cannot assign a role of equal or higher hierarchy
+        this.checkHierarchyProtection(actor.hierarchyLevel, newRole.hierarchyLevel);
+
+        // 3. Update user role
+        const updatedUser = await prisma.user.update({
+          where: { id: targetUserId },
+          data: { roleId: newRoleId },
+          include: { role: true },
+        });
+
+        // 4. Audit Log
+        await prisma.activityLog.create({
+          data: {
+            actorUserId: actor.userId,
+            actorRole: actor.role,
+            actionType: 'USER_ROLE_REASSIGNED',
+            targetEntity: 'user',
+            targetId: targetUserId,
+            oldPayload: { roleId: targetUser.roleId, roleName: targetUser.role.name },
+            newPayload: { roleId: newRole.id, roleName: newRole.name },
+          },
+        });
+
+        return updatedUser;
+      } catch (err: any) {
+        if (err.message?.includes(ERROR_CODES.HIERARCHY_VIOLATION)) {
+          throw err;
+        }
+        markDatabaseUnavailable(err);
       }
-
-      // Actor cannot modify users of equal or higher hierarchy
-      this.checkHierarchyProtection(actor.hierarchyLevel, targetUser.role.hierarchyLevel);
-
-      // 2. Destination role check
-      const newRole = await prisma.role.findUnique({
-        where: { id: newRoleId },
-      });
-
-      if (!newRole) {
-        throw new Error('Role tujuan tidak ditemukan');
-      }
-
-      // Actor cannot assign a role of equal or higher hierarchy
-      this.checkHierarchyProtection(actor.hierarchyLevel, newRole.hierarchyLevel);
-
-      // 3. Update user role
-      const updatedUser = await prisma.user.update({
-        where: { id: targetUserId },
-        data: { roleId: newRoleId },
-        include: { role: true },
-      });
-
-      // 4. Audit Log
-      await prisma.activityLog.create({
-        data: {
-          actorUserId: actor.userId,
-          actorRole: actor.role,
-          actionType: 'USER_ROLE_REASSIGNED',
-          targetEntity: 'user',
-          targetId: targetUserId,
-          oldPayload: { roleId: targetUser.roleId, roleName: targetUser.role.name },
-          newPayload: { roleId: newRole.id, roleName: newRole.name },
-        },
-      });
-
-      return updatedUser;
-    } catch (err: any) {
-      if (err.message?.includes(ERROR_CODES.HIERARCHY_VIOLATION)) {
-        throw err;
-      }
-      // In-memory fallback
-      const targetRole =
-        MEMORY_ROLES.find((r) => r.id === newRoleId || r.name === newRoleId) || MEMORY_ROLES[1];
-      this.checkHierarchyProtection(actor.hierarchyLevel, targetRole.hierarchyLevel);
-      return {
-        id: targetUserId,
-        roleId: targetRole.id,
-        role: targetRole,
-      };
     }
+
+    // In-memory fallback
+    const targetRole =
+      MEMORY_ROLES.find((r) => r.id === newRoleId || r.name === newRoleId) || MEMORY_ROLES[1];
+    this.checkHierarchyProtection(actor.hierarchyLevel, targetRole.hierarchyLevel);
+    return {
+      id: targetUserId,
+      roleId: targetRole.id,
+      role: targetRole,
+    };
   }
 }

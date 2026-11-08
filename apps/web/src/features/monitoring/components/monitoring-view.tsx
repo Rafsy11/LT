@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { Icon } from '@/components/ui/Icon';
 import { TicketDetailModal } from '@/features/tickets';
 import { MonitoringSkeleton } from '@/components/ui/PageSkeleton';
 import { useMonitoring } from '../hooks/use-monitoring';
@@ -44,7 +43,7 @@ export function MonitoringView() {
 
   React.useEffect(() => {
     function handleGlobalRefresh() {
-      fetchInitialReports();
+      fetchInitialReports(true);
     }
     window.addEventListener('app:refresh-data', handleGlobalRefresh);
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
@@ -144,7 +143,11 @@ export function MonitoringView() {
       </section>
 
       {/* Ticket Detail Modal */}
-      <TicketDetailModal ticket={modalTicket} onClose={() => setModalTicket(null)} />
+      <TicketDetailModal
+        ticket={modalTicket}
+        onClose={() => setModalTicket(null)}
+        onTicketUpdated={() => fetchInitialReports(true)}
+      />
     </main>
   );
 }

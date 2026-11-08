@@ -46,7 +46,7 @@ export function RolesView() {
 
   React.useEffect(() => {
     function handleGlobalRefresh() {
-      fetchRoles();
+      fetchRoles(true);
     }
     window.addEventListener('app:refresh-data', handleGlobalRefresh);
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
@@ -55,7 +55,7 @@ export function RolesView() {
   return (
     <main className="roles-page" style={{ paddingBottom: '32px' }}>
       {/* Overview Header */}
-      <RoleHeader isFetching={isFetching} onRefresh={fetchRoles} />
+      <RoleHeader isFetching={isFetching} onRefresh={() => fetchRoles(true)} />
 
       {/* 4 Telemetry Metric Stat Cards */}
       <RoleStats totalUsers={userList.length} />

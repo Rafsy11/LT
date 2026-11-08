@@ -44,14 +44,11 @@ export function LoginView() {
         <header className="auth-header">
           <div className="auth-brand-bar">
             <img
-              src="/assets/Lintasarta-Logo.svg"
+              src="/assets/Lintasarta-Icon.svg"
               alt="Lintasarta"
-              className="auth-brand-logo auth-brand-logo-light"
-            />
-            <img
-              src="/assets/Lintasarta-Logo-Dark.svg"
-              alt="Lintasarta"
-              className="auth-brand-logo auth-brand-logo-dark"
+              width={112}
+              height={112}
+              className="auth-brand-logo"
             />
           </div>
         </header>

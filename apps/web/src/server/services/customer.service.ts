@@ -1,5 +1,7 @@
-import { prisma } from '@repo/database';
+import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 import { ERROR_CODES, type CustomerListItem } from '@repo/shared';
+
+const DEFAULT_CUSTOMER_LIST_LIMIT = 200;
 
 export type { CustomerListItem };
 
@@ -191,6 +193,18 @@ const FALLBACK_CUSTOMERS: CustomerListItem[] = [
 ];
 
 export class CustomerService {
+  public static async getCustomerCount(): Promise<number> {
+    if (await isDatabaseAvailable()) {
+      try {
+        const count = await prisma.customer.count();
+        if (count > 0) return count;
+      } catch (err) {
+        markDatabaseUnavailable(err);
+      }
+    }
+    return FALLBACK_CUSTOMERS.length;
+  }
+
   /**
    * Retrieves customers list from PostgreSQL via Prisma with search and cluster filtering.
    */
@@ -198,60 +212,64 @@ export class CustomerService {
     search = '',
     cluster = 'Semua cluster',
   ): Promise<CustomerListItem[]> {
-    try {
-      const whereClause: Record<string, unknown> = {};
+    if (await isDatabaseAvailable()) {
+      try {
+        const whereClause: Record<string, unknown> = {};
 
-      if (cluster && cluster !== 'Semua cluster') {
-        const cleanCluster = cluster.replace('Bandung ', '');
-        whereClause.cluster = {
-          OR: [
-            { name: { contains: cleanCluster, mode: 'insensitive' } },
-            { clusterCode: { contains: cleanCluster, mode: 'insensitive' } },
-          ],
-        };
-      }
-
-      if (search.trim()) {
-        const q = search.trim();
-        whereClause.OR = [
-          { fullName: { contains: q, mode: 'insensitive' } },
-          { siaNumber: { contains: q, mode: 'insensitive' } },
-          { address: { contains: q, mode: 'insensitive' } },
-        ];
-      }
-
-      const customers = await prisma.customer.findMany({
-        where: whereClause,
-        include: {
-          cluster: true,
-          splitter: true,
-        },
-        orderBy: { updatedAt: 'desc' },
-      });
-
-      if (customers.length > 0) {
-        return customers.map((c) => {
-          const parsed = parseCustomerAddress(c.address);
-          return {
-            id: c.id,
-            siaNumber: c.siaNumber,
-            fullName: c.fullName,
-            address: c.address,
-            kecamatan: parsed.kecamatan,
-            kelurahan: parsed.kelurahan,
-            street: parsed.street,
-            cluster: c.cluster?.name || 'Bandung Utara',
-            clusterCode: c.cluster?.clusterCode || 'BDG-01',
-            splitterCode: c.splitter?.splitterCode || 'ODP-BDG-01',
-            portNumber: c.portNumber || 1,
-            currentAttenuation: c.currentAttenuation ? Number(c.currentAttenuation) : -18.5,
-            status: c.status,
-            updatedAt: c.updatedAt.toISOString(),
+        if (cluster && cluster !== 'Semua cluster') {
+          const cleanCluster = cluster.replace('Bandung ', '');
+          whereClause.cluster = {
+            OR: [
+              { name: { contains: cleanCluster, mode: 'insensitive' } },
+              { clusterCode: { contains: cleanCluster, mode: 'insensitive' } },
+            ],
           };
+        }
+
+        if (search.trim()) {
+          const q = search.trim();
+          whereClause.OR = [
+            { fullName: { contains: q, mode: 'insensitive' } },
+            { siaNumber: { contains: q, mode: 'insensitive' } },
+            { address: { contains: q, mode: 'insensitive' } },
+          ];
+        }
+
+        const customers = await prisma.customer.findMany({
+          where: whereClause,
+          include: {
+            cluster: true,
+            splitter: true,
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: DEFAULT_CUSTOMER_LIST_LIMIT,
         });
+
+        if (customers.length > 0) {
+          return customers.map((c) => {
+            const parsed = parseCustomerAddress(c.address);
+            return {
+              id: c.id,
+              siaNumber: c.siaNumber,
+              fullName: c.fullName,
+              address: c.address,
+              kecamatan: parsed.kecamatan,
+              kelurahan: parsed.kelurahan,
+              street: parsed.street,
+              cluster: c.cluster?.name || 'Bandung Utara',
+              clusterCode: c.cluster?.clusterCode || 'BDG-01',
+              splitterCode: c.splitter?.splitterCode || 'ODP-BDG-01',
+              portNumber: c.portNumber || 1,
+              currentAttenuation: c.currentAttenuation ? Number(c.currentAttenuation) : -18.5,
+              status: c.status,
+              updatedAt: c.updatedAt.toISOString(),
+            };
+          });
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        console.warn('[CustomerService] DB query failed, using fallback:', (err as Error).message);
       }
-    } catch (err) {
-      console.warn('[CustomerService] DB query failed, using fallback:', (err as Error).message);
     }
 
     // Graceful fallback
@@ -275,55 +293,58 @@ export class CustomerService {
    * Retrieves single customer details by SIA number including recent attenuation histories.
    */
   public static async getCustomerBySia(siaNumber: string) {
-    try {
-      const customer = await prisma.customer.findUnique({
-        where: { siaNumber },
-        include: {
-          cluster: true,
-          splitter: true,
-          attenuations: {
-            take: 10,
-            orderBy: { createdAt: 'desc' },
-            include: { tech: true },
+    if (await isDatabaseAvailable()) {
+      try {
+        const customer = await prisma.customer.findUnique({
+          where: { siaNumber },
+          include: {
+            cluster: true,
+            splitter: true,
+            attenuations: {
+              take: 10,
+              orderBy: { createdAt: 'desc' },
+              include: { tech: true },
+            },
           },
-        },
-      });
+        });
 
-      if (customer) {
-        return {
-          customer: {
-            id: customer.id,
-            siaNumber: customer.siaNumber,
-            fullName: customer.fullName,
-            address: customer.address,
-            cluster: customer.cluster?.name || 'Bandung Utara',
-            clusterCode: customer.cluster?.clusterCode || 'BDG-01',
-            splitterCode: customer.splitter?.splitterCode || 'ODP-BDG-01',
-            portNumber: customer.portNumber || 1,
-            currentAttenuation: customer.currentAttenuation
-              ? Number(customer.currentAttenuation)
-              : -18.5,
-            status: customer.status,
-            updatedAt: customer.updatedAt.toISOString(),
-          },
-          histories: customer.attenuations.map((h) => ({
-            id: h.id,
-            submissionId: h.submissionId,
-            oldAttenuation: h.oldAttenuation ? Number(h.oldAttenuation) : null,
-            newAttenuation: Number(h.newAttenuation),
-            splitterCode: customer.splitter?.splitterCode || 'ODP-BDG-01',
-            portNumber: h.portNumber,
-            photoObjectKey: h.photoObjectKey,
-            technicianName: h.tech?.fullName || 'Teknisi Lapangan',
-            recordedAt: h.createdAt.toISOString(),
-          })),
-        };
+        if (customer) {
+          return {
+            customer: {
+              id: customer.id,
+              siaNumber: customer.siaNumber,
+              fullName: customer.fullName,
+              address: customer.address,
+              cluster: customer.cluster?.name || 'Bandung Utara',
+              clusterCode: customer.cluster?.clusterCode || 'BDG-01',
+              splitterCode: customer.splitter?.splitterCode || 'ODP-BDG-01',
+              portNumber: customer.portNumber || 1,
+              currentAttenuation: customer.currentAttenuation
+                ? Number(customer.currentAttenuation)
+                : -18.5,
+              status: customer.status,
+              updatedAt: customer.updatedAt.toISOString(),
+            },
+            histories: customer.attenuations.map((h) => ({
+              id: h.id,
+              submissionId: h.submissionId,
+              oldAttenuation: h.oldAttenuation ? Number(h.oldAttenuation) : null,
+              newAttenuation: Number(h.newAttenuation),
+              splitterCode: customer.splitter?.splitterCode || 'ODP-BDG-01',
+              portNumber: h.portNumber,
+              photoObjectKey: h.photoObjectKey,
+              technicianName: h.tech?.fullName || 'Teknisi Lapangan',
+              recordedAt: h.createdAt.toISOString(),
+            })),
+          };
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        console.warn(
+          '[CustomerService] DB getCustomerBySia failed, using fallback:',
+          (err as Error).message,
+        );
       }
-    } catch (err) {
-      console.warn(
-        '[CustomerService] DB getCustomerBySia failed, using fallback:',
-        (err as Error).message,
-      );
     }
 
     const fallbackCust = FALLBACK_CUSTOMERS.find((c) => c.siaNumber === siaNumber);
@@ -358,108 +379,133 @@ export class CustomerService {
     newPortNumber: number,
     actorId = 'superadmin',
   ) {
-    try {
-      return await prisma.$transaction(async (tx) => {
-        const customer = await tx.customer.findUnique({
-          where: { siaNumber },
-          include: { splitter: true },
-        });
+    if (await isDatabaseAvailable()) {
+      try {
+        return await prisma.$transaction(async (tx) => {
+          const customer = await tx.customer.findUnique({
+            where: { siaNumber },
+            include: { splitter: true },
+          });
 
-        if (!customer) {
-          throw new Error(`Pelanggan dengan SIA ${siaNumber} tidak ditemukan`);
-        }
+          if (!customer) {
+            throw new Error(`Pelanggan dengan SIA ${siaNumber} tidak ditemukan`);
+          }
 
-        const targetSplitter = await tx.networkSplitter.findFirst({
-          where: {
-            OR: [{ id: newSplitterCode }, { splitterCode: newSplitterCode }],
-          },
-        });
-
-        if (!targetSplitter) {
-          throw new Error(`ODP Splitter ${newSplitterCode} tidak ditemukan`);
-        }
-
-        if (newPortNumber > targetSplitter.maxPorts) {
-          throw new Error(
-            `Nomor port ${newPortNumber} melebihi batas kapasitas ODP (${targetSplitter.maxPorts} port)`,
-          );
-        }
-
-        // Port concurrency validation (Law 1)
-        const occupied = await tx.customer.findFirst({
-          where: {
-            splitterId: targetSplitter.id,
-            portNumber: newPortNumber,
-            status: 'ACTIVE',
-            id: { not: customer.id },
-          },
-        });
-
-        if (occupied) {
-          throw new Error(
-            `${ERROR_CODES.PORT_OCCUPIED}: Port ${newPortNumber} pada ${targetSplitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName} - ${occupied.siaNumber}).`,
-          );
-        }
-
-        const oldSplitterCode = customer.splitter?.splitterCode || null;
-        const oldPortNumber = customer.portNumber;
-
-        // Update customer port
-        const updated = await tx.customer.update({
-          where: { id: customer.id },
-          data: {
-            splitterId: targetSplitter.id,
-            portNumber: newPortNumber,
-            updatedAt: new Date(),
-          },
-          include: { cluster: true, splitter: true },
-        });
-
-        // Append-Only Activity Log (Law 2)
-        await tx.activityLog.create({
-          data: {
-            actorUserId: actorId,
-            actorRole: 'Admin',
-            actionType: 'CUSTOMER_PORT_MUTATED',
-            targetEntity: 'customer',
-            targetId: customer.id,
-            oldPayload: {
-              splitterCode: oldSplitterCode,
-              portNumber: oldPortNumber,
+          const targetSplitter = await tx.networkSplitter.findFirst({
+            where: {
+              OR: [{ id: newSplitterCode }, { splitterCode: newSplitterCode }],
             },
-            newPayload: {
-              splitterCode: targetSplitter.splitterCode,
+          });
+
+          if (!targetSplitter) {
+            throw new Error(`ODP Splitter ${newSplitterCode} tidak ditemukan`);
+          }
+
+          if (newPortNumber > targetSplitter.maxPorts) {
+            throw new Error(
+              `Nomor port ${newPortNumber} melebihi batas kapasitas ODP (${targetSplitter.maxPorts} port)`,
+            );
+          }
+
+          // Port concurrency validation (Law 1)
+          const occupied = await tx.customer.findFirst({
+            where: {
+              splitterId: targetSplitter.id,
               portNumber: newPortNumber,
+              status: 'ACTIVE',
+              id: { not: customer.id },
             },
-          },
-        });
+          });
 
-        return {
-          id: updated.id,
-          siaNumber: updated.siaNumber,
-          fullName: updated.fullName,
-          address: updated.address,
-          cluster: updated.cluster?.name || 'Cluster',
-          clusterCode: updated.cluster?.clusterCode || 'BDG-01',
-          splitterCode: updated.splitter?.splitterCode || newSplitterCode,
-          portNumber: updated.portNumber || newPortNumber,
-          currentAttenuation: updated.currentAttenuation
-            ? Number(updated.currentAttenuation)
-            : -18.5,
-          status: updated.status,
-          updatedAt: updated.updatedAt.toISOString(),
-        };
-      });
-    } catch (err) {
-      if (
-        (err as Error).message.includes(ERROR_CODES.PORT_OCCUPIED) ||
-        (err as Error).message.includes('kapasitas')
-      ) {
+          if (occupied) {
+            throw new Error(
+              `${ERROR_CODES.PORT_OCCUPIED}: Port ${newPortNumber} pada ${targetSplitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName} - ${occupied.siaNumber}).`,
+            );
+          }
+
+          const oldSplitterCode = customer.splitter?.splitterCode || null;
+          const oldPortNumber = customer.portNumber;
+
+          // Update customer port
+          const updated = await tx.customer.update({
+            where: { id: customer.id },
+            data: {
+              splitterId: targetSplitter.id,
+              portNumber: newPortNumber,
+              updatedAt: new Date(),
+            },
+            include: { cluster: true, splitter: true },
+          });
+
+          // Append-Only Activity Log (Law 2)
+          await tx.activityLog.create({
+            data: {
+              actorUserId: actorId,
+              actorRole: 'Admin',
+              actionType: 'CUSTOMER_PORT_MUTATED',
+              targetEntity: 'customer',
+              targetId: customer.id,
+              oldPayload: {
+                splitterCode: oldSplitterCode,
+                portNumber: oldPortNumber,
+              },
+              newPayload: {
+                splitterCode: targetSplitter.splitterCode,
+                portNumber: newPortNumber,
+              },
+            },
+          });
+
+          return {
+            id: updated.id,
+            siaNumber: updated.siaNumber,
+            fullName: updated.fullName,
+            address: updated.address,
+            cluster: updated.cluster?.name || 'Cluster',
+            clusterCode: updated.cluster?.clusterCode || 'BDG-01',
+            splitterCode: updated.splitter?.splitterCode || newSplitterCode,
+            portNumber: updated.portNumber || newPortNumber,
+            currentAttenuation: updated.currentAttenuation
+              ? Number(updated.currentAttenuation)
+              : -18.5,
+            status: updated.status,
+            updatedAt: updated.updatedAt.toISOString(),
+          };
+        });
+      } catch (err) {
+        if (
+          (err as Error).message.includes(ERROR_CODES.PORT_OCCUPIED) ||
+          (err as Error).message.includes('kapasitas')
+        ) {
+          throw err;
+        }
+        markDatabaseUnavailable(err);
+        console.warn('[CustomerService] DB mutate failed:', (err as Error).message);
         throw err;
       }
-      console.warn('[CustomerService] DB mutate failed:', (err as Error).message);
-      throw err;
     }
+
+    // Fallback memory mutation when DB is offline
+    const customer = FALLBACK_CUSTOMERS.find((c) => c.siaNumber === siaNumber);
+    if (!customer) {
+      throw new Error(`Pelanggan dengan SIA ${siaNumber} tidak ditemukan`);
+    }
+    const conflict = FALLBACK_CUSTOMERS.find(
+      (c) =>
+        c.splitterCode === newSplitterCode &&
+        c.portNumber === newPortNumber &&
+        c.status === 'ACTIVE' &&
+        c.siaNumber !== siaNumber,
+    );
+    if (conflict) {
+      throw new Error(
+        `${ERROR_CODES.PORT_OCCUPIED}: Port ${newPortNumber} pada ${newSplitterCode} sudah digunakan oleh pelanggan aktif (${conflict.fullName} - ${conflict.siaNumber}).`,
+      );
+    }
+    customer.splitterCode = newSplitterCode;
+    customer.portNumber = newPortNumber;
+    customer.updatedAt = new Date().toISOString();
+    return customer;
   }
 
   /**

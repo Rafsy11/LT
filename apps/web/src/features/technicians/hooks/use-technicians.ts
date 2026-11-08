@@ -5,13 +5,21 @@ import { useAuth } from '@/providers/auth-provider';
 import { useToast } from '@/providers/toast-provider';
 import type { TechnicianListItem } from '@repo/shared';
 import type { TechnicianFilterTab } from '../components/technician-filters';
+import { fetchWithCache, getCachedData, invalidateQueryCache } from '@/lib/query-cache';
+
+const TECHNICIANS_CACHE_KEY = '/api/v1/admin/technicians';
+const OVERVIEW_CACHE_KEY = '/api/v1/admin/overview';
 
 export function useTechnicians() {
   const [search, setSearch] = useState('');
   const [cluster, setCluster] = useState('Semua cluster');
   const [activeTab, setActiveTab] = useState<TechnicianFilterTab>('all');
-  const [technicians, setTechnicians] = useState<TechnicianListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [technicians, setTechnicians] = useState<TechnicianListItem[]>(
+    () => getCachedData<TechnicianListItem[]>(TECHNICIANS_CACHE_KEY) ?? [],
+  );
+  const [loading, setLoading] = useState<boolean>(
+    () => !getCachedData<TechnicianListItem[]>(TECHNICIANS_CACHE_KEY),
+  );
   const [processingUser, setProcessingUser] = useState<string | null>(null);
   const [selectedTech, setSelectedTech] = useState<TechnicianListItem | null>(null);
 
@@ -20,20 +28,33 @@ export function useTechnicians() {
   const { canManageTech } = useAuth();
   const { showSuccess, showError } = useToast();
 
-  const fetchTechs = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await fetch('/api/v1/admin/technicians');
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setTechnicians(json.data);
+  const fetchTechs = useCallback(
+    async (force = false) => {
+      try {
+        if (!getCachedData<TechnicianListItem[]>(TECHNICIANS_CACHE_KEY)) {
+          setLoading(true);
+        }
+        const data = await fetchWithCache<TechnicianListItem[]>(
+          TECHNICIANS_CACHE_KEY,
+          async () => {
+            const res = await fetch(TECHNICIANS_CACHE_KEY);
+            const json = await res.json();
+            if (!res.ok || !json.success || !Array.isArray(json.data)) {
+              throw new Error(json.error?.message || 'Gagal memuat daftar teknisi');
+            }
+            return json.data as TechnicianListItem[];
+          },
+          { force },
+        );
+        setTechnicians(data);
+      } catch (err: unknown) {
+        showError(err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err: unknown) {
-      showError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [showError]);
+    },
+    [showError],
+  );
 
   useEffect(() => {
     fetchTechs();
@@ -68,7 +89,8 @@ export function useTechnicians() {
 
         if (json.success) {
           showSuccess(json.message || `Sesi perangkat teknisi ${usernameOrId} berhasil dicabut.`);
-          await fetchTechs();
+          invalidateQueryCache(TECHNICIANS_CACHE_KEY, OVERVIEW_CACHE_KEY);
+          await fetchTechs(true);
 
           // Update modal state if open
           if (
@@ -124,7 +146,8 @@ export function useTechnicians() {
 
         if (json.success) {
           showSuccess(json.message || `Status akun teknisi ${usernameOrId} berhasil diperbarui.`);
-          await fetchTechs();
+          invalidateQueryCache(TECHNICIANS_CACHE_KEY, OVERVIEW_CACHE_KEY);
+          await fetchTechs(true);
 
           if (
             selectedTech &&

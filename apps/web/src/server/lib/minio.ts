@@ -8,9 +8,12 @@ const minioAccessKey = env.MINIO_ACCESS_KEY;
 const minioSecretKey = env.MINIO_SECRET_KEY;
 export const PROOF_BUCKET_NAME = env.MINIO_BUCKET;
 
+const MINIO_FAILURE_COOLDOWN_MS = 15_000;
+
 class MinioStorageManager {
   private client: Minio.Client;
   private bucketChecked = false;
+  private lastFailureAt = 0;
 
   constructor() {
     this.client = new Minio.Client({
@@ -22,15 +25,21 @@ class MinioStorageManager {
     });
   }
 
+  private isInCooldown(): boolean {
+    return this.lastFailureAt > 0 && Date.now() - this.lastFailureAt < MINIO_FAILURE_COOLDOWN_MS;
+  }
+
   public async ensureBucket(): Promise<void> {
-    if (this.bucketChecked) return;
+    if (this.bucketChecked || this.isInCooldown()) return;
     try {
       const exists = await this.client.bucketExists(PROOF_BUCKET_NAME);
       if (!exists) {
         await this.client.makeBucket(PROOF_BUCKET_NAME, 'us-east-1');
       }
       this.bucketChecked = true;
+      this.lastFailureAt = 0;
     } catch (err) {
+      this.lastFailureAt = Date.now();
       console.warn('[MinIO] Warning checking/creating bucket:', (err as Error).message);
     }
   }
@@ -41,9 +50,13 @@ class MinioStorageManager {
    */
   public async generatePresignedPutUrl(objectKey: string, expirySeconds = 900): Promise<string> {
     await this.ensureBucket();
+    if (this.isInCooldown()) {
+      return `http://${minioEndpoint}:${minioPort}/${PROOF_BUCKET_NAME}/${objectKey}?mock_upload=true`;
+    }
     try {
       return await this.client.presignedPutObject(PROOF_BUCKET_NAME, objectKey, expirySeconds);
     } catch (err) {
+      this.lastFailureAt = Date.now();
       console.warn('[MinIO] Fallback presigned PUT url generation:', (err as Error).message);
       return `http://${minioEndpoint}:${minioPort}/${PROOF_BUCKET_NAME}/${objectKey}?mock_upload=true`;
     }
@@ -54,9 +67,13 @@ class MinioStorageManager {
    */
   public async generatePresignedGetUrl(objectKey: string, expirySeconds = 3600): Promise<string> {
     await this.ensureBucket();
+    if (this.isInCooldown()) {
+      return `http://${minioEndpoint}:${minioPort}/${PROOF_BUCKET_NAME}/${objectKey}`;
+    }
     try {
       return await this.client.presignedGetObject(PROOF_BUCKET_NAME, objectKey, expirySeconds);
     } catch (err) {
+      this.lastFailureAt = Date.now();
       console.warn('[MinIO] Fallback presigned GET url generation:', (err as Error).message);
       return `http://${minioEndpoint}:${minioPort}/${PROOF_BUCKET_NAME}/${objectKey}`;
     }

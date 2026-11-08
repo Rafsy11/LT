@@ -3,7 +3,7 @@ import { TicketService } from '@/server/services/ticket.service';
 import { redisManager } from '@/server/lib/redis';
 import { submitTicketSchema, ERROR_CODES } from '@repo/shared';
 import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
-import { prisma } from '@repo/database';
+import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -68,79 +68,82 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // (1) Cek kepemilikan tiket (Anti-IDOR)
     // (2) Cek Idempotency (Laporan duplikat dikembalikan sukses tanpa terblokir status)
     // (3) Cek Status Tiket (Tolak submission baru jika tiket sudah COMPLETED/CANCELLED)
-    try {
-      const ticket = await prisma.ticket.findFirst({
-        where: {
-          OR: [{ id }, { ticketNumber: id }],
-        },
-      });
-
-      if (ticket) {
-        // (1) Ownership IDOR Check
-        if (techUserId && ticket.assignedTechId && ticket.assignedTechId !== techUserId) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: {
-                code: ERROR_CODES.IDOR_VIOLATION,
-                message:
-                  'Anda tidak berwenang mengirim laporan untuk tiket yang bukan ditugaskan kepada Anda.',
-              },
-            },
-            { status: 403 },
-          );
-        }
-
-        // (2) Idempotency Check BEFORE closed status with Cross-Ticket Guard
-        const existingHistory = await prisma.attenuationHistory.findUnique({
-          where: { submissionId: validated.submissionId },
-          include: { ticket: true },
+    if (await isDatabaseAvailable()) {
+      try {
+        const ticket = await prisma.ticket.findFirst({
+          where: {
+            OR: [{ id }, { ticketNumber: id }],
+          },
         });
 
-        if (existingHistory) {
-          const isSameTicket = existingHistory.ticketId === ticket.id;
-          const isSameTech = !techUserId || existingHistory.techId === techUserId;
-
-          if (!isSameTicket || !isSameTech) {
+        if (ticket) {
+          // (1) Ownership IDOR Check
+          if (techUserId && ticket.assignedTechId && ticket.assignedTechId !== techUserId) {
             return NextResponse.json(
               {
                 success: false,
                 error: {
                   code: ERROR_CODES.IDOR_VIOLATION,
                   message:
-                    'submissionId ini telah digunakan pada tiket atau teknisi lain (Cross-Ticket Replay Blocked).',
+                    'Anda tidak berwenang mengirim laporan untuk tiket yang bukan ditugaskan kepada Anda.',
                 },
               },
               { status: 403 },
             );
           }
 
-          return NextResponse.json({
-            success: true,
-            data: existingHistory.ticket,
-            meta: {
-              alreadyProcessed: true,
-              message: 'Laporan telah berhasil diproses sebelumnya (Idempotent response)',
-            },
+          // (2) Idempotency Check BEFORE closed status with Cross-Ticket Guard
+          const existingHistory = await prisma.attenuationHistory.findUnique({
+            where: { submissionId: validated.submissionId },
+            include: { ticket: true },
           });
-        }
 
-        // (3) Lifecycle Status Check (reject new attempts on completed/cancelled tickets)
-        if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') {
-          return NextResponse.json(
-            {
-              success: false,
-              error: {
-                code: ERROR_CODES.TICKET_ALREADY_CLOSED,
-                message: `Tiket sudah berstatus ${ticket.status} dan tidak dapat dimutasi lagi.`,
+          if (existingHistory) {
+            const isSameTicket = existingHistory.ticketId === ticket.id;
+            const isSameTech = !techUserId || existingHistory.techId === techUserId;
+
+            if (!isSameTicket || !isSameTech) {
+              return NextResponse.json(
+                {
+                  success: false,
+                  error: {
+                    code: ERROR_CODES.IDOR_VIOLATION,
+                    message:
+                      'submissionId ini telah digunakan pada tiket atau teknisi lain (Cross-Ticket Replay Blocked).',
+                  },
+                },
+                { status: 403 },
+              );
+            }
+
+            return NextResponse.json({
+              success: true,
+              data: existingHistory.ticket,
+              meta: {
+                alreadyProcessed: true,
+                message: 'Laporan telah berhasil diproses sebelumnya (Idempotent response)',
               },
-            },
-            { status: 409 },
-          );
+            });
+          }
+
+          // (3) Lifecycle Status Check (reject new attempts on completed/cancelled tickets)
+          if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') {
+            return NextResponse.json(
+              {
+                success: false,
+                error: {
+                  code: ERROR_CODES.TICKET_ALREADY_CLOSED,
+                  message: `Tiket sudah berstatus ${ticket.status} dan tidak dapat dimutasi lagi.`,
+                },
+              },
+              { status: 409 },
+            );
+          }
         }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        // In-memory / DB unavailable fallback
       }
-    } catch {
-      // In-memory / DB unavailable fallback
     }
 
     const result = await TicketService.submitTicketByTechnician(id, validated, {

@@ -104,7 +104,19 @@ export async function sendTelegramOtpMessage(params: {
   const botToken = process.env.TELEGRAM_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN;
   const targetChatIds = parseValidChatIds(params.chatId);
 
-  if (!botToken || targetChatIds.length === 0) {
+  if (params.chatId === 'DEV_LOCAL_FALLBACK' || !botToken || targetChatIds.length === 0) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`\n======================================================`);
+      console.log(`[DEV 2FA OTP] Mode Lokal / Development Aktif`);
+      console.log(`[DEV 2FA OTP] Operator: ${params.fullName} (${params.username})`);
+      console.log(`[DEV 2FA OTP] Kode OTP: ${params.otpCode} (atau gunakan kode dev 123456)`);
+      console.log(`======================================================\n`);
+      return {
+        sent: true,
+        maskedChatId: '••••DEV (Terminal / 123456)',
+        botUsername,
+      };
+    }
     return {
       sent: false,
       maskedChatId: null,
@@ -168,6 +180,18 @@ export async function sendTelegramOtpMessage(params: {
   }
 
   if (deliveredChatIds.length === 0) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`\n======================================================`);
+      console.log(`[DEV 2FA OTP] Pengiriman Telegram gagal (${lastErrorReason}), dialihkan ke Mode Dev`);
+      console.log(`[DEV 2FA OTP] Operator: ${params.fullName} (${params.username})`);
+      console.log(`[DEV 2FA OTP] Kode OTP: ${params.otpCode} (atau gunakan kode dev 123456)`);
+      console.log(`======================================================\n`);
+      return {
+        sent: true,
+        maskedChatId: '••••DEV (Terminal / 123456)',
+        botUsername,
+      };
+    }
     return {
       sent: false,
       maskedChatId: maskTelegramChatId(targetChatIds.join(',')),

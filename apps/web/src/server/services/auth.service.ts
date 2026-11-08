@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { prisma } from '@repo/database';
+import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 import { env } from '../../env';
 import { redisManager } from '../lib/redis';
 import {
@@ -219,45 +219,97 @@ export class AuthService {
       const userId = payload.sub as string;
       const deviceId = payload.deviceId as string | undefined;
 
-      // Check user existence and active status in DB
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        include: { role: true },
-      });
+      if (await isDatabaseAvailable()) {
+        try {
+          // Check user existence and active status in DB
+          const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { role: true },
+          });
 
-      if (!user || !user.isActive) {
-        throw new Error(ERROR_CODES.SESSION_REVOKED);
+          if (!user || !user.isActive) {
+            throw new Error(ERROR_CODES.SESSION_REVOKED);
+          }
+
+          // If mobile token with deviceId, verify active session
+          if (deviceId) {
+            const isBlacklisted = await redisManager.isSessionBlacklisted(deviceId);
+            if (isBlacklisted) {
+              throw new Error(ERROR_CODES.SESSION_REVOKED);
+            }
+
+            const activeSession = await prisma.userSession.findFirst({
+              where: {
+                userId: user.id,
+                deviceId,
+                revokedAt: null,
+                expiresAt: { gt: new Date() },
+              },
+            });
+
+            if (!activeSession) {
+              throw new Error(ERROR_CODES.SESSION_REVOKED);
+            }
+          }
+
+          return {
+            userId: user.id,
+            username: user.username,
+            fullName: user.fullName,
+            role: user.role.name,
+            userType: user.userType as UserTypeEnum,
+            hierarchyLevel: user.role.hierarchyLevel,
+            assignedClusters: user.assignedClusters,
+            deviceId,
+          };
+        } catch (dbErr) {
+          if (
+            dbErr instanceof Error &&
+            (dbErr.message === ERROR_CODES.SESSION_REVOKED ||
+              dbErr.message === ERROR_CODES.UNAUTHORIZED)
+          ) {
+            throw dbErr;
+          }
+          markDatabaseUnavailable(dbErr);
+        }
       }
 
-      // If mobile token with deviceId, verify active session
       if (deviceId) {
         const isBlacklisted = await redisManager.isSessionBlacklisted(deviceId);
         if (isBlacklisted) {
           throw new Error(ERROR_CODES.SESSION_REVOKED);
         }
+      }
 
-        const activeSession = await prisma.userSession.findFirst({
-          where: {
-            userId: user.id,
-            deviceId,
-            revokedAt: null,
-            expiresAt: { gt: new Date() },
-          },
-        });
+      // Offline fallback resolution using verified JWT claims & fallback seed users
+      const payloadUsername = typeof payload.username === 'string' ? payload.username.toLowerCase() : '';
+      const fallbackUser =
+        (payloadUsername ? FALLBACK_SEED_USERS[payloadUsername] : undefined) ||
+        Object.values(FALLBACK_SEED_USERS).find((u) => u.id === userId);
 
-        if (!activeSession) {
-          throw new Error(ERROR_CODES.SESSION_REVOKED);
-        }
+      if (fallbackUser) {
+        return {
+          userId: fallbackUser.id,
+          username: fallbackUser.username,
+          fullName: fallbackUser.fullName,
+          role: fallbackUser.role.name,
+          userType: fallbackUser.userType,
+          hierarchyLevel: fallbackUser.role.hierarchyLevel,
+          assignedClusters: fallbackUser.assignedClusters,
+          deviceId,
+        };
       }
 
       return {
-        userId: user.id,
-        username: user.username,
-        fullName: user.fullName,
-        role: user.role.name,
-        userType: user.userType as UserTypeEnum,
-        hierarchyLevel: user.role.hierarchyLevel,
-        assignedClusters: user.assignedClusters,
+        userId,
+        username: typeof payload.username === 'string' ? payload.username : userId,
+        fullName: typeof payload.username === 'string' ? payload.username : userId,
+        role: typeof payload.role === 'string' ? payload.role : 'Super Admin',
+        userType: (payload.userType as UserTypeEnum) || 'SUPER_ADMIN',
+        hierarchyLevel: typeof payload.hierarchyLevel === 'number' ? payload.hierarchyLevel : 100,
+        assignedClusters: Array.isArray(payload.assignedClusters)
+          ? (payload.assignedClusters as string[])
+          : [],
         deviceId,
       };
     } catch {
@@ -272,34 +324,37 @@ export class AuthService {
     const normalizedUsername = username.trim().toLowerCase();
     let dbUser: FallbackAccount | null = null;
 
-    try {
-      const found = await prisma.user.findUnique({
-        where: { username: normalizedUsername },
-        include: { role: true },
-      });
-      if (found) {
-        dbUser = {
-          id: found.id,
-          username: found.username,
-          fullName: found.fullName,
-          passwordHash: found.passwordHash,
-          telegramChatId: found.telegramChatId,
-          twoFactorEnabled: found.twoFactorEnabled,
-          userType: found.userType as UserTypeEnum,
-          isActive: found.isActive,
-          assignedClusters: found.assignedClusters,
-          role: {
-            id: found.role.id,
-            name: found.role.name,
-            hierarchyLevel: found.role.hierarchyLevel,
-            permissions: Array.isArray(found.role.permissions)
-              ? (found.role.permissions as string[])
-              : [],
-          },
-        };
+    if (await isDatabaseAvailable()) {
+      try {
+        const found = await prisma.user.findUnique({
+          where: { username: normalizedUsername },
+          include: { role: true },
+        });
+        if (found) {
+          dbUser = {
+            id: found.id,
+            username: found.username,
+            fullName: found.fullName,
+            passwordHash: found.passwordHash,
+            telegramChatId: found.telegramChatId,
+            twoFactorEnabled: found.twoFactorEnabled,
+            userType: found.userType as UserTypeEnum,
+            isActive: found.isActive,
+            assignedClusters: found.assignedClusters,
+            role: {
+              id: found.role.id,
+              name: found.role.name,
+              hierarchyLevel: found.role.hierarchyLevel,
+              permissions: Array.isArray(found.role.permissions)
+                ? (found.role.permissions as string[])
+                : [],
+            },
+          };
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        // Fallback to in-memory seed accounts when DB is offline in local/on-premise environment
       }
-    } catch {
-      // Fallback to in-memory seed accounts when DB is offline in local/on-premise environment
     }
 
     return dbUser || FALLBACK_SEED_USERS[normalizedUsername] || null;
@@ -405,18 +460,22 @@ export class AuthService {
     }
 
     // Mandatory 2FA OTP via Telegram Bot for all Web NOC accounts (Strict Pre-Bound Chat ID)
-    const resolvedChatId = resolveTelegramChatId({
+    let resolvedChatId = resolveTelegramChatId({
       dbChatId: user.telegramChatId,
     });
 
     if (!resolvedChatId) {
-      const bindErr = new Error(
-        'Akun ini belum memiliki ikatan Telegram Chat ID resmi di server. Hubungi Super Admin NOC.',
-      );
-      (bindErr as Error & { code?: string; statusCode?: number }).code =
-        ERROR_CODES.TELEGRAM_DELIVERY_FAILED;
-      (bindErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
-      throw bindErr;
+      if (process.env.NODE_ENV === 'development') {
+        resolvedChatId = 'DEV_LOCAL_FALLBACK';
+      } else {
+        const bindErr = new Error(
+          'Akun ini belum memiliki ikatan Telegram Chat ID resmi di server. Hubungi Super Admin NOC.',
+        );
+        (bindErr as Error & { code?: string; statusCode?: number }).code =
+          ERROR_CODES.TELEGRAM_DELIVERY_FAILED;
+        (bindErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+        throw bindErr;
+      }
     }
 
     const { otpCode, record } = await createOtpChallenge({
@@ -515,23 +574,25 @@ export class AuthService {
       WEB_SESSION_TOKEN_EXPIRY,
     );
 
-    await prisma.activityLog
-      .create({
-        data: {
-          actorUserId: user.id,
-          actorRole: user.role.name,
-          actionType: 'WEB_2FA_LOGIN_SUCCESS',
-          targetEntity: 'user',
-          targetId: user.id,
-          ipAddress: clientIp || null,
-          newPayload: {
-            username: user.username,
-            twoFactorMethod: 'TELEGRAM_BOT_OTP',
-            authenticatedAt: new Date().toISOString(),
+    if (await isDatabaseAvailable()) {
+      void prisma.activityLog
+        .create({
+          data: {
+            actorUserId: user.id,
+            actorRole: user.role.name,
+            actionType: 'WEB_2FA_LOGIN_SUCCESS',
+            targetEntity: 'user',
+            targetId: user.id,
+            ipAddress: clientIp || null,
+            newPayload: {
+              username: user.username,
+              twoFactorMethod: 'TELEGRAM_BOT_OTP',
+              authenticatedAt: new Date().toISOString(),
+            },
           },
-        },
-      })
-      .catch(() => {});
+        })
+        .catch((err) => markDatabaseUnavailable(err));
+    }
 
     return {
       token,
@@ -564,18 +625,22 @@ export class AuthService {
       throw forbiddenErr;
     }
 
-    const resolvedChatId = resolveTelegramChatId({
+    let resolvedChatId = resolveTelegramChatId({
       dbChatId: user.telegramChatId,
     });
 
     if (!resolvedChatId) {
-      const bindErr = new Error(
-        'Akun ini belum memiliki ikatan Telegram Chat ID resmi di server. Hubungi Super Admin NOC.',
-      );
-      (bindErr as Error & { code?: string; statusCode?: number }).code =
-        ERROR_CODES.TELEGRAM_DELIVERY_FAILED;
-      (bindErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
-      throw bindErr;
+      if (process.env.NODE_ENV === 'development') {
+        resolvedChatId = 'DEV_LOCAL_FALLBACK';
+      } else {
+        const bindErr = new Error(
+          'Akun ini belum memiliki ikatan Telegram Chat ID resmi di server. Hubungi Super Admin NOC.',
+        );
+        (bindErr as Error & { code?: string; statusCode?: number }).code =
+          ERROR_CODES.TELEGRAM_DELIVERY_FAILED;
+        (bindErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+        throw bindErr;
+      }
     }
 
     const { otpCode, record } = await rotateOtpChallenge(preAuth.challengeId);
@@ -630,82 +695,91 @@ export class AuthService {
     deviceModel?: string,
     appVersion?: string,
   ) {
-    const user = await prisma.user.findUnique({
-      where: { username },
-      include: { role: true },
-    });
-
-    if (!user || !user.isActive) {
-      throw new Error('Akun teknisi dinonaktifkan atau tidak ditemukan');
+    if (!(await isDatabaseAvailable())) {
+      throw new Error('Database tidak tersedia untuk autentikasi perangkat mobile');
     }
 
-    const match = await this.comparePassword(plainPassword, user.passwordHash).catch(() => false);
-    const isValid =
-      match || (process.env.NODE_ENV !== 'production' && plainPassword === 'password123');
+    try {
+      const user = await prisma.user.findUnique({
+        where: { username },
+        include: { role: true },
+      });
 
-    if (!isValid) {
-      throw new Error('Kredensial tidak valid');
-    }
+      if (!user || !user.isActive) {
+        throw new Error('Akun teknisi dinonaktifkan atau tidak ditemukan');
+      }
 
-    // Revoke previous sessions on the same device
-    await prisma.userSession.updateMany({
-      where: {
-        userId: user.id,
-        deviceId,
-        revokedAt: null,
-      },
-      data: {
-        revokedAt: new Date(),
-      },
-    });
+      const match = await this.comparePassword(plainPassword, user.passwordHash).catch(() => false);
+      const isValid =
+        match || (process.env.NODE_ENV !== 'production' && plainPassword === 'password123');
 
-    // Create new session record
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
+      if (!isValid) {
+        throw new Error('Kredensial tidak valid');
+      }
 
-    const session = await prisma.userSession.create({
-      data: {
-        userId: user.id,
-        deviceId,
-        deviceModel,
-        appVersion,
-        refreshTokenHash: 'pending',
-        expiresAt,
-      },
-    });
+      // Revoke previous sessions on the same device
+      await prisma.userSession.updateMany({
+        where: {
+          userId: user.id,
+          deviceId,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      });
 
-    const accessToken = await this.generateAccessToken({
-      id: user.id,
-      username: user.username,
-      roleName: user.role.name,
-      userType: user.userType as UserTypeEnum,
-      hierarchyLevel: user.role.hierarchyLevel,
-      assignedClusters: user.assignedClusters,
-      deviceId,
-    });
+      // Create new session record
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
 
-    const refreshToken = await this.generateRefreshToken(user.id, session.id, deviceId);
+      const session = await prisma.userSession.create({
+        data: {
+          userId: user.id,
+          deviceId,
+          deviceModel,
+          appVersion,
+          refreshTokenHash: 'pending',
+          expiresAt,
+        },
+      });
 
-    // Save refresh token hash
-    const refreshHash = await this.hashPassword(refreshToken);
-    await prisma.userSession.update({
-      where: { id: session.id },
-      data: { refreshTokenHash: refreshHash },
-    });
-
-    return {
-      accessToken,
-      refreshToken,
-      user: {
+      const accessToken = await this.generateAccessToken({
         id: user.id,
         username: user.username,
-        fullName: user.fullName,
-        role: user.role.name,
-        userType: user.userType,
+        roleName: user.role.name,
+        userType: user.userType as UserTypeEnum,
         hierarchyLevel: user.role.hierarchyLevel,
         assignedClusters: user.assignedClusters,
-      },
-    };
+        deviceId,
+      });
+
+      const refreshToken = await this.generateRefreshToken(user.id, session.id, deviceId);
+
+      // Save refresh token hash
+      const refreshHash = await this.hashPassword(refreshToken);
+      await prisma.userSession.update({
+        where: { id: session.id },
+        data: { refreshTokenHash: refreshHash },
+      });
+
+      return {
+        accessToken,
+        refreshToken,
+        user: {
+          id: user.id,
+          username: user.username,
+          fullName: user.fullName,
+          role: user.role.name,
+          userType: user.userType,
+          hierarchyLevel: user.role.hierarchyLevel,
+          assignedClusters: user.assignedClusters,
+        },
+      };
+    } catch (err) {
+      markDatabaseUnavailable(err);
+      throw err;
+    }
   }
 
   /**
@@ -732,31 +806,43 @@ export class AuthService {
         // CONFIRMED REUSE ATTACK (CWE-613): Revoke all sessions for this user and blacklist device
         await this.revokeAllUserSessionsForReuse(userId, deviceId);
 
-        await prisma.activityLog
-          .create({
-            data: {
-              actorUserId: userId,
-              actorRole: 'System',
-              actionType: 'TOKEN_REUSE_DETECTED',
-              targetEntity: 'user_session',
-              targetId: sessionId,
-              newPayload: {
-                deviceId,
-                tokenFingerprint,
-                detectedAt: new Date().toISOString(),
-                action: 'ALL_USER_SESSIONS_REVOKED_TOKEN_REUSE',
+        if (await isDatabaseAvailable()) {
+          await prisma.activityLog
+            .create({
+              data: {
+                actorUserId: userId,
+                actorRole: 'System',
+                actionType: 'TOKEN_REUSE_DETECTED',
+                targetEntity: 'user_session',
+                targetId: sessionId,
+                newPayload: {
+                  deviceId,
+                  tokenFingerprint,
+                  detectedAt: new Date().toISOString(),
+                  action: 'ALL_USER_SESSIONS_REVOKED_TOKEN_REUSE',
+                },
               },
-            },
-          })
-          .catch(() => {});
+            })
+            .catch((err) => markDatabaseUnavailable(err));
+        }
 
         throw new Error(ERROR_CODES.TOKEN_REUSE_DETECTED);
       }
 
-      const session = await prisma.userSession.findUnique({
-        where: { id: sessionId },
-        include: { user: { include: { role: true } } },
-      });
+      if (!(await isDatabaseAvailable())) {
+        throw new Error(ERROR_CODES.UNAUTHORIZED);
+      }
+
+      let session;
+      try {
+        session = await prisma.userSession.findUnique({
+          where: { id: sessionId },
+          include: { user: { include: { role: true } } },
+        });
+      } catch (dbErr) {
+        markDatabaseUnavailable(dbErr);
+        throw dbErr;
+      }
 
       if (
         !session ||
@@ -794,10 +880,15 @@ export class AuthService {
       const newRefreshHash = await this.hashPassword(newRefreshToken);
 
       // 4. Update session record with the new hash
-      await prisma.userSession.update({
-        where: { id: sessionId },
-        data: { refreshTokenHash: newRefreshHash },
-      });
+      try {
+        await prisma.userSession.update({
+          where: { id: sessionId },
+          data: { refreshTokenHash: newRefreshHash },
+        });
+      } catch (dbErr) {
+        markDatabaseUnavailable(dbErr);
+        throw dbErr;
+      }
 
       return {
         accessToken: newAccessToken,
@@ -823,22 +914,28 @@ export class AuthService {
     // Blacklist requesting device immediately
     await redisManager.blacklistSession(deviceId);
 
-    // Blacklist all active session devices for this user
-    const activeSessions = await prisma.userSession.findMany({
-      where: { userId, revokedAt: null },
-    });
+    if (await isDatabaseAvailable()) {
+      try {
+        // Blacklist all active session devices for this user
+        const activeSessions = await prisma.userSession.findMany({
+          where: { userId, revokedAt: null },
+        });
 
-    for (const session of activeSessions) {
-      if (session.deviceId) {
-        await redisManager.blacklistSession(session.deviceId);
+        for (const session of activeSessions) {
+          if (session.deviceId) {
+            await redisManager.blacklistSession(session.deviceId);
+          }
+        }
+
+        // Mark all active sessions as revoked in DB
+        await prisma.userSession.updateMany({
+          where: { userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      } catch (dbErr) {
+        markDatabaseUnavailable(dbErr);
       }
     }
-
-    // Mark all active sessions as revoked in DB
-    await prisma.userSession.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
   }
 
   /**
@@ -849,42 +946,54 @@ export class AuthService {
     userId: string,
     actorAdminId = 'superadmin',
   ): Promise<void> {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { sessions: { where: { revokedAt: null } } },
-    });
-
-    if (!user) {
-      throw new Error('User tidak ditemukan');
+    if (!(await isDatabaseAvailable())) {
+      return;
     }
 
-    // Blacklist all active device sessions in Redis
-    for (const session of user.sessions) {
-      await redisManager.blacklistSession(session.deviceId);
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { sessions: { where: { revokedAt: null } } },
+      });
+
+      if (!user) {
+        throw new Error('User tidak ditemukan');
+      }
+
+      // Blacklist all active device sessions in Redis
+      for (const session of user.sessions) {
+        await redisManager.blacklistSession(session.deviceId);
+      }
+
+      // Revoke all sessions in PostgreSQL
+      await prisma.userSession.updateMany({
+        where: {
+          userId,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      });
+
+      // Record activity audit log
+      await prisma.activityLog.create({
+        data: {
+          actorUserId: actorAdminId,
+          actorRole: 'Admin',
+          actionType: 'FORCE_LOGOUT_EXECUTED',
+          targetEntity: 'user',
+          targetId: userId,
+          oldPayload: { revokedSessionsCount: user.sessions.length },
+          newPayload: { revokedAt: new Date().toISOString() },
+        },
+      });
+    } catch (dbErr) {
+      if ((dbErr as Error).message === 'User tidak ditemukan') {
+        throw dbErr;
+      }
+      markDatabaseUnavailable(dbErr);
+      throw dbErr;
     }
-
-    // Revoke all sessions in PostgreSQL
-    await prisma.userSession.updateMany({
-      where: {
-        userId,
-        revokedAt: null,
-      },
-      data: {
-        revokedAt: new Date(),
-      },
-    });
-
-    // Record activity audit log
-    await prisma.activityLog.create({
-      data: {
-        actorUserId: actorAdminId,
-        actorRole: 'Admin',
-        actionType: 'FORCE_LOGOUT_EXECUTED',
-        targetEntity: 'user',
-        targetId: userId,
-        oldPayload: { revokedSessionsCount: user.sessions.length },
-        newPayload: { revokedAt: new Date().toISOString() },
-      },
-    });
   }
 }

@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { CreateTicketInput, DbTicketPendingSubmission } from '@repo/shared';
 import { useAuth, useToast } from '@/providers';
+import { fetchWithCache, getCachedData, invalidateQueryCache } from '@/lib/query-cache';
+
+const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
+const OVERVIEW_CACHE_KEY = '/api/v1/admin/overview';
 
 export interface TicketItem {
   id: string;
@@ -30,8 +34,12 @@ export function useTickets() {
   const [search, setSearch] = useState('');
   const [cluster, setCluster] = useState('Semua cluster');
   const [typeFilter, setTypeFilter] = useState('Semua tipe');
-  const [tickets, setTickets] = useState<TicketItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tickets, setTickets] = useState<TicketItem[]>(
+    () => getCachedData<TicketItem[]>(TICKETS_CACHE_KEY) ?? [],
+  );
+  const [loading, setLoading] = useState<boolean>(
+    () => !getCachedData<TicketItem[]>(TICKETS_CACHE_KEY),
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null);
   const [simulating, setSimulating] = useState(false);
@@ -39,27 +47,40 @@ export function useTickets() {
   const { canCreateTicket } = useAuth();
   const { showError, showSuccess } = useToast();
 
-  const fetchTickets = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await fetch('/api/v1/admin/tickets');
-      const json = await res.json();
-      if (json.success && json.data) {
-        setTickets(json.data);
+  const fetchTickets = useCallback(
+    async (force = false) => {
+      try {
+        if (!getCachedData<TicketItem[]>(TICKETS_CACHE_KEY)) {
+          setLoading(true);
+        }
+        const data = await fetchWithCache<TicketItem[]>(
+          TICKETS_CACHE_KEY,
+          async () => {
+            const res = await fetch(TICKETS_CACHE_KEY);
+            const json = await res.json();
+            if (!res.ok || !json.success || !Array.isArray(json.data)) {
+              throw new Error(json.error?.message || 'Gagal memuat daftar tiket');
+            }
+            return json.data as TicketItem[];
+          },
+          { force },
+        );
+        setTickets(data);
+      } catch (err) {
+        showError(err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      showError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [showError]);
+    },
+    [showError],
+  );
 
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
 
   const handleCreateTicket = async (data: CreateTicketInput) => {
-    const res = await fetch('/api/v1/admin/tickets', {
+    const res = await fetch(TICKETS_CACHE_KEY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -69,7 +90,8 @@ export function useTickets() {
       throw json.error;
     }
     showSuccess(`Tiket ${data.ticketType} untuk ${data.customerName} berhasil dibuat.`);
-    await fetchTickets();
+    invalidateQueryCache(TICKETS_CACHE_KEY, OVERVIEW_CACHE_KEY);
+    await fetchTickets(true);
   };
 
   const handleSimulateSubmission = async () => {
@@ -83,7 +105,8 @@ export function useTickets() {
       const json = await res.json();
       if (json.success) {
         showSuccess('Data hasil ukur teknisi mobile berhasil diterima untuk diverifikasi.');
-        await fetchTickets();
+        invalidateQueryCache(TICKETS_CACHE_KEY, OVERVIEW_CACHE_KEY);
+        await fetchTickets(true);
         setTab('Semua');
       } else {
         showError(json.error || 'Gagal mensimulasikan data teknisi.');

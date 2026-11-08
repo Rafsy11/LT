@@ -5,6 +5,15 @@ import { DraftActionCardData, sanitizeUiErrorMessage, ERROR_CODES } from '@repo/
 import { useToast } from '@/providers';
 import { Icon } from '@/components/ui/Icon';
 import { webApiClient, ApiClientError } from '@/lib/api-client';
+import { invalidateQueryCache } from '@/lib/query-cache';
+
+const AI_MUTATION_CACHE_KEYS = [
+  '/api/v1/admin/tickets',
+  '/api/v1/admin/overview',
+  '/api/v1/admin/customers',
+  '/api/v1/admin/technicians',
+  '/api/v1/admin/clusters',
+];
 
 export type DraftCardState =
   'PENDING' | 'EXECUTING' | 'EXECUTED' | 'CANCELLED' | 'EXPIRED' | 'FAILED_REPLAY_BLOCKED';
@@ -91,6 +100,7 @@ export function DraftActionCard({
 
       if (res.success) {
         setState('EXECUTED');
+        invalidateQueryCache(...AI_MUTATION_CACHE_KEYS);
         const successMsg = `Aksi "${draft.title}" berhasil disetujui & dieksekusi secara aman ke database.`;
         showSuccess(successMsg);
         if (onExecutedSuccess) {

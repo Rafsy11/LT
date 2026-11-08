@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Icon } from '@/components/ui/Icon';
+import { CustomersSkeleton } from '@/components/ui/PageSkeleton';
 import { useCustomers } from '../hooks/use-customers';
 import { CustomerStats } from './customer-stats';
 import { CustomerFilters } from './customer-filters';
@@ -46,11 +46,15 @@ export function CustomersView() {
 
   React.useEffect(() => {
     function handleGlobalRefresh() {
-      fetchCustomers();
+      fetchCustomers(true);
     }
     window.addEventListener('app:refresh-data', handleGlobalRefresh);
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
   }, [fetchCustomers]);
+
+  if (loading && customers.length === 0) {
+    return <CustomersSkeleton />;
+  }
 
   return (
     <main className="customers-page" style={{ paddingBottom: '32px' }}>

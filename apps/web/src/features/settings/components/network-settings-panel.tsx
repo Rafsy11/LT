@@ -69,7 +69,6 @@ export function NetworkSettingsPanel({
                 padding: '12px',
                 borderRadius: '6px',
                 cursor: isSuperAdmin ? 'pointer' : 'default',
-                transition: 'all 0.15s ease',
               }}
             >
               <div

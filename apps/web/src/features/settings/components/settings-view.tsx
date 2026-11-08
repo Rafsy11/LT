@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { SettingsSkeleton } from '@/components/ui/PageSkeleton';
 import { useSettings } from '../hooks/use-settings';
 import { SettingsHeader } from './settings-header';
 import { SettingsTabs } from './settings-tabs';
@@ -25,7 +26,20 @@ export function SettingsView() {
     handleChange,
     handleSaveSettings,
     handleTriggerBackup,
+    fetchSettings,
   } = useSettings();
+
+  React.useEffect(() => {
+    function handleGlobalRefresh() {
+      fetchSettings(true);
+    }
+    window.addEventListener('app:refresh-data', handleGlobalRefresh);
+    return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
+  }, [fetchSettings]);
+
+  if (loading && !telemetry) {
+    return <SettingsSkeleton />;
+  }
 
   return (
     <main

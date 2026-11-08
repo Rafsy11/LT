@@ -91,8 +91,10 @@ export function AiMessageList({
             {m.role === 'assistant' && (
               <figure className="ai-msg-avatar-figure">
                 <img
-                  src="/assets/Logo.svg"
+                  src="/assets/Lintasarta-Icon.svg"
                   alt="AI Assistant"
+                  width={112}
+                  height={112}
                   style={{
                     width: '100%',
                     height: '100%',
@@ -135,8 +137,10 @@ export function AiMessageList({
         >
           <figure className="ai-msg-avatar-figure">
             <img
-              src="/assets/Logo.svg"
+              src="/assets/Lintasarta-Icon.svg"
               alt="AI Assistant"
+              width={112}
+              height={112}
               style={{
                 width: '100%',
                 height: '100%',

@@ -7,8 +7,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const cluster = searchParams.get('cluster') || 'Semua cluster';
 
-    const clusters = await NetworkService.listClusters(search, cluster);
-    const stats = await NetworkService.getNetworkStats();
+    const { clusters, stats } = await NetworkService.getClustersWithStats(search, cluster);
 
     return NextResponse.json({
       success: true,

@@ -1,4 +1,4 @@
-import { prisma } from '@repo/database';
+import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 import {
   SystemSettingsInput,
   SystemTelemetryData,
@@ -170,20 +170,28 @@ export class SystemService {
     currentSettings = { ...newSettings };
 
     // Catat ke immutable audit trail (activity_logs)
-    try {
-      await prisma.activityLog.create({
-        data: {
-          actorUserId: actor.userId,
-          actorRole: actor.role,
-          actionType: 'SYSTEM_SETTINGS_UPDATED',
-          targetEntity: 'system',
-          targetId: 'workspace_config',
-          oldPayload: oldSettings as any,
-          newPayload: currentSettings as any,
-        },
-      });
-    } catch {
-      // In-memory fallback logging
+    if (await isDatabaseAvailable()) {
+      try {
+        await prisma.activityLog.create({
+          data: {
+            actorUserId: actor.userId,
+            actorRole: actor.role,
+            actionType: 'SYSTEM_SETTINGS_UPDATED',
+            targetEntity: 'system',
+            targetId: 'workspace_config',
+            oldPayload: oldSettings as any,
+            newPayload: currentSettings as any,
+          },
+        });
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        // In-memory fallback logging
+        console.log(
+          `[AUDIT] SYSTEM_SETTINGS_UPDATED by ${actor.userId} (${actor.role}):`,
+          currentSettings,
+        );
+      }
+    } else {
       console.log(
         `[AUDIT] SYSTEM_SETTINGS_UPDATED by ${actor.userId} (${actor.role}):`,
         currentSettings,
@@ -239,18 +247,23 @@ export class SystemService {
     }
 
     // Catat ke immutable audit trail (activity_logs)
-    try {
-      await prisma.activityLog.create({
-        data: {
-          actorUserId: actor.userId,
-          actorRole: actor.role,
-          actionType: 'BACKUP_SNAPSHOT_TRIGGERED',
-          targetEntity: 'backup',
-          targetId: snapshot.id,
-          newPayload: snapshot as any,
-        },
-      });
-    } catch {
+    if (await isDatabaseAvailable()) {
+      try {
+        await prisma.activityLog.create({
+          data: {
+            actorUserId: actor.userId,
+            actorRole: actor.role,
+            actionType: 'BACKUP_SNAPSHOT_TRIGGERED',
+            targetEntity: 'backup',
+            targetId: snapshot.id,
+            newPayload: snapshot as any,
+          },
+        });
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        console.log(`[AUDIT] BACKUP_SNAPSHOT_TRIGGERED by ${actor.userId}:`, snapshot);
+      }
+    } else {
       console.log(`[AUDIT] BACKUP_SNAPSHOT_TRIGGERED by ${actor.userId}:`, snapshot);
     }
 

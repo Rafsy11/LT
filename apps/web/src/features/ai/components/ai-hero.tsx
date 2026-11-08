@@ -22,19 +22,14 @@ export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
         alignItems: 'center',
       }}
     >
-      {/* Brand Logo Emblem from Logo.svg */}
+      {/* Brand Logo Emblem from Lintasarta-Icon.svg */}
       <figure style={{ margin: '0 auto 20px' }}>
         <img
-          src="/assets/Logo.svg"
+          src="/assets/Lintasarta-Icon.svg"
           alt="AI Assistant"
           width={72}
           height={72}
-          style={{
-            display: 'block',
-            margin: '0 auto',
-            objectFit: 'contain',
-            filter: 'drop-shadow(0 4px 12px rgba(0, 40, 85, 0.08))',
-          }}
+          className="ai-hero-logo-img"
         />
       </figure>
 

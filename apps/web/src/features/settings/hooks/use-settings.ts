@@ -3,6 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth, useToast } from '@/providers';
 import { SystemSettingsInput, SystemTelemetryData, BackupSnapshotItem } from '@repo/shared';
+import { fetchWithCache, getCachedData, setCachedData } from '@/lib/query-cache';
+
+const SETTINGS_CACHE_KEY = '/api/v1/admin/settings';
+
+interface SettingsCachePayload {
+  settings: SystemSettingsInput;
+  telemetry: SystemTelemetryData | null;
+}
 
 export type SettingsTab = 'infrastruktur' | 'geofencing' | 'backup' | 'jaringan';
 
@@ -32,9 +40,15 @@ export function useSettings() {
   const { showSuccess, showError } = useToast();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('infrastruktur');
-  const [settings, setSettings] = useState<SystemSettingsInput>(INITIAL_FALLBACK_SETTINGS);
-  const [telemetry, setTelemetry] = useState<SystemTelemetryData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<SystemSettingsInput>(
+    () => getCachedData<SettingsCachePayload>(SETTINGS_CACHE_KEY)?.settings ?? INITIAL_FALLBACK_SETTINGS,
+  );
+  const [telemetry, setTelemetry] = useState<SystemTelemetryData | null>(
+    () => getCachedData<SettingsCachePayload>(SETTINGS_CACHE_KEY)?.telemetry ?? null,
+  );
+  const [loading, setLoading] = useState<boolean>(
+    () => !getCachedData<SettingsCachePayload>(SETTINGS_CACHE_KEY),
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -42,15 +56,25 @@ export function useSettings() {
   const isSuperAdmin = user.hierarchyLevel >= 100;
 
   // Fetch settings & telemetry from backend service
-  const fetchSettings = useCallback(async () => {
+  const fetchSettings = useCallback(async (force = false) => {
     try {
-      setLoading(true);
-      const res = await fetch('/api/v1/admin/settings');
-      const json = await res.json();
-      if (json.success && json.data) {
-        setSettings(json.data.settings);
-        setTelemetry(json.data.telemetry);
+      if (!getCachedData<SettingsCachePayload>(SETTINGS_CACHE_KEY)) {
+        setLoading(true);
       }
+      const data = await fetchWithCache<SettingsCachePayload>(
+        SETTINGS_CACHE_KEY,
+        async () => {
+          const res = await fetch(SETTINGS_CACHE_KEY);
+          const json = await res.json();
+          if (!res.ok || !json.success || !json.data) {
+            throw new Error(json.error?.message || 'Gagal memuat konfigurasi sistem');
+          }
+          return json.data as SettingsCachePayload;
+        },
+        { force },
+      );
+      setSettings(data.settings);
+      setTelemetry(data.telemetry);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn('Menggunakan data konfigurasi fallback:', msg);
@@ -101,6 +125,7 @@ export function useSettings() {
       }
 
       setSettings(json.data);
+      setCachedData(SETTINGS_CACHE_KEY, { settings: json.data, telemetry });
       setHasChanges(false);
       showSuccess(
         'Konfigurasi sistem on-premise berhasil diperbarui dan dicatat pada activity_logs.',
@@ -138,10 +163,12 @@ export function useSettings() {
 
       const newSnapshot: BackupSnapshotItem = json.data;
       if (telemetry) {
-        setTelemetry({
+        const nextTelemetry = {
           ...telemetry,
           backupHistory: [newSnapshot, ...telemetry.backupHistory],
-        });
+        };
+        setTelemetry(nextTelemetry);
+        setCachedData(SETTINGS_CACHE_KEY, { settings, telemetry: nextTelemetry });
       }
 
       showSuccess(
@@ -169,5 +196,6 @@ export function useSettings() {
     handleChange,
     handleSaveSettings,
     handleTriggerBackup,
+    fetchSettings,
   };
 }

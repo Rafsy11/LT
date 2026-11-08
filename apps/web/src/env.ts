@@ -10,6 +10,10 @@ export function ensureRootEnvLoaded(): void {
   const candidates = [
     path.resolve(process.cwd(), '.env.local'),
     path.resolve(process.cwd(), '.env'),
+    path.resolve(process.cwd(), 'apps', 'web', '.env.local'),
+    path.resolve(process.cwd(), 'apps', 'web', '.env'),
+    path.resolve(process.cwd(), '..', '.env.local'),
+    path.resolve(process.cwd(), '..', '.env'),
     path.resolve(process.cwd(), '..', '..', '.env.local'),
     path.resolve(process.cwd(), '..', '..', '.env'),
   ];

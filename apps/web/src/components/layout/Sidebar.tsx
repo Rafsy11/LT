@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
-import { useAuth, useTheme } from '@/providers';
+import { useAuth } from '@/providers';
 
 interface SidebarProps {
   ticketCount?: number;
@@ -32,13 +32,6 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout, isLoggingOut } = useAuth();
-  const { theme } = useTheme();
-
-  const logoSrc = isCollapsed
-    ? '/assets/Logo.svg'
-    : theme === 'dark'
-      ? '/assets/Lintasarta-Logo-Dark.svg'
-      : '/assets/Lintasarta-Logo.svg';
 
   const navItems: NavItem[] = [
     { label: 'Overview', href: '/', icon: 'home' },
@@ -73,16 +66,25 @@ export function Sidebar({
             onClick={onClose}
           >
             <img
-              src={logoSrc}
+              src="/assets/Lintasarta-Logo-Whitemode.svg"
               alt="Lintasarta"
-              className="brand-logo-img"
-              style={{
-                height: isCollapsed ? '38px' : '46px',
-                width: isCollapsed ? '38px' : 'auto',
-                maxWidth: isCollapsed ? '38px' : '204px',
-                objectFit: 'contain',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              }}
+              width={616}
+              height={168}
+              className="brand-logo-img brand-logo-full brand-logo-light"
+            />
+            <img
+              src="/assets/Lintasarta-Logo-Darkmode.svg"
+              alt="Lintasarta"
+              width={616}
+              height={168}
+              className="brand-logo-img brand-logo-full brand-logo-dark"
+            />
+            <img
+              src="/assets/Lintasarta-Icon.svg"
+              alt="Lintasarta"
+              width={112}
+              height={112}
+              className="brand-logo-img brand-logo-icon"
             />
           </Link>
           <button

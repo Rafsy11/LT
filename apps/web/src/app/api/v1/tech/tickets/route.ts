@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@repo/database';
+import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 import { redisManager } from '@/server/lib/redis';
 import { TicketService } from '@/server/services/ticket.service';
 import { NetworkService } from '@/server/services/network.service';
@@ -31,71 +31,83 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const queryTech = searchParams.get('tech');
 
+    const dbOnline = await isDatabaseAvailable();
+
     // 2. Resolve technician user
     let techUser = null;
-    if (userId) {
-      techUser = await prisma.user.findUnique({
-        where: { id: userId },
-        include: { role: true },
-      });
-    } else if (username) {
-      techUser = await prisma.user.findUnique({
-        where: { username },
-        include: { role: true },
-      });
-    } else if (queryTech) {
-      techUser = await prisma.user.findFirst({
-        where: {
-          OR: [{ username: queryTech }, { fullName: { contains: queryTech, mode: 'insensitive' } }],
-        },
-        include: { role: true },
-      });
+    if (dbOnline) {
+      try {
+        if (userId) {
+          techUser = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { role: true },
+          });
+        } else if (username) {
+          techUser = await prisma.user.findUnique({
+            where: { username },
+            include: { role: true },
+          });
+        } else if (queryTech) {
+          techUser = await prisma.user.findFirst({
+            where: {
+              OR: [{ username: queryTech }, { fullName: { contains: queryTech, mode: 'insensitive' } }],
+            },
+            include: { role: true },
+          });
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+      }
     }
 
     // 3. Fetch active assigned tickets from Prisma DB
     let activeTickets: any[] = [];
 
-    if (techUser) {
-      const tickets = await prisma.ticket.findMany({
-        where: {
-          assignedTechId: techUser.id,
-          status: { in: ['OPEN', 'IN_PROGRESS'] },
-        },
-        include: {
-          customer: {
-            include: {
-              cluster: true,
-              splitter: true,
+    if (techUser && (await isDatabaseAvailable())) {
+      try {
+        const tickets = await prisma.ticket.findMany({
+          where: {
+            assignedTechId: techUser.id,
+            status: { in: ['OPEN', 'IN_PROGRESS'] },
+          },
+          include: {
+            customer: {
+              include: {
+                cluster: true,
+                splitter: true,
+              },
             },
           },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+          orderBy: { createdAt: 'desc' },
+        });
 
-      activeTickets = tickets.map((t: any) => ({
-        id: t.id,
-        ticketNumber: t.ticketNumber,
-        ticketType: t.ticketType,
-        status: t.status,
-        adminNotes: t.adminNotes,
-        assignedAt: t.assignedAt?.toISOString() || null,
-        createdAt: t.createdAt.toISOString(),
-        customer: {
-          id: t.customer.id,
-          siaNumber: t.customer.siaNumber,
-          fullName: t.customer.fullName,
-          address: t.customer.address,
-          lat: t.customer.lat ? Number(t.customer.lat) : null,
-          lng: t.customer.lng ? Number(t.customer.lng) : null,
-          currentAttenuation: t.customer.currentAttenuation
-            ? Number(t.customer.currentAttenuation)
-            : null,
-          clusterName: t.customer.cluster?.name || 'Cluster',
-          clusterCode: t.customer.cluster?.clusterCode || 'BDG',
-          splitterCode: t.customer.splitter?.splitterCode || null,
-          portNumber: t.customer.portNumber,
-        },
-      }));
+        activeTickets = tickets.map((t: any) => ({
+          id: t.id,
+          ticketNumber: t.ticketNumber,
+          ticketType: t.ticketType,
+          status: t.status,
+          adminNotes: t.adminNotes,
+          assignedAt: t.assignedAt?.toISOString() || null,
+          createdAt: t.createdAt.toISOString(),
+          customer: {
+            id: t.customer.id,
+            siaNumber: t.customer.siaNumber,
+            fullName: t.customer.fullName,
+            address: t.customer.address,
+            lat: t.customer.lat ? Number(t.customer.lat) : null,
+            lng: t.customer.lng ? Number(t.customer.lng) : null,
+            currentAttenuation: t.customer.currentAttenuation
+              ? Number(t.customer.currentAttenuation)
+              : null,
+            clusterName: t.customer.cluster?.name || 'Cluster',
+            clusterCode: t.customer.cluster?.clusterCode || 'BDG',
+            splitterCode: t.customer.splitter?.splitterCode || null,
+            portNumber: t.customer.portNumber,
+          },
+        }));
+      } catch (err) {
+        markDatabaseUnavailable(err);
+      }
     }
 
     // Fallback if DB empty or during mock dev
@@ -135,45 +147,48 @@ export async function GET(request: NextRequest) {
 
     // 4. Fetch ODP Splitters & port occupancy for related clusters
     let splittersData: any[] = [];
-    try {
-      const splitters = await prisma.networkSplitter.findMany({
-        include: {
-          cluster: true,
-          customers: {
-            where: { status: 'ACTIVE' },
-            select: { portNumber: true, fullName: true, siaNumber: true },
+    if (await isDatabaseAvailable()) {
+      try {
+        const splitters = await prisma.networkSplitter.findMany({
+          include: {
+            cluster: true,
+            customers: {
+              where: { status: 'ACTIVE' },
+              select: { portNumber: true, fullName: true, siaNumber: true },
+            },
           },
-        },
-      });
-
-      if (splitters.length > 0) {
-        splittersData = splitters.map((s: any) => {
-          const occupiedPorts = s.customers
-            .map((c: any) => c.portNumber)
-            .filter((p: any): p is number => p !== null);
-
-          const availablePorts: number[] = [];
-          for (let p = 1; p <= s.maxPorts; p++) {
-            if (!occupiedPorts.includes(p)) {
-              availablePorts.push(p);
-            }
-          }
-
-          return {
-            id: s.id,
-            splitterCode: s.splitterCode,
-            clusterName: s.cluster?.name || 'Cluster',
-            clusterCode: s.cluster?.clusterCode || 'BDG',
-            lat: Number(s.lat),
-            lng: Number(s.lng),
-            maxPorts: s.maxPorts,
-            occupiedPorts,
-            availablePorts,
-          };
         });
+
+        if (splitters.length > 0) {
+          splittersData = splitters.map((s: any) => {
+            const occupiedPorts = s.customers
+              .map((c: any) => c.portNumber)
+              .filter((p: any): p is number => p !== null);
+
+            const availablePorts: number[] = [];
+            for (let p = 1; p <= s.maxPorts; p++) {
+              if (!occupiedPorts.includes(p)) {
+                availablePorts.push(p);
+              }
+            }
+
+            return {
+              id: s.id,
+              splitterCode: s.splitterCode,
+              clusterName: s.cluster?.name || 'Cluster',
+              clusterCode: s.cluster?.clusterCode || 'BDG',
+              lat: Number(s.lat),
+              lng: Number(s.lng),
+              maxPorts: s.maxPorts,
+              occupiedPorts,
+              availablePorts,
+            };
+          });
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        // Handled by NetworkService fallback
       }
-    } catch {
-      // Handled by NetworkService fallback
     }
 
     if (splittersData.length === 0) {

@@ -234,9 +234,7 @@ export function RoleDirectoryTable({
                             background: u.isActive ? '#0e5b92' : '#cbd5e1',
                             border: 'none',
                             cursor: isCurrentUser ? 'not-allowed' : 'pointer',
-                            transition: 'background 0.2s ease',
                             padding: 0,
-                            outline: 'none',
                             opacity: isCurrentUser ? 0.7 : 1,
                           }}
                           title={
@@ -257,7 +255,6 @@ export function RoleDirectoryTable({
                               borderRadius: '50%',
                               background: '#ffffff',
                               boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
-                              transition: 'left 0.2s ease',
                             }}
                           />
                         </button>

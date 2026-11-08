@@ -2,13 +2,15 @@ import React from 'react';
 import { Icon } from '@/components/ui/Icon';
 import type { CustomerListItem } from '@repo/shared';
 import { SignalStrengthBars } from './signal-strength-bars';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { CustomerTableSkeletonRows } from '@/components/ui/PageSkeleton';
 
 interface CustomerTableProps {
   customers: CustomerListItem[];
   onSelectCustomer: (customer: CustomerListItem) => void;
   loading?: boolean;
 }
+
+const CUSTOMER_SKELETON_ROWS = 5;
 
 export function CustomerTable({ customers, onSelectCustomer, loading }: CustomerTableProps) {
   if (loading) {
@@ -27,31 +29,7 @@ export function CustomerTable({ customers, onSelectCustomer, loading }: Customer
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: 4 }).map((_, idx) => (
-              <tr key={idx} className="skeleton-row" aria-hidden="true">
-                <td>
-                  <Skeleton width="65%" height={16} />
-                </td>
-                <td style={{ maxWidth: '300px' }}>
-                  <Skeleton width="85%" height={14} />
-                </td>
-                <td>
-                  <Skeleton width={80} height={20} borderRadius={10} />
-                </td>
-                <td>
-                  <Skeleton width={65} height={14} />
-                </td>
-                <td>
-                  <Skeleton width={60} height={20} borderRadius={10} />
-                </td>
-                <td>
-                  <Skeleton width={90} height={14} />
-                </td>
-                <td style={{ textAlign: 'right' }}>
-                  <Skeleton width={28} height={28} borderRadius={6} style={{ display: 'inline-block' }} />
-                </td>
-              </tr>
-            ))}
+            <CustomerTableSkeletonRows count={CUSTOMER_SKELETON_ROWS} />
           </tbody>
         </table>
       </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@repo/database';
+import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 import { ERROR_CODES } from '@repo/shared';
 
 export async function POST(request: NextRequest) {
@@ -25,21 +25,42 @@ export async function POST(request: NextRequest) {
     const deviceInfo = body.deviceInfo || request.headers.get('x-device-id') || null;
     const stackTrace = body.stackTrace || (body.stack ? String(body.stack) : null);
 
-    const logEntry = await prisma.clientErrorLog.create({
-      data: {
-        userId,
-        appVersion,
-        deviceInfo,
-        errorMessage: String(errorMessage).slice(0, 1000),
-        stackTrace: stackTrace ? String(stackTrace).slice(0, 4000) : null,
-      },
+    if (await isDatabaseAvailable()) {
+      try {
+        const logEntry = await prisma.clientErrorLog.create({
+          data: {
+            userId,
+            appVersion,
+            deviceInfo,
+            errorMessage: String(errorMessage).slice(0, 1000),
+            stackTrace: stackTrace ? String(stackTrace).slice(0, 4000) : null,
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            id: logEntry.id,
+            loggedAt: logEntry.createdAt,
+          },
+        });
+      } catch (err) {
+        markDatabaseUnavailable(err);
+      }
+    }
+
+    console.warn('[ClientErrorLog] Offline DB fallback log:', {
+      userId,
+      appVersion,
+      deviceInfo,
+      errorMessage: String(errorMessage).slice(0, 200),
     });
 
     return NextResponse.json({
       success: true,
       data: {
-        id: logEntry.id,
-        loggedAt: logEntry.createdAt,
+        id: `offline-err-${Date.now()}`,
+        loggedAt: new Date().toISOString(),
       },
     });
   } catch (error: any) {

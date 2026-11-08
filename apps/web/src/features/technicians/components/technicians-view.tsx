@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { TechniciansSkeleton } from '@/components/ui/PageSkeleton';
 import { useTechnicians } from '../hooks/use-technicians';
 import { TechnicianStats } from './technician-stats';
 import { TechnicianFilters } from './technician-filters';
@@ -16,6 +17,7 @@ export function TechniciansView() {
     setCluster,
     activeTab,
     setActiveTab,
+    technicians,
     loading,
     processingUser,
     selectedTech,
@@ -34,11 +36,15 @@ export function TechniciansView() {
 
   React.useEffect(() => {
     function handleGlobalRefresh() {
-      fetchTechs();
+      fetchTechs(true);
     }
     window.addEventListener('app:refresh-data', handleGlobalRefresh);
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
   }, [fetchTechs]);
+
+  if (loading && technicians.length === 0) {
+    return <TechniciansSkeleton />;
+  }
 
   return (
     <main className="technicians-page" style={{ paddingBottom: '32px' }}>

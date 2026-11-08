@@ -176,9 +176,7 @@ export function PermissionMatrixPanel({
                           background: isChecked ? '#0e5b92' : '#cbd5e1',
                           border: 'none',
                           cursor: isLocked ? 'not-allowed' : 'pointer',
-                          transition: 'background 0.2s ease',
                           padding: 0,
-                          outline: 'none',
                           opacity: isLocked ? 0.75 : 1,
                         }}
                         title={
@@ -199,7 +197,6 @@ export function PermissionMatrixPanel({
                             borderRadius: '50%',
                             background: '#ffffff',
                             boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
-                            transition: 'left 0.2s ease',
                           }}
                         />
                       </button>

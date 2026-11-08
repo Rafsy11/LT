@@ -3,7 +3,7 @@ import { minioManager } from '@/server/lib/minio';
 import { redisManager } from '@/server/lib/redis';
 import { ERROR_CODES } from '@repo/shared';
 import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
-import { prisma } from '@repo/database';
+import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 
 /**
  * Strict alphanumeric and safe identifier pattern (alphanumeric, dash, underscore only).
@@ -82,44 +82,47 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Anti-IDOR & Ticket Lifecycle Validation
-    try {
-      const ticket = await prisma.ticket.findFirst({
-        where: {
-          OR: [{ id: ticketId }, { ticketNumber: ticketId }],
-        },
-      });
+    if (await isDatabaseAvailable()) {
+      try {
+        const ticket = await prisma.ticket.findFirst({
+          where: {
+            OR: [{ id: ticketId }, { ticketNumber: ticketId }],
+          },
+        });
 
-      if (ticket) {
-        // Reject if ticket is already closed
-        if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') {
-          return NextResponse.json(
-            {
-              success: false,
-              error: {
-                code: ERROR_CODES.TICKET_ALREADY_CLOSED,
-                message: `Tiket tidak dapat dimutasi karena sudah berstatus ${ticket.status}.`,
+        if (ticket) {
+          // Reject if ticket is already closed
+          if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') {
+            return NextResponse.json(
+              {
+                success: false,
+                error: {
+                  code: ERROR_CODES.TICKET_ALREADY_CLOSED,
+                  message: `Tiket tidak dapat dimutasi karena sudah berstatus ${ticket.status}.`,
+                },
               },
-            },
-            { status: 400 },
-          );
-        }
+              { status: 400 },
+            );
+          }
 
-        // Reject if requested by a technician other than the assigned technician
-        if (techUserId && ticket.assignedTechId && ticket.assignedTechId !== techUserId) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: {
-                code: ERROR_CODES.IDOR_VIOLATION,
-                message: 'Akses ditolak: Anda bukan teknisi yang ditugaskan pada tiket ini.',
+          // Reject if requested by a technician other than the assigned technician
+          if (techUserId && ticket.assignedTechId && ticket.assignedTechId !== techUserId) {
+            return NextResponse.json(
+              {
+                success: false,
+                error: {
+                  code: ERROR_CODES.IDOR_VIOLATION,
+                  message: 'Akses ditolak: Anda bukan teknisi yang ditugaskan pada tiket ini.',
+                },
               },
-            },
-            { status: 403 },
-          );
+              { status: 403 },
+            );
+          }
         }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        // In-memory / DB unavailable fallback
       }
-    } catch {
-      // In-memory / DB unavailable fallback
     }
 
     // 5. Pure Server-Side Object Key Construction (Client cannot control path)

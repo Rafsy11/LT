@@ -10,6 +10,11 @@ import type {
 } from '@repo/shared';
 import { FALLBACK_CLUSTERS } from '@repo/shared';
 import { useToast, useAuth } from '@/providers';
+import { fetchWithCache, getCachedData, invalidateQueryCache } from '@/lib/query-cache';
+
+const CLUSTERS_CACHE_KEY = '/api/v1/admin/clusters';
+const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
+const OVERVIEW_CACHE_KEY = '/api/v1/admin/overview';
 
 export interface SelectedPortContext {
   clusterCode: string;
@@ -57,7 +62,9 @@ export function useNetwork() {
     'BDG-03': true,
     'BDG-04': true,
   });
-  const [networkData, setNetworkData] = useState<ClusterListItem[]>(FALLBACK_CLUSTERS);
+  const [networkData, setNetworkData] = useState<ClusterListItem[]>(
+    () => getCachedData<ClusterListItem[]>(CLUSTERS_CACHE_KEY) ?? FALLBACK_CLUSTERS,
+  );
   const [loading, setLoading] = useState(false);
   const [selectedPort, setSelectedPort] = useState<SelectedPortContext | null>(null);
   const [portFilter, setPortFilter] = useState<'ALL' | 'OCCUPIED' | 'AVAILABLE'>('ALL');
@@ -77,12 +84,22 @@ export function useNetwork() {
   const { showSuccess } = useToast();
   const { canCreateTicket } = useAuth();
 
-  const fetchClusters = useCallback(async () => {
+  const fetchClusters = useCallback(async (force = false) => {
     try {
-      const res = await fetch('/api/v1/admin/clusters');
-      const json = await res.json();
-      if (json.success && json.data && json.data.clusters && json.data.clusters.length > 0) {
-        setNetworkData(json.data.clusters);
+      const data = await fetchWithCache<ClusterListItem[]>(
+        CLUSTERS_CACHE_KEY,
+        async () => {
+          const res = await fetch(CLUSTERS_CACHE_KEY);
+          const json = await res.json();
+          if (!res.ok || !json.success || !json.data?.clusters) {
+            throw new Error(json.error?.message || 'Gagal mengambil data cluster');
+          }
+          return json.data.clusters as ClusterListItem[];
+        },
+        { force },
+      );
+      if (data.length > 0) {
+        setNetworkData(data);
       }
     } catch (err) {
       console.warn('[NetworkPage] Gunakan data cluster inventaris lokal:', err);
@@ -96,7 +113,7 @@ export function useNetwork() {
   }, [fetchClusters]);
 
   const handleCreateTicketSubmit = async (data: CreateTicketInput) => {
-    const res = await fetch('/api/v1/admin/tickets', {
+    const res = await fetch(TICKETS_CACHE_KEY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -105,7 +122,8 @@ export function useNetwork() {
     if (!json.success) {
       throw json.error;
     }
-    await fetchClusters();
+    invalidateQueryCache(CLUSTERS_CACHE_KEY, TICKETS_CACHE_KEY, OVERVIEW_CACHE_KEY);
+    await fetchClusters(true);
   };
 
   const handlePortClick = (c: ClusterListItem, port: SplitterPortState) => {

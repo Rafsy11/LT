@@ -2,7 +2,7 @@ import { streamText, tool } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { SignJWT, jwtVerify } from 'jose';
 import crypto from 'crypto';
-import { prisma, Prisma } from '@repo/database';
+import { prisma, Prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 import { redisManager } from '../lib/redis';
 import {
   getRecentReportsToolSchema,
@@ -135,57 +135,60 @@ export class AiService {
         execute: async (args: GetRecentReportsInput) => {
           const limit = Math.min(args.limit || 20, 50);
 
-          try {
-            const whereClause: Record<string, unknown> = {};
+          if (await isDatabaseAvailable()) {
+            try {
+              const whereClause: Record<string, unknown> = {};
 
-            // Cluster scoping
-            if (assignedClusters.length > 0) {
-              whereClause.customer = {
-                cluster: { clusterCode: { in: assignedClusters } },
-              };
-            } else if (args.clusterCode) {
-              whereClause.customer = {
-                cluster: { clusterCode: args.clusterCode },
-              };
-            }
-
-            const histories = await prisma.attenuationHistory.findMany({
-              where: whereClause,
-              take: limit,
-              orderBy: { createdAt: 'desc' },
-              include: {
-                customer: { include: { cluster: true, splitter: true } },
-                tech: true,
-                ticket: true,
-              },
-            });
-
-            if (histories.length > 0) {
-              let filtered = histories;
-              if (args.minAttenuation !== undefined) {
-                filtered = filtered.filter(
-                  (h: any) => Number(h.newAttenuation) <= args.minAttenuation!,
-                );
+              // Cluster scoping
+              if (assignedClusters.length > 0) {
+                whereClause.customer = {
+                  cluster: { clusterCode: { in: assignedClusters } },
+                };
+              } else if (args.clusterCode) {
+                whereClause.customer = {
+                  cluster: { clusterCode: args.clusterCode },
+                };
               }
 
-              return filtered.map((h: any) => ({
-                id: h.id,
-                submissionId: h.submissionId,
-                ticketNumber: h.ticket.ticketNumber,
-                customerName: h.customer.fullName,
-                siaNumber: h.customer.siaNumber,
-                cluster: h.customer.cluster.name,
-                splitterCode: h.customer.splitter?.splitterCode || 'N/A',
-                portNumber: h.portNumber,
-                attenuationDbm: Number(h.newAttenuation),
-                status: classifyDbm(Number(h.newAttenuation)),
-                technician: h.tech.fullName,
-                isLocationFlagged: h.isLocationFlagged,
-                createdAt: h.createdAt.toISOString(),
-              }));
+              const histories = await prisma.attenuationHistory.findMany({
+                where: whereClause,
+                take: limit,
+                orderBy: { createdAt: 'desc' },
+                include: {
+                  customer: { include: { cluster: true, splitter: true } },
+                  tech: true,
+                  ticket: true,
+                },
+              });
+
+              if (histories.length > 0) {
+                let filtered = histories;
+                if (args.minAttenuation !== undefined) {
+                  filtered = filtered.filter(
+                    (h: any) => Number(h.newAttenuation) <= args.minAttenuation!,
+                  );
+                }
+
+                return filtered.map((h: any) => ({
+                  id: h.id,
+                  submissionId: h.submissionId,
+                  ticketNumber: h.ticket.ticketNumber,
+                  customerName: h.customer.fullName,
+                  siaNumber: h.customer.siaNumber,
+                  cluster: h.customer.cluster.name,
+                  splitterCode: h.customer.splitter?.splitterCode || 'N/A',
+                  portNumber: h.portNumber,
+                  attenuationDbm: Number(h.newAttenuation),
+                  status: classifyDbm(Number(h.newAttenuation)),
+                  technician: h.tech.fullName,
+                  isLocationFlagged: h.isLocationFlagged,
+                  createdAt: h.createdAt.toISOString(),
+                }));
+              }
+            } catch (err) {
+              markDatabaseUnavailable(err);
+              // In-memory fallback
             }
-          } catch {
-            // In-memory fallback
           }
 
           const allTickets = await TicketService.listTickets({ cluster: args.clusterCode });
@@ -212,63 +215,66 @@ export class AiService {
           'Mengambil detail informasi pelanggan berdasarkan nomor SIA atau nama, termasuk alokasi port ODP dan 10 riwayat redaman terakhir.',
         inputSchema: getCustomerDetailToolSchema,
         execute: async (args: GetCustomerDetailInput) => {
-          try {
-            const customer = await prisma.customer.findFirst({
-              where: {
-                OR: [
-                  args.siaNumber ? { siaNumber: args.siaNumber } : {},
-                  args.customerName
-                    ? { fullName: { contains: args.customerName, mode: 'insensitive' } }
-                    : {},
-                ],
-              },
-              include: {
-                cluster: true,
-                splitter: true,
-              },
-            });
-
-            if (customer) {
-              // Cluster scoping guard
-              if (
-                assignedClusters.length > 0 &&
-                !assignedClusters.includes(customer.cluster.clusterCode)
-              ) {
-                return { error: 'Pelanggan berada di luar cluster yang menjadi wewenang Anda.' };
-              }
-
-              const histories = await prisma.attenuationHistory.findMany({
-                where: { customerId: customer.id },
-                orderBy: { createdAt: 'desc' },
-                take: 10,
-                include: { tech: true },
+          if (await isDatabaseAvailable()) {
+            try {
+              const customer = await prisma.customer.findFirst({
+                where: {
+                  OR: [
+                    args.siaNumber ? { siaNumber: args.siaNumber } : {},
+                    args.customerName
+                      ? { fullName: { contains: args.customerName, mode: 'insensitive' } }
+                      : {},
+                  ],
+                },
+                include: {
+                  cluster: true,
+                  splitter: true,
+                },
               });
 
-              return {
-                id: customer.id,
-                siaNumber: customer.siaNumber,
-                fullName: customer.fullName,
-                address: customer.address,
-                status: customer.status,
-                cluster: customer.cluster.name,
-                clusterCode: customer.cluster.clusterCode,
-                splitterCode: customer.splitter?.splitterCode || 'Belum terhubung',
-                portNumber: customer.portNumber,
-                currentAttenuation: customer.currentAttenuation
-                  ? Number(customer.currentAttenuation)
-                  : null,
-                recentHistories: histories.map((h) => ({
-                  id: h.id,
-                  submissionId: h.submissionId,
-                  attenuationDbm: Number(h.newAttenuation),
-                  status: classifyDbm(Number(h.newAttenuation)),
-                  technician: h.tech.fullName,
-                  createdAt: h.createdAt.toISOString(),
-                })),
-              };
+              if (customer) {
+                // Cluster scoping guard
+                if (
+                  assignedClusters.length > 0 &&
+                  !assignedClusters.includes(customer.cluster.clusterCode)
+                ) {
+                  return { error: 'Pelanggan berada di luar cluster yang menjadi wewenang Anda.' };
+                }
+
+                const histories = await prisma.attenuationHistory.findMany({
+                  where: { customerId: customer.id },
+                  orderBy: { createdAt: 'desc' },
+                  take: 10,
+                  include: { tech: true },
+                });
+
+                return {
+                  id: customer.id,
+                  siaNumber: customer.siaNumber,
+                  fullName: customer.fullName,
+                  address: customer.address,
+                  status: customer.status,
+                  cluster: customer.cluster.name,
+                  clusterCode: customer.cluster.clusterCode,
+                  splitterCode: customer.splitter?.splitterCode || 'Belum terhubung',
+                  portNumber: customer.portNumber,
+                  currentAttenuation: customer.currentAttenuation
+                    ? Number(customer.currentAttenuation)
+                    : null,
+                  recentHistories: histories.map((h) => ({
+                    id: h.id,
+                    submissionId: h.submissionId,
+                    attenuationDbm: Number(h.newAttenuation),
+                    status: classifyDbm(Number(h.newAttenuation)),
+                    technician: h.tech.fullName,
+                    createdAt: h.createdAt.toISOString(),
+                  })),
+                };
+              }
+            } catch (err) {
+              markDatabaseUnavailable(err);
+              // In-memory fallback
             }
-          } catch {
-            // In-memory fallback
           }
 
           const custDetail = await CustomerService.getCustomerBySia(
@@ -293,44 +299,47 @@ export class AiService {
           'Mengambil daftar beban kerja teknisi lapangan, jumlah tiket aktif, dan status operasional.',
         inputSchema: getTechnicianWorkloadToolSchema,
         execute: async (args: GetTechnicianWorkloadInput) => {
-          try {
-            const techs = await prisma.user.findMany({
-              where: {
-                userType: 'TECHNICIAN',
-                isActive: true,
-              },
-              include: {
-                assignedTickets: {
-                  where: { status: { in: ['OPEN', 'IN_PROGRESS'] } },
+          if (await isDatabaseAvailable()) {
+            try {
+              const techs = await prisma.user.findMany({
+                where: {
+                  userType: 'TECHNICIAN',
+                  isActive: true,
                 },
-              },
-            });
-
-            if (techs.length > 0) {
-              let results = techs.map((t) => {
-                const activeCount = t.assignedTickets.length;
-                return {
-                  id: t.id,
-                  username: t.username,
-                  fullName: t.fullName,
-                  assignedClusters: t.assignedClusters,
-                  activeTicketsCount: activeCount,
-                  workloadStatus: activeCount > 0 ? ('BUSY' as const) : ('IDLE' as const),
-                };
+                include: {
+                  assignedTickets: {
+                    where: { status: { in: ['OPEN', 'IN_PROGRESS'] } },
+                  },
+                },
               });
 
-              if (args.clusterCode) {
-                results = results.filter((t) => t.assignedClusters.includes(args.clusterCode!));
-              }
+              if (techs.length > 0) {
+                let results = techs.map((t) => {
+                  const activeCount = t.assignedTickets.length;
+                  return {
+                    id: t.id,
+                    username: t.username,
+                    fullName: t.fullName,
+                    assignedClusters: t.assignedClusters,
+                    activeTicketsCount: activeCount,
+                    workloadStatus: activeCount > 0 ? ('BUSY' as const) : ('IDLE' as const),
+                  };
+                });
 
-              if (args.status && args.status !== 'ALL') {
-                results = results.filter((t) => t.workloadStatus === args.status);
-              }
+                if (args.clusterCode) {
+                  results = results.filter((t) => t.assignedClusters.includes(args.clusterCode!));
+                }
 
-              return results;
+                if (args.status && args.status !== 'ALL') {
+                  results = results.filter((t) => t.workloadStatus === args.status);
+                }
+
+                return results;
+              }
+            } catch (err) {
+              markDatabaseUnavailable(err);
+              // In-memory fallback
             }
-          } catch {
-            // In-memory fallback
           }
 
           const techs = await TechnicianService.listTechnicians(
@@ -359,20 +368,27 @@ export class AiService {
           'Menyiapkan draf tiket pekerjaan baru (PSB atau MAINTENANCE). Wajib pra-validasi data pelanggan dan teknisi, lalu menghasilkan token konfirmasi untuk persetujuan Admin.',
         inputSchema: prepareCreateTicketToolSchema,
         execute: async (args: PrepareCreateTicketInput) => {
+          const dbOnline = await isDatabaseAvailable();
+
           // 1. Pra-validasi Pelanggan
-          const customer = await prisma.customer
-            .findFirst({
-              where: {
-                OR: [
-                  { siaNumber: args.siaNumber },
-                  args.customerName
-                    ? { fullName: { contains: args.customerName, mode: 'insensitive' } }
-                    : {},
-                ],
-              },
-              include: { cluster: true },
-            })
-            .catch(() => null);
+          const customer = dbOnline
+            ? await prisma.customer
+                .findFirst({
+                  where: {
+                    OR: [
+                      { siaNumber: args.siaNumber },
+                      args.customerName
+                        ? { fullName: { contains: args.customerName, mode: 'insensitive' } }
+                        : {},
+                    ],
+                  },
+                  include: { cluster: true },
+                })
+                .catch((err) => {
+                  markDatabaseUnavailable(err);
+                  return null;
+                })
+            : null;
 
           const customerFallback =
             customer ||
@@ -397,14 +413,20 @@ export class AiService {
             : 'Bandung Utara';
 
           // 2. Pra-validasi Teknisi
-          const techUser = await prisma.user
-            .findFirst({
-              where: {
-                OR: [{ username: args.techUsername }, { fullName: args.techUsername }],
-                userType: 'TECHNICIAN',
-              },
-            })
-            .catch(() => null);
+          const techUser =
+            await isDatabaseAvailable()
+              ? await prisma.user
+                  .findFirst({
+                    where: {
+                      OR: [{ username: args.techUsername }, { fullName: args.techUsername }],
+                      userType: 'TECHNICIAN',
+                    },
+                  })
+                  .catch((err) => {
+                    markDatabaseUnavailable(err);
+                    return null;
+                  })
+              : null;
 
           const techFallback =
             techUser || (await TechnicianService.listTechnicians(args.techUsername))[0] || null;
@@ -463,15 +485,20 @@ export class AiService {
         inputSchema: prepareToggleTechAccountToolSchema,
         execute: async (args: PrepareToggleTechAccountInput) => {
           // 1. Pra-validasi Teknisi & Hierarki
-          const techUser = await prisma.user
-            .findFirst({
-              where: {
-                OR: [{ username: args.techUsername }, { fullName: args.techUsername }],
-                userType: 'TECHNICIAN',
-              },
-              include: { role: true },
-            })
-            .catch(() => null);
+          const techUser = (await isDatabaseAvailable())
+            ? await prisma.user
+                .findFirst({
+                  where: {
+                    OR: [{ username: args.techUsername }, { fullName: args.techUsername }],
+                    userType: 'TECHNICIAN',
+                  },
+                  include: { role: true },
+                })
+                .catch((err) => {
+                  markDatabaseUnavailable(err);
+                  return null;
+                })
+            : null;
 
           const techFallback =
             techUser || (await TechnicianService.listTechnicians(args.techUsername))[0] || null;
@@ -534,13 +561,20 @@ export class AiService {
           'Menyiapkan draf pemindahan/mutasi port splitter pelanggan. Wajib pra-validasi ketersediaan port tujuan di database.',
         inputSchema: prepareMutateSplitterPortToolSchema,
         execute: async (args: PrepareMutateSplitterPortInput) => {
+          const dbOnline = await isDatabaseAvailable();
+
           // 1. Pra-validasi Pelanggan
-          const customer = await prisma.customer
-            .findFirst({
-              where: { siaNumber: args.siaNumber },
-              include: { cluster: true },
-            })
-            .catch(() => null);
+          const customer = dbOnline
+            ? await prisma.customer
+                .findFirst({
+                  where: { siaNumber: args.siaNumber },
+                  include: { cluster: true },
+                })
+                .catch((err) => {
+                  markDatabaseUnavailable(err);
+                  return null;
+                })
+            : null;
 
           const customerFallback =
             customer ||
@@ -554,11 +588,16 @@ export class AiService {
           }
 
           // 2. Pra-validasi Splitter ODP Tujuan
-          const splitter = await prisma.networkSplitter
-            .findFirst({
-              where: { splitterCode: args.newSplitterCode },
-            })
-            .catch(() => null);
+          const splitter = (await isDatabaseAvailable())
+            ? await prisma.networkSplitter
+                .findFirst({
+                  where: { splitterCode: args.newSplitterCode },
+                })
+                .catch((err) => {
+                  markDatabaseUnavailable(err);
+                  return null;
+                })
+            : null;
 
           const maxPorts = splitter?.maxPorts || 16;
           if (args.newPortNumber < 1 || args.newPortNumber > maxPorts) {
@@ -568,7 +607,7 @@ export class AiService {
           }
 
           // 3. Pra-validasi Port Kosong (Anti-Double Booking)
-          if (splitter) {
+          if (splitter && (await isDatabaseAvailable())) {
             const occupied = await prisma.customer
               .findFirst({
                 where: {
@@ -578,7 +617,10 @@ export class AiService {
                   siaNumber: { not: args.siaNumber },
                 },
               })
-              .catch(() => null);
+              .catch((err) => {
+                markDatabaseUnavailable(err);
+                return null;
+              });
 
             if (occupied) {
               return {
@@ -871,26 +913,29 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
     }
 
     // 3. Append to activity_logs with action_type: 'AI_ACTION_EXECUTED' (Law 2: APPEND-ONLY)
-    try {
-      await prisma.activityLog.create({
-        data: {
-          actorUserId: adminContext.userId,
-          actorRole: adminContext.role,
-          actionType: 'AI_ACTION_EXECUTED',
-          targetEntity: verified.actionType,
-          targetId: String(
-            verified.payload.siaNumber || verified.payload.techUsername || adminContext.userId,
-          ),
-          oldPayload: {
-            actionType: verified.actionType,
-            verifiedAdmin: adminContext.username,
+    if (await isDatabaseAvailable()) {
+      try {
+        await prisma.activityLog.create({
+          data: {
+            actorUserId: adminContext.userId,
+            actorRole: adminContext.role,
+            actionType: 'AI_ACTION_EXECUTED',
+            targetEntity: verified.actionType,
+            targetId: String(
+              verified.payload.siaNumber || verified.payload.techUsername || adminContext.userId,
+            ),
+            oldPayload: {
+              actionType: verified.actionType,
+              verifiedAdmin: adminContext.username,
+            },
+            newPayload: verified.payload as unknown as Prisma.InputJsonValue,
           },
-          newPayload: verified.payload as unknown as Prisma.InputJsonValue,
-        },
-      });
-    } catch {
-      // In-memory audit fallback
-      console.info('[AiService] Audit log recorded via fallback for', verified.actionType);
+        });
+      } catch (err) {
+        markDatabaseUnavailable(err);
+        // In-memory audit fallback
+        console.info('[AiService] Audit log recorded via fallback for', verified.actionType);
+      }
     }
 
     return {

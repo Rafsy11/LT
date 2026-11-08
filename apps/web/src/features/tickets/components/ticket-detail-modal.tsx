@@ -4,6 +4,14 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 import { useToast } from '@/providers';
+import { invalidateQueryCache } from '@/lib/query-cache';
+
+const TICKET_MUTATION_CACHE_KEYS = [
+  '/api/v1/admin/tickets',
+  '/api/v1/admin/overview',
+  '/api/v1/admin/customers',
+  '/api/v1/admin/clusters',
+];
 
 export interface TicketDetailModalProps {
   ticket: any | null;
@@ -63,6 +71,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
         json.meta?.message ||
           'Laporan teknisi berhasil disetujui (Accepted). Data Master Pelanggan telah diperbarui.',
       );
+      invalidateQueryCache(...TICKET_MUTATION_CACHE_KEYS);
       if (onTicketUpdated) onTicketUpdated();
       onClose();
     } catch (err: any) {
@@ -91,6 +100,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
       showSuccess(
         json.meta?.message || 'Laporan telah ditolak dan dikembalikan ke teknisi untuk perbaikan.',
       );
+      invalidateQueryCache(...TICKET_MUTATION_CACHE_KEYS);
       if (onTicketUpdated) onTicketUpdated();
       onClose();
     } catch (err: any) {
@@ -116,6 +126,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
         json.meta?.message ||
           'Laporan baru dari teknisi berhasil diterima. Siap diverifikasi dan disetujui (Accepted).',
       );
+      invalidateQueryCache(...TICKET_MUTATION_CACHE_KEYS);
       if (onTicketUpdated) onTicketUpdated();
       onClose();
     } catch (err: any) {

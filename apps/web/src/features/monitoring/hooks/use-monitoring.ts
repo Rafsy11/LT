@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { classifyDbm } from '@repo/shared';
+import { fetchWithCache, getCachedData } from '@/lib/query-cache';
+
+const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
 
 export interface LiveReportItem {
   id: string;
@@ -27,42 +30,63 @@ export interface LiveReportItem {
 
 export type SseState = 'CONNECTING' | 'LIVE_CONNECTED' | 'DISCONNECTED' | 'RECONNECTING';
 
+function pickInitialReport(items: LiveReportItem[] | null): LiveReportItem | null {
+  if (!items || items.length === 0) return null;
+  const crit = items.find((r) => classifyDbm(r.currentAttenuation) === 'Critical');
+  return crit || items[0];
+}
+
 export function useMonitoring() {
   const [tab, setTab] = useState<'Semua' | 'Normal' | 'Warning' | 'Critical'>('Semua');
   const [search, setSearch] = useState('');
   const [cluster, setCluster] = useState('Semua cluster');
   const [typeFilter, setTypeFilter] = useState('Semua tipe');
   const [techFilter, setTechFilter] = useState('Semua teknisi');
-  const [reports, setReports] = useState<LiveReportItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedTicket, setSelectedTicket] = useState<LiveReportItem | null>(null);
+  const [reports, setReports] = useState<LiveReportItem[]>(
+    () => getCachedData<LiveReportItem[]>(TICKETS_CACHE_KEY) ?? [],
+  );
+  const [loading, setLoading] = useState<boolean>(
+    () => !getCachedData<LiveReportItem[]>(TICKETS_CACHE_KEY),
+  );
+  const [selectedTicket, setSelectedTicket] = useState<LiveReportItem | null>(() =>
+    pickInitialReport(getCachedData<LiveReportItem[]>(TICKETS_CACHE_KEY)),
+  );
   const [modalTicket, setModalTicket] = useState<LiveReportItem | null>(null);
   const [sseState, setSseState] = useState<SseState>('CONNECTING');
   const [reconnectCountdown, setReconnectCountdown] = useState<number>(0);
   const [lastHeartbeat, setLastHeartbeat] = useState<string>('Memulai koneksi...');
 
-  const fetchInitialReports = useCallback(async () => {
+  const fetchInitialReports = useCallback(async (force = false) => {
     try {
-      setLoading(true);
-      const res = await fetch('/api/v1/admin/tickets');
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setReports(json.data);
-        if (!selectedTicket && json.data.length > 0) {
-          const crit = json.data.find(
-            (r: LiveReportItem) => classifyDbm(r.currentAttenuation) === 'Critical',
-          );
-          setSelectedTicket(crit || json.data[0]);
-        }
+      if (!getCachedData<LiveReportItem[]>(TICKETS_CACHE_KEY)) {
+        setLoading(true);
+      }
+      const data = await fetchWithCache<LiveReportItem[]>(
+        TICKETS_CACHE_KEY,
+        async () => {
+          const res = await fetch(TICKETS_CACHE_KEY);
+          const json = await res.json();
+          if (!res.ok || !json.success || !Array.isArray(json.data)) {
+            throw new Error(json.error?.message || 'Gagal mengambil data tiket awal');
+          }
+          return json.data as LiveReportItem[];
+        },
+        { force },
+      );
+
+      setReports(data);
+      if (data.length > 0) {
+        setSelectedTicket((prev) => prev ?? pickInitialReport(data));
       }
     } catch (err) {
       console.error('[Monitoring] Gagal mengambil data tiket awal:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedTicket]);
+  }, []);
 
   useEffect(() => {
+    let isDisposed = false;
     fetchInitialReports();
 
     let eventSource: EventSource | null = null;
@@ -71,11 +95,13 @@ export function useMonitoring() {
     let retryCount = 0;
 
     const connectSSE = () => {
+      if (isDisposed) return;
       try {
         setSseState('CONNECTING');
         eventSource = new EventSource('/api/v1/admin/stream/reports');
 
         eventSource.onopen = () => {
+          if (isDisposed) return;
           retryCount = 0;
           setSseState('LIVE_CONNECTED');
           setLastHeartbeat(
@@ -88,6 +114,7 @@ export function useMonitoring() {
         };
 
         eventSource.addEventListener('connected', () => {
+          if (isDisposed) return;
           retryCount = 0;
           setSseState('LIVE_CONNECTED');
           setLastHeartbeat(
@@ -100,6 +127,7 @@ export function useMonitoring() {
         });
 
         eventSource.addEventListener('ping', () => {
+          if (isDisposed) return;
           retryCount = 0;
           setSseState('LIVE_CONNECTED');
           setLastHeartbeat(
@@ -112,6 +140,7 @@ export function useMonitoring() {
         });
 
         eventSource.addEventListener('report', (e) => {
+          if (isDisposed) return;
           try {
             const item = JSON.parse(e.data);
             const rawDbm = Number(item.attenuationDbm);
@@ -159,6 +188,7 @@ export function useMonitoring() {
           if (eventSource) {
             eventSource.close();
           }
+          if (isDisposed) return;
           retryCount++;
           const delayMs = Math.min(1000 * Math.pow(2, retryCount), 30000);
           const delaySec = Math.ceil(delayMs / 1000);
@@ -181,7 +211,9 @@ export function useMonitoring() {
           }, delayMs);
         };
       } catch (err) {
-        setSseState('DISCONNECTED');
+        if (!isDisposed) {
+          setSseState('DISCONNECTED');
+        }
         console.error('[Monitoring] Inisialisasi EventSource gagal:', err);
       }
     };
@@ -189,6 +221,7 @@ export function useMonitoring() {
     connectSSE();
 
     return () => {
+      isDisposed = true;
       if (eventSource) {
         eventSource.close();
       }
