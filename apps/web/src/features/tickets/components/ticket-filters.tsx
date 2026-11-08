@@ -33,11 +33,14 @@ export function TicketFilters({
       {/* Filter Toolbar without Clutter Pills */}
       <section className="tickets-toolbar">
         <div className="tickets-filter-group">
-          <search className="tickets-search-input" role="search">
-            <Icon name="search" size={15} />
+          <search className="tickets-search" role="search">
+            <span className="tickets-search-icon">
+              <Icon name="search" size={13} />
+            </span>
             <input
               type="text"
               aria-label="Cari tiket"
+              className="tickets-search-input"
               placeholder="Cari nomor tiket, SIA, pelanggan, atau teknisi..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}

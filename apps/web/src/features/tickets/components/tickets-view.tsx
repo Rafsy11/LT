@@ -72,8 +72,8 @@ export function TicketsView() {
             title="Terima data terbaru yang dikirim teknisi dari mobile app"
             style={{ fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            <Icon name="activity" size={14} />
-            <span>{simulating ? 'Menerima Data...' : '+ Terima Data Teknisi (Mobile)'}</span>
+            <Icon name="plus" size={14} />
+            <span>{simulating ? 'Menerima Data...' : 'Terima Data Teknisi (Mobile)'}</span>
           </button>
 
           {canCreateTicket ? (
