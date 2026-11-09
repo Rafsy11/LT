@@ -36,6 +36,7 @@ export function useLogin() {
   const [deliveryStatus, setDeliveryStatus] = useState<OtpDeliveryStatus>('IDLE');
   const [maskedChatId, setMaskedChatId] = useState<string | null>(null);
   const [botUsername, setBotUsername] = useState<string>('FiberOpsNOCBot');
+  const [userNik, setUserNik] = useState<string | null>(null);
   const [isRequestingOtp, setIsRequestingOtp] = useState<boolean>(false);
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -289,6 +290,7 @@ export function useLogin() {
       setDeliveryStatus('SENT');
       setMaskedChatId(authData.maskedChatId || null);
       setBotUsername(authData.botUsername || 'FiberOpsNOCBot');
+      setUserNik(authData.user?.nik || null);
 
       showSuccess(
         `Kode OTP 6-digit telah dikirim ke Telegram terdaftar (${authData.maskedChatId || '@FiberOpsNOCBot'}).`,
@@ -422,6 +424,7 @@ export function useLogin() {
     deliveryStatus,
     maskedChatId,
     botUsername,
+    userNik,
     isRequestingOtp,
     isSubmitting,
     errorMessage,

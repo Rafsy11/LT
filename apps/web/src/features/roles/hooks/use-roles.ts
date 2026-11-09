@@ -23,6 +23,7 @@ export interface PermissionDefinition {
 
 export interface UserAccessItem {
   id: string;
+  nik?: string;
   name: string;
   email: string;
   username: string;
@@ -30,6 +31,7 @@ export interface UserAccessItem {
   cluster: string;
   isActive: boolean;
   lastActive: string;
+  telegramChatId?: string | null;
 }
 
 export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
@@ -149,6 +151,7 @@ export const INITIAL_FALLBACK_ROLES: RoleApiItem[] = [
 export const INITIAL_USERS: UserAccessItem[] = [
   {
     id: 'usr-1',
+    nik: '882040',
     name: 'Budi Santoso',
     email: 'budi.santoso@lintasarta.co.id',
     username: 'superadmin',
@@ -156,9 +159,11 @@ export const INITIAL_USERS: UserAccessItem[] = [
     cluster: 'Global Scope',
     isActive: true,
     lastActive: 'Baru saja',
+    telegramChatId: null,
   },
   {
     id: 'usr-2',
+    nik: '882041',
     name: 'Aditya Saputra',
     email: 'aditya.saputra@lintasarta.co.id',
     username: 'aditya.noc',
@@ -166,9 +171,11 @@ export const INITIAL_USERS: UserAccessItem[] = [
     cluster: 'Global Scope',
     isActive: true,
     lastActive: '10 menit yang lalu',
+    telegramChatId: '7072749677',
   },
   {
     id: 'usr-3',
+    nik: '882042',
     name: 'Siti Aminah',
     email: 'siti.aminah@lintasarta.co.id',
     username: 'siti.ops',
@@ -176,9 +183,11 @@ export const INITIAL_USERS: UserAccessItem[] = [
     cluster: 'Bandung Utara (BDG-01)',
     isActive: true,
     lastActive: '25 menit yang lalu',
+    telegramChatId: null,
   },
   {
     id: 'usr-4',
+    nik: '882043',
     name: 'Ahmad Dahlan',
     email: 'ahmad.dahlan@lintasarta.co.id',
     username: 'ahmad.ops',
@@ -186,9 +195,11 @@ export const INITIAL_USERS: UserAccessItem[] = [
     cluster: 'Bandung Selatan (BDG-02)',
     isActive: true,
     lastActive: '1 jam yang lalu',
+    telegramChatId: null,
   },
   {
     id: 'usr-5',
+    nik: '882044',
     name: 'Rizky Ramadhan',
     email: 'rizky.ramadhan@lintasarta.co.id',
     username: 'rizky.noc',
@@ -196,9 +207,11 @@ export const INITIAL_USERS: UserAccessItem[] = [
     cluster: 'Bandung Utara (BDG-01)',
     isActive: true,
     lastActive: '3 jam yang lalu',
+    telegramChatId: null,
   },
   {
     id: 'usr-6',
+    nik: '882045',
     name: 'Maya Putri',
     email: 'maya.putri@lintasarta.co.id',
     username: 'maya.cs',
@@ -206,9 +219,11 @@ export const INITIAL_USERS: UserAccessItem[] = [
     cluster: 'Bandung Utara (BDG-01)',
     isActive: true,
     lastActive: '4 jam yang lalu',
+    telegramChatId: null,
   },
   {
     id: 'usr-7',
+    nik: '882046',
     name: 'Andi Pratama',
     email: 'andi.pratama@lintasarta.co.id',
     username: 'andi.tech',
@@ -216,9 +231,11 @@ export const INITIAL_USERS: UserAccessItem[] = [
     cluster: 'Bandung Utara (BDG-01)',
     isActive: true,
     lastActive: '5 jam yang lalu',
+    telegramChatId: null,
   },
   {
     id: 'usr-8',
+    nik: '882047',
     name: 'Bambang Wijaya',
     email: 'bambang.wijaya@lintasarta.co.id',
     username: 'bambang.tech',
@@ -226,6 +243,7 @@ export const INITIAL_USERS: UserAccessItem[] = [
     cluster: 'Bandung Selatan (BDG-02)',
     isActive: false,
     lastActive: '1 hari yang lalu',
+    telegramChatId: null,
   },
 ];
 
@@ -450,6 +468,7 @@ export function useRoles() {
     return userList.filter((u) => {
       const matchesSearch =
         searchQuery.trim() === '' ||
+        (u.nik && u.nik.toLowerCase().includes(searchQuery.toLowerCase())) ||
         u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         u.username.toLowerCase().includes(searchQuery.toLowerCase());

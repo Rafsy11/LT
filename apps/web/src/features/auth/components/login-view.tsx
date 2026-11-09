@@ -27,6 +27,7 @@ export function LoginView() {
     deliveryStatus,
     maskedChatId,
     botUsername,
+    userNik,
     isRequestingOtp,
     isSubmitting,
     errorMessage,
@@ -193,7 +194,8 @@ export function LoginView() {
               {deliveryStatus === 'SENT' && (
                 <p className="auth-otp-hint auth-otp-hint-sent">
                   Kode OTP telah dikirim oleh <strong>@{botUsername}</strong> ke Telegram terdaftar
-                  {maskedChatId ? ` (${maskedChatId})` : ''}.
+                  {maskedChatId ? ` (${maskedChatId})` : ''}
+                  {userNik ? ` untuk NIK: ${userNik}` : ''}.
                 </p>
               )}
             </div>

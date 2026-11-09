@@ -46,8 +46,9 @@ export async function seedDatabase() {
   // 2. USERS (Super Admin, Admin NOC, 2 Teknisi)
   const superAdmin = await prisma.user.upsert({
     where: { username: 'superadmin' },
-    update: {},
+    update: { nik: '882041' },
     create: {
+      nik: '882041',
       username: 'superadmin',
       fullName: 'Aditya Saputra',
       passwordHash: '$2b$10$epw1...mockSecureHashForSuperAdmin',
@@ -60,8 +61,9 @@ export async function seedDatabase() {
 
   const adminNoc = await prisma.user.upsert({
     where: { username: 'admin.noc' },
-    update: {},
+    update: { nik: '882042' },
     create: {
+      nik: '882042',
       username: 'admin.noc',
       fullName: 'Budi Hartono',
       passwordHash: '$2b$10$epw1...mockSecureHashForAdminNoc',
@@ -74,8 +76,9 @@ export async function seedDatabase() {
 
   const techAndi = await prisma.user.upsert({
     where: { username: 'tech.andi' },
-    update: {},
+    update: { nik: '882043' },
     create: {
+      nik: '882043',
       username: 'tech.andi',
       fullName: 'Andi Pratama',
       passwordHash: '$2b$10$epw1...mockSecureHashForTechAndi',
@@ -88,8 +91,9 @@ export async function seedDatabase() {
 
   const techRizky = await prisma.user.upsert({
     where: { username: 'tech.rizky' },
-    update: {},
+    update: { nik: '882044' },
     create: {
+      nik: '882044',
       username: 'tech.rizky',
       fullName: 'Rizky Maulana',
       passwordHash: '$2b$10$epw1...mockSecureHashForTechRizky',

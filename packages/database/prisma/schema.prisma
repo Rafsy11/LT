@@ -49,6 +49,7 @@ model Role {
 // 2. USERS
 model User {
   id               String               @id @default(uuid())
+  nik              String?              @unique @map("nik")
   username         String               @unique
   fullName         String               @map("full_name")
   passwordHash     String               @map("password_hash")
@@ -70,6 +71,7 @@ model User {
 
   @@index([roleId])
   @@index([isActive])
+  @@index([nik])
   @@map("users")
 }
 

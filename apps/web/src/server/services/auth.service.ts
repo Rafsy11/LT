@@ -29,6 +29,7 @@ const BCRYPT_SALT_ROUNDS = 10;
 
 interface FallbackAccount {
   id: string;
+  nik?: string | null;
   username: string;
   fullName: string;
   passwordHash?: string;
@@ -48,6 +49,7 @@ interface FallbackAccount {
 const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
   superadmin: {
     id: '00000000-0000-4000-8000-000000000001',
+    nik: '882041',
     username: 'superadmin',
     fullName: 'Aditya Saputra',
     userType: 'SUPER_ADMIN',
@@ -62,6 +64,7 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
   },
   'aditya.saputra': {
     id: '00000000-0000-4000-8000-000000000001',
+    nik: '882041',
     username: 'superadmin',
     fullName: 'Aditya Saputra',
     userType: 'SUPER_ADMIN',
@@ -76,6 +79,7 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
   },
   'admin.noc': {
     id: '00000000-0000-4000-8000-000000000002',
+    nik: '882042',
     username: 'admin.noc',
     fullName: 'Budi Hartono',
     userType: 'ADMIN',
@@ -97,6 +101,7 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
   },
   'tech.andi': {
     id: '00000000-0000-4000-8000-000000000003',
+    nik: '882043',
     username: 'tech.andi',
     fullName: 'Andi Pratama',
     userType: 'TECHNICIAN',
@@ -111,6 +116,7 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
   },
   'andi.pratama': {
     id: '00000000-0000-4000-8000-000000000003',
+    nik: '882043',
     username: 'tech.andi',
     fullName: 'Andi Pratama',
     userType: 'TECHNICIAN',
@@ -333,6 +339,7 @@ export class AuthService {
         if (found) {
           dbUser = {
             id: found.id,
+            nik: found.nik,
             username: found.username,
             fullName: found.fullName,
             passwordHash: found.passwordHash,
@@ -358,6 +365,112 @@ export class AuthService {
     }
 
     return dbUser || FALLBACK_SEED_USERS[normalizedUsername] || null;
+  }
+
+  /**
+   * Resolves an account by NIK from PostgreSQL or fallback seed accounts.
+   */
+  public static async resolveAccountByNik(nik: string): Promise<FallbackAccount | null> {
+    const cleanNik = nik.trim().toUpperCase();
+    if (await isDatabaseAvailable()) {
+      try {
+        const found = await prisma.user.findFirst({
+          where: { nik: cleanNik },
+          include: { role: true },
+        });
+        if (found) {
+          return {
+            id: found.id,
+            nik: found.nik,
+            username: found.username,
+            fullName: found.fullName,
+            passwordHash: found.passwordHash,
+            telegramChatId: found.telegramChatId,
+            twoFactorEnabled: found.twoFactorEnabled,
+            userType: found.userType as UserTypeEnum,
+            isActive: found.isActive,
+            assignedClusters: found.assignedClusters,
+            role: {
+              id: found.role.id,
+              name: found.role.name,
+              hierarchyLevel: found.role.hierarchyLevel,
+              permissions: Array.isArray(found.role.permissions)
+                ? (found.role.permissions as string[])
+                : [],
+            },
+          };
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+      }
+    }
+
+    const fallback = Object.values(FALLBACK_SEED_USERS).find(
+      (u) =>
+        Boolean(u.nik && u.nik.toUpperCase() === cleanNik) ||
+        u.username.toLowerCase() === cleanNik.toLowerCase(),
+    );
+    return fallback || null;
+  }
+
+  /**
+   * Binds a Telegram Chat ID to a user account resolved by NIK.
+   */
+  public static async bindTelegramChatIdByNik(params: {
+    nik: string;
+    chatId: string;
+  }): Promise<{ success: boolean; user: FallbackAccount | null }> {
+    const user = await this.resolveAccountByNik(params.nik);
+    if (!user) {
+      return { success: false, user: null };
+    }
+
+    if (await isDatabaseAvailable()) {
+      try {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { telegramChatId: params.chatId },
+        });
+      } catch (err) {
+        markDatabaseUnavailable(err);
+      }
+    }
+
+    // Also update in-memory fallback user if applicable
+    user.telegramChatId = params.chatId;
+    const fallbackKey = Object.keys(FALLBACK_SEED_USERS).find(
+      (k) => FALLBACK_SEED_USERS[k].id === user.id,
+    );
+    if (fallbackKey) {
+      FALLBACK_SEED_USERS[fallbackKey].telegramChatId = params.chatId;
+    }
+
+    return { success: true, user };
+  }
+
+  /**
+   * Unlinks a Telegram Chat ID from a user account (e.g. lost device reset).
+   */
+  public static async unlinkTelegramChatId(userId: string): Promise<boolean> {
+    if (await isDatabaseAvailable()) {
+      try {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { telegramChatId: null },
+        });
+      } catch (err) {
+        markDatabaseUnavailable(err);
+      }
+    }
+
+    const fallbackKey = Object.keys(FALLBACK_SEED_USERS).find(
+      (k) => FALLBACK_SEED_USERS[k].id === userId,
+    );
+    if (fallbackKey) {
+      FALLBACK_SEED_USERS[fallbackKey].telegramChatId = null;
+    }
+
+    return true;
   }
 
   /**
@@ -490,6 +603,7 @@ export class AuthService {
       otpCode,
       username: user.username,
       fullName: user.fullName,
+      nik: user.nik,
       clientIp,
     });
 
@@ -524,6 +638,7 @@ export class AuthService {
       botUsername: delivery.botUsername,
       user: {
         id: user.id,
+        nik: user.nik || null,
         username: user.username,
         fullName: user.fullName,
         role: user.role.name,
@@ -598,6 +713,7 @@ export class AuthService {
       token,
       user: {
         id: user.id,
+        nik: user.nik || null,
         username: user.username,
         fullName: user.fullName,
         role: user.role.name,
@@ -650,6 +766,7 @@ export class AuthService {
       otpCode,
       username: user.username,
       fullName: user.fullName,
+      nik: user.nik,
       clientIp,
     });
 

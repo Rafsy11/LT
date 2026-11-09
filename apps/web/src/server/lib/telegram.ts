@@ -90,6 +90,7 @@ export async function sendTelegramOtpMessage(params: {
   otpCode: string;
   username: string;
   fullName: string;
+  nik?: string | null;
   clientIp?: string;
 }): Promise<{
   sent: boolean;
@@ -108,7 +109,7 @@ export async function sendTelegramOtpMessage(params: {
     if (process.env.NODE_ENV === 'development') {
       console.log(`\n======================================================`);
       console.log(`[DEV 2FA OTP] Mode Lokal / Development Aktif`);
-      console.log(`[DEV 2FA OTP] Operator: ${params.fullName} (${params.username})`);
+      console.log(`[DEV 2FA OTP] Operator: ${params.fullName} (${params.username})${params.nik ? ` [NIK: ${params.nik}]` : ''}`);
       console.log(`[DEV 2FA OTP] Kode OTP: ${params.otpCode} (atau gunakan kode dev 123456)`);
       console.log(`======================================================\n`);
       return {
@@ -137,6 +138,7 @@ export async function sendTelegramOtpMessage(params: {
     `Kode OTP Anda: <code>${params.otpCode}</code>`,
     ``,
     `• <b>Operator:</b> ${params.fullName} (<code>${params.username}</code>)`,
+    ...(params.nik ? [`• <b>NIK:</b> <code>${params.nik}</code>`] : []),
     `• <b>IP Akses:</b> <code>${params.clientIp || 'On-Premise Local'}</code>`,
     `• <b>Waktu:</b> ${timestampWib} WIB`,
     `• <b>Berlaku:</b> 5 Menit (Sekali Pakai)`,

@@ -151,6 +151,7 @@ export function RoleDirectoryTable({
               <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>Pengguna</th>
               <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>Peran Sistem</th>
               <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>Cakupan Wilayah</th>
+              <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>2FA Telegram</th>
               <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>Status Akses</th>
               <th scope="col" style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>Aksi</th>
             </tr>
@@ -159,7 +160,7 @@ export function RoleDirectoryTable({
             {filteredUsers.length === 0 ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   style={{ padding: '40px 16px', textAlign: 'center', color: '#94a3b8' }}
                 >
                   Tidak ada pengguna yang sesuai dengan filter pencarian ini.
@@ -175,7 +176,7 @@ export function RoleDirectoryTable({
                     key={u.id}
                     className="role-user-row"
                   >
-                    {/* User Avatar + Name + Email */}
+                    {/* User Avatar + Name + NIK & Email */}
                     <td style={{ padding: '14px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <DefaultAvatar size={34} name={u.name} />
@@ -196,8 +197,22 @@ export function RoleDirectoryTable({
                               </span>
                             )}
                           </div>
-                          <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '1px' }}>
-                            {u.email}
+                          <div
+                            style={{
+                              fontSize: '11.5px',
+                              color: '#64748b',
+                              marginTop: '2px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            {u.nik && (
+                              <span className="role-user-nik-badge">
+                                NIK: {u.nik}
+                              </span>
+                            )}
+                            <span>{u.email}</span>
                           </div>
                         </div>
                       </div>
@@ -215,6 +230,27 @@ export function RoleDirectoryTable({
                       <span className="role-cluster-text">
                         {u.cluster}
                       </span>
+                    </td>
+
+                    {/* 2FA Telegram Integration Status */}
+                    <td style={{ padding: '14px 16px' }}>
+                      {u.telegramChatId ? (
+                        <div
+                          className="telegram-status-badge connected"
+                          title={`Chat ID Telegram terhubung: ${u.telegramChatId}`}
+                        >
+                          <Icon name="check" size={13} />
+                          <span>Terhubung (••••{u.telegramChatId.slice(-4)})</span>
+                        </div>
+                      ) : (
+                        <div
+                          className="telegram-status-badge pending"
+                          title="Karyawan cukup membuka @FiberOpsNOCBot lalu kirimkan NIK resminya"
+                        >
+                          <Icon name="clock" size={13} />
+                          <span>Menunggu /start</span>
+                        </div>
+                      )}
                     </td>
 
                     {/* Interactive Toggle Switch */}

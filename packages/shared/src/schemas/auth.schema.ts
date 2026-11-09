@@ -25,6 +25,7 @@ export type LogoutRequest = z.infer<typeof logoutRequestSchema>;
 
 export const userProfileSchema = z.object({
   id: z.string().uuid(),
+  nik: z.string().nullable().optional(),
   username: z.string(),
   fullName: z.string(),
   role: z.string(),
