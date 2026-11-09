@@ -6,9 +6,10 @@ import { Icon } from '@/components/ui/Icon';
 export interface RoleHeaderProps {
   isFetching: boolean;
   onRefresh: () => void;
+  onOpenAddUser?: () => void;
 }
 
-export function RoleHeader({ isFetching, onRefresh }: RoleHeaderProps) {
+export function RoleHeader({ isFetching, onRefresh, onOpenAddUser }: RoleHeaderProps) {
   return (
     <header className="overview-header" style={{ marginBottom: '28px' }}>
       <div className="overview-header-copy">
@@ -19,7 +20,7 @@ export function RoleHeader({ isFetching, onRefresh }: RoleHeaderProps) {
         </p>
       </div>
 
-      <nav className="overview-toolbar" aria-label="Aksi kontrol peran">
+      <nav className="overview-toolbar" aria-label="Aksi kontrol peran" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <div
           className="overview-status-pill"
           style={{
@@ -45,7 +46,30 @@ export function RoleHeader({ isFetching, onRefresh }: RoleHeaderProps) {
           Otoritas Sistem Terpantau
         </div>
 
-
+        {onOpenAddUser && (
+          <button
+            type="button"
+            onClick={onOpenAddUser}
+            className="button primary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              fontSize: '12px',
+              fontWeight: 600,
+              borderRadius: '6px',
+              background: '#0e5b92',
+              color: '#ffffff',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(14, 91, 146, 0.25)',
+            }}
+          >
+            <Icon name="plus" size={14} />
+            <span>Tambah Pengguna</span>
+          </button>
+        )}
       </nav>
     </header>
   );

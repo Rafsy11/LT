@@ -532,11 +532,62 @@ export function useRoles() {
     }
   };
 
+  // Computed operational KPI counts
+  const activeUsersCount = useMemo(() => userList.filter((u) => u.isActive).length, [userList]);
+  const telegramLinkedCount = useMemo(
+    () => userList.filter((u) => Boolean(u.telegramChatId)).length,
+    [userList],
+  );
+  const totalRolesCount = roleList.length;
+
+  const handleAddUser = useCallback(
+    (newUserData: {
+      name: string;
+      nik: string;
+      username: string;
+      email: string;
+      role: string;
+      cluster: string;
+    }) => {
+      const newUser: UserAccessItem = {
+        id: `usr-${Date.now()}`,
+        nik: newUserData.nik.trim(),
+        name: newUserData.name.trim(),
+        username: newUserData.username.trim(),
+        email: newUserData.email.trim(),
+        role: newUserData.role,
+        cluster: newUserData.cluster,
+        isActive: true,
+        lastActive: 'Baru ditambahkan',
+        telegramChatId: null,
+      };
+
+      setUserList((prev) => [newUser, ...prev]);
+      showSuccess(`Pengguna baru ${newUser.name} (NIK: ${newUser.nik}) berhasil didaftarkan.`);
+    },
+    [showSuccess],
+  );
+
+  const handleUnlinkTelegram = useCallback(
+    async (targetUser: UserAccessItem) => {
+      setUserList((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? { ...u, telegramChatId: null } : u)),
+      );
+      showSuccess(
+        `Ikatan Telegram 2FA untuk ${targetUser.name} (NIK: ${targetUser.nik || '-'}) berhasil dilepas.`,
+      );
+    },
+    [showSuccess],
+  );
+
   return {
     activeView,
     setActiveView,
     roleList,
     userList,
+    activeUsersCount,
+    telegramLinkedCount,
+    totalRolesCount,
     selectedRoleName,
     setSelectedRoleName,
     selectedRole,
@@ -561,6 +612,8 @@ export function useRoles() {
     handleToggleUserStatus,
     handleReassignUserRole,
     handleInspectRolePermissions,
+    handleAddUser,
+    handleUnlinkTelegram,
     filteredUsers,
     categories,
     isSuperAdminRole,

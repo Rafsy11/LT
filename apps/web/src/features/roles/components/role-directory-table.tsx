@@ -19,6 +19,7 @@ export interface RoleDirectoryTableProps {
   onToggleUserStatus: (u: UserAccessItem) => void;
   onInspectRolePermissions: (roleName: string) => void;
   onEditUserRole: (u: UserAccessItem) => void;
+  onOpenTelegramGuide: (u: UserAccessItem) => void;
   getRoleBadgeStyle: (roleName: string) => React.CSSProperties;
 }
 
@@ -52,6 +53,7 @@ export function RoleDirectoryTable({
   onToggleUserStatus,
   onInspectRolePermissions,
   onEditUserRole,
+  onOpenTelegramGuide,
   getRoleBadgeStyle,
 }: RoleDirectoryTableProps) {
   return (
@@ -76,7 +78,7 @@ export function RoleDirectoryTable({
           <Icon name="search" size={14} />
           <input
             aria-label="Cari pengguna"
-            placeholder="Cari nama, email, username..."
+            placeholder="Cari nama, NIK, username, email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -132,7 +134,6 @@ export function RoleDirectoryTable({
           className="lintasarta-table"
           style={{
             width: '100%',
-            minWidth: '680px',
             borderCollapse: 'collapse',
             textAlign: 'left',
             fontSize: '12.5px',
@@ -148,12 +149,12 @@ export function RoleDirectoryTable({
                 letterSpacing: '0.5px',
               }}
             >
-              <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>Pengguna</th>
-              <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>Peran Sistem</th>
-              <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>Cakupan Wilayah</th>
-              <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>2FA Telegram</th>
-              <th scope="col" style={{ padding: '12px 16px', fontWeight: 600 }}>Status Akses</th>
-              <th scope="col" style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>Aksi</th>
+              <th scope="col" style={{ padding: '12px 10px', fontWeight: 600 }}>Pengguna</th>
+              <th scope="col" style={{ padding: '12px 10px', fontWeight: 600 }}>Peran Sistem</th>
+              <th scope="col" style={{ padding: '12px 10px', fontWeight: 600 }}>Cakupan Wilayah</th>
+              <th scope="col" style={{ padding: '12px 10px', fontWeight: 600 }}>2FA Telegram</th>
+              <th scope="col" style={{ padding: '12px 10px', fontWeight: 600 }}>Status Akses</th>
+              <th scope="col" style={{ padding: '12px 12px 12px 8px', fontWeight: 600, textAlign: 'right' }}>Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -169,7 +170,6 @@ export function RoleDirectoryTable({
             ) : (
               filteredUsers.map((u) => {
                 const isCurrentUser = currentUsername === u.username;
-                const badgeStyle = getRoleBadgeStyle(u.role);
 
                 return (
                   <tr
@@ -177,9 +177,9 @@ export function RoleDirectoryTable({
                     className="role-user-row"
                   >
                     {/* User Avatar + Name + NIK & Email */}
-                    <td style={{ padding: '14px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <DefaultAvatar size={34} name={u.name} />
+                    <td style={{ padding: '12px 10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <DefaultAvatar size={32} name={u.name} />
                         <div>
                           <div
                             className="role-user-name"
@@ -188,9 +188,15 @@ export function RoleDirectoryTable({
                               display: 'flex',
                               alignItems: 'center',
                               gap: '6px',
+                              fontSize: '12.5px',
                             }}
                           >
-                            {u.name}
+                            <span>{u.name}</span>
+                            {u.nik && (
+                              <span className="role-user-nik-badge">
+                                NIK: {u.nik}
+                              </span>
+                            )}
                             {isCurrentUser && (
                               <span className="role-self-badge">
                                 Anda
@@ -202,16 +208,8 @@ export function RoleDirectoryTable({
                               fontSize: '11.5px',
                               color: '#64748b',
                               marginTop: '2px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px',
                             }}
                           >
-                            {u.nik && (
-                              <span className="role-user-nik-badge">
-                                NIK: {u.nik}
-                              </span>
-                            )}
                             <span>{u.email}</span>
                           </div>
                         </div>
@@ -219,42 +217,43 @@ export function RoleDirectoryTable({
                     </td>
 
                     {/* User Role (Clean Typography, Anti-Slop) */}
-                    <td style={{ padding: '14px 16px' }}>
+                    <td style={{ padding: '12px 10px' }}>
                       <span className="role-name-clean">
                         {u.role}
                       </span>
                     </td>
 
                     {/* Cluster / Wilayah */}
-                    <td style={{ padding: '14px 16px' }}>
+                    <td style={{ padding: '12px 10px' }}>
                       <span className="role-cluster-text">
                         {u.cluster}
                       </span>
                     </td>
 
                     {/* 2FA Telegram Integration Status */}
-                    <td style={{ padding: '14px 16px' }}>
-                      {u.telegramChatId ? (
-                        <div
-                          className="telegram-status-badge connected"
-                          title={`Chat ID Telegram terhubung: ${u.telegramChatId}`}
-                        >
-                          <Icon name="check" size={13} />
-                          <span>Terhubung (••••{u.telegramChatId.slice(-4)})</span>
-                        </div>
-                      ) : (
-                        <div
-                          className="telegram-status-badge pending"
-                          title="Karyawan cukup membuka @FiberOpsNOCBot lalu kirimkan NIK resminya"
-                        >
-                          <Icon name="clock" size={13} />
-                          <span>Menunggu /start</span>
-                        </div>
-                      )}
+                    <td style={{ padding: '12px 10px' }}>
+                      <button
+                        type="button"
+                        onClick={() => onOpenTelegramGuide(u)}
+                        className={`telegram-status-badge ${u.telegramChatId ? 'connected' : 'pending'}`}
+                        style={{ cursor: 'pointer', fontFamily: 'inherit' }}
+                        title={
+                          u.telegramChatId
+                            ? `Chat ID Telegram: ${u.telegramChatId}. Klik untuk kelola 2FA.`
+                            : 'Klik untuk panduan verifikasi NIK via @FiberOpsNOCBot'
+                        }
+                      >
+                        <Icon name={u.telegramChatId ? 'check' : 'clock'} size={13} />
+                        <span>
+                          {u.telegramChatId
+                            ? `Terhubung (••••${u.telegramChatId.slice(-4)})`
+                            : 'Menunggu /start'}
+                        </span>
+                      </button>
                     </td>
 
                     {/* Interactive Toggle Switch */}
-                    <td style={{ padding: '14px 16px' }}>
+                    <td style={{ padding: '12px 10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <button
                           type="button"
@@ -307,22 +306,36 @@ export function RoleDirectoryTable({
                     </td>
 
                     {/* Action Buttons */}
-                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                        <button
-                          type="button"
-                          onClick={() => onInspectRolePermissions(u.role)}
-                          className="role-action-btn"
-                        >
-                          Atur Izin
-                        </button>
-
+                    <td style={{ padding: '12px 12px 12px 8px', textAlign: 'right' }}>
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'flex-end',
+                          gap: '6px',
+                        }}
+                      >
                         <button
                           type="button"
                           onClick={() => onEditUserRole(u)}
                           className="role-action-btn secondary"
+                          title="Ubah peran dan penugasan hak akses pengguna ini"
                         >
                           Ubah Peran
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onOpenTelegramGuide(u)}
+                          className="role-action-icon-btn"
+                          title={
+                            u.telegramChatId
+                              ? 'Kelola atau lepas ikatan 2FA Telegram'
+                              : 'Panduan verifikasi NIK ke bot Telegram'
+                          }
+                          aria-label={`Panduan Telegram 2FA ${u.name}`}
+                        >
+                          <Icon name="bot" size={14} />
                         </button>
                       </div>
                     </td>

@@ -4447,7 +4447,6 @@ button:disabled {
 
 .role-perm-fieldset {
   background: #ffffff;
-  border-radius: 8px;
   border: 1px solid #e2e8f0;
   overflow: hidden;
 }
@@ -4562,6 +4561,47 @@ button:disabled {
   background: #ffffff;
   color: #0e5b92;
   box-shadow: 0 1px 3px rgba(14, 91, 146, 0.08);
+}
+
+.roles-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.roles-nav-tab.active .roles-tab-badge {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+.role-action-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.role-action-icon-btn:hover {
+  background: #f0f7ff;
+  border-color: #0e5b92;
+  color: #0e5b92;
 }
 
 .role-action-btn {
@@ -12602,6 +12642,48 @@ html.dark .role-user-name,
 html.dark .role-directory-count,
 [data-theme='dark'] .role-directory-count {
   color: #64748b !important;
+}
+
+html.dark .roles-tab-badge,
+[data-theme='dark'] .roles-tab-badge {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+  border-color: #334155 !important;
+}
+
+html.dark .roles-nav-tab.active .roles-tab-badge,
+[data-theme='dark'] .roles-nav-tab.active .roles-tab-badge {
+  background: rgba(14, 165, 233, 0.2) !important;
+  color: #38bdf8 !important;
+  border-color: rgba(14, 165, 233, 0.4) !important;
+}
+
+html.dark .role-action-icon-btn,
+[data-theme='dark'] .role-action-icon-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+html.dark .role-action-icon-btn:hover,
+[data-theme='dark'] .role-action-icon-btn:hover {
+  background: #334155 !important;
+  border-color: #38bdf8 !important;
+  color: #38bdf8 !important;
+}
+
+html.dark .telegram-instruction-box,
+[data-theme='dark'] .telegram-instruction-box {
+  background: #020617 !important;
+  border-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .modal-info-note,
+[data-theme='dark'] .modal-info-note {
+  background: rgba(14, 91, 146, 0.15) !important;
+  border-color: rgba(14, 91, 146, 0.35) !important;
+  color: #93c5fd !important;
 }
 
 /* 7. Teknisi Lapangan (/technicians) */

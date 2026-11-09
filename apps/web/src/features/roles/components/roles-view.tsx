@@ -1,12 +1,14 @@
 'use client';
 
-import React from 'react';
-import { useRoles } from '../hooks/use-roles';
+import React, { useState } from 'react';
+import { useRoles, UserAccessItem } from '../hooks/use-roles';
 import { RoleHeader } from './role-header';
 import { RoleStats } from './role-stats';
 import { RoleDirectoryTable } from './role-directory-table';
 import { PermissionMatrixPanel } from './permission-matrix-panel';
 import { RoleReassignModal } from './role-reassign-modal';
+import { CreateUserModal } from './create-user-modal';
+import { TelegramGuideModal } from './telegram-guide-modal';
 
 export function RolesView() {
   const {
@@ -14,6 +16,9 @@ export function RolesView() {
     setActiveView,
     roleList,
     userList,
+    activeUsersCount,
+    telegramLinkedCount,
+    totalRolesCount,
     selectedRole,
     setSelectedRoleName,
     activePermissions,
@@ -37,12 +42,17 @@ export function RolesView() {
     handleToggleUserStatus,
     handleReassignUserRole,
     handleInspectRolePermissions,
+    handleAddUser,
+    handleUnlinkTelegram,
     filteredUsers,
     categories,
     isSuperAdminRole,
     isEditable,
     getRoleBadgeStyle,
   } = useRoles();
+
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [telegramGuideUser, setTelegramGuideUser] = useState<UserAccessItem | null>(null);
 
   React.useEffect(() => {
     function handleGlobalRefresh() {
@@ -55,10 +65,19 @@ export function RolesView() {
   return (
     <main className="roles-page" style={{ paddingBottom: '32px' }}>
       {/* Overview Header */}
-      <RoleHeader isFetching={isFetching} onRefresh={() => fetchRoles(true)} />
+      <RoleHeader
+        isFetching={isFetching}
+        onRefresh={() => fetchRoles(true)}
+        onOpenAddUser={() => setIsAddUserOpen(true)}
+      />
 
       {/* 4 Telemetry Metric Stat Cards */}
-      <RoleStats totalUsers={userList.length} />
+      <RoleStats
+        totalUsers={userList.length}
+        activeUsers={activeUsersCount}
+        telegramLinkedCount={telegramLinkedCount}
+        totalRoles={totalRolesCount}
+      />
 
       {/* Main Container Card */}
       <section className="panel" style={{ padding: '20px 24px' }}>
@@ -88,7 +107,8 @@ export function RolesView() {
               onClick={() => setActiveView('users')}
               className={`roles-nav-tab ${activeView === 'users' ? 'active' : ''}`}
             >
-              Direktori Pengguna &amp; Akses
+              <span>Direktori Pengguna &amp; Akses</span>
+              <span className="roles-tab-badge">{userList.length}</span>
             </button>
 
             <button
@@ -98,7 +118,8 @@ export function RolesView() {
               onClick={() => setActiveView('matrix')}
               className={`roles-nav-tab ${activeView === 'matrix' ? 'active' : ''}`}
             >
-              Konfigurasi Matriks Izin
+              <span>Konfigurasi Matriks Izin</span>
+              <span className="roles-tab-badge">{roleList.length} Peran</span>
             </button>
           </nav>
         </header>
@@ -123,6 +144,7 @@ export function RolesView() {
               const matchingRole = roleList.find((r) => r.name === u.role);
               setTargetRoleId(matchingRole?.id || '');
             }}
+            onOpenTelegramGuide={(u) => setTelegramGuideUser(u)}
             getRoleBadgeStyle={getRoleBadgeStyle}
           />
         )}
@@ -154,6 +176,21 @@ export function RolesView() {
         isLoading={isLoading}
         onClose={() => setEditingUser(null)}
         onSave={handleReassignUserRole}
+      />
+
+      {/* Add New User Modal */}
+      <CreateUserModal
+        isOpen={isAddUserOpen}
+        onClose={() => setIsAddUserOpen(false)}
+        onSubmit={handleAddUser}
+        roleList={roleList}
+      />
+
+      {/* Telegram 2FA Guidance Modal */}
+      <TelegramGuideModal
+        user={telegramGuideUser}
+        onClose={() => setTelegramGuideUser(null)}
+        onUnlink={handleUnlinkTelegram}
       />
     </main>
   );
