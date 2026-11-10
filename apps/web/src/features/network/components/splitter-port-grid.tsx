@@ -85,7 +85,7 @@ export function SplitterPortGrid({
           <tbody>
             {activeSplitterFilteredPorts.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: '#64748b' }}>
+                <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                   Tidak ada port yang cocok dengan filter status yang dipilih.
                 </td>
               </tr>
@@ -191,7 +191,7 @@ export function SplitterPortGrid({
                         {port.lastActivity ? (
                           <div className="activity-cell-clean">
                             <span className="activity-title-clean">
-                              <Icon name="network" size={12} style={{ color: '#64748b' }} />
+                              <Icon name="network" size={12} style={{ color: 'var(--color-text-muted)' }} />
                               <span>
                                 {port.lastActivity.type === 'MAINTENANCE'
                                   ? 'Maintenance'
@@ -266,7 +266,7 @@ export function SplitterPortGrid({
                                   className="inline-inspect-col-val"
                                   style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                                 >
-                                  <Icon name="camera" size={13} style={{ color: '#64748b' }} />
+                                  <Icon name="camera" size={13} style={{ color: 'var(--color-text-muted)' }} />
                                   <span>{isOccupied ? '2 foto' : 'Tidak ada foto'}</span>
                                 </span>
                               </div>
@@ -275,7 +275,7 @@ export function SplitterPortGrid({
                                 <span className="inline-inspect-col-label">Catatan</span>
                                 <span
                                   className="inline-inspect-col-val"
-                                  style={{ fontWeight: 400, color: '#334155' }}
+                                  style={{ fontWeight: 400, color: 'var(--color-text-body)' }}
                                 >
                                   {port.lastActivity?.notes ||
                                     (isOccupied

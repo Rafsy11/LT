@@ -44,7 +44,7 @@ export function PermissionMatrixPanel({
           marginBottom: '18px',
         }}
       >
-        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>Pilih Peran:</span>
+        <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 500 }}>Pilih Peran:</span>
         {roleList.map((r) => {
           const isSelected = selectedRole?.name === r.name;
           return (
@@ -68,29 +68,27 @@ export function PermissionMatrixPanel({
           alignItems: 'center',
           paddingBottom: '16px',
           marginBottom: '18px',
-          borderBottom: '1px solid #f1f5f9',
+          borderBottom: '1px solid var(--color-border)',
         }}
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: '#0f172a' }}>
+            <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: 'var(--color-text)' }}>
               {selectedRole?.name}
             </h2>
             <span
+              className="role-scope-badge"
               style={{
                 fontSize: '11px',
                 padding: '2px 8px',
                 borderRadius: '4px',
-                background: '#f0f7ff',
-                color: '#0e5b92',
-                border: '1px solid #c8e0f4',
                 fontWeight: 500,
               }}
             >
               {isSuperAdminRole ? 'Global Otoritas Penuh' : 'Scoped Cluster (RLS)'}
             </span>
           </div>
-          <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b' }}>
+          <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
             {isSuperAdminRole
               ? 'Peran Super Admin memiliki hak akses penuh tak terbatas ke seluruh modul sistem.'
               : selectedRole?.name === 'Admin Operasional'
@@ -138,24 +136,22 @@ export function PermissionMatrixPanel({
                   >
                     <div style={{ maxWidth: '80%' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>
                           {perm.label}
                         </span>
                         <span
+                          className="role-code-badge"
                           style={{
                             fontSize: '10.5px',
                             fontFamily: 'monospace',
-                            color: '#0e5b92',
-                            background: '#f0f7ff',
                             padding: '1px 6px',
                             borderRadius: '4px',
-                            border: '1px solid #d4e7f7',
                           }}
                         >
                           {perm.code}
                         </span>
                       </div>
-                      <p style={{ margin: '3px 0 0', fontSize: '11.5px', color: '#64748b' }}>
+                      <p style={{ margin: '3px 0 0', fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
                         {perm.description}
                       </p>
                     </div>

@@ -222,14 +222,14 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                 <div
                   style={{
                     fontWeight: 600,
-                    color: '#166534',
+                    color: 'var(--color-success-text, #166534)',
                     marginBottom: '2px',
                     fontSize: '12.5px',
                   }}
                 >
                   Work Order Telah Selesai & Terverifikasi
                 </div>
-                <div style={{ fontSize: '11.5px', color: '#14532d', lineHeight: 1.4 }}>
+                <div style={{ fontSize: '11.5px', color: 'var(--color-success-text, #14532d)', lineHeight: 1.4 }}>
                   Laporan redaman telah disetujui oleh Super Admin dan tercatat secara permanen di{' '}
                   <code>attenuation_histories</code>.
                 </div>

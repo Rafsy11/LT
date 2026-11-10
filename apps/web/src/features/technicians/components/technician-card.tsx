@@ -40,24 +40,26 @@ export function TechnicianCard({
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', flexWrap: 'wrap' }}>
               <h3
+                className="tech-card-name"
                 style={{
                   margin: 0,
                   fontSize: '13px',
                   fontWeight: 600,
-                  color: '#0f172a',
+                  color: 'var(--color-text)',
                   lineHeight: 1.25,
                 }}
               >
                 {tech.fullName}
               </h3>
-              <span style={{ fontSize: '10.5px', color: '#64748b', fontFamily: 'monospace' }}>
+              <span className="tech-card-username" style={{ fontSize: '10.5px', fontFamily: 'monospace', color: 'var(--color-text-muted)' }}>
                 @{tech.username}
               </span>
             </div>
             <div
+              className="tech-card-last-active"
               style={{
                 fontSize: '10.5px',
-                color: '#94a3b8',
+                color: 'var(--color-text-muted)',
                 marginTop: '1px',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',

@@ -108,7 +108,7 @@ export function RoleReassignModal({
             <div style={{ fontWeight: 600, fontSize: '13px', color: 'inherit' }}>
               {editingUser.name}
             </div>
-            <div style={{ fontSize: '11.5px', color: '#64748b' }}>
+            <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
               {editingUser.nik ? <strong>NIK: {editingUser.nik} • </strong> : null}
               {editingUser.email}
             </div>

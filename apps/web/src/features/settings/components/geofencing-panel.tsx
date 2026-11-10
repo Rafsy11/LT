@@ -88,13 +88,13 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
               display: 'block',
               fontSize: '13px',
               fontWeight: 600,
-              color: '#182230',
+              color: 'var(--color-text)',
               marginBottom: '4px',
             }}
           >
             Kebijakan Penanganan Laporan di Luar Radius ODP
           </legend>
-          <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 12px 0' }}>
+          <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '0 0 12px 0' }}>
             Respon sistem saat teknisi berada di luar radius geofencing yang telah dikonfigurasi.
           </p>
 
@@ -167,7 +167,7 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
                 alignItems: 'flex-start',
                 gap: '10px',
                 fontSize: '12.5px',
-                color: '#334155',
+                color: 'var(--color-text-body)',
               }}
             >
               <input
@@ -178,13 +178,13 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
                 style={{ width: '16px', height: '16px', marginTop: '2px' }}
               />
               <div>
-                <span style={{ fontWeight: 600, color: '#182230', display: 'block' }}>
+                <span style={{ fontWeight: 600, color: 'var(--color-text)', display: 'block' }}>
                   Kunci Otomatis Aplikasi jika Terdeteksi Mock Location
                 </span>
                 <span
                   style={{
                     fontSize: '12px',
-                    color: '#64748b',
+                    color: 'var(--color-text-muted)',
                     lineHeight: 1.4,
                     display: 'block',
                     marginTop: '2px',
@@ -197,7 +197,7 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
               </div>
             </label>
 
-            <div style={{ borderTop: '1px solid #edf2f7', paddingTop: '14px' }}>
+            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '14px' }}>
               <label
                 style={{
                   display: 'block',
@@ -209,7 +209,7 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
               >
                 Batas Versi Minimum Aplikasi Mobile (App Version Gate)
               </label>
-              <p style={{ fontSize: '11.5px', color: '#64748b', margin: '0 0 8px 0' }}>
+              <p style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', margin: '0 0 8px 0' }}>
                 Request dari aplikasi mobile yang menyertakan header{' '}
                 <code className="settings-inline-code">X-App-Version</code> di
                 bawah versi ini akan menerima respon <b>HTTP 426 Upgrade Required</b>.

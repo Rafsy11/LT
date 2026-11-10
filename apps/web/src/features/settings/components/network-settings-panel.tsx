@@ -93,15 +93,7 @@ export function NetworkSettingsPanel({
           style={{ marginBottom: '16px' }}
         >
           <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: '#334155',
-                marginBottom: '6px',
-              }}
-            >
+            <label className="settings-input-label">
               Domain / Host URL Sistem Operasional
             </label>
             <input
@@ -109,13 +101,12 @@ export function NetworkSettingsPanel({
               value={settings.publicDomain}
               disabled={!isSuperAdmin}
               onChange={(e) => handleChange('publicDomain', e.target.value)}
+              className="settings-text-input mono"
               style={{
                 width: '100%',
                 padding: '8px 12px',
                 borderRadius: '6px',
-                border: '1px solid #dce7f0',
                 fontSize: '12.5px',
-                color: '#182230',
               }}
             />
           </div>

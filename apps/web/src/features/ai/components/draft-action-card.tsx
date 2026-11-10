@@ -276,11 +276,11 @@ export function DraftActionCard({
             <span>✓ Mutasi telah tervalidasi dan tercatat permanen pada activity_logs.</span>
           </div>
         ) : state === 'CANCELLED' ? (
-          <div style={{ fontSize: '12px', color: '#64748b' }}>
+          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
             Aksi dibatalkan. Tidak ada mutasi yang diterapkan pada database.
           </div>
         ) : state === 'EXPIRED' ? (
-          <div style={{ fontSize: '12px', color: '#dc2626' }}>
+          <div style={{ fontSize: '12px', color: '#ef4444' }}>
             Masa aktif 5 menit telah habis. Token HMAC ini tidak dapat dieksekusi lagi demi
             keamanan. Silakan minta AI membuat draf baru.
           </div>
@@ -303,7 +303,7 @@ export function DraftActionCard({
                 fontSize: '12.5px',
                 fontWeight: 600,
                 borderRadius: '9999px',
-                background: state === 'EXECUTING' ? '#94a3b8' : '#0e5b92',
+                background: state === 'EXECUTING' ? 'var(--color-text-muted)' : '#0e5b92',
                 color: '#ffffff',
                 cursor: state === 'EXECUTING' ? 'not-allowed' : 'pointer',
               }}
@@ -325,7 +325,7 @@ export function DraftActionCard({
               style={{
                 padding: '8px 16px',
                 fontSize: '12.5px',
-                color: '#64748b',
+                color: 'var(--color-text-muted)',
                 borderRadius: '9999px',
                 border: 'none',
                 background: 'transparent',

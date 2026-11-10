@@ -95,7 +95,7 @@ export function OverviewTicketQueue({
                 <OverviewTableSkeletonRows count={OVERVIEW_SKELETON_ROW_COUNT} />
               ) : filteredTickets.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '36px', color: '#64748b' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: '36px', color: 'var(--color-text-muted)' }}>
                     Tidak ada tiket yang sesuai dengan filter atau kata kunci pencarian.
                   </td>
                 </tr>

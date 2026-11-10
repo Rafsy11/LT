@@ -46,11 +46,11 @@ export function TechnicianDetailModal({
                 <h2 id="technician-modal-title" style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
                   {technician.fullName}
                 </h2>
-                <span style={{ fontSize: '12px', color: '#64748b', fontFamily: 'monospace' }}>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>
                   @{technician.username}
                 </span>
               </div>
-              <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>
+              <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
                 Cluster Penugasan: <b>{technician.cluster}</b>
               </p>
             </div>
@@ -123,7 +123,7 @@ export function TechnicianDetailModal({
                 <span
                   style={{
                     fontSize: '11px',
-                    color: '#64748b',
+                    color: 'var(--color-text-muted)',
                     display: 'block',
                     marginBottom: '2px',
                   }}
@@ -139,7 +139,7 @@ export function TechnicianDetailModal({
                 <span
                   style={{
                     fontSize: '11px',
-                    color: '#64748b',
+                    color: 'var(--color-text-muted)',
                     display: 'block',
                     marginBottom: '2px',
                   }}
@@ -155,7 +155,7 @@ export function TechnicianDetailModal({
                 <span
                   style={{
                     fontSize: '11px',
-                    color: '#64748b',
+                    color: 'var(--color-text-muted)',
                     display: 'block',
                     marginBottom: '2px',
                   }}
@@ -171,7 +171,7 @@ export function TechnicianDetailModal({
                 <span
                   style={{
                     fontSize: '11px',
-                    color: '#64748b',
+                    color: 'var(--color-text-muted)',
                     display: 'block',
                     marginBottom: '2px',
                   }}
@@ -187,7 +187,7 @@ export function TechnicianDetailModal({
                 <span
                   style={{
                     fontSize: '11px',
-                    color: '#64748b',
+                    color: 'var(--color-text-muted)',
                     display: 'block',
                     marginBottom: '2px',
                   }}
@@ -201,7 +201,7 @@ export function TechnicianDetailModal({
                     gap: '6px',
                     fontSize: '11.5px',
                     fontWeight: 600,
-                    color: isActiveSession ? '#166534' : isRevokedSession ? '#991b1b' : '#64748b',
+                    color: isActiveSession ? 'var(--color-success-text, #166534)' : isRevokedSession ? 'var(--color-critical-text, #991b1b)' : 'var(--color-text-muted)',
                   }}
                 >
                   <span
@@ -228,14 +228,14 @@ export function TechnicianDetailModal({
                 <span
                   style={{
                     fontSize: '11px',
-                    color: '#64748b',
+                    color: 'var(--color-text-muted)',
                     display: 'block',
                     marginBottom: '2px',
                   }}
                 >
                   Aktivitas Terakhir
                 </span>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
                   {technician.lastActiveAt || 'Belum ada aktivitas'}
                 </span>
               </div>
@@ -248,7 +248,7 @@ export function TechnicianDetailModal({
               style={{
                 fontSize: '11px',
                 fontWeight: 600,
-                color: '#64748b',
+                color: 'var(--color-text-muted)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
                 marginBottom: '8px',
@@ -305,7 +305,7 @@ export function TechnicianDetailModal({
                       <span
                         style={{
                           fontSize: '11px',
-                          color: '#64748b',
+                          color: 'var(--color-text-muted)',
                           display: 'block',
                           fontFamily: 'monospace',
                         }}

@@ -154,7 +154,7 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
               <div
                 style={{
                   fontSize: '11px',
-                  color: '#64748b',
+                  color: 'var(--color-text-muted)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
@@ -180,6 +180,7 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
         {/* Status Content */}
         {user.telegramChatId ? (
           <section
+            className="telegram-connected-box"
             style={{
               padding: '14px',
               borderRadius: '8px',
@@ -187,21 +188,21 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
               border: '1px solid rgba(34, 197, 94, 0.25)',
               marginBottom: '18px',
               fontSize: '12px',
-              color: '#15803d',
+              color: 'var(--color-success-text, #15803d)',
             }}
           >
             <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Icon name="check" size={14} />
               Telegram 2FA Sudah Aktif
             </div>
-            <p style={{ margin: '6px 0 0', fontSize: '11.5px', color: '#166534', lineHeight: 1.5 }}>
+            <p style={{ margin: '6px 0 0', fontSize: '11.5px', color: 'var(--color-success-text, #166534)', lineHeight: 1.5 }}>
               Chat ID: <code style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{user.telegramChatId}</code>.
               Kode OTP login resmi akan selalu dikirimkan ke akun Telegram ini. Jika karyawan mengganti akun Telegram, Anda dapat melepas ikatan di bawah.
             </p>
           </section>
         ) : (
           <div>
-            <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 10px', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
               Karyawan cukup mengirimkan NIK miliknya ke bot Telegram untuk verifikasi otomatis. Salin pesan instruksi berikut untuk dikirimkan via WhatsApp atau email internal:
             </p>
 
@@ -209,13 +210,13 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
               className="telegram-instruction-box"
               style={{
                 position: 'relative',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
+                background: 'var(--color-surface, #f8fafc)',
+                border: '1px solid var(--color-border)',
                 borderRadius: '8px',
                 padding: '12px 14px',
                 fontSize: '11.5px',
                 fontFamily: 'var(--font-mono)',
-                color: '#334155',
+                color: 'var(--color-text-body)',
                 whiteSpace: 'pre-wrap',
                 lineHeight: 1.6,
                 marginBottom: '16px',
@@ -232,15 +233,15 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
             style={{
               padding: '12px',
               borderRadius: '8px',
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
+              background: 'var(--color-critical-bg, #fef2f2)',
+              border: '1px solid var(--color-critical-border, #fecaca)',
               marginBottom: '16px',
             }}
           >
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#991b1b', marginBottom: '6px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-critical-text, #991b1b)', marginBottom: '6px' }}>
               Lepas ikatan Telegram 2FA {user.name}?
             </div>
-            <div style={{ fontSize: '11px', color: '#7f1d1d', marginBottom: '10px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--color-critical-text, #7f1d1d)', marginBottom: '10px' }}>
               Karyawan tidak akan menerima OTP sampai mendaftarkan kembali NIK melalui bot Telegram.
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>

@@ -47,7 +47,7 @@ export function RoleStats({
             <div className="stat-card-text">
               <span className="stat-card-label">Akun Aktif</span>
               <div className="stat-card-value">
-                {activeUsers} <span style={{ fontSize: '13px', fontWeight: 500, color: '#64748b' }}>/ {totalUsers}</span>
+                {activeUsers} <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-muted)' }}>/ {totalUsers}</span>
               </div>
             </div>
           </div>
@@ -68,7 +68,7 @@ export function RoleStats({
             <div className="stat-card-text">
               <span className="stat-card-label">2FA Telegram</span>
               <div className="stat-card-value">
-                {telegramLinkedCount} <span style={{ fontSize: '13px', fontWeight: 500, color: '#64748b' }}>/ {totalUsers}</span>
+                {telegramLinkedCount} <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-muted)' }}>/ {totalUsers}</span>
               </div>
             </div>
           </div>

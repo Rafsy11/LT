@@ -269,7 +269,7 @@ export function CustomerFilters({
                 style={{
                   fontSize: '11px',
                   fontWeight: 600,
-                  color: '#475569',
+                  color: 'var(--color-text-muted)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.4px',
                 }}
@@ -301,7 +301,7 @@ export function CustomerFilters({
                 style={{
                   fontSize: '11px',
                   fontWeight: 600,
-                  color: '#475569',
+                  color: 'var(--color-text-muted)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.4px',
                 }}
@@ -332,7 +332,7 @@ export function CustomerFilters({
                 style={{
                   fontSize: '11px',
                   fontWeight: 600,
-                  color: '#475569',
+                  color: 'var(--color-text-muted)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.4px',
                 }}

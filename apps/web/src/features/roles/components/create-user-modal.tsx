@@ -118,7 +118,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
             >
               Tambah Pengguna Baru
             </h3>
-            <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>
+            <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
               Daftarkan operator atau teknisi baru ke sistem FiberOps NOC.
             </p>
           </div>
@@ -321,16 +321,16 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
             style={{
               padding: '10px 12px',
               borderRadius: '6px',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
+              background: 'var(--color-surface, #f8fafc)',
+              border: '1px solid var(--color-border)',
               fontSize: '11.5px',
-              color: '#64748b',
+              color: 'var(--color-text-muted)',
               display: 'flex',
               alignItems: 'flex-start',
               gap: '8px',
             }}
           >
-            <Icon name="bot" size={15} style={{ marginTop: '1px', flexShrink: 0, color: '#0e5b92' }} />
+            <Icon name="bot" size={15} style={{ marginTop: '1px', flexShrink: 0, color: 'var(--color-primary, #0e5b92)' }} />
             <span>
               Karyawan dapat langsung mengaktifkan 2FA OTP dengan mengirimkan NIK (<strong>{nik || '...'}</strong>) ke bot Telegram <strong>@FiberOpsNOCBot</strong>.
             </span>

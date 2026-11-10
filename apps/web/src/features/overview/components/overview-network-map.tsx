@@ -124,21 +124,21 @@ export function OverviewNetworkMap() {
             {/* Topographic Typography matching image.png */}
             <g
               className="map-city-labels"
-              fill="#475569"
+              fill="currentColor"
               fontSize="13"
               fontWeight="600"
               fontFamily="Plus Jakarta Sans, sans-serif"
             >
-              <text className="map-label-sub" x="330" y="38" fill="#334155" fontWeight="600">
+              <text className="map-label-sub" x="330" y="38" fontWeight="600">
                 Bandung Utara
               </text>
-              <text className="map-label-main" x="305" y="152" fontSize="16" fontWeight="800" fill="#0f172a">
+              <text className="map-label-main" x="305" y="152" fontSize="16" fontWeight="800">
                 Bandung
               </text>
-              <text className="map-label-sub" x="75" y="210" fill="#64748b" fontWeight="500">
+              <text className="map-label-sub" x="75" y="210" fontWeight="500">
                 Sukajadi
               </text>
-              <text className="map-label-sub" x="560" y="240" fill="#64748b" fontWeight="500">
+              <text className="map-label-sub" x="560" y="240" fontWeight="500">
                 Antapani
               </text>
             </g>

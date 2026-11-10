@@ -186,10 +186,10 @@ export function PortDetailPanel({
                           alignItems: 'center',
                           gap: '5px',
                           fontSize: '11.5px',
-                          color: '#475569',
+                          color: 'var(--color-text-body)',
                         }}
                       >
-                        <Icon name="camera" size={12} style={{ color: '#64748b' }} />
+                        <Icon name="camera" size={12} style={{ color: 'var(--color-text-muted)' }} />
                         <span>{isOccupied ? '2 foto' : 'Tidak ada'}</span>
                       </span>
                     </td>
@@ -199,7 +199,7 @@ export function PortDetailPanel({
                         <div style={{ fontWeight: 600 }}>
                           {port.lastActivity?.date || '05 Okt 2026'}
                         </div>
-                        <div style={{ color: '#64748b', fontSize: '10.5px' }}>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '10.5px' }}>
                           {port.lastActivity?.technician || 'Dedi Kurniawan'}
                         </div>
                       </div>
@@ -268,7 +268,7 @@ export function PortDetailPanel({
             <h3 style={{ fontSize: '13px', fontWeight: 700, margin: 0 }}>
               Log Histori Aktivitas Operasional {activeSplitter.splitterCode}
             </h3>
-            <div style={{ fontSize: '11px', color: '#64748b' }}>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
               Jejak audit seluruh tiket maintenance, pemasangan baru (PSB), dan penarikan teknisi.
             </div>
           </div>
@@ -323,7 +323,7 @@ export function PortDetailPanel({
                     {log.attenuationDelta && (
                       <>
                         <span>·</span>
-                        <span style={{ color: '#0369a1', fontWeight: 600 }}>
+                        <span style={{ color: 'var(--color-primary-text, #0369a1)', fontWeight: 600 }}>
                           Redaman: {log.attenuationDelta}
                         </span>
                       </>
@@ -356,7 +356,7 @@ export function PortDetailPanel({
               >
                 Proteksi Integritas Konkurensi Database PostgreSQL (PRD Section 5.2)
               </h3>
-              <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '3px' }}>
+              <p style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', marginTop: '3px' }}>
                 Partial unique constraint mencegah bentrokan penugasan port ganda secara paralel
                 antar teknisi lapangan.
               </p>
@@ -385,7 +385,7 @@ export function PortDetailPanel({
 
             <div className="audit-kpi-box">
               <div className="audit-kpi-box-label">Port Bebas (Siap PSB)</div>
-              <div className="audit-kpi-box-val" style={{ color: '#64748b' }}>
+              <div className="audit-kpi-box-val" style={{ color: 'var(--color-text-muted)' }}>
                 {activeSplitter.maxPorts - activeSplitter.usedPorts} Port
               </div>
             </div>
@@ -445,12 +445,12 @@ export function PortDetailPanel({
                           <span style={{ fontWeight: 600 }}>
                             {port.customerName}
                           </span>
-                          <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block' }}>
+                          <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)', display: 'block' }}>
                             {port.siaNumber}
                           </span>
                         </div>
                       ) : (
-                        <span style={{ color: '#94a3b8' }}>Port Siap Alokasi</span>
+                        <span style={{ color: 'var(--color-text-muted)' }}>Port Siap Alokasi</span>
                       )}
                     </td>
 
@@ -458,7 +458,7 @@ export function PortDetailPanel({
                       <code
                         style={{
                           fontSize: '10.5px',
-                          color: '#64748b',
+                          color: 'var(--color-text-muted)',
                           fontFamily: 'var(--font-mono, monospace)',
                         }}
                       >

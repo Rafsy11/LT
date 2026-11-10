@@ -120,15 +120,7 @@ export function BackupPanel({
             style={{ marginBottom: '14px' }}
           >
             <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  color: '#334155',
-                  marginBottom: '6px',
-                }}
-              >
+              <label className="settings-input-label">
                 Jadwal Cronjob Otomatis Harian
               </label>
               <input
@@ -136,18 +128,16 @@ export function BackupPanel({
                 value={settings.cronSchedule}
                 disabled={!isSuperAdmin}
                 onChange={(e) => handleChange('cronSchedule', e.target.value)}
+                className="settings-text-input mono"
                 style={{
                   width: '100%',
                   padding: '8px 12px',
                   borderRadius: '6px',
-                  border: '1px solid #dce7f0',
                   fontSize: '12.5px',
-                  fontFamily: 'monospace',
-                  color: '#182230',
                 }}
               />
               <span
-                style={{ fontSize: '11.5px', color: '#64748b', display: 'block', marginTop: '4px' }}
+                style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', display: 'block', marginTop: '4px' }}
               >
                 Format cron: Pukul 02:00 WIB dini hari (
                 <code className="settings-inline-code">0 2 * * *</code>)

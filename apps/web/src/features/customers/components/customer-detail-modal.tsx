@@ -103,7 +103,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
               <div
                 style={{
                   fontSize: '10.5px',
-                  color: '#64748b',
+                  color: 'var(--color-text-muted)',
                   fontWeight: 500,
                   textTransform: 'uppercase',
                   letterSpacing: '0.4px',
@@ -141,7 +141,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
               <div
                 style={{
                   fontSize: '10.5px',
-                  color: '#64748b',
+                  color: 'var(--color-text-muted)',
                   fontWeight: 500,
                   textTransform: 'uppercase',
                   letterSpacing: '0.4px',
@@ -163,7 +163,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
               <div
                 style={{
                   fontSize: '10.5px',
-                  color: '#64748b',
+                  color: 'var(--color-text-muted)',
                   fontWeight: 500,
                   textTransform: 'uppercase',
                   letterSpacing: '0.4px',
@@ -179,7 +179,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
                 }}
               >
                 {customer.currentAttenuation.toFixed(1)} dBm{' '}
-                <span style={{ fontSize: '10.5px', fontWeight: 500, color: '#64748b' }}>
+                <span style={{ fontSize: '10.5px', fontWeight: 500, color: 'var(--color-text-muted)' }}>
                   ({classifyDbm(customer.currentAttenuation)})
                 </span>
               </div>
@@ -201,7 +201,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
               <span>Detail Wilayah &amp; Alamat Instalasi</span>
             </div>
             <div>
-              <span style={{ color: '#64748b', fontWeight: 500 }}>Alamat Lengkap: </span>
+              <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>Alamat Lengkap: </span>
               {customer.address}
             </div>
             {(customer.kecamatan || customer.kelurahan || customer.street) && (
@@ -246,7 +246,7 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
               <div style={{ fontSize: '12px', fontWeight: 600 }}>
                 Riwayat Pengukuran Redaman (10 Laporan Terakhir)
               </div>
-              <span style={{ fontSize: '11px', color: '#64748b' }}>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
                 Immutable Audit Trail (PRD 5.1)
               </span>
             </div>

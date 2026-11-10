@@ -142,8 +142,8 @@ export function RoleDirectoryTable({
           <thead>
             <tr
               style={{
-                borderBottom: '1px solid #e2e8f0',
-                color: '#64748b',
+                borderBottom: '1px solid var(--color-border)',
+                color: 'var(--color-text-muted)',
                 fontSize: '11px',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
@@ -206,7 +206,7 @@ export function RoleDirectoryTable({
                           <div
                             style={{
                               fontSize: '11.5px',
-                              color: '#64748b',
+                              color: 'var(--color-text-muted)',
                               marginTop: '2px',
                             }}
                           >
@@ -296,7 +296,7 @@ export function RoleDirectoryTable({
                         <span
                           style={{
                             fontSize: '11.5px',
-                            color: u.isActive ? '#15803d' : '#94a3b8',
+                            color: u.isActive ? 'var(--color-success-text)' : 'var(--color-text-muted)',
                             fontWeight: 500,
                           }}
                         >
@@ -355,7 +355,7 @@ export function RoleDirectoryTable({
           justifyContent: 'space-between',
           alignItems: 'center',
           fontSize: '11.5px',
-          color: '#64748b',
+          color: 'var(--color-text-muted)',
         }}
       >
         <span>
