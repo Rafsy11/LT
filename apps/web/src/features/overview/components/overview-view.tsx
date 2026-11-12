@@ -9,6 +9,7 @@ import { OverviewNetworkMap } from './overview-network-map';
 import { OverviewTelemetryFeed } from './overview-telemetry-feed';
 import { OverviewTicketQueue } from './overview-ticket-queue';
 import { OverviewSkeleton } from '@/components/ui/PageSkeleton';
+import '@/styles/features/overview.css';
 
 export function OverviewView() {
   const {

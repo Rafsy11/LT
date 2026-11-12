@@ -8,6 +8,7 @@ import { TechnicianStats } from './technician-stats';
 import { TechnicianFilters } from './technician-filters';
 import { TechnicianGrid } from './technician-grid';
 import { TechnicianDetailModal } from './technician-detail-modal';
+import '@/styles/features/technicians.css';
 
 export function TechniciansView() {
   const {

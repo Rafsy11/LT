@@ -5,6 +5,7 @@ import { useAiAssistant } from '../hooks/use-ai-assistant';
 import { AiHero } from './ai-hero';
 import { AiMessageList } from './ai-message-list';
 import { AiPromptInput } from './ai-prompt-input';
+import '@/styles/features/ai-page.css';
 
 export function AiAssistantView() {
   const {

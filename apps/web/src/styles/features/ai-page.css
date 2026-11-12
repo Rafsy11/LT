@@ -1,0 +1,131 @@
+/* FiberOps Modular Stylesheet: features/ai-page.css */
+
+.ai-page > * {
+  min-width: 0;
+}
+
+.ai-hero-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .ai-hero-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .ai-page {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 24px;
+  }
+}
+
+.ai-page {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.ai-hero-logo-img {
+  display: block;
+  margin: 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(0, 40, 85, 0.08));
+}
+
+.ai-hero-title {
+  font-size: 34px;
+  font-weight: 700;
+  color: #082138;
+  letter-spacing: -0.5px;
+  margin: 0 0 12px;
+  text-align: center;
+}
+
+.ai-hero-desc {
+  font-size: 15px;
+  color: #334155;
+  margin: 0 0 40px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.ai-hero-cards-grid {
+  gap: 12px;
+  width: 100%;
+}
+
+.ai-hero-suggestion-btn {
+  background: rgba(238, 246, 255, 0.95);
+  border: 1px solid rgba(200, 226, 252, 0.9);
+  border-radius: 8px;
+  padding: 16px 28px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #0f172a;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(27, 92, 162, 0.04);
+}
+
+.ai-hero-suggestion-btn:hover {
+  background: #e1f0fc;
+  border-color: #93c5fd;
+  color: #0e5b92;
+}
+
+.ai-page-layout,
+.ai-chat-page {
+  width: 100% !important;
+  max-width: 1600px !important;
+  margin: 0 auto !important;
+  padding: 24px 32px 64px !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-width: 768px) {
+  .ai-page-layout,
+  .ai-chat-page {
+    padding: 16px 16px 40px !important;
+  }
+}
+
+html.dark .ai-hero-logo-img,
+[data-theme='dark'] .ai-hero-logo-img {
+  filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.3));
+}
+
+html.dark .ai-hero-title,
+[data-theme='dark'] .ai-hero-title {
+  color: #f1f5f9 !important;
+}
+
+html.dark .ai-hero-desc,
+[data-theme='dark'] .ai-hero-desc {
+  color: #94a3b8 !important;
+}
+
+html.dark .ai-hero-suggestion-btn,
+[data-theme='dark'] .ai-hero-suggestion-btn {
+  background: #0f172a !important;
+  border: 1px solid #1e293b !important;
+  color: #f1f5f9 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark .ai-hero-suggestion-btn:hover,
+[data-theme='dark'] .ai-hero-suggestion-btn:hover {
+  background: #1e293b !important;
+  border-color: #2585d0 !important;
+  color: #42aef5 !important;
+}
+
+html.dark .ai-footer,
+[data-theme='dark'] .ai-footer,
+html.dark .ai-footer-copy,
+[data-theme='dark'] .ai-footer-copy {
+  color: #94a3b8 !important;
+}

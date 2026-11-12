@@ -32,3 +32,42 @@ export const portAllocationSchema = z.object({
 });
 
 export type PortAllocation = z.infer<typeof portAllocationSchema>;
+
+export const createClusterSchema = z.object({
+  clusterCode: z
+    .string()
+    .trim()
+    .min(2, 'Kode cluster minimal 2 karakter')
+    .max(20, 'Kode cluster maksimal 20 karakter'),
+  name: z.string().trim().min(2, 'Nama wilayah minimal 2 karakter').max(80),
+  centerLat: z.coerce.number().min(-90).max(90),
+  centerLng: z.coerce.number().min(-180).max(180),
+});
+
+export type CreateClusterInput = z.infer<typeof createClusterSchema>;
+
+export const createSplitterSchema = z.object({
+  clusterCode: z.string().trim().min(2, 'Cluster wajib dipilih'),
+  splitterCode: z.string().trim().min(3, 'Kode ODP minimal 3 karakter').max(32),
+  lat: z.coerce.number().min(-90).max(90),
+  lng: z.coerce.number().min(-180).max(180),
+  maxPorts: z.coerce.number().int().refine((v) => v === 8 || v === 16 || v === 32, {
+    message: 'Kapasitas splitter harus 8, 16, atau 32 port',
+  }),
+});
+
+export type CreateSplitterInput = z.infer<typeof createSplitterSchema>;
+
+export const updateSplitterSchema = z.object({
+  splitterCode: z.string().trim().min(3).max(32),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  maxPorts: z.coerce
+    .number()
+    .int()
+    .refine((v) => v === 8 || v === 16 || v === 32)
+    .optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type UpdateSplitterInput = z.infer<typeof updateSplitterSchema>;

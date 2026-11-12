@@ -69,14 +69,13 @@ export function TicketSubmitScreen({
       : '-18.5',
   );
 
-  // Maintenance Read-Only 5 Last Attenuation History
-  const last5AttenuationHistory: number[] = [
-    ticket.customer.currentAttenuation ?? -24.8,
-    -24.2,
-    -23.9,
-    -23.5,
-    -22.8,
-  ];
+  // Maintenance Read-Only Last Attenuation History (from server, max 5 entries)
+  const last5AttenuationHistory: number[] =
+    ticket.customer.attenuationHistory && ticket.customer.attenuationHistory.length > 0
+      ? ticket.customer.attenuationHistory.slice(0, 5)
+      : ticket.customer.currentAttenuation !== null
+        ? [ticket.customer.currentAttenuation]
+        : [];
 
   // 2. Hardware & Sync State Machines
   const [gpsState, setGpsState] = useState<GpsState>('IDLE');

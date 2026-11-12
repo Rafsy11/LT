@@ -2,9 +2,11 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
 import { useToast } from '@/providers';
 import { invalidateQueryCache } from '@/lib/query-cache';
+import '@/styles/components/ticket-modal.css';
 
 const TICKET_MUTATION_CACHE_KEYS = [
   '/api/v1/admin/tickets',
@@ -13,8 +15,29 @@ const TICKET_MUTATION_CACHE_KEYS = [
   '/api/v1/admin/clusters',
 ];
 
+export interface TicketModalData {
+  id: string;
+  ticketNumber: string;
+  customerName: string;
+  siaNumber: string;
+  ticketType: string;
+  cluster: string;
+  assignedTech: string;
+  techInitials?: string;
+  status: string;
+  currentAttenuation: number;
+  adminNotes?: string;
+  createdAt?: string;
+  completedAt?: string;
+  splitterCode?: string;
+  portNumber?: number;
+  distanceToSplitterM?: number;
+  isLocationFlagged?: boolean;
+  pendingSubmission?: import('@repo/shared').DbTicketPendingSubmission;
+}
+
 export interface TicketDetailModalProps {
-  ticket: any | null;
+  ticket: TicketModalData | null;
   onClose: () => void;
   onTicketUpdated?: () => void;
   onMarkCompleted?: (ticketNumber: string) => void;
@@ -26,6 +49,12 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
   const [rejectReason, setRejectReason] = useState(
     'Data redaman atau bukti foto OPM belum memenuhi standar toleransi operasional (-22 dBm).',
   );
+  const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoIsMockFallback, setPhotoIsMockFallback] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [loadedPhotoKey, setLoadedPhotoKey] = useState<string | null>(null);
 
   const { showSuccess, showError } = useToast();
 
@@ -74,8 +103,8 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
       invalidateQueryCache(...TICKET_MUTATION_CACHE_KEYS);
       if (onTicketUpdated) onTicketUpdated();
       onClose();
-    } catch (err: any) {
-      showError(err.message || 'Gagal menyetujui laporan tiket');
+    } catch (err: unknown) {
+      showError(err instanceof Error ? err.message : 'Gagal menyetujui laporan tiket');
     } finally {
       setIsSubmitting(false);
     }
@@ -103,8 +132,8 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
       invalidateQueryCache(...TICKET_MUTATION_CACHE_KEYS);
       if (onTicketUpdated) onTicketUpdated();
       onClose();
-    } catch (err: any) {
-      showError(err.message || 'Gagal menolak laporan tiket');
+    } catch (err: unknown) {
+      showError(err instanceof Error ? err.message : 'Gagal menolak laporan tiket');
     } finally {
       setIsSubmitting(false);
     }
@@ -129,10 +158,44 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
       invalidateQueryCache(...TICKET_MUTATION_CACHE_KEYS);
       if (onTicketUpdated) onTicketUpdated();
       onClose();
-    } catch (err: any) {
-      showError(err.message || 'Gagal mensimulasikan kiriman data');
+    } catch (err: unknown) {
+      showError(err instanceof Error ? err.message : 'Gagal mensimulasikan kiriman data');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleInspectPhoto = async () => {
+    const objectKey = pendingData?.photoObjectKey || 'opm-proofs/2025/02/t-3-opm.webp';
+    if (photoPreviewOpen && loadedPhotoKey === objectKey) {
+      setPhotoPreviewOpen(false);
+      return;
+    }
+
+    try {
+      setPhotoPreviewOpen(true);
+      setPhotoLoading(true);
+      setPhotoError(null);
+      const res = await fetch(
+        `/api/v1/admin/media/presign?key=${encodeURIComponent(objectKey)}`,
+      );
+      const json = (await res.json()) as {
+        success?: boolean;
+        data?: { url?: string; isMockFallback?: boolean };
+        error?: { message?: string };
+      };
+      if (!res.ok || !json.success || !json.data?.url) {
+        throw new Error(json.error?.message || 'Gagal mengambil URL foto bukti dari MinIO.');
+      }
+      setPhotoUrl(json.data.url);
+      setPhotoIsMockFallback(Boolean(json.data.isMockFallback));
+      setLoadedPhotoKey(objectKey);
+    } catch (err: unknown) {
+      setPhotoError(
+        err instanceof Error ? err.message : 'Gagal memuat pratinjau foto OPM.',
+      );
+    } finally {
+      setPhotoLoading(false);
     }
   };
 
@@ -278,39 +341,28 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                 <span>Data yang Diajukan oleh Teknisi ({ticket.assignedTech})</span>
               </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '12px',
-                  marginBottom: '12px',
-                  padding: '12px 14px',
-                  borderRadius: '8px',
-                  background: 'rgba(15, 23, 42, 0.6)',
-                  border: '1px solid #1E293B',
-                }}
-              >
+              <div className="ticket-pending-summary-card">
                 <div>
-                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600 }}>
+                  <span className="ticket-pending-label">
                     Hasil Ukur Redaman (OPM)
                   </span>
-                  <div style={{ marginTop: '4px', fontWeight: 600, fontSize: '13px', color: '#F1F5F9' }}>
+                  <div className="ticket-pending-value">
                     {attMeta.label}
                   </div>
                 </div>
 
                 <div>
-                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600 }}>
+                  <span className="ticket-pending-label">
                     ODP &amp; Port Splitter Diajukan
                   </span>
-                  <div style={{ fontWeight: 600, marginTop: '4px', fontSize: '13px', color: '#F1F5F9' }}>
+                  <div className="ticket-pending-value">
                     {pendingData?.splitterCode || ticket.splitterCode || 'ODP-BDG-03'} · Port{' '}
                     {pendingData?.portNumber || ticket.portNumber || 2}
                   </div>
                 </div>
 
                 <div>
-                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600 }}>
+                  <span className="ticket-pending-label">
                     Integritas Lokasi (Anti-Fake GPS)
                   </span>
                   <div
@@ -321,7 +373,9 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                       gap: '6px',
                       fontWeight: 500,
                       fontSize: '12px',
-                      color: pendingData?.isLocationFlagged ? '#ef4444' : '#22c55e',
+                      color: pendingData?.isLocationFlagged
+                        ? 'var(--color-danger, #dc2626)'
+                        : 'var(--color-success, #16a34a)',
                     }}
                   >
                     <span
@@ -329,7 +383,9 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                         width: '6px',
                         height: '6px',
                         borderRadius: '50%',
-                        background: pendingData?.isLocationFlagged ? '#ef4444' : '#22c55e',
+                        background: pendingData?.isLocationFlagged
+                          ? 'var(--color-danger, #dc2626)'
+                          : 'var(--color-success, #16a34a)',
                       }}
                     />
                     <span>
@@ -341,17 +397,10 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                 </div>
 
                 <div>
-                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600 }}>
+                  <span className="ticket-pending-label">
                     Waktu Pengiriman Teknisi
                   </span>
-                  <div
-                    style={{
-                      color: '#F1F5F9',
-                      marginTop: '4px',
-                      fontWeight: 500,
-                      fontSize: '12px',
-                    }}
-                  >
+                  <div className="ticket-pending-time">
                     {pendingData?.submittedAt
                       ? new Date(pendingData.submittedAt).toLocaleTimeString('id-ID', {
                           hour: '2-digit',
@@ -363,11 +412,11 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
               </div>
 
               {pendingData?.technicianNotes && (
-                <div style={{ marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(15, 23, 42, 0.4)', border: '1px solid #1E293B' }}>
-                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600 }}>
+                <div className="ticket-pending-notes-card">
+                  <span className="ticket-pending-label">
                     Catatan Teknisi:
                   </span>
-                  <div style={{ fontStyle: 'italic', marginTop: '4px', color: '#CBD5E1', fontSize: '12px' }}>
+                  <div className="ticket-pending-notes-text">
                     &ldquo;{pendingData.technicianNotes}&rdquo;
                   </div>
                 </div>
@@ -376,21 +425,72 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
               {/* Photo Proof Card */}
               <div className="modal-proof-card">
                 <div
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flexWrap: 'wrap' }}
                 >
                   <Icon name="camera" size={13} />
                   <span>
                     Bukti Foto OPM Terunggah:{' '}
-                    <code style={{ fontFamily: 'var(--font-mono, monospace)', color: '#F1F5F9' }}>{pendingData?.photoObjectKey || 'opm-proofs/2025/02/t-3-opm.webp'}</code>
+                    <code className="modal-proof-code">
+                      {pendingData?.photoObjectKey || 'opm-proofs/2025/02/t-3-opm.webp'}
+                    </code>
                   </span>
                 </div>
-                <span
+                <button
+                  type="button"
                   className="modal-proof-action"
                   title="Lihat foto terunggah di MinIO Object Storage"
+                  onClick={handleInspectPhoto}
                 >
-                  Periksa File
-                </span>
+                  {photoPreviewOpen ? 'Tutup Pratinjau' : 'Periksa File'}
+                </button>
               </div>
+
+              {photoPreviewOpen && (
+                <div className="modal-proof-preview">
+                  {photoLoading ? (
+                    <div className="modal-proof-preview-status">
+                      Meminta URL presigned dari MinIO Object Storage...
+                    </div>
+                  ) : photoError ? (
+                    <div className="modal-proof-preview-error">
+                      {photoError}
+                    </div>
+                  ) : photoIsMockFallback ? (
+                    <div className="modal-proof-preview-fallback">
+                      <div className="modal-proof-fallback-title">
+                        Mode Simulasi Lokal (MinIO Belum Aktif di Lingkungan Ini)
+                      </div>
+                      <div className="modal-proof-fallback-meta">
+                        Object Key: <code>{pendingData?.photoObjectKey || 'opm-proofs/2025/02/t-3-opm.webp'}</code>
+                      </div>
+                      {photoUrl && (
+                        <div className="modal-proof-fallback-meta">
+                          Endpoint Tujuan: <code>{photoUrl}</code>
+                        </div>
+                      )}
+                    </div>
+                  ) : photoUrl ? (
+                    <div className="modal-proof-image-wrap">
+                      <Image
+                        src={photoUrl}
+                        alt={`Bukti foto OPM ${ticket.ticketNumber}`}
+                        width={480}
+                        height={280}
+                        unoptimized
+                        className="modal-proof-image"
+                      />
+                      <a
+                        href={photoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="modal-proof-external-link"
+                      >
+                        Buka Resolusi Penuh
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
           )}
 

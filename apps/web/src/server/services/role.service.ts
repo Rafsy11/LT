@@ -1,4 +1,9 @@
-import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
+import {
+  prisma,
+  isDatabaseAvailable,
+  markDatabaseUnavailable,
+  type Prisma,
+} from '@repo/database';
 import { CreateRoleInput, UserSessionContext, ERROR_CODES } from '@repo/shared';
 
 // In-memory fallback seed roles according to PRD Sections 2.1 & 2.2
@@ -212,7 +217,7 @@ export class RoleService {
     roleId: string,
     newPermissions: string[],
   ) {
-    let targetRole: { id: string; name: string; permissions: any; hierarchyLevel: number } | null =
+    let targetRole: { id: string; name: string; permissions: unknown; hierarchyLevel: number } | null =
       null;
     let actorPermissions: string[] = [];
 
@@ -270,8 +275,8 @@ export class RoleService {
             actionType: 'ROLE_PERMISSIONS_UPDATED',
             targetEntity: 'role',
             targetId: roleId,
-            oldPayload: { permissions: oldPermissions },
-            newPayload: { permissions: newPermissions },
+            oldPayload: { permissions: oldPermissions as Prisma.InputJsonValue },
+            newPayload: { permissions: newPermissions as Prisma.InputJsonValue },
           },
         });
 
@@ -346,8 +351,8 @@ export class RoleService {
         });
 
         return updatedUser;
-      } catch (err: any) {
-        if (err.message?.includes(ERROR_CODES.HIERARCHY_VIOLATION)) {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message.includes(ERROR_CODES.HIERARCHY_VIOLATION)) {
           throw err;
         }
         markDatabaseUnavailable(err);

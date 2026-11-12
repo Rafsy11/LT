@@ -151,7 +151,12 @@ export function BackupPanel({
               <select
                 value={settings.secondaryBackupTarget}
                 disabled={!isSuperAdmin}
-                onChange={(e) => handleChange('secondaryBackupTarget', e.target.value as any)}
+                onChange={(e) =>
+                  handleChange(
+                    'secondaryBackupTarget',
+                    e.target.value as 'EXTERNAL_NAS' | 'ENCRYPTED_CLOUD_BUCKET' | 'OFFLINE_COLD_STORAGE',
+                  )
+                }
                 className="settings-select"
                 style={{
                   width: '100%',

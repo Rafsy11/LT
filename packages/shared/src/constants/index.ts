@@ -98,6 +98,8 @@ export const PERMISSIONS = {
   TECH_MANAGE: 'tech:manage',
   CUSTOMER_READ: 'customer:read',
   CUSTOMER_UPDATE: 'customer:update',
+  NETWORK_READ: 'network:read',
+  NETWORK_UPDATE: 'network:update',
   ROLE_EDIT: 'role:edit',
   AI_USE: 'ai:use',
 } as const;
@@ -134,6 +136,8 @@ export const ROLE_PRESETS: Record<string, RolePreset> = {
       PERMISSIONS.TECH_MANAGE,
       PERMISSIONS.CUSTOMER_READ,
       PERMISSIONS.CUSTOMER_UPDATE,
+      PERMISSIONS.NETWORK_READ,
+      PERMISSIONS.NETWORK_UPDATE,
       PERMISSIONS.AI_USE,
     ],
     description:
@@ -153,7 +157,7 @@ export const ROLE_PRESETS: Record<string, RolePreset> = {
     name: 'Auditor & Read-Only',
     userType: 'ADMIN',
     hierarchyLevel: 20,
-    permissions: [PERMISSIONS.TICKET_READ, PERMISSIONS.CUSTOMER_READ],
+    permissions: [PERMISSIONS.TICKET_READ, PERMISSIONS.CUSTOMER_READ, PERMISSIONS.NETWORK_READ],
     description:
       'Akses peninjauan read-only. Tidak dapat membuat tiket, mengubah peran, atau menghentikan teknisi.',
   },
@@ -299,7 +303,14 @@ export function sanitizeUiErrorMessage(rawError: unknown): {
   }
 
   // 1. Jika objek error memiliki properti code terdaftar
-  const errorObj = typeof rawError === 'object' && rawError !== null ? (rawError as any) : null;
+  interface RawErrorShape {
+    code?: unknown;
+    errorCode?: unknown;
+    message?: unknown;
+    error?: { code?: unknown };
+  }
+  const errorObj =
+    typeof rawError === 'object' && rawError !== null ? (rawError as RawErrorShape) : null;
   const rawCode = errorObj?.code || errorObj?.errorCode || errorObj?.error?.code;
 
   if (rawCode && typeof rawCode === 'string') {
@@ -314,7 +325,12 @@ export function sanitizeUiErrorMessage(rawError: unknown): {
   }
 
   // 2. Deteksi teks error mentah yang mencurigakan (Prisma / SQL / Stack trace)
-  const rawMessage = typeof rawError === 'string' ? rawError : errorObj?.message || '';
+  const rawMessage =
+    typeof rawError === 'string'
+      ? rawError
+      : typeof errorObj?.message === 'string'
+        ? errorObj.message
+        : '';
   const isDangerousLeak =
     /prisma|postgresql|select|insert|update|delete|table|column|relation|p2002|p2003|at\s|node_modules/i.test(
       rawMessage,

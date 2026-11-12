@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AiService } from '@/server/services/ai.service';
-import { AuthService } from '@/server/services/auth.service';
-import { ERROR_CODES, UserSessionContext } from '@repo/shared';
+import { requireAdminActor, handleAdminRouteError } from '@/server/lib/admin-auth';
 import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
+import { ERROR_CODES, PERMISSIONS } from '@repo/shared';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const adminContext = await requireAdminActor(request, PERMISSIONS.AI_USE);
+    const body = (await request.json().catch(() => ({}))) as {
+      message?: string;
+      prompt?: string;
+    };
     const prompt = body.message || body.prompt;
 
-    if (!prompt) {
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
       return NextResponse.json(
         {
           success: false,
@@ -17,41 +21,6 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 },
       );
-    }
-
-    // Resolve Admin Context (Cookie or Bearer Token)
-    let adminContext: UserSessionContext;
-    const cookieToken = request.cookies.get('token')?.value;
-    const authHeader = request.headers.get('authorization');
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
-    const token = cookieToken || bearerToken;
-
-    if (token) {
-      try {
-        adminContext = await AuthService.verifyAccessToken(token);
-      } catch {
-        return NextResponse.json(
-          {
-            success: false,
-            error: {
-              code: ERROR_CODES.UNAUTHORIZED,
-              message: 'Sesi Admin tidak valid atau telah kedaluwarsa',
-            },
-          },
-          { status: 401 },
-        );
-      }
-    } else {
-      // Dev mode fallback
-      adminContext = {
-        userId: 'superadmin',
-        username: 'superadmin',
-        fullName: 'Aditya Saputra',
-        role: 'Super Admin',
-        userType: 'SUPER_ADMIN',
-        hierarchyLevel: 100,
-        assignedClusters: ['CL-01', 'CL-02'],
-      };
     }
 
     // Rate Limiting: 10 req/60s per admin userId
@@ -83,10 +52,6 @@ export async function POST(request: NextRequest) {
       data: response,
     });
   } catch (error: unknown) {
-    const err = error as Error;
-    return NextResponse.json(
-      { success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: err.message } },
-      { status: 500 },
-    );
+    return handleAdminRouteError(error, ERROR_CODES.INTERNAL_ERROR, 'Gagal memproses chat AI');
   }
 }

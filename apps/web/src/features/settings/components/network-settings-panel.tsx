@@ -63,7 +63,13 @@ export function NetworkSettingsPanel({
           ].map((item) => (
             <div
               key={item.key}
-              onClick={() => isSuperAdmin && handleChange('publicAccessMethod', item.key as any)}
+              onClick={() =>
+                isSuperAdmin &&
+                handleChange(
+                  'publicAccessMethod',
+                  item.key as SystemSettingsInput['publicAccessMethod'],
+                )
+              }
               className={`settings-option-card ${settings.publicAccessMethod === item.key ? 'active' : ''}`}
               style={{
                 padding: '12px',
@@ -118,7 +124,12 @@ export function NetworkSettingsPanel({
             <select
               value={settings.serverTimezone}
               disabled={!isSuperAdmin}
-              onChange={(e) => handleChange('serverTimezone', e.target.value as any)}
+              onChange={(e) =>
+                handleChange(
+                  'serverTimezone',
+                  e.target.value as SystemSettingsInput['serverTimezone'],
+                )
+              }
               className="settings-select"
               style={{
                 width: '100%',

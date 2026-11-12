@@ -63,13 +63,13 @@ export async function POST(request: NextRequest) {
         loggedAt: new Date().toISOString(),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: ERROR_CODES.INTERNAL_ERROR,
-          message: error.message || 'Gagal menyimpan client error log',
+          message: error instanceof Error ? error.message : 'Gagal menyimpan client error log',
         },
       },
       { status: 500 },

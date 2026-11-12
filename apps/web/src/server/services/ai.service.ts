@@ -165,11 +165,11 @@ export class AiService {
                 let filtered = histories;
                 if (args.minAttenuation !== undefined) {
                   filtered = filtered.filter(
-                    (h: any) => Number(h.newAttenuation) <= args.minAttenuation!,
+                    (h) => Number(h.newAttenuation) <= args.minAttenuation!,
                   );
                 }
 
-                return filtered.map((h: any) => ({
+                return filtered.map((h) => ({
                   id: h.id,
                   submissionId: h.submissionId,
                   ticketNumber: h.ticket.ticketNumber,
@@ -726,13 +726,22 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
     ) {
       if (tools.prepare_create_ticket) {
         const ticketType = p.includes('pasang baru') ? 'PSB' : 'MAINTENANCE';
-        const res = (await (tools.prepare_create_ticket as any).execute({
+        const prepareCreateTool = tools.prepare_create_ticket as unknown as {
+          execute: (args: {
+            ticketType: string;
+            siaNumber: string;
+            customerName: string;
+            techUsername: string;
+            notes: string;
+          }) => Promise<{ draftCard?: DraftActionCard; error?: string }>;
+        };
+        const res = await prepareCreateTool.execute({
           ticketType,
           siaNumber: 'SIA-2024-001',
           customerName: 'Budi Santoso',
           techUsername: 'andi.pratama',
           notes: 'Perbaikan drop redaman kritis terdeteksi oleh sistem AI',
-        })) as { draftCard?: DraftActionCard; error?: string };
+        });
 
         if (res.draftCard) {
           return {
@@ -757,11 +766,18 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
       p.includes('blokir teknisi')
     ) {
       if (tools.prepare_toggle_tech_account) {
-        const res = (await (tools.prepare_toggle_tech_account as any).execute({
+        const prepareToggleTool = tools.prepare_toggle_tech_account as unknown as {
+          execute: (args: {
+            techUsername: string;
+            setActive: boolean;
+            reason: string;
+          }) => Promise<{ draftCard?: DraftActionCard; error?: string }>;
+        };
+        const res = await prepareToggleTool.execute({
           techUsername: 'andi.pratama',
           setActive: false,
           reason: 'Instruksi Admin via AI Chat: Penonaktifan sementara akun teknisi',
-        })) as { draftCard?: DraftActionCard; error?: string };
+        });
 
         if (res.draftCard) {
           return {
@@ -787,11 +803,18 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
       p.includes('ganti odp')
     ) {
       if (tools.prepare_mutate_splitter_port) {
-        const res = (await (tools.prepare_mutate_splitter_port as any).execute({
+        const prepareMutateTool = tools.prepare_mutate_splitter_port as unknown as {
+          execute: (args: {
+            siaNumber: string;
+            newSplitterCode: string;
+            newPortNumber: number;
+          }) => Promise<{ draftCard?: DraftActionCard; error?: string }>;
+        };
+        const res = await prepareMutateTool.execute({
           siaNumber: 'SIA-2024-001',
           newSplitterCode: 'ODP-BDG-01',
           newPortNumber: 5,
-        })) as { draftCard?: DraftActionCard; error?: string };
+        });
 
         if (res.draftCard) {
           return {
@@ -829,9 +852,20 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
       p.includes('workload')
     ) {
       if (tools.get_technician_workload) {
-        const list = (await (tools.get_technician_workload as any).execute({
+        const workloadTool = tools.get_technician_workload as unknown as {
+          execute: (args: { status: string }) => Promise<
+            Array<{
+              fullName: string;
+              username: string;
+              cluster?: string;
+              activeTicketsCount: number;
+              workloadStatus: string;
+            }>
+          >;
+        };
+        const list = await workloadTool.execute({
           status: 'ALL',
-        })) as any[];
+        });
         const summary = list
           .map(
             (t) =>
@@ -886,7 +920,7 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
     switch (verified.actionType) {
       case 'CREATE_TICKET':
         mutationResult = await TicketService.createTicket(
-          verified.payload as any,
+          verified.payload as import('@repo/shared').CreateTicketInput,
           adminContext.userId,
         );
         break;
@@ -908,8 +942,10 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
         );
         break;
 
-      default:
-        throw new Error(`Tipe aksi ${(verified as any).actionType} tidak dikenali.`);
+      default: {
+        const unknownType = (verified as { actionType?: unknown }).actionType;
+        throw new Error(`Tipe aksi ${String(unknownType)} tidak dikenali.`);
+      }
     }
 
     // 3. Append to activity_logs with action_type: 'AI_ACTION_EXECUTED' (Law 2: APPEND-ONLY)

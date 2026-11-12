@@ -1,14 +1,22 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { PERMISSIONS } from '@repo/shared';
+import { useAuth } from '@/providers';
+import { Icon } from '@/components/ui/Icon';
 import { CustomersSkeleton } from '@/components/ui/PageSkeleton';
 import { useCustomers } from '../hooks/use-customers';
 import { CustomerStats } from './customer-stats';
 import { CustomerFilters } from './customer-filters';
 import { CustomerTable } from './customer-table';
 import { CustomerDetailModal } from './customer-detail-modal';
+import { CustomerFormModal } from './customer-form-modal';
+import '@/styles/features/customers.css';
 
 export function CustomersView() {
+  const { hasPermission } = useAuth();
+  const [formModalOpen, setFormModalOpen] = useState(false);
+
   const {
     search,
     setSearch,
@@ -82,8 +90,16 @@ export function CustomersView() {
             />
             PostgreSQL Master Data: Aktif
           </div>
-
-
+          {hasPermission(PERMISSIONS.CUSTOMER_UPDATE) && (
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => setFormModalOpen(true)}
+            >
+              <Icon name="plus" size={14} />
+              <span>Tambah Pelanggan</span>
+            </button>
+          )}
         </nav>
       </header>
 
@@ -140,8 +156,21 @@ export function CustomersView() {
         <CustomerDetailModal
           customer={selectedCustomer}
           onClose={() => setSelectedCustomer(null)}
+          onUpdated={() => {
+            void fetchCustomers(true);
+          }}
         />
       )}
+
+      {/* Create Customer Modal */}
+      <CustomerFormModal
+        isOpen={formModalOpen}
+        clusterOptions={availableClusters}
+        onClose={() => setFormModalOpen(false)}
+        onCreated={() => {
+          void fetchCustomers(true);
+        }}
+      />
     </main>
   );
 }

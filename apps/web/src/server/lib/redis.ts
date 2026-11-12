@@ -262,6 +262,29 @@ class RedisManager {
     }
   }
 
+  public async setPersistentKey(key: string, value: string): Promise<void> {
+    this.inMemoryKeyValue.set(key, {
+      value,
+      expiresAt: Number.MAX_SAFE_INTEGER,
+    });
+    if (!this.publisher || !this.isAvailable) return;
+    try {
+      await this.publisher.set(key, value);
+    } catch {
+      // Fallback to in-memory map
+    }
+  }
+
+  public async ping(): Promise<boolean> {
+    if (!this.publisher || !this.isAvailable) return false;
+    try {
+      const res = await this.publisher.ping();
+      return res === 'PONG';
+    } catch {
+      return false;
+    }
+  }
+
   public async setKeyWithTtl(key: string, value: string, ttlSeconds: number): Promise<void> {
     this.inMemoryKeyValue.set(key, {
       value,

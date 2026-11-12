@@ -368,6 +368,64 @@ export function useNetwork() {
     }, 600);
   };
 
+  const handleCreateCluster = async (
+    payload: import('@repo/shared').CreateClusterInput,
+  ) => {
+    const res = await fetch('/api/v1/admin/clusters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, entityType: 'CLUSTER' }),
+    });
+    const json = (await res.json()) as {
+      success?: boolean;
+      error?: { message?: string };
+    };
+    if (!res.ok || !json.success) {
+      throw new Error(json.error?.message || 'Gagal menambahkan wilayah cluster');
+    }
+    showSuccess(`Cluster ${payload.name} (${payload.clusterCode}) berhasil ditambahkan.`);
+    await fetchClusters(true);
+  };
+
+  const handleCreateSplitter = async (
+    payload: import('@repo/shared').CreateSplitterInput,
+  ) => {
+    const res = await fetch('/api/v1/admin/clusters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, entityType: 'SPLITTER' }),
+    });
+    const json = (await res.json()) as {
+      success?: boolean;
+      error?: { message?: string };
+    };
+    if (!res.ok || !json.success) {
+      throw new Error(json.error?.message || 'Gagal menambahkan ODP splitter');
+    }
+    showSuccess(`ODP ${payload.splitterCode} (${payload.maxPorts} port) berhasil ditambahkan.`);
+    setActiveSplitterCode(payload.splitterCode);
+    await fetchClusters(true);
+  };
+
+  const handleUpdateSplitter = async (
+    payload: import('@repo/shared').UpdateSplitterInput,
+  ) => {
+    const res = await fetch('/api/v1/admin/clusters', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const json = (await res.json()) as {
+      success?: boolean;
+      error?: { message?: string };
+    };
+    if (!res.ok || !json.success) {
+      throw new Error(json.error?.message || 'Gagal memperbarui ODP splitter');
+    }
+    showSuccess(`Data ODP ${payload.splitterCode} berhasil diperbarui.`);
+    await fetchClusters(true);
+  };
+
   return {
     search,
     setSearch,
@@ -408,6 +466,9 @@ export function useNetwork() {
     odpHistoryLogs,
     handleCreateTicketSubmit,
     handleRunAudit,
+    handleCreateCluster,
+    handleCreateSplitter,
+    handleUpdateSplitter,
     showSuccess,
     canCreateTicket,
     fetchClusters,

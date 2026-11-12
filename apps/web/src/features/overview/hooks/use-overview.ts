@@ -167,7 +167,7 @@ export function useOverview() {
     return () => clearInterval(interval);
   }, [fetchOverview]);
 
-  const handleCreateTicket = async (data: any) => {
+  const handleCreateTicket = async (data: import('@repo/shared').CreateTicketInput) => {
     const res = await fetch(TICKETS_CACHE_KEY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

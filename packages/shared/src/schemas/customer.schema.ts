@@ -31,3 +31,24 @@ export const customerDetailResponseSchema = z.object({
   status: z.enum(['PENDING_INSTALL', 'ACTIVE', 'ISOLATED', 'DISMANTLED']),
   updatedAt: z.string(),
 });
+
+export const createCustomerSchema = z.object({
+  siaNumber: z.string().trim().min(3, 'Nomor SIA minimal 3 karakter').max(40),
+  fullName: z.string().trim().min(2, 'Nama pelanggan minimal 2 karakter').max(120),
+  address: z.string().trim().min(5, 'Alamat instalasi minimal 5 karakter').max(300),
+  clusterCode: z.string().trim().min(2, 'Cluster wajib dipilih'),
+  splitterCode: z.string().trim().optional(),
+  portNumber: z.coerce.number().int().min(1).max(32).optional(),
+  status: z.enum(['PENDING_INSTALL', 'ACTIVE', 'ISOLATED', 'DISMANTLED']).default('PENDING_INSTALL'),
+});
+
+export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;
+
+export const updateCustomerSchema = z.object({
+  siaNumber: z.string().trim().min(3),
+  fullName: z.string().trim().min(2).max(120).optional(),
+  address: z.string().trim().min(5).max(300).optional(),
+  status: z.enum(['PENDING_INSTALL', 'ACTIVE', 'ISOLATED', 'DISMANTLED']).optional(),
+});
+
+export type UpdateCustomerInput = z.infer<typeof updateCustomerSchema>;

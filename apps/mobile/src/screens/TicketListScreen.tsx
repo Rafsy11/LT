@@ -18,6 +18,7 @@ export interface MobileTicketItem {
     lat: number | null;
     lng: number | null;
     currentAttenuation: number | null;
+    attenuationHistory?: number[];
     clusterName: string;
     clusterCode: string;
     splitterCode: string | null;

@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/Icon';
 import { DraftActionCardData, sanitizeUiErrorMessage } from '@repo/shared';
 import { useToast } from '@/providers';
 import { DraftActionCard } from './draft-action-card';
+import '@/styles/components/ai-widget.css';
 
 export function AiChatWidget() {
   const pathname = usePathname();

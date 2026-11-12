@@ -46,7 +46,7 @@ export function CreateTicketModal({
     const payload: CreateTicketInput = {
       customerName: String(form.get('customerName')),
       siaNumber: String(form.get('siaNumber')),
-      ticketType: (form.get('ticketType') as any) || 'PSB',
+      ticketType: (form.get('ticketType') as CreateTicketInput['ticketType']) || 'PSB',
       clusterCode: String(form.get('clusterCode')),
       assignedTechUsername: String(form.get('assignedTechUsername') || 'Andi Pratama'),
       adminNotes: String(form.get('adminNotes') || ''),

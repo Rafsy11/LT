@@ -8,6 +8,7 @@ import { MonitoringStats } from './monitoring-stats';
 import { MonitoringIncidentBar } from './monitoring-incident-bar';
 import { TelemetryStreamPanel } from './telemetry-stream-panel';
 import { TelemetryInspectorHud } from './telemetry-inspector-hud';
+import '@/styles/features/monitoring.css';
 
 export function MonitoringView() {
   const {

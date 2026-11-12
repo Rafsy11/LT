@@ -1,5 +1,11 @@
-import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
-import { ERROR_CODES, type CustomerListItem } from '@repo/shared';
+import { prisma, Prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
+import {
+  ERROR_CODES,
+  type CustomerListItem,
+  type CreateCustomerInput,
+  type UpdateCustomerInput,
+  type UserSessionContext,
+} from '@repo/shared';
 
 const DEFAULT_CUSTOMER_LIST_LIMIT = 200;
 
@@ -506,6 +512,253 @@ export class CustomerService {
     customer.portNumber = newPortNumber;
     customer.updatedAt = new Date().toISOString();
     return customer;
+  }
+
+  /**
+   * Registers a new customer (SIA) in Master Data with optional splitter/port allocation and audit log.
+   */
+  public static async createCustomer(
+    input: CreateCustomerInput,
+    actor: UserSessionContext,
+  ): Promise<CustomerListItem> {
+    const siaNumber = input.siaNumber.toUpperCase();
+
+    if (await isDatabaseAvailable()) {
+      try {
+        const dup = await prisma.customer.findUnique({ where: { siaNumber } });
+        if (dup) {
+          throw new Error(`Pelanggan dengan SIA "${siaNumber}" sudah terdaftar.`);
+        }
+
+        const cluster = await prisma.networkCluster.findFirst({
+          where: {
+            OR: [
+              { clusterCode: { equals: input.clusterCode, mode: 'insensitive' } },
+              { name: { equals: input.clusterCode, mode: 'insensitive' } },
+            ],
+          },
+        });
+        if (!cluster) {
+          throw new Error(`Cluster "${input.clusterCode}" tidak ditemukan.`);
+        }
+
+        const created = await prisma.$transaction(async (tx) => {
+          let splitterId: string | null = null;
+          let resolvedSplitterCode = 'Belum dialokasi';
+          if (input.splitterCode) {
+            const sp = await tx.networkSplitter.findFirst({
+              where: { splitterCode: { equals: input.splitterCode, mode: 'insensitive' } },
+            });
+            if (!sp) {
+              throw new Error(`ODP Splitter "${input.splitterCode}" tidak ditemukan.`);
+            }
+            if (input.portNumber && input.status === 'ACTIVE') {
+              if (input.portNumber > sp.maxPorts) {
+                throw new Error(`Nomor port melebihi kapasitas ${sp.maxPorts} port.`);
+              }
+              const conflict = await tx.customer.findFirst({
+                where: { splitterId: sp.id, portNumber: input.portNumber, status: 'ACTIVE' },
+              });
+              if (conflict) {
+                throw new Error(
+                  `${ERROR_CODES.PORT_OCCUPIED}: Port ${input.portNumber} pada ${sp.splitterCode} sudah terisi (${conflict.siaNumber}).`,
+                );
+              }
+            }
+            splitterId = sp.id;
+            resolvedSplitterCode = sp.splitterCode;
+          }
+
+          const customer = await tx.customer.create({
+            data: {
+              siaNumber,
+              fullName: input.fullName,
+              address: input.address,
+              clusterId: cluster.id,
+              splitterId,
+              portNumber: input.portNumber ?? null,
+              status: input.status,
+            },
+          });
+
+          await tx.activityLog.create({
+            data: {
+              actorUserId: actor.userId,
+              actorRole: actor.role,
+              actionType: 'CUSTOMER_CREATED',
+              targetEntity: 'customer',
+              targetId: customer.id,
+              newPayload: {
+                siaNumber,
+                fullName: input.fullName,
+                clusterCode: cluster.clusterCode,
+                splitterCode: resolvedSplitterCode,
+                portNumber: input.portNumber ?? null,
+                status: input.status,
+              } as Prisma.InputJsonValue,
+            },
+          });
+
+          return { customer, resolvedSplitterCode };
+        });
+
+        const parsed = parseCustomerAddress(created.customer.address);
+        return {
+          id: created.customer.id,
+          siaNumber: created.customer.siaNumber,
+          fullName: created.customer.fullName,
+          address: created.customer.address,
+          kecamatan: parsed.kecamatan,
+          kelurahan: parsed.kelurahan,
+          street: parsed.street,
+          cluster: cluster.name,
+          clusterCode: cluster.clusterCode,
+          splitterCode: created.resolvedSplitterCode,
+          portNumber: created.customer.portNumber ?? 0,
+          currentAttenuation: -18.5,
+          status: created.customer.status,
+          updatedAt: created.customer.updatedAt.toISOString(),
+        };
+      } catch (err) {
+        if (
+          err instanceof Error &&
+          (err.message.includes('sudah terdaftar') ||
+            err.message.includes('tidak ditemukan') ||
+            err.message.includes(ERROR_CODES.PORT_OCCUPIED) ||
+            err.message.includes('melebihi'))
+        ) {
+          throw err;
+        }
+        markDatabaseUnavailable(err);
+      }
+    }
+
+    if (FALLBACK_CUSTOMERS.some((c) => c.siaNumber.toUpperCase() === siaNumber)) {
+      throw new Error(`Pelanggan dengan SIA "${siaNumber}" sudah terdaftar.`);
+    }
+
+    const parsed = parseCustomerAddress(input.address);
+    const newItem: CustomerListItem = {
+      id: `cust-${Date.now()}`,
+      siaNumber,
+      fullName: input.fullName,
+      address: input.address,
+      kecamatan: parsed.kecamatan,
+      kelurahan: parsed.kelurahan,
+      street: parsed.street,
+      cluster: input.clusterCode.includes('Bandung') || input.clusterCode.includes('Cimahi') || input.clusterCode.includes('Rancaekek')
+        ? input.clusterCode
+        : 'Bandung Utara',
+      clusterCode: input.clusterCode.toUpperCase().startsWith('BDG') || input.clusterCode.toUpperCase().startsWith('CL')
+        ? input.clusterCode.toUpperCase()
+        : 'BDG-01',
+      splitterCode: input.splitterCode || 'ODP-BDG-01',
+      portNumber: input.portNumber ?? 0,
+      currentAttenuation: -18.5,
+      status: input.status,
+      updatedAt: new Date().toISOString(),
+    };
+    FALLBACK_CUSTOMERS.unshift(newItem);
+    return newItem;
+  }
+
+  /**
+   * Updates customer master details or service lifecycle status (ACTIVE / ISOLATED / DISMANTLED).
+   */
+  public static async updateCustomer(
+    input: UpdateCustomerInput,
+    actor: UserSessionContext,
+  ): Promise<CustomerListItem> {
+    if (await isDatabaseAvailable()) {
+      try {
+        const existing = await prisma.customer.findUnique({
+          where: { siaNumber: input.siaNumber },
+          include: { cluster: true, splitter: true },
+        });
+        if (!existing) {
+          throw new Error(`Pelanggan dengan SIA "${input.siaNumber}" tidak ditemukan.`);
+        }
+
+        const shouldReleasePort = input.status === 'DISMANTLED';
+        const updated = await prisma.$transaction(async (tx) => {
+          const next = await tx.customer.update({
+            where: { id: existing.id },
+            data: {
+              fullName: input.fullName ?? existing.fullName,
+              address: input.address ?? existing.address,
+              status: input.status ?? existing.status,
+              splitterId: shouldReleasePort ? null : existing.splitterId,
+              portNumber: shouldReleasePort ? null : existing.portNumber,
+            },
+            include: { cluster: true, splitter: true },
+          });
+
+          await tx.activityLog.create({
+            data: {
+              actorUserId: actor.userId,
+              actorRole: actor.role,
+              actionType: 'CUSTOMER_UPDATED',
+              targetEntity: 'customer',
+              targetId: existing.id,
+              oldPayload: {
+                fullName: existing.fullName,
+                address: existing.address,
+                status: existing.status,
+              } as Prisma.InputJsonValue,
+              newPayload: {
+                fullName: next.fullName,
+                address: next.address,
+                status: next.status,
+              } as Prisma.InputJsonValue,
+            },
+          });
+
+          return next;
+        });
+
+        const parsed = parseCustomerAddress(updated.address);
+        return {
+          id: updated.id,
+          siaNumber: updated.siaNumber,
+          fullName: updated.fullName,
+          address: updated.address,
+          kecamatan: parsed.kecamatan,
+          kelurahan: parsed.kelurahan,
+          street: parsed.street,
+          cluster: updated.cluster?.name || 'Bandung Utara',
+          clusterCode: updated.cluster?.clusterCode || 'BDG-01',
+          splitterCode: updated.splitter?.splitterCode || 'Belum dialokasi',
+          portNumber: updated.portNumber ?? 0,
+          currentAttenuation: updated.currentAttenuation ? Number(updated.currentAttenuation) : -18.5,
+          status: updated.status,
+          updatedAt: updated.updatedAt.toISOString(),
+        };
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('tidak ditemukan')) {
+          throw err;
+        }
+        markDatabaseUnavailable(err);
+      }
+    }
+
+    const fallback = FALLBACK_CUSTOMERS.find((c) => c.siaNumber === input.siaNumber);
+    if (!fallback) {
+      throw new Error(`Pelanggan dengan SIA "${input.siaNumber}" tidak ditemukan.`);
+    }
+    if (input.fullName) fallback.fullName = input.fullName;
+    if (input.address) {
+      fallback.address = input.address;
+      const p = parseCustomerAddress(input.address);
+      fallback.street = p.street;
+      fallback.kelurahan = p.kelurahan;
+      fallback.kecamatan = p.kecamatan;
+    }
+    if (input.status) {
+      fallback.status = input.status;
+      if (input.status === 'DISMANTLED') fallback.portNumber = 0;
+    }
+    fallback.updatedAt = new Date().toISOString();
+    return fallback;
   }
 
   /**

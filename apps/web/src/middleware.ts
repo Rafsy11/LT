@@ -64,6 +64,7 @@ const PUBLIC_API_ROUTES = [
   '/api/v1/auth/resend-otp',
   '/api/v1/auth/logout',
   '/api/v1/auth/refresh',
+  '/api/v1/telegram/webhook',
   '/api/v1/health',
 ] as const;
 
@@ -205,6 +206,18 @@ export async function middleware(request: NextRequest) {
       const { payload } = await jwtVerify(token, JWT_SECRET);
       if (payload.purpose === '2fa_pending') {
         throw new Error('INVALID_TOKEN_PURPOSE');
+      }
+      if (payload.userType === 'TECHNICIAN') {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: ERROR_CODES.FORBIDDEN,
+              message: 'Akun Teknisi Lapangan tidak berhak mengakses API manajemen admin.',
+            },
+          },
+          { status: 403 },
+        );
       }
 
       // SECURITY: Strip ALL sensitive headers first, then inject verified claims only

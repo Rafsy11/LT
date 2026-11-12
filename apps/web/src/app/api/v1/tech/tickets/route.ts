@@ -60,8 +60,32 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    interface MobileTicketDto {
+      id: string;
+      ticketNumber: string;
+      ticketType: string;
+      status: string;
+      adminNotes: string | null;
+      assignedAt: string | null;
+      createdAt: string;
+      customer: {
+        id: string;
+        siaNumber: string;
+        fullName: string;
+        address: string;
+        lat: number | null;
+        lng: number | null;
+        currentAttenuation: number | null;
+        attenuationHistory: number[];
+        clusterName: string;
+        clusterCode: string;
+        splitterCode: string | null;
+        portNumber: number | null;
+      };
+    }
+
     // 3. Fetch active assigned tickets from Prisma DB
-    let activeTickets: any[] = [];
+    let activeTickets: MobileTicketDto[] = [];
 
     if (techUser && (await isDatabaseAvailable())) {
       try {
@@ -75,36 +99,46 @@ export async function GET(request: NextRequest) {
               include: {
                 cluster: true,
                 splitter: true,
+                attenuations: {
+                  take: 5,
+                  orderBy: { createdAt: 'desc' },
+                  select: { newAttenuation: true },
+                },
               },
             },
           },
           orderBy: { createdAt: 'desc' },
         });
 
-        activeTickets = tickets.map((t: any) => ({
-          id: t.id,
-          ticketNumber: t.ticketNumber,
-          ticketType: t.ticketType,
-          status: t.status,
-          adminNotes: t.adminNotes,
-          assignedAt: t.assignedAt?.toISOString() || null,
-          createdAt: t.createdAt.toISOString(),
-          customer: {
-            id: t.customer.id,
-            siaNumber: t.customer.siaNumber,
-            fullName: t.customer.fullName,
-            address: t.customer.address,
-            lat: t.customer.lat ? Number(t.customer.lat) : null,
-            lng: t.customer.lng ? Number(t.customer.lng) : null,
-            currentAttenuation: t.customer.currentAttenuation
-              ? Number(t.customer.currentAttenuation)
-              : null,
-            clusterName: t.customer.cluster?.name || 'Cluster',
-            clusterCode: t.customer.cluster?.clusterCode || 'BDG',
-            splitterCode: t.customer.splitter?.splitterCode || null,
-            portNumber: t.customer.portNumber,
-          },
-        }));
+        activeTickets = tickets.map((t) => {
+          const hist = t.customer.attenuations.map((a) => Number(a.newAttenuation));
+          const curAtt = t.customer.currentAttenuation
+            ? Number(t.customer.currentAttenuation)
+            : null;
+          return {
+            id: t.id,
+            ticketNumber: t.ticketNumber,
+            ticketType: t.ticketType,
+            status: t.status,
+            adminNotes: t.adminNotes,
+            assignedAt: t.assignedAt?.toISOString() || null,
+            createdAt: t.createdAt.toISOString(),
+            customer: {
+              id: t.customer.id,
+              siaNumber: t.customer.siaNumber,
+              fullName: t.customer.fullName,
+              address: t.customer.address,
+              lat: t.customer.lat ? Number(t.customer.lat) : null,
+              lng: t.customer.lng ? Number(t.customer.lng) : null,
+              currentAttenuation: curAtt,
+              attenuationHistory: hist.length > 0 ? hist : curAtt !== null ? [curAtt] : [],
+              clusterName: t.customer.cluster?.name || 'Cluster',
+              clusterCode: t.customer.cluster?.clusterCode || 'BDG',
+              splitterCode: t.customer.splitter?.splitterCode || null,
+              portNumber: t.customer.portNumber,
+            },
+          };
+        });
       } catch (err) {
         markDatabaseUnavailable(err);
       }
@@ -137,6 +171,8 @@ export async function GET(request: NextRequest) {
             lat: -6.914744,
             lng: 107.60981,
             currentAttenuation: t.currentAttenuation,
+            attenuationHistory:
+              typeof t.currentAttenuation === 'number' ? [t.currentAttenuation] : [],
             clusterName: t.cluster,
             clusterCode: 'BDG-01',
             splitterCode: 'ODP-BDG-01',
@@ -146,7 +182,18 @@ export async function GET(request: NextRequest) {
     }
 
     // 4. Fetch ODP Splitters & port occupancy for related clusters
-    let splittersData: any[] = [];
+    interface SplitterDto {
+      id: string;
+      splitterCode: string;
+      clusterName: string;
+      clusterCode: string;
+      lat: number;
+      lng: number;
+      maxPorts: number;
+      occupiedPorts: number[];
+      availablePorts: number[];
+    }
+    let splittersData: SplitterDto[] = [];
     if (await isDatabaseAvailable()) {
       try {
         const splitters = await prisma.networkSplitter.findMany({
@@ -160,10 +207,10 @@ export async function GET(request: NextRequest) {
         });
 
         if (splitters.length > 0) {
-          splittersData = splitters.map((s: any) => {
+          splittersData = splitters.map((s) => {
             const occupiedPorts = s.customers
-              .map((c: any) => c.portNumber)
-              .filter((p: any): p is number => p !== null);
+              .map((c) => c.portNumber)
+              .filter((p): p is number => p !== null);
 
             const availablePorts: number[] = [];
             for (let p = 1; p <= s.maxPorts; p++) {
@@ -217,13 +264,15 @@ export async function GET(request: NextRequest) {
         splittersCount: splittersData.length,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Gagal memuat daftar tiket teknisi';
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'TECH_TICKETS_ERROR',
-          message: error.message || 'Gagal memuat daftar tiket teknisi',
+          message,
         },
       },
       { status: 500 },

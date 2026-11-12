@@ -10,6 +10,8 @@ import {
   getCachedData,
   subscribeQueryCache,
 } from '@/lib/query-cache';
+import '@/styles/layout/shell.css';
+import '@/styles/components/primitives.css';
 
 const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
 

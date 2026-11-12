@@ -1,0 +1,318 @@
+/* FiberOps Modular Stylesheet: components/ai-widget.css */
+
+@media (min-width: 640px) {
+  .draft-action-kpi-grid,
+  .draft-param-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chat {
+    bottom: 75px;
+    right: 30px;
+    width: 360px;
+    max-height: 520px;
+  }
+
+  .chat-body {
+    padding: 20px;
+    max-height: 400px;
+  }
+}
+
+.chat {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  width: calc(100vw - 24px);
+  max-width: 360px;
+  max-height: 82dvh;
+  background: white;
+  border: 1px solid #e5dcef;
+  box-shadow: 0 10px 50px rgba(53, 33, 71, 0.15);
+  border-radius: 13px;
+  z-index: 70;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-body {
+  padding: 16px;
+  flex: 1;
+  max-height: calc(82dvh - 120px);
+  overflow-y: auto;
+}
+
+.chat-body h3 {
+  font-size: 16px;
+  margin: 15px 0 8px;
+}
+
+.chat-body p {
+  line-height: 1.7;
+}
+
+.chat form {
+  padding: 14px;
+  display: flex;
+  gap: 7px;
+  border-top: 1px solid #eee;
+  background: white;
+}
+
+.chat form input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  font-size: 11px;
+}
+
+.chat-reply {
+  margin-top: 20px;
+  background: #f6f2fa;
+  padding: 13px;
+  border-radius: 7px;
+  line-height: 1.8;
+  font-size: 12px;
+}
+
+.draft-card {
+  margin-top: 14px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-top: 3px solid #0e5b92;
+  border-radius: 8px;
+  padding: 16px 18px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.draft-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.draft-card h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px;
+}
+
+.draft-card-summary {
+  margin: 0 0 12px;
+}
+
+.draft-param-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.draft-param-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.draft-param-key {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.3px;
+}
+
+.draft-param-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e293b;
+  word-break: break-all;
+}
+
+.draft-token-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-bottom: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.draft-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+html.dark .draft-card,
+[data-theme='dark'] .draft-card {
+  border-top: 3px solid #2698e8 !important;
+}
+
+html.dark .draft-card h3,
+[data-theme='dark'] .draft-card h3 {
+  color: #f1f5f9 !important;
+}
+
+html.dark .draft-param-grid,
+[data-theme='dark'] .draft-param-grid {
+  background: #020617 !important;
+  border: 1px solid #1e293b !important;
+}
+
+html.dark .draft-param-key,
+[data-theme='dark'] .draft-param-key {
+  color: #94a3b8 !important;
+}
+
+html.dark .draft-param-val,
+[data-theme='dark'] .draft-param-val {
+  color: #f1f5f9 !important;
+}
+
+html.dark .draft-token-strip,
+[data-theme='dark'] .draft-token-strip {
+  background: #020617 !important;
+  border: 1px solid #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+.draft-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 3px;
+}
+
+.draft-card-summary {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.draft-kpi-lbl {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.draft-kpi-val {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.draft-action-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border-top: 1px solid #edf2f7;
+  border-bottom: 1px solid #edf2f7;
+  margin-bottom: 14px;
+}
+
+html.dark .chat,
+[data-theme='dark'] .chat {
+  background: #0f172a !important;
+  border: 1px solid #1e293b !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .chat .panel-heading,
+[data-theme='dark'] .chat .panel-heading {
+  background: #0f172a !important;
+  border-bottom: 1px solid #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .chat .panel-heading h2,
+[data-theme='dark'] .chat .panel-heading h2 {
+  color: #f1f5f9 !important;
+}
+
+html.dark .chat .panel-heading .dots,
+[data-theme='dark'] .chat .panel-heading .dots {
+  color: #94a3b8 !important;
+  background: transparent !important;
+}
+
+html.dark .chat .panel-heading .dots:hover,
+[data-theme='dark'] .chat .panel-heading .dots:hover {
+  color: #f1f5f9 !important;
+  background: #1e293b !important;
+}
+
+html.dark .chat-body,
+[data-theme='dark'] .chat-body {
+  background: #0f172a !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .chat form,
+[data-theme='dark'] .chat form {
+  background: #0f172a !important;
+  border-top: 1px solid #1e293b !important;
+}
+
+html.dark .chat form input,
+[data-theme='dark'] .chat form input {
+  background: #020617 !important;
+  border: 1px solid #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .chat form input:focus,
+[data-theme='dark'] .chat form input:focus {
+  border-color: #2585d0 !important;
+  outline: none !important;
+}
+
+html.dark .draft-card,
+[data-theme='dark'] .draft-card {
+  background: #020617 !important;
+  border: 1px solid #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .draft-card-title,
+[data-theme='dark'] .draft-card-title {
+  color: #f1f5f9 !important;
+}
+
+html.dark .draft-card-summary,
+[data-theme='dark'] .draft-card-summary {
+  color: #94a3b8 !important;
+}
+
+html.dark .draft-action-kpi-grid,
+[data-theme='dark'] .draft-action-kpi-grid {
+  border-top: 1px solid #1e293b !important;
+  border-bottom: 1px solid #1e293b !important;
+}
+
+html.dark .draft-kpi-lbl,
+[data-theme='dark'] .draft-kpi-lbl {
+  color: #94a3b8 !important;
+}
+
+html.dark .draft-kpi-val,
+[data-theme='dark'] .draft-kpi-val {
+  color: #f1f5f9 !important;
+}

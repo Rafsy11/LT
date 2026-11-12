@@ -1,6 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { PERMISSIONS } from '@repo/shared';
+import { useAuth } from '@/providers';
 import { Icon } from '@/components/ui/Icon';
 import { NetworkConsoleSkeleton } from '@/components/ui/PageSkeleton';
 import { CustomerDetailModal } from '@/features/customers';
@@ -10,8 +12,16 @@ import { NetworkStats } from './network-stats';
 import { ClusterSelector } from './cluster-selector';
 import { SplitterPortGrid } from './splitter-port-grid';
 import { PortDetailPanel } from './port-detail-panel';
+import { NetworkEntityModal, type NetworkEntityModalMode } from './network-entity-modal';
+import '@/styles/features/network.css';
 
 export function NetworkView() {
+  const { hasPermission } = useAuth();
+  const canManageNetwork = hasPermission(PERMISSIONS.NETWORK_UPDATE);
+  const [entityModalOpen, setEntityModalOpen] = useState(false);
+  const [entityModalMode, setEntityModalMode] =
+    useState<NetworkEntityModalMode>('CREATE_SPLITTER');
+
   const {
     search,
     setSearch,
@@ -48,6 +58,9 @@ export function NetworkView() {
     showSuccess,
     canCreateTicket,
     fetchClusters,
+    handleCreateCluster,
+    handleCreateSplitter,
+    handleUpdateSplitter,
   } = useNetwork();
 
   React.useEffect(() => {
@@ -68,6 +81,35 @@ export function NetworkView() {
             Data master jaringan FTTH, daftar ODP, splitter, dan informasi port secara terpusat.
           </p>
         </div>
+
+        {canManageNetwork && (
+          <div className="network-header-right">
+            <div className="network-crud-actions">
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => {
+                  setEntityModalMode('CREATE_CLUSTER');
+                  setEntityModalOpen(true);
+                }}
+              >
+                <Icon name="plus" size={14} />
+                <span>Tambah Cluster</span>
+              </button>
+              <button
+                type="button"
+                className="button primary"
+                onClick={() => {
+                  setEntityModalMode('CREATE_SPLITTER');
+                  setEntityModalOpen(true);
+                }}
+              >
+                <Icon name="plus" size={14} />
+                <span>Tambah ODP</span>
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* 3 Metric Cards Computed Directly from Live Network Matrix */}
@@ -140,17 +182,20 @@ export function NetworkView() {
                     <span className="sep">|</span>
                     <span>Siap PSB {activeSplitter.maxPorts - activeSplitter.usedPorts}</span>
                   </div>
-                  <button
-                    type="button"
-                    className="odp-more-menu-btn"
-                    title="Opsi ODP"
-                    aria-label={`Opsi ODP ${activeSplitter.splitterCode}`}
-                    onClick={() =>
-                      showSuccess(`ODP ${activeSplitter.splitterCode} beroperasi normal.`)
-                    }
-                  >
-                    ⋮
-                  </button>
+                  {canManageNetwork && (
+                    <button
+                      type="button"
+                      className="odp-more-menu-btn"
+                      title="Edit kapasitas & status ODP"
+                      aria-label={`Edit ODP ${activeSplitter.splitterCode}`}
+                      onClick={() => {
+                        setEntityModalMode('EDIT_SPLITTER');
+                        setEntityModalOpen(true);
+                      }}
+                    >
+                      ⋮
+                    </button>
+                  )}
                 </div>
               </header>
 
@@ -238,6 +283,9 @@ export function NetworkView() {
         <CustomerDetailModal
           customer={selectedCustomerForModal}
           onClose={() => setSelectedCustomerForModal(null)}
+          onUpdated={() => {
+            void fetchClusters(true);
+          }}
         />
       )}
 
@@ -247,6 +295,33 @@ export function NetworkView() {
         onClose={() => setTicketModalOpen(false)}
         onSubmit={handleCreateTicketSubmit}
         initialValues={ticketModalInitial}
+      />
+
+      {/* Master Network CRUD Modal */}
+      <NetworkEntityModal
+        isOpen={entityModalOpen}
+        mode={entityModalMode}
+        clusters={clusterGroups.map((g) => ({
+          clusterCode: g.clusterCode,
+          name: g.name,
+        }))}
+        initialSplitter={
+          activeSplitter
+            ? {
+                splitterCode: activeSplitter.splitterCode,
+                clusterCode: activeSplitter.clusterCode,
+                name: activeSplitter.name,
+                maxPorts: activeSplitter.maxPorts,
+                lat: activeSplitter.lat,
+                lng: activeSplitter.lng,
+                isActive: true,
+              }
+            : null
+        }
+        onClose={() => setEntityModalOpen(false)}
+        onCreateCluster={handleCreateCluster}
+        onCreateSplitter={handleCreateSplitter}
+        onUpdateSplitter={handleUpdateSplitter}
       />
     </main>
   );

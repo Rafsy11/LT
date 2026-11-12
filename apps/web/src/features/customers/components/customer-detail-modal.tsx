@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
-import { classifyDbm, dbmTone, type CustomerListItem } from '@repo/shared';
+import { classifyDbm, dbmTone, PERMISSIONS, type CustomerListItem } from '@repo/shared';
+import { useAuth, useToast } from '@/providers';
+import '@/styles/components/customer-modal.css';
 
 interface AttenuationHistoryItem {
   id: string;
@@ -20,11 +22,28 @@ interface AttenuationHistoryItem {
 interface CustomerDetailModalProps {
   customer: CustomerListItem | null;
   onClose: () => void;
+  onUpdated?: () => Promise<void> | void;
 }
 
-export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalProps) {
+export function CustomerDetailModal({
+  customer,
+  onClose,
+  onUpdated,
+}: CustomerDetailModalProps) {
+  const { hasPermission } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const canEditCustomer = hasPermission(PERMISSIONS.CUSTOMER_UPDATE);
+
   const [histories, setHistories] = useState<AttenuationHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>('ACTIVE');
+  const [savingStatus, setSavingStatus] = useState(false);
+
+  useEffect(() => {
+    if (customer?.status) {
+      setSelectedStatus(customer.status);
+    }
+  }, [customer?.status, customer?.siaNumber]);
 
   useEffect(() => {
     if (!customer?.siaNumber) return;
@@ -338,6 +357,63 @@ export function CustomerDetailModal({ customer, onClose }: CustomerDetailModalPr
             )}
           </div>
         </div>
+
+        {/* Service Status Governance Bar */}
+        {canEditCustomer && (
+          <div className="customer-status-governance-bar">
+            <div className="customer-status-governance-label">
+              Ubah Status Layanan SIA
+            </div>
+            <div className="customer-status-governance-controls">
+              <select
+                aria-label="Status layanan pelanggan"
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="customer-status-select"
+              >
+                <option value="ACTIVE">ACTIVE (Aktif)</option>
+                <option value="PENDING_INSTALL">PENDING_INSTALL (Menunggu PSB)</option>
+                <option value="ISOLATED">ISOLATED (Isolir)</option>
+                <option value="DISMANTLED">DISMANTLED (Putus / Dismantle)</option>
+              </select>
+              <button
+                type="button"
+                className="button secondary"
+                disabled={savingStatus || selectedStatus === customer.status}
+                onClick={async () => {
+                  try {
+                    setSavingStatus(true);
+                    const res = await fetch('/api/v1/admin/customers', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        siaNumber: customer.siaNumber,
+                        status: selectedStatus,
+                      }),
+                    });
+                    const json = (await res.json()) as {
+                      success?: boolean;
+                      error?: { message?: string };
+                    };
+                    if (!res.ok || !json.success) {
+                      throw new Error(json.error?.message || 'Gagal memperbarui status pelanggan');
+                    }
+                    showSuccess(`Status layanan ${customer.siaNumber} diperbarui ke ${selectedStatus}.`);
+                    await onUpdated?.();
+                  } catch (err: unknown) {
+                    showError(
+                      err instanceof Error ? err.message : 'Gagal memperbarui status pelanggan',
+                    );
+                  } finally {
+                    setSavingStatus(false);
+                  }
+                }}
+              >
+                {savingStatus ? 'Menyimpan...' : 'Simpan Status'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Modal Footer Links */}
         <footer className="modal-footer">

@@ -9,6 +9,7 @@ import { TicketFilters } from './ticket-filters';
 import { TicketGrid } from './ticket-grid';
 import { CreateTicketModal } from './create-ticket-modal';
 import { TicketDetailModal } from './ticket-detail-modal';
+import '@/styles/features/tickets.css';
 
 export function TicketsView() {
   const {

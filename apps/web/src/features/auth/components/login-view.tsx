@@ -3,6 +3,7 @@
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { useLogin } from '../hooks/use-login';
+import '@/styles/features/auth.css';
 
 function formatCountdown(seconds: number): string {
   const safe = Math.max(0, seconds);

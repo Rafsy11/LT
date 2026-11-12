@@ -1,53 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AiService, verifySignedActionToken } from '@/server/services/ai.service';
-import { AuthService } from '@/server/services/auth.service';
-import { confirmActionSchema, ERROR_CODES, UserSessionContext } from '@repo/shared';
+import {
+  requireAdminActor,
+  getActorPermissions,
+  isGlobalScopeActor,
+  handleAdminRouteError,
+} from '@/server/lib/admin-auth';
+import { confirmActionSchema, ERROR_CODES, PERMISSIONS } from '@repo/shared';
 import { redisManager } from '@/server/lib/redis';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // 1. Resolve Authenticated Admin Session Context & Verify AI Permission
+    const adminContext = await requireAdminActor(request, PERMISSIONS.AI_USE);
+    const body: unknown = await request.json();
     const validated = confirmActionSchema.parse(body);
-
-    // 1. Resolve Admin Session Context (Cookie or Bearer Token)
-    let adminContext: UserSessionContext;
-    const cookieToken = request.cookies.get('token')?.value;
-    const authHeader = request.headers.get('authorization');
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
-    const token = cookieToken || bearerToken;
-
-    if (token) {
-      try {
-        adminContext = await AuthService.verifyAccessToken(token);
-      } catch {
-        return NextResponse.json(
-          {
-            success: false,
-            error: {
-              code: ERROR_CODES.UNAUTHORIZED,
-              message: 'Sesi Admin tidak valid atau telah kedaluwarsa.',
-            },
-          },
-          { status: 401 },
-        );
-      }
-    } else {
-      // Dev mode fallback
-      adminContext = {
-        userId: 'superadmin',
-        username: 'superadmin',
-        fullName: 'Aditya Saputra',
-        role: 'Super Admin',
-        userType: 'SUPER_ADMIN',
-        hierarchyLevel: 100,
-        assignedClusters: ['CL-01', 'CL-02'],
-      };
-    }
 
     // 2. Cryptographic Token Verification (HMAC Signature & 5-minute validity)
     const tokenData = await verifySignedActionToken(validated.actionToken);
 
-    // Ensure actionType in body matches cryptographically signed actionType
     if (tokenData.actionType !== validated.actionType) {
       return NextResponse.json(
         {
@@ -67,7 +38,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: {
-            code: ERROR_CODES.UNAUTHORIZED,
+            code: ERROR_CODES.FORBIDDEN,
             message:
               'Aksi ini hanya dapat dieksekusi oleh Administrator yang meminta draf (Actor mismatch).',
           },
@@ -76,7 +47,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Anti-Replay: Mark token JTI as used in Redis (Single-Use Token)
+    // 3. Enforce Granular RBAC Permission matching Action Type BEFORE consuming token
+    const requiredPermissionMap: Record<string, string> = {
+      CREATE_TICKET: PERMISSIONS.TICKET_CREATE,
+      TOGGLE_TECH_ACCOUNT: PERMISSIONS.TECH_MANAGE,
+      MUTATE_SPLITTER_PORT: PERMISSIONS.CUSTOMER_UPDATE,
+    };
+
+    const requiredPerm = requiredPermissionMap[validated.actionType];
+    if (!isGlobalScopeActor(adminContext) && requiredPerm) {
+      const perms = await getActorPermissions(adminContext);
+      if (!perms.includes(PERMISSIONS.ALL) && !perms.includes(requiredPerm)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: ERROR_CODES.FORBIDDEN,
+              message: `Izin [${requiredPerm}] diperlukan untuk mengeksekusi aksi ${validated.actionType}.`,
+            },
+          },
+          { status: 403 },
+        );
+      }
+    }
+
+    // 4. Anti-Replay: Mark token JTI as used in Redis (Single-Use Token)
     if (tokenData.jti) {
       const isFirstUse = await redisManager.markActionTokenUsed(tokenData.jti, 300);
       if (!isFirstUse) {
@@ -94,22 +89,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. RBAC Permission Validation
-    const requiredPermissionMap: Record<string, string> = {
-      CREATE_TICKET: 'ticket:create',
-      TOGGLE_TECH_ACCOUNT: 'tech:manage',
-      MUTATE_SPLITTER_PORT: 'customer:update',
-    };
-
-    const requiredPerm = requiredPermissionMap[validated.actionType];
-    const isSuperAdmin = adminContext.hierarchyLevel >= 100 || adminContext.role === 'Super Admin';
-
-    if (!isSuperAdmin && requiredPerm) {
-      // In production, check role permissions
-      // If unauthorized, return 403
-    }
-
-    // 4. Execute Service Mutation & Append-Only Activity Log
+    // 5. Execute Service Mutation & Append-Only Activity Log
     const execution = await AiService.confirmAction(validated.actionToken, adminContext);
 
     return NextResponse.json({
@@ -122,49 +102,40 @@ export async function POST(request: NextRequest) {
         message: `Aksi ${execution.actionType} berhasil disetujui & dieksekusi secara aman ke database.`,
       },
     });
-  } catch (error: any) {
-    const isOccupied = error.message?.includes(ERROR_CODES.PORT_OCCUPIED);
-    const isReplayed = error.message?.includes(ERROR_CODES.ACTION_TOKEN_REPLAYED);
-    const isForbidden =
-      error.message?.includes(ERROR_CODES.FORBIDDEN) ||
-      error.message?.includes(ERROR_CODES.HIERARCHY_VIOLATION);
-    const isExpired =
-      error.message?.includes('kedaluwarsa') ||
-      error.message?.includes(ERROR_CODES.AI_ACTION_EXPIRED);
-    const isInvalidToken =
-      error.message?.includes(ERROR_CODES.INVALID_ACTION_TOKEN) ||
-      error.message?.includes('manipulasi');
-
-    let status = 400;
-    let code: string = ERROR_CODES.VALIDATION_ERROR;
-
-    if (isOccupied) {
-      status = 409;
-      code = ERROR_CODES.PORT_OCCUPIED;
-    } else if (isReplayed) {
-      status = 409;
-      code = ERROR_CODES.ACTION_TOKEN_REPLAYED;
-    } else if (isForbidden) {
-      status = 403;
-      code = ERROR_CODES.FORBIDDEN;
-    } else if (isExpired) {
-      status = 400;
-      code = ERROR_CODES.AI_ACTION_EXPIRED;
-    } else if (isInvalidToken) {
-      status = 400;
-      code = ERROR_CODES.INVALID_ACTION_TOKEN;
-    }
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code,
-          message: error.errors ? error.errors[0]?.message : error.message,
-          details: error.errors,
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : '';
+    if (msg.includes(ERROR_CODES.ACTION_TOKEN_REPLAYED)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: ERROR_CODES.ACTION_TOKEN_REPLAYED, message: msg },
         },
-      },
-      { status },
+        { status: 409 },
+      );
+    }
+    if (msg.includes('kedaluwarsa') || msg.includes(ERROR_CODES.AI_ACTION_EXPIRED)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: ERROR_CODES.AI_ACTION_EXPIRED, message: msg },
+        },
+        { status: 400 },
+      );
+    }
+    if (msg.includes(ERROR_CODES.INVALID_ACTION_TOKEN) || msg.includes('manipulasi')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: ERROR_CODES.INVALID_ACTION_TOKEN, message: msg },
+        },
+        { status: 400 },
+      );
+    }
+    return handleAdminRouteError(
+      error,
+      ERROR_CODES.VALIDATION_ERROR,
+      'Gagal mengeksekusi aksi AI',
+      400,
     );
   }
 }

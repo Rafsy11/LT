@@ -1,23 +1,44 @@
+import { NextRequest } from 'next/server';
 import { sseBroadcaster } from '@/server/services/sse.service';
-import { SSE_HEADERS } from '@repo/shared';
+import {
+  requireAdminActor,
+  matchesAssignedClusters,
+  handleAdminRouteError,
+} from '@/server/lib/admin-auth';
+import { ERROR_CODES, PERMISSIONS, SSE_HEADERS } from '@repo/shared';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  let actor;
+  try {
+    actor = await requireAdminActor(request, [
+      PERMISSIONS.TICKET_READ,
+      PERMISSIONS.NETWORK_READ,
+    ]);
+  } catch (error: unknown) {
+    return handleAdminRouteError(
+      error,
+      ERROR_CODES.UNAUTHORIZED,
+      'Sesi tidak diizinkan mengakses stream SSE',
+    );
+  }
+
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     start(controller) {
-      // Send initial heartbeat
       controller.enqueue(
         encoder.encode(
           `event: connected\ndata: ${JSON.stringify({ message: 'Connected to FiberOps SSE Stream' })}\n\n`,
         ),
       );
 
-      // Subscribe to real-time broadcaster
       const unsubscribe = sseBroadcaster.subscribe((item) => {
         try {
+          if (!matchesAssignedClusters(actor, item.clusterName)) {
+            return;
+          }
           const payload = `event: report\ndata: ${JSON.stringify(item)}\n\n`;
           controller.enqueue(encoder.encode(payload));
         } catch (err) {
@@ -25,7 +46,6 @@ export async function GET(request: Request) {
         }
       });
 
-      // Keepalive ping every 15s to prevent intermediate proxy timeout
       const interval = setInterval(() => {
         try {
           controller.enqueue(encoder.encode(`event: ping\ndata: ${Date.now()}\n\n`));
@@ -34,7 +54,6 @@ export async function GET(request: Request) {
         }
       }, 15000);
 
-      // Clean up when client disconnects
       request.signal.addEventListener('abort', () => {
         clearInterval(interval);
         unsubscribe();

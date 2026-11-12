@@ -1,0 +1,532 @@
+/* FiberOps Modular Stylesheet: components/ticket-modal.css */
+
+.ticket-admin-sim-card {
+  background: #f0f7ff;
+  border: 1px solid #c7dff7;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.ticket-approval-callout {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.ticket-approval-content {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.ticket-approval-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #0f172a;
+  margin-bottom: 2px;
+}
+
+.ticket-approval-desc {
+  color: #475569;
+}
+
+.ticket-workflow-banner {
+  margin: 12px 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ticket-workflow-banner.pending {
+  color: #854d0e;
+}
+
+.ticket-workflow-banner.in-progress {
+  color: #1e40af;
+}
+
+.ticket-workflow-banner.completed {
+  color: #166534;
+}
+
+.ticket-workflow-banner {
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ticket-workflow-banner.pending {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+}
+
+.ticket-workflow-banner.in-progress {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.ticket-workflow-banner.completed {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.modal-footer-standard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.modal-footer-links-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.modal-footer-primary-group {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.modal-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid #dce7f0;
+  background: #ffffff;
+  color: #334155;
+}
+
+.modal-link-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.modal-primary-close-btn {
+  padding: 8px 20px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: #0e5b92;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(14, 91, 146, 0.2);
+}
+
+.modal-primary-close-btn:hover {
+  background: #0b4a78;
+}
+
+.modal-footer-pending-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.modal-footer-right-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reject-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+  cursor: pointer;
+}
+
+.reject-action-btn:hover {
+  background: #fef2f2;
+}
+
+.approve-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: #16a34a;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2);
+}
+
+.approve-action-btn:hover {
+  background: #15803d;
+}
+
+html.dark .ticket-admin-sim-card,
+[data-theme='dark'] .ticket-admin-sim-card {
+  background: #020617 !important;
+  border: 1px solid #1e293b !important;
+  border-radius: 8px !important;
+}
+
+html.dark .ticket-approval-callout,
+[data-theme='dark'] .ticket-approval-callout {
+  background: #020617 !important;
+  border: 1px solid #1e293b !important;
+}
+
+html.dark .ticket-approval-title,
+[data-theme='dark'] .ticket-approval-title {
+  color: #f1f5f9 !important;
+}
+
+html.dark .ticket-approval-desc,
+[data-theme='dark'] .ticket-approval-desc {
+  color: #94a3b8 !important;
+}
+
+.modal-proof-card {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #334155;
+}
+
+.modal-proof-action {
+  color: #0e5b92;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 10.5px;
+}
+
+html.dark .modal-proof-card,
+[data-theme='dark'] .modal-proof-card {
+  background: #020617 !important;
+  border: 1px solid #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .modal-proof-action,
+[data-theme='dark'] .modal-proof-action {
+  color: #2585d0 !important;
+}
+
+.ticket-reject-card {
+  margin-top: 16px;
+  padding: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+}
+
+.ticket-reject-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #991b1b;
+  margin-bottom: 6px;
+}
+
+.ticket-reject-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #fca5a5;
+  font-size: 12px;
+  color: #1e293b;
+  resize: none;
+  outline: none;
+}
+
+html.dark .ticket-reject-card,
+[data-theme='dark'] .ticket-reject-card {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+html.dark .ticket-reject-label,
+[data-theme='dark'] .ticket-reject-label {
+  color: #fca5a5 !important;
+}
+
+html.dark .ticket-reject-textarea,
+[data-theme='dark'] .ticket-reject-textarea,
+html.dark .modal-link-btn,
+[data-theme='dark'] .modal-link-btn {
+  background: #020617 !important;
+  border: 1px solid #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .modal-link-btn:hover,
+[data-theme='dark'] .modal-link-btn:hover {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+html.dark .modal-primary-close-btn,
+[data-theme='dark'] .modal-primary-close-btn {
+  background: #0e5b92 !important;
+  color: #ffffff !important;
+}
+
+html.dark .modal-primary-close-btn:hover,
+[data-theme='dark'] .modal-primary-close-btn:hover {
+  background: #1b5ca2 !important;
+}
+
+html.dark .ticket-workflow-banner.pending,
+[data-theme='dark'] .ticket-workflow-banner.pending {
+  background: rgba(245, 158, 11, 0.1) !important;
+  border: 1px solid rgba(245, 158, 11, 0.25) !important;
+}
+
+html.dark .ticket-workflow-banner.pending div,
+[data-theme='dark'] .ticket-workflow-banner.pending div {
+  color: #fde68a !important;
+}
+
+html.dark .ticket-workflow-banner.in-progress,
+[data-theme='dark'] .ticket-workflow-banner.in-progress {
+  background: rgba(37, 133, 208, 0.1) !important;
+  border: 1px solid rgba(37, 133, 208, 0.25) !important;
+}
+
+html.dark .ticket-workflow-banner.in-progress div,
+[data-theme='dark'] .ticket-workflow-banner.in-progress div {
+  color: #bae6fd !important;
+}
+
+html.dark .ticket-workflow-banner.completed,
+[data-theme='dark'] .ticket-workflow-banner.completed {
+  background: rgba(34, 197, 94, 0.1) !important;
+  border: 1px solid rgba(34, 197, 94, 0.25) !important;
+}
+
+html.dark .ticket-workflow-banner.completed div,
+[data-theme='dark'] .ticket-workflow-banner.completed div {
+  color: #bbf7d0 !important;
+}
+
+html.dark .ticket-notes-box,
+[data-theme='dark'] .ticket-notes-box {
+  background: #020617 !important;
+  border: 1px solid #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+.ticket-pending-summary-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+}
+
+.ticket-pending-label {
+  font-size: 11px;
+  color: #64748b;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 600;
+}
+
+.ticket-pending-value {
+  margin-top: 4px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.ticket-pending-time {
+  margin-top: 4px;
+  font-weight: 500;
+  font-size: 12px;
+  color: #334155;
+}
+
+.ticket-pending-notes-card {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.ticket-pending-notes-text {
+  font-style: italic;
+  margin-top: 4px;
+  color: #334155;
+  font-size: 12px;
+}
+
+.modal-proof-code {
+  font-family: var(--font-mono, monospace);
+  color: #0f172a;
+  word-break: break-all;
+}
+
+button.modal-proof-action {
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+button.modal-proof-action:hover {
+  background: rgba(14, 91, 146, 0.1);
+}
+
+.modal-proof-preview {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 12px;
+  color: #334155;
+}
+
+.modal-proof-preview-status {
+  color: #475569;
+  font-weight: 500;
+}
+
+.modal-proof-preview-error {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.modal-proof-preview-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-proof-fallback-title {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.modal-proof-fallback-meta {
+  font-size: 11.5px;
+  color: #475569;
+  word-break: break-all;
+}
+
+.modal-proof-image-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.modal-proof-image {
+  max-width: 100%;
+  max-height: 280px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  object-fit: contain;
+}
+
+.modal-proof-external-link {
+  color: #0e5b92;
+  font-weight: 600;
+  font-size: 11.5px;
+  text-decoration: underline;
+}
+
+html.dark .ticket-pending-summary-card,
+[data-theme='dark'] .ticket-pending-summary-card {
+  background: rgba(15, 23, 42, 0.75) !important;
+  border-color: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .ticket-pending-label,
+[data-theme='dark'] .ticket-pending-label {
+  color: #94a3b8 !important;
+}
+
+html.dark .ticket-pending-value,
+[data-theme='dark'] .ticket-pending-value,
+html.dark .modal-proof-code,
+[data-theme='dark'] .modal-proof-code {
+  color: #f1f5f9 !important;
+}
+
+html.dark .ticket-pending-time,
+[data-theme='dark'] .ticket-pending-time,
+html.dark .ticket-pending-notes-text,
+[data-theme='dark'] .ticket-pending-notes-text {
+  color: #cbd5e1 !important;
+}
+
+html.dark .ticket-pending-notes-card,
+[data-theme='dark'] .ticket-pending-notes-card,
+html.dark .modal-proof-preview,
+[data-theme='dark'] .modal-proof-preview {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .modal-proof-fallback-title,
+[data-theme='dark'] .modal-proof-fallback-title {
+  color: #f1f5f9 !important;
+}
+
+html.dark .modal-proof-fallback-meta,
+[data-theme='dark'] .modal-proof-fallback-meta,
+html.dark .modal-proof-preview-status,
+[data-theme='dark'] .modal-proof-preview-status {
+  color: #94a3b8 !important;
+}
+
+html.dark .modal-proof-external-link,
+[data-theme='dark'] .modal-proof-external-link {
+  color: #38bdf8 !important;
+}
+
+html.dark .modal-proof-image,
+[data-theme='dark'] .modal-proof-image {
+  border-color: #334155 !important;
+}
+
+@media (max-width: 767px) {
+  .ticket-pending-summary-card {
+    grid-template-columns: 1fr;
+  }
+}

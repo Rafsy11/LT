@@ -9,6 +9,7 @@ import { PermissionMatrixPanel } from './permission-matrix-panel';
 import { RoleReassignModal } from './role-reassign-modal';
 import { CreateUserModal } from './create-user-modal';
 import { TelegramGuideModal } from './telegram-guide-modal';
+import '@/styles/features/roles.css';
 
 export function RolesView() {
   const {

@@ -10,6 +10,7 @@ import { InfrastructurePanel } from './infrastructure-panel';
 import { GeofencingPanel } from './geofencing-panel';
 import { BackupPanel } from './backup-panel';
 import { NetworkSettingsPanel } from './network-settings-panel';
+import '@/styles/features/settings.css';
 
 export function SettingsView() {
   const {
