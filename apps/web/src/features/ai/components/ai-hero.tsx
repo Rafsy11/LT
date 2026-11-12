@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { AiSuggestionItem } from '../hooks/use-ai-assistant';
 
 export interface AiHeroProps {
@@ -24,11 +25,12 @@ export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
     >
       {/* Brand Logo Emblem from Lintasarta-Icon.svg */}
       <figure style={{ margin: '0 auto 20px' }}>
-        <img
+        <Image
           src="/assets/Lintasarta-Icon.svg"
           alt="AI Assistant"
           width={72}
           height={72}
+          priority
           className="ai-hero-logo-img"
         />
       </figure>

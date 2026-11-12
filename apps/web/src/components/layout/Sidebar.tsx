@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
@@ -65,25 +66,28 @@ export function Sidebar({
             aria-label="Beranda Lintasarta"
             onClick={onClose}
           >
-            <img
+            <Image
               src="/assets/Lintasarta-Logo-Whitemode.svg"
               alt="Lintasarta"
               width={616}
               height={168}
+              loading="eager"
               className="brand-logo-img brand-logo-full brand-logo-light"
             />
-            <img
+            <Image
               src="/assets/Lintasarta-Logo-Darkmode.svg"
               alt="Lintasarta"
               width={616}
               height={168}
+              loading="eager"
               className="brand-logo-img brand-logo-full brand-logo-dark"
             />
-            <img
+            <Image
               src="/assets/Lintasarta-Icon.svg"
               alt="Lintasarta"
               width={112}
               height={112}
+              loading="eager"
               className="brand-logo-img brand-logo-icon"
             />
           </Link>

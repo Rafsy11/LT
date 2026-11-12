@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
 import { useLogin } from '../hooks/use-login';
 import '@/styles/features/auth.css';
@@ -45,11 +46,12 @@ export function LoginView() {
       <article className="auth-card">
         <header className="auth-header">
           <div className="auth-brand-bar">
-            <img
+            <Image
               src="/assets/Lintasarta-Icon.svg"
               alt="Lintasarta"
               width={112}
               height={112}
+              priority
               className="auth-brand-logo"
             />
           </div>

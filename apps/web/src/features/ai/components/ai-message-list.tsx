@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
 import { DraftActionCard } from './draft-action-card';
@@ -90,7 +91,7 @@ export function AiMessageList({
           >
             {m.role === 'assistant' && (
               <figure className="ai-msg-avatar-figure">
-                <img
+                <Image
                   src="/assets/Lintasarta-Icon.svg"
                   alt="AI Assistant"
                   width={112}
@@ -136,7 +137,7 @@ export function AiMessageList({
           style={{ display: 'flex', gap: '12px', width: '100%', justifyContent: 'flex-start' }}
         >
           <figure className="ai-msg-avatar-figure">
-            <img
+            <Image
               src="/assets/Lintasarta-Icon.svg"
               alt="AI Assistant"
               width={112}
