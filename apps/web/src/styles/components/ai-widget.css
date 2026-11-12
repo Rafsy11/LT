@@ -30,7 +30,7 @@
   border: 1px solid #e5dcef;
   box-shadow: 0 10px 50px rgba(53, 33, 71, 0.15);
   border-radius: 13px;
-  z-index: 70;
+  z-index: var(--z-floating-chat, 70);
   overflow: hidden;
   display: flex;
   flex-direction: column;

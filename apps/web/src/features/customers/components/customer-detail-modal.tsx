@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
+import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { classifyDbm, dbmTone, PERMISSIONS, type CustomerListItem } from '@repo/shared';
 import { useAuth, useToast } from '@/providers';
 import '@/styles/components/customer-modal.css';
@@ -65,15 +66,12 @@ export function CustomerDetailModal({
   const tone = dbmTone(customer.currentAttenuation);
 
   return (
-    <dialog className="overlay" open onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="customer-detail-title">
+    <ModalOverlay onClose={onClose} labelledBy="customer-detail-title">
       <article
         className="modal"
         style={{
           maxWidth: '760px',
           width: '100%',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -444,6 +442,6 @@ export function CustomerDetailModal({
           </button>
         </footer>
       </article>
-    </dialog>
+    </ModalOverlay>
   );
 }

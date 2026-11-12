@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
+import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { UserAccessItem } from '../hooks/use-roles';
 
 export interface TelegramGuideModalProps {
@@ -54,48 +55,16 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
   };
 
   return (
-    <dialog
-      className="overlay"
-      open
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="telegram-guide-title"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(15, 23, 42, 0.45)',
-        backdropFilter: 'blur(3px)',
-        display: 'grid',
-        placeItems: 'center',
-        zIndex: 999,
-        padding: '16px',
-        border: 'none',
-        width: '100%',
-        height: '100%',
-        maxWidth: 'none',
-        maxHeight: 'none',
-      }}
-      onClick={onClose}
-    >
+    <ModalOverlay onClose={onClose} labelledBy="telegram-guide-title">
       <article
         className="modal"
         style={{
-          borderRadius: '10px',
-          padding: '24px',
           width: '100%',
-          maxWidth: '480px',
-          boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.15)',
+          maxWidth: '500px',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <header
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px',
-          }}
-        >
+        <header className="panel-heading">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span
               style={{
@@ -119,171 +88,156 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
           </div>
           <button
             type="button"
+            className="dots"
             onClick={onClose}
             aria-label="Tutup modal"
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#94a3b8',
-              cursor: 'pointer',
-              padding: '2px',
-            }}
           >
             <Icon name="x" size={16} />
           </button>
         </header>
 
-        {/* User Identity Header Card */}
-        <section
-          aria-label="Target Operator"
-          className="modal-sub-card"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            padding: '12px 14px',
-            borderRadius: '8px',
-            marginBottom: '16px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <DefaultAvatar size={34} name={user.name} />
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '13px' }}>{user.name}</div>
-              <div
-                style={{
-                  fontSize: '11px',
-                  color: 'var(--color-text-muted)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  marginTop: '2px',
-                }}
-              >
-                <span className="role-user-nik-badge">NIK: {user.nik || 'Belum ada'}</span>
-                <span>•</span>
-                <span>{user.role}</span>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            {user.telegramChatId ? (
-              <span className="telegram-status-badge connected">Terhubung</span>
-            ) : (
-              <span className="telegram-status-badge pending">Menunggu NIK</span>
-            )}
-          </div>
-        </section>
-
-        {/* Status Content */}
-        {user.telegramChatId ? (
+        <div className="modal-body">
+          {/* User Identity Header Card */}
           <section
-            className="telegram-connected-box"
+            aria-label="Target Operator"
+            className="modal-sub-card"
             style={{
-              padding: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              padding: '12px 14px',
               borderRadius: '8px',
-              background: 'rgba(34, 197, 94, 0.08)',
-              border: '1px solid rgba(34, 197, 94, 0.25)',
-              marginBottom: '18px',
-              fontSize: '12px',
-              color: 'var(--color-success-text, #15803d)',
-            }}
-          >
-            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Icon name="check" size={14} />
-              Telegram 2FA Sudah Aktif
-            </div>
-            <p style={{ margin: '6px 0 0', fontSize: '11.5px', color: 'var(--color-success-text, #166534)', lineHeight: 1.5 }}>
-              Chat ID: <code style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{user.telegramChatId}</code>.
-              Kode OTP login resmi akan selalu dikirimkan ke akun Telegram ini. Jika karyawan mengganti akun Telegram, Anda dapat melepas ikatan di bawah.
-            </p>
-          </section>
-        ) : (
-          <div>
-            <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
-              Karyawan cukup mengirimkan NIK miliknya ke bot Telegram untuk verifikasi otomatis. Salin pesan instruksi berikut untuk dikirimkan via WhatsApp atau email internal:
-            </p>
-
-            <div
-              className="telegram-instruction-box"
-              style={{
-                position: 'relative',
-                background: 'var(--color-surface, #f8fafc)',
-                border: '1px solid var(--color-border)',
-                borderRadius: '8px',
-                padding: '12px 14px',
-                fontSize: '11.5px',
-                fontFamily: 'var(--font-mono)',
-                color: 'var(--color-text-body)',
-                whiteSpace: 'pre-wrap',
-                lineHeight: 1.6,
-                marginBottom: '16px',
-              }}
-            >
-              {instructionText}
-            </div>
-          </div>
-        )}
-
-        {/* Unlink Confirmation Panel */}
-        {confirmUnlink && (
-          <div
-            style={{
-              padding: '12px',
-              borderRadius: '8px',
-              background: 'var(--color-critical-bg, #fef2f2)',
-              border: '1px solid var(--color-critical-border, #fecaca)',
               marginBottom: '16px',
             }}
           >
-            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-critical-text, #991b1b)', marginBottom: '6px' }}>
-              Lepas ikatan Telegram 2FA {user.name}?
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <DefaultAvatar size={34} name={user.name} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '13px' }}>{user.name}</div>
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: 'var(--color-text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginTop: '2px',
+                  }}
+                >
+                  <span className="role-user-nik-badge">NIK: {user.nik || 'Belum ada'}</span>
+                  <span>•</span>
+                  <span>{user.role}</span>
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--color-critical-text, #7f1d1d)', marginBottom: '10px' }}>
-              Karyawan tidak akan menerima OTP sampai mendaftarkan kembali NIK melalui bot Telegram.
+
+            <div>
+              {user.telegramChatId ? (
+                <span className="telegram-status-badge connected">Terhubung</span>
+              ) : (
+                <span className="telegram-status-badge pending">Menunggu NIK</span>
+              )}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button
-                type="button"
-                className="button outline"
-                onClick={() => setConfirmUnlink(false)}
-                style={{ padding: '4px 10px', fontSize: '11.5px' }}
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={handleExecuteUnlink}
+          </section>
+
+          {/* Status Content */}
+          {user.telegramChatId ? (
+            <section
+              className="telegram-connected-box"
+              style={{
+                padding: '14px',
+                borderRadius: '8px',
+                background: 'rgba(34, 197, 94, 0.08)',
+                border: '1px solid rgba(34, 197, 94, 0.25)',
+                marginBottom: confirmUnlink ? '16px' : '0',
+                fontSize: '12px',
+                color: 'var(--color-success-text, #15803d)',
+              }}
+            >
+              <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Icon name="check" size={14} />
+                Telegram 2FA Sudah Aktif
+              </div>
+              <p style={{ margin: '6px 0 0', fontSize: '11.5px', color: 'var(--color-success-text, #166534)', lineHeight: 1.5 }}>
+                Chat ID: <code style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{user.telegramChatId}</code>.
+                Kode OTP login resmi akan selalu dikirimkan ke akun Telegram ini. Jika karyawan mengganti akun Telegram, Anda dapat melepas ikatan di bawah.
+              </p>
+            </section>
+          ) : (
+            <div>
+              <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
+                Karyawan cukup mengirimkan NIK miliknya ke bot Telegram untuk verifikasi otomatis. Salin pesan instruksi berikut untuk dikirimkan via WhatsApp atau email internal:
+              </p>
+
+              <div
+                className="telegram-instruction-box"
                 style={{
-                  padding: '4px 10px',
+                  position: 'relative',
+                  background: 'var(--color-surface, #f8fafc)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '8px',
+                  padding: '12px 14px',
                   fontSize: '11.5px',
-                  fontWeight: 600,
-                  borderRadius: '6px',
-                  background: '#dc2626',
-                  color: '#ffffff',
-                  border: 'none',
-                  cursor: 'pointer',
+                  fontFamily: 'var(--font-mono)',
+                  color: 'var(--color-text-body)',
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: 1.6,
                 }}
               >
-                Ya, Lepas Ikatan
-              </button>
+                {instructionText}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Unlink Confirmation Panel */}
+          {confirmUnlink && (
+            <div
+              style={{
+                padding: '12px',
+                borderRadius: '8px',
+                background: 'var(--color-critical-bg, #fef2f2)',
+                border: '1px solid var(--color-critical-border, #fecaca)',
+              }}
+            >
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-critical-text, #991b1b)', marginBottom: '6px' }}>
+                Lepas ikatan Telegram 2FA {user.name}?
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--color-critical-text, #7f1d1d)', marginBottom: '10px' }}>
+                Karyawan tidak akan menerima OTP sampai mendaftarkan kembali NIK melalui bot Telegram.
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="button outline"
+                  onClick={() => setConfirmUnlink(false)}
+                  style={{ padding: '4px 10px', fontSize: '11.5px' }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteUnlink}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    borderRadius: '6px',
+                    background: '#dc2626',
+                    color: '#ffffff',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Ya, Lepas Ikatan
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Modal Action Buttons */}
-        <footer
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '8px',
-            paddingTop: '14px',
-            borderTop: '1px solid #e2e8f0',
-          }}
-        >
+        <footer className="modal-footer" style={{ gap: '8px' }}>
           <div>
             {user.telegramChatId && !confirmUnlink && onUnlink && (
               <button
@@ -341,7 +295,7 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
           </div>
         </footer>
       </article>
-    </dialog>
+    </ModalOverlay>
   );
 }
 

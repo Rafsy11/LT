@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
+import { ModalOverlay } from '@/components/ui/modal-overlay';
 import type { TechnicianListItem } from '@repo/shared';
 
 interface TechnicianDetailModalProps {
@@ -29,7 +30,7 @@ export function TechnicianDetailModal({
   const isRevokedSession = technician.sessionStatus === 'REVOKED';
 
   return (
-    <dialog className="overlay" open onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="technician-modal-title">
+    <ModalOverlay onClose={onClose} labelledBy="technician-modal-title">
       <article
         className="modal"
         style={{ maxWidth: '760px', width: '100%' }}
@@ -400,6 +401,6 @@ export function TechnicianDetailModal({
           </button>
         </footer>
       </article>
-    </dialog>
+    </ModalOverlay>
   );
 }

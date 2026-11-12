@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import type { CreateCustomerInput } from '@repo/shared';
 import { Icon } from '@/components/ui/Icon';
+import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { useToast } from '@/providers';
 
 export interface CustomerFormModalProps {
@@ -109,14 +110,7 @@ export function CustomerFormModal({
   };
 
   return (
-    <dialog
-      className="overlay"
-      open
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="customer-form-modal-title"
-    >
+    <ModalOverlay onClose={onClose} labelledBy="customer-form-modal-title">
       <article
         className="modal"
         style={{ maxWidth: '540px', width: '100%' }}
@@ -238,7 +232,7 @@ export function CustomerFormModal({
           </footer>
         </form>
       </article>
-    </dialog>
+    </ModalOverlay>
   );
 }
 

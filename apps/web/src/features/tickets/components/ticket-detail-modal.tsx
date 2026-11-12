@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
+import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { useToast } from '@/providers';
 import { invalidateQueryCache } from '@/lib/query-cache';
 import '@/styles/components/ticket-modal.css';
@@ -200,7 +201,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
   };
 
   return (
-    <dialog className="overlay" open onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="ticket-modal-title">
+    <ModalOverlay onClose={onClose} labelledBy="ticket-modal-title">
       <article
         className="modal ticket-inspector-modal"
         style={{ maxWidth: '780px', width: '100%' }}
@@ -679,6 +680,6 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
           </footer>
         </div>
       </article>
-    </dialog>
+    </ModalOverlay>
   );
 }

@@ -23,6 +23,7 @@ main > *,
   width: 100%;
   min-width: 0;
   position: relative;
+  isolation: isolate;
   overflow-x: clip;
 }
 
@@ -44,7 +45,7 @@ main > *,
   left: 0;
   top: 0;
   bottom: 0;
-  z-index: 50;
+  z-index: var(--z-sidebar-mobile, 50);
   transform: translateX(-100%);
   overflow-y: auto;
 }
@@ -61,7 +62,7 @@ main > *,
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
-  z-index: 40;
+  z-index: var(--z-sidebar-backdrop, 48);
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
@@ -354,7 +355,7 @@ main > *,
 .app-global-header {
   height: 56px;
   background: #ffffff;
-  border-bottom: 1px solid rgba(186, 222, 253, 0.72);
+  border-bottom: 1px solid #b6defc;
   box-shadow: 0 4px 20px rgba(14, 91, 146, 0.04),
     inset 0 -1px 0 rgba(255, 255, 255, 0.65);
   display: flex;
@@ -364,7 +365,7 @@ main > *,
   padding: 0 12px;
   position: sticky;
   top: 0;
-  z-index: 40;
+  z-index: var(--z-header, 40);
   width: 100%;
   min-width: 0;
 }
@@ -635,7 +636,7 @@ footer {
     width: 250px;
     transform: none;
     box-shadow: none;
-    z-index: 20;
+    z-index: var(--z-sidebar-desktop, 20);
     padding: 20px 12px 28px;
   }
 
@@ -665,7 +666,7 @@ footer {
     border-radius: 9999px;
     color: #475569;
     cursor: pointer;
-    z-index: 45;
+    z-index: var(--z-sidebar-toggle, 45);
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
   }
 
@@ -823,7 +824,7 @@ footer > span:last-child {
   position: absolute;
   right: 0;
   top: calc(100% + 10px);
-  z-index: 95;
+  z-index: var(--z-header-popover, 100);
   width: 320px;
   background: #ffffff;
   padding: 16px 18px;
@@ -1056,11 +1057,6 @@ footer > span:last-child {
 .sidebar.collapsed .sidebar-floating-ai-btn {
   width: 42px;
   height: 42px;
-}
-
-.main > *:not(.page-fixed-backdrop):not(.app-global-header) {
-  position: relative;
-  z-index: 1;
 }
 
 main {
@@ -1449,7 +1445,7 @@ html.dark .ai-tag,
   box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12),
     0 8px 10px -6px rgba(15, 23, 42, 0.08);
   padding: 4px;
-  z-index: 100;
+  z-index: var(--z-header-popover, 100);
   display: flex;
   flex-direction: column;
   gap: 2px;

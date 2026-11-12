@@ -40,6 +40,18 @@
   --ease-snappy: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 150ms;
   --duration-base: 250ms;
+  --z-backdrop: -1;
+  --z-local-hud: 2;
+  --z-sidebar-desktop: 20;
+  --z-page-dropdown: 35;
+  --z-header: 40;
+  --z-sidebar-toggle: 45;
+  --z-sidebar-backdrop: 48;
+  --z-sidebar-mobile: 50;
+  --z-floating-chat: 70;
+  --z-header-popover: 100;
+  --z-modal-overlay: 1000;
+  --z-toast: 9999;
   font-family: var(--font-sans);
   color: var(--color-text-body);
   background: var(--color-surface);
@@ -234,7 +246,7 @@ button:disabled {
   display: flex;
   flex-direction: column-reverse;
   gap: 10px;
-  z-index: 9999;
+  z-index: var(--z-toast, 9999);
   max-width: 440px;
   width: calc(100% - 48px);
   pointer-events: none;

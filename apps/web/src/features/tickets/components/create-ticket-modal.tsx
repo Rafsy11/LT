@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import type { CreateTicketInput } from '@repo/shared';
+import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { useToast, useAuth } from '@/providers';
 
 export interface CreateTicketModalProps {
@@ -68,7 +69,7 @@ export function CreateTicketModal({
   };
 
   return (
-    <dialog className="overlay" open onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="create-ticket-modal-title">
+    <ModalOverlay onClose={onClose} labelledBy="create-ticket-modal-title">
       <article className="modal" onClick={(e) => e.stopPropagation()}>
         <header className="panel-heading">
           <h2 id="create-ticket-modal-title">Buat tiket baru</h2>
@@ -163,6 +164,6 @@ export function CreateTicketModal({
           </button>
         </form>
       </article>
-    </dialog>
+    </ModalOverlay>
   );
 }

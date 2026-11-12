@@ -7,6 +7,7 @@ import type {
   UpdateSplitterInput,
 } from '@repo/shared';
 import { Icon } from '@/components/ui/Icon';
+import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { useToast } from '@/providers';
 
 export type NetworkEntityModalMode = 'CREATE_CLUSTER' | 'CREATE_SPLITTER' | 'EDIT_SPLITTER';
@@ -157,14 +158,7 @@ export function NetworkEntityModal({
   };
 
   return (
-    <dialog
-      className="overlay"
-      open
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="network-entity-modal-title"
-    >
+    <ModalOverlay onClose={onClose} labelledBy="network-entity-modal-title">
       <article
         className="modal"
         style={{ maxWidth: '520px', width: '100%' }}
@@ -342,6 +336,6 @@ export function NetworkEntityModal({
           </footer>
         </form>
       </article>
-    </dialog>
+    </ModalOverlay>
   );
 }
