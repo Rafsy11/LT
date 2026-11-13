@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
-import { useToast } from '@/providers';
+import { useToast, useAuth } from '@/providers';
 import { invalidateQueryCache } from '@/lib/query-cache';
+import type { TechnicianListItem } from '@repo/shared';
 import '@/styles/components/ticket-modal.css';
 
 const TICKET_MUTATION_CACHE_KEYS = [
@@ -14,6 +15,7 @@ const TICKET_MUTATION_CACHE_KEYS = [
   '/api/v1/admin/overview',
   '/api/v1/admin/customers',
   '/api/v1/admin/clusters',
+  '/api/v1/tech/tickets',
 ];
 
 export interface TicketModalData {
@@ -24,9 +26,20 @@ export interface TicketModalData {
   ticketType: string;
   cluster: string;
   assignedTech: string;
+  assignedTechUsername?: string;
+  vendorName?: string;
   techInitials?: string;
   status: string;
   currentAttenuation: number;
+  complaintSummary?: string;
+  customerPhone?: string;
+  serviceAddress?: string;
+  locationPlace?: string;
+  targetLat?: number;
+  targetLng?: number;
+  dispatchedAt?: string;
+  startedAt?: string;
+  rejectionReason?: string;
   adminNotes?: string;
   createdAt?: string;
   completedAt?: string;
@@ -57,7 +70,42 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [loadedPhotoKey, setLoadedPhotoKey] = useState<string | null>(null);
 
+  const [showDispatchEdit, setShowDispatchEdit] = useState(false);
+  const [vendors, setVendors] = useState<TechnicianListItem[]>([]);
+  const [editTechUsername, setEditTechUsername] = useState('');
+  const [editVendorName, setEditVendorName] = useState('');
+  const [editLocationPlace, setEditLocationPlace] = useState('');
+  const [editServiceAddress, setEditServiceAddress] = useState('');
+  const [editTargetLat, setEditTargetLat] = useState('');
+  const [editTargetLng, setEditTargetLng] = useState('');
+
   const { showSuccess, showError } = useToast();
+  const { canCreateTicket } = useAuth();
+
+  useEffect(() => {
+    if (!ticket) return;
+    setShowDispatchEdit(false);
+    setShowRejectInput(false);
+    setEditTechUsername(
+      ticket.assignedTechUsername || ticket.assignedTech.toLowerCase().replace(/\s+/g, '.'),
+    );
+    setEditVendorName(ticket.vendorName || '');
+    setEditLocationPlace(ticket.locationPlace || '');
+    setEditServiceAddress(ticket.serviceAddress || '');
+    setEditTargetLat(typeof ticket.targetLat === 'number' ? String(ticket.targetLat) : '');
+    setEditTargetLng(typeof ticket.targetLng === 'number' ? String(ticket.targetLng) : '');
+
+    if (canCreateTicket) {
+      fetch('/api/v1/admin/technicians')
+        .then((r) => r.json())
+        .then((json) => {
+          if (json?.success && Array.isArray(json.data)) {
+            setVendors(json.data as TechnicianListItem[]);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [ticket, canCreateTicket]);
 
   if (!ticket) return null;
 
@@ -200,6 +248,52 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
     }
   };
 
+  const handleSaveDispatch = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    try {
+      setIsSubmitting(true);
+      const latNum = editTargetLat.trim() !== '' ? Number(editTargetLat) : undefined;
+      const lngNum = editTargetLng.trim() !== '' ? Number(editTargetLng) : undefined;
+      const res = await fetch(`/api/v1/admin/tickets/${ticket.id}/dispatch`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedTechUsername: editTechUsername || undefined,
+          vendorName: editVendorName.trim() || undefined,
+          locationPlace: editLocationPlace.trim() || undefined,
+          serviceAddress: editServiceAddress.trim() || undefined,
+          targetLat: latNum !== undefined && !Number.isNaN(latNum) ? latNum : undefined,
+          targetLng: lngNum !== undefined && !Number.isNaN(lngNum) ? lngNum : undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error?.message || 'Gagal memperbarui disposisi vendor');
+      }
+      showSuccess(json.meta?.message || 'Disposisi vendor & titik lokasi berhasil diperbarui.');
+      invalidateQueryCache(...TICKET_MUTATION_CACHE_KEYS);
+      setShowDispatchEdit(false);
+      if (onTicketUpdated) onTicketUpdated();
+      onClose();
+    } catch (err: unknown) {
+      showError(err instanceof Error ? err.message : 'Gagal memperbarui disposisi');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCopyCoords = () => {
+    if (ticket.targetLat === undefined || ticket.targetLng === undefined) return;
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      void navigator.clipboard.writeText(`${ticket.targetLat}, ${ticket.targetLng}`);
+      showSuccess('Titik koordinat berhasil disalin ke clipboard.');
+    }
+  };
+
+  const hasCoords =
+    typeof ticket.targetLat === 'number' && typeof ticket.targetLng === 'number';
+  const currentStep = isCompleted ? 4 : isPendingApproval ? 3 : isInProgress ? 2 : 1;
+
   return (
     <ModalOverlay onClose={onClose} labelledBy="ticket-modal-title">
       <article
@@ -212,8 +306,8 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
             <span className="ticket-number-tag">{ticket.ticketNumber}</span>
             <h2 id="ticket-modal-title" className="ticket-modal-title">
               {isPendingApproval
-                ? 'Verifikasi & Persetujuan Super Admin'
-                : 'Rincian Work Order Lapangan'}
+                ? 'Verifikasi & Persetujuan Pusat Lintasarta'
+                : 'Rincian Work Order & Disposisi Vendor'}
             </h2>
           </div>
           <button className="dots" onClick={onClose} aria-label="Tutup modal" type="button">
@@ -222,6 +316,182 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
         </header>
 
         <div className="modal-body" style={{ padding: '16px 20px 24px' }}>
+          {/* 4-Step End-to-End Operational Tracker */}
+          <div className="ticket-stepper" aria-label="Tahap Alur Kerja">
+            {[
+              { step: 1, title: 'Aduan & Disposisi' },
+              { step: 2, title: 'Vendor Eksekusi' },
+              { step: 3, title: 'Laporan Masuk' },
+              { step: 4, title: 'Verifikasi Pusat' },
+            ].map((item) => {
+              const stateCls =
+                item.step < currentStep || (currentStep === 4 && item.step === 4)
+                  ? 'done'
+                  : item.step === currentStep
+                    ? 'active'
+                    : '';
+              return (
+                <div key={item.step} className={`ticket-step-item ${stateCls}`}>
+                  <span className="ticket-step-num">Tahap {item.step}</span>
+                  <span className="ticket-step-label">{item.title}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {ticket.rejectionReason && isInProgress && (
+            <aside className="ticket-rejection-alert" role="alert">
+              <strong>Revisi Diperlukan (Penolakan Pusat Sebelumnya):</strong>{' '}
+              {ticket.rejectionReason}
+            </aside>
+          )}
+
+          {/* Customer Complaint, Location Place & Coordinates */}
+          <section className="ticket-location-card" aria-label="Lokasi & Aduan Pelanggan">
+            <div className="ticket-location-head">
+              <div>
+                <span className="inspector-field-label">Tempat &amp; Alamat Lokasi Tugas</span>
+                <div style={{ fontWeight: 700, fontSize: '13.5px', marginTop: '2px' }}>
+                  {ticket.locationPlace || ticket.customerName}
+                </div>
+                <div className="ticket-location-address">
+                  {ticket.serviceAddress || `Cluster ${ticket.cluster}`}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {hasCoords && (
+                  <>
+                    <a
+                      href={`https://maps.google.com/?q=${ticket.targetLat},${ticket.targetLng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="button secondary modal-link-btn"
+                      style={{ padding: '6px 10px', fontSize: '11.5px' }}
+                    >
+                      <Icon name="mapPin" size={13} />
+                      <span>
+                        Maps ({ticket.targetLat!.toFixed(5)}, {ticket.targetLng!.toFixed(5)})
+                      </span>
+                    </a>
+                    <button
+                      type="button"
+                      className="button secondary modal-link-btn"
+                      style={{ padding: '6px 10px', fontSize: '11.5px' }}
+                      onClick={handleCopyCoords}
+                    >
+                      Salin Titik
+                    </button>
+                  </>
+                )}
+
+                {canCreateTicket && (isPending || isInProgress) && (
+                  <button
+                    type="button"
+                    className="button secondary modal-link-btn"
+                    style={{ padding: '6px 10px', fontSize: '11.5px' }}
+                    onClick={() => setShowDispatchEdit((prev) => !prev)}
+                  >
+                    <Icon name="wrench" size={13} />
+                    <span>{showDispatchEdit ? 'Batal Ubah' : 'Ubah Disposisi'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {ticket.complaintSummary && (
+              <div style={{ fontSize: '12px', lineHeight: 1.45, paddingTop: '4px' }}>
+                <strong>Aduan / Permintaan Pelanggan:</strong> {ticket.complaintSummary}
+              </div>
+            )}
+
+            {showDispatchEdit && (
+              <form className="ticket-dispatch-edit-box" onSubmit={handleSaveDispatch}>
+                <div className="ticket-form-grid">
+                  <label>
+                    Vendor / Teknisi Pelaksana
+                    <select
+                      value={editTechUsername}
+                      onChange={(e) => {
+                        const uname = e.target.value;
+                        setEditTechUsername(uname);
+                        const match = vendors.find((v) => v.username === uname);
+                        if (match?.vendorCompany) {
+                          setEditVendorName(match.vendorCompany);
+                        }
+                      }}
+                    >
+                      {vendors.length > 0 ? (
+                        vendors.map((v) => (
+                          <option key={v.id} value={v.username}>
+                            {v.fullName} — {v.vendorCompany || 'Vendor Lapangan'}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="andi.pratama">Andi Pratama — PT Mitra Fiber Nusantara</option>
+                          <option value="rizky.maulana">Rizky Maulana — PT Sarana Optik Bandung</option>
+                          <option value="fajar.hidayat">Fajar Hidayat — PT Mitra Fiber Nusantara</option>
+                          <option value="agus.setiawan">Agus Setiawan — PT Sarana Optik Bandung</option>
+                        </>
+                      )}
+                    </select>
+                  </label>
+                  <label>
+                    Nama Perusahaan Vendor
+                    <input
+                      value={editVendorName}
+                      onChange={(e) => setEditVendorName(e.target.value)}
+                      placeholder="PT / CV Vendor"
+                    />
+                  </label>
+                  <label>
+                    Nama Tempat / Patokan
+                    <input
+                      value={editLocationPlace}
+                      onChange={(e) => setEditLocationPlace(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Alamat Lokasi
+                    <input
+                      value={editServiceAddress}
+                      onChange={(e) => setEditServiceAddress(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Latitude Target
+                    <input
+                      type="number"
+                      step="any"
+                      value={editTargetLat}
+                      onChange={(e) => setEditTargetLat(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Longitude Target
+                    <input
+                      type="number"
+                      step="any"
+                      value={editTargetLng}
+                      onChange={(e) => setEditTargetLng(e.target.value)}
+                    />
+                  </label>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                  <button
+                    type="submit"
+                    className="button primary"
+                    disabled={isSubmitting}
+                    style={{ width: 'auto', marginTop: 0, padding: '8px 16px', fontSize: '12px' }}
+                  >
+                    {isSubmitting ? 'Menyimpan...' : 'Simpan & Kirim Notif ke Vendor'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+
           {/* Status Workflow Banners without Cliché AI Icons */}
           {isPending && (
             <div className="ticket-workflow-banner pending">
@@ -234,11 +504,11 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                     fontSize: '12.5px',
                   }}
                 >
-                  Status: Menunggu Respon Teknisi
+                  Status: Menunggu Konfirmasi Vendor di Lokasi
                 </div>
                 <div style={{ fontSize: '11.5px', color: '#78350f', lineHeight: 1.4 }}>
-                  Tiket penugasan telah diteruskan ke perangkat mobile teknisi terkait dan menunggu
-                  konfirmasi keberangkatan ke lokasi fisik.
+                  Penugasan beserta alamat dan titik lokasi telah dikirim ke Vendor via Portal Web,
+                  Aplikasi Mobile, dan Bot Telegram.
                 </div>
               </div>
             </div>
@@ -255,11 +525,11 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                     fontSize: '12.5px',
                   }}
                 >
-                  Pekerjaan Sedang Berlangsung di Lapangan
+                  Vendor Sedang Mengeksekusi di Lokasi Pelanggan
                 </div>
                 <div style={{ fontSize: '11.5px', color: '#1e3a8a', lineHeight: 1.4 }}>
-                  Sesuai PRD 3.2 & 3.3, penyelesaian tiket dilaporkan langsung oleh teknisi melalui
-                  aplikasi mobile dengan foto OPM dan validasi GPS sebelum diverifikasi Super Admin.
+                  Vendor dapat mengirimkan laporan terbaru beserta bukti foto OPM dan lokasi melalui
+                  Portal Web Vendor (/vendor), Mobile App, atau Bot Telegram (/lapor).
                 </div>
               </div>
             </div>
@@ -269,12 +539,12 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
             <div className="ticket-approval-callout">
               <div className="ticket-approval-content">
                 <div className="ticket-approval-title">
-                  Laporan Menunggu Persetujuan Super Admin
+                  Laporan Vendor Menunggu Persetujuan Pusat Lintasarta
                 </div>
                 <div className="ticket-approval-desc">
-                  Teknisi telah mengirimkan data hasil ukur redaman dan alokasi port. Sesuai aturan
-                  Master Data, data ini <strong>tidak dapat langsung masuk</strong> ke sistem
-                  sebelum diperiksa dan disetujui (Accepted) oleh Super Admin.
+                  Vendor telah mengirimkan hasil ukur redaman dan port splitter terbaru. Data belum
+                  memperbarui Master Pelanggan sebelum diverifikasi dan disetujui (Accepted) oleh
+                  Pusat Lintasarta.
                 </div>
               </div>
             </div>
@@ -291,11 +561,17 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                     fontSize: '12.5px',
                   }}
                 >
-                  Work Order Telah Selesai & Terverifikasi
+                  Work Order Telah Selesai &amp; Terverifikasi
                 </div>
-                <div style={{ fontSize: '11.5px', color: 'var(--color-success-text, #14532d)', lineHeight: 1.4 }}>
-                  Laporan redaman telah disetujui oleh Super Admin dan tercatat secara permanen di{' '}
-                  <code>attenuation_histories</code>.
+                <div
+                  style={{
+                    fontSize: '11.5px',
+                    color: 'var(--color-success-text, #14532d)',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Laporan redaman telah disetujui oleh Pusat Lintasarta dan tercatat secara permanen
+                  pada riwayat jaringan.
                 </div>
               </div>
             </div>
@@ -315,11 +591,11 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
               >
                 <div>
                   <div className="ticket-admin-sim-title">
-                    Alur Persetujuan Data Lapangan (Super Admin)
+                    Simulasi Pengiriman Laporan Lapangan
                   </div>
                   <div className="ticket-admin-sim-desc">
-                    Simulasikan kiriman data terbaru dari mobile app ({ticket.assignedTech}) untuk
-                    menguji alur verifikasi.
+                    Simulasikan kiriman data terbaru dari vendor ({ticket.assignedTech}) untuk
+                    menguji alur verifikasi Pusat.
                   </div>
                 </div>
                 <button
@@ -328,7 +604,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                   disabled={isSubmitting}
                   onClick={handleSimulateMobileSubmission}
                 >
-                  {isSubmitting ? 'Mengirim...' : 'Kirim Laporan Lapangan (Mobile)'}
+                  {isSubmitting ? 'Mengirim...' : 'Simulasi Kirim Laporan'}
                 </button>
               </div>
             </div>
@@ -339,7 +615,15 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
             <div className="ticket-review-card">
               <div className="ticket-review-header">
                 <span className="ticket-review-dot" />
-                <span>Data yang Diajukan oleh Teknisi ({ticket.assignedTech})</span>
+                <span>
+                  Laporan Terbaru oleh {ticket.assignedTech}
+                  {ticket.vendorName ? ` (${ticket.vendorName})` : ''}
+                </span>
+                {pendingData?.channel && (
+                  <span className="ticket-channel-badge" style={{ marginLeft: 'auto' }}>
+                    Via {pendingData.channel}
+                  </span>
+                )}
               </div>
 
               <div className="ticket-pending-summary-card">
@@ -531,8 +815,16 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
             </div>
 
             <div className="inspector-field">
-              <span className="inspector-field-label">Teknisi Ditugaskan</span>
-              <span className="inspector-field-value">{ticket.assignedTech}</span>
+              <span className="inspector-field-label">Vendor / Teknisi Lapangan</span>
+              <span className="inspector-field-value">
+                {ticket.assignedTech}
+                {ticket.vendorName ? ` (${ticket.vendorName})` : ''}
+              </span>
+            </div>
+
+            <div className="inspector-field">
+              <span className="inspector-field-label">Kontak Pelanggan</span>
+              <span className="inspector-field-value">{ticket.customerPhone || '-'}</span>
             </div>
 
             <div className="inspector-field">

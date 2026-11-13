@@ -206,6 +206,7 @@ export function TicketSubmitScreen({
         isMockLocation: activeLocation.isMockLocation,
         clientRecordedAt: recordedAt,
         technicianNotes: technicianNotes.trim() || undefined,
+        channel: 'MOBILE',
       };
 
       // Direct Online Attempt
@@ -289,6 +290,24 @@ export function TicketSubmitScreen({
     }
   };
 
+  const handleStartExecution = useCallback(async () => {
+    setErrorMessage(null);
+    const res = await apiClient.request<unknown>(`/api/v1/tech/tickets/${ticket.id}/start`, {
+      method: 'POST',
+      body: JSON.stringify({
+        channel: 'MOBILE',
+        checkInLat: locationResult?.latitude,
+        checkInLng: locationResult?.longitude,
+      }),
+    });
+    if (!res.success) {
+      const msg = res.error.message || 'Gagal memulai eksekusi lapangan.';
+      setErrorMessage(msg);
+      throw new Error(msg);
+    }
+    return res.data;
+  }, [apiClient, locationResult?.latitude, locationResult?.longitude, ticket.id]);
+
   // 3. Outdoor UX Tokens
   const dbmStatus = classifyDbm(attenuationInput);
   const outdoorTokens =
@@ -303,6 +322,16 @@ export function TicketSubmitScreen({
       isPsb,
       isMaintenance,
       customerStatus: isPsb ? 'PENDING_INSTALL' : 'ACTIVE',
+      dispatchLocation: {
+        vendorName: ticket.vendorName || null,
+        complaintSummary: ticket.complaintSummary || null,
+        customerPhone: ticket.customerPhone || null,
+        locationPlace: ticket.locationPlace || null,
+        serviceAddress: ticket.serviceAddress || ticket.customer.address,
+        targetLat: ticket.targetLat ?? ticket.customer.lat,
+        targetLng: ticket.targetLng ?? ticket.customer.lng,
+        rejectionReason: ticket.rejectionReason || null,
+      },
       // Maintenance read-only attributes
       maintenanceReadOnly: isMaintenance
         ? {
@@ -358,6 +387,7 @@ export function TicketSubmitScreen({
       },
       handlePhotoCaptured,
       verifyLocation: handleVerifyLocation,
+      startExecution: handleStartExecution,
       submit: handleSubmit,
       cancel: onCancel,
     },

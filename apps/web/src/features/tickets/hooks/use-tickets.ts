@@ -1,33 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { CreateTicketInput, DbTicketPendingSubmission } from '@repo/shared';
+import type { CreateTicketInput, DbTicket } from '@repo/shared';
 import { useAuth, useToast } from '@/providers';
 import { fetchWithCache, getCachedData, invalidateQueryCache } from '@/lib/query-cache';
 
 const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
 const OVERVIEW_CACHE_KEY = '/api/v1/admin/overview';
 
-export interface TicketItem {
-  id: string;
-  ticketNumber: string;
-  customerName: string;
-  siaNumber: string;
-  ticketType: string;
-  cluster: string;
-  assignedTech: string;
-  techInitials: string;
-  status: 'Menunggu' | 'Dalam proses' | 'Menunggu verifikasi' | 'Selesai' | 'Dibatalkan';
-  currentAttenuation: number;
-  adminNotes?: string;
-  createdAt: string;
-  completedAt?: string;
-  splitterCode?: string;
-  portNumber?: number;
-  distanceToSplitterM?: number;
-  isLocationFlagged?: boolean;
-  pendingSubmission?: DbTicketPendingSubmission;
-}
+export type TicketItem = DbTicket;
 
 export function useTickets() {
   const [tab, setTab] = useState('Semua');
@@ -129,7 +110,10 @@ export function useTickets() {
       r.customerName.toLowerCase().includes(search.toLowerCase()) ||
       r.ticketNumber.toLowerCase().includes(search.toLowerCase()) ||
       r.siaNumber.toLowerCase().includes(search.toLowerCase()) ||
-      r.assignedTech.toLowerCase().includes(search.toLowerCase());
+      r.assignedTech.toLowerCase().includes(search.toLowerCase()) ||
+      (r.vendorName || '').toLowerCase().includes(search.toLowerCase()) ||
+      (r.locationPlace || '').toLowerCase().includes(search.toLowerCase()) ||
+      (r.serviceAddress || '').toLowerCase().includes(search.toLowerCase());
     return matchesCluster && matchesType && matchesSearch;
   });
 

@@ -11,11 +11,41 @@ export const createTicketSchema = z.object({
   customerName: z.string().trim().min(2, 'Nama pelanggan minimal 2 karakter').max(100),
   siaNumber: z.string().trim().min(3, 'Nomor SIA minimal 3 karakter').max(30),
   clusterCode: z.string().trim().min(2, 'Cluster wajib dipilih'),
-  assignedTechUsername: z.string().trim().min(2, 'Teknisi wajib ditugaskan'),
+  assignedTechUsername: z.string().trim().min(2, 'Vendor / teknisi wajib ditugaskan'),
+  vendorName: z.string().trim().max(120).optional(),
+  complaintSummary: z.string().trim().max(1000).optional(),
+  customerPhone: z.string().trim().max(30).optional(),
+  serviceAddress: z.string().trim().max(300).optional(),
+  locationPlace: z.string().trim().max(160).optional(),
+  targetLat: z.coerce.number().min(-90, 'Latitude tidak valid').max(90, 'Latitude tidak valid').optional(),
+  targetLng: z.coerce.number().min(-180, 'Longitude tidak valid').max(180, 'Longitude tidak valid').optional(),
   adminNotes: z.string().max(500).optional(),
 });
 
 export type CreateTicketInput = z.infer<typeof createTicketSchema>;
+
+export const startTicketExecutionSchema = z.object({
+  notes: z.string().trim().max(500).optional(),
+  checkInLat: z.coerce.number().min(-90).max(90).optional(),
+  checkInLng: z.coerce.number().min(-180).max(180).optional(),
+  channel: z.enum(['WEB', 'MOBILE', 'TELEGRAM']).default('WEB'),
+});
+
+export type StartTicketExecutionInput = z.infer<typeof startTicketExecutionSchema>;
+
+export const dispatchTicketSchema = z.object({
+  assignedTechUsername: z.string().trim().min(2).optional(),
+  vendorName: z.string().trim().max(120).optional(),
+  complaintSummary: z.string().trim().max(1000).optional(),
+  customerPhone: z.string().trim().max(30).optional(),
+  serviceAddress: z.string().trim().max(300).optional(),
+  locationPlace: z.string().trim().max(160).optional(),
+  targetLat: z.coerce.number().min(-90).max(90).optional(),
+  targetLng: z.coerce.number().min(-180).max(180).optional(),
+  adminNotes: z.string().max(500).optional(),
+});
+
+export type DispatchTicketInput = z.infer<typeof dispatchTicketSchema>;
 
 // ==========================================
 // SUBMIT TICKET (Field Technician Work Order Submission)
@@ -39,6 +69,7 @@ export const submitTicketSchema = z.object({
   accuracyMeters: z.number().positive().optional(),
   clientRecordedAt: z.string().datetime().optional(),
   technicianNotes: z.string().max(1000).optional(),
+  channel: z.enum(['WEB', 'MOBILE', 'TELEGRAM']).optional(),
 });
 
 export type SubmitTicketInput = z.infer<typeof submitTicketSchema>;

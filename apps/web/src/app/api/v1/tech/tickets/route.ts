@@ -1,53 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
-import { redisManager } from '@/server/lib/redis';
-import { TicketService } from '@/server/services/ticket.service';
+import { TicketService, DbTicketPendingSubmission } from '@/server/services/ticket.service';
 import { NetworkService } from '@/server/services/network.service';
-import { ERROR_CODES } from '@repo/shared';
+import {
+  resolveTechActor,
+  normalizeTechUsernameAlias,
+  handleTechRouteError,
+} from '@/server/lib/tech-auth';
 
 export async function GET(request: NextRequest) {
   try {
-    // 1. Instant Force Logout Check via Redis (Task 2 & Law 4)
-    const deviceId = request.headers.get('x-device-id');
-    if (deviceId) {
-      const isBlacklisted = await redisManager.isSessionBlacklisted(deviceId);
-      if (isBlacklisted) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: {
-              code: ERROR_CODES.SESSION_REVOKED,
-              message:
-                'Sesi perangkat Anda telah dicabut oleh Administrator (Force Logout). Silakan login kembali.',
-            },
-          },
-          { status: 401 },
-        );
-      }
-    }
-
-    const userId = request.headers.get('x-user-id');
-    const username = request.headers.get('x-username');
+    const actor = await resolveTechActor(request);
     const searchParams = request.nextUrl.searchParams;
     const queryTech = searchParams.get('tech');
+    const isSuperAdminViewer = actor.userType === 'SUPER_ADMIN' && !queryTech;
 
     const dbOnline = await isDatabaseAvailable();
 
-    // 2. Resolve technician user
+    // 2. Resolve target technician user (strictly bound to actor unless SUPER_ADMIN views all)
     let techUser = null;
-    if (dbOnline) {
+    if (dbOnline && !isSuperAdminViewer) {
       try {
-        if (userId) {
+        if (actor.userId) {
           techUser = await prisma.user.findUnique({
-            where: { id: userId },
+            where: { id: actor.userId },
             include: { role: true },
           });
-        } else if (username) {
+        }
+        if (!techUser && actor.canonicalUsername) {
           techUser = await prisma.user.findUnique({
-            where: { username },
+            where: { username: actor.canonicalUsername },
             include: { role: true },
           });
-        } else if (queryTech) {
+        }
+        if (!techUser && queryTech) {
           techUser = await prisma.user.findFirst({
             where: {
               OR: [{ username: queryTech }, { fullName: { contains: queryTech, mode: 'insensitive' } }],
@@ -65,9 +51,19 @@ export async function GET(request: NextRequest) {
       ticketNumber: string;
       ticketType: string;
       status: string;
+      vendorName: string | null;
+      complaintSummary: string | null;
+      customerPhone: string | null;
+      serviceAddress: string;
+      locationPlace: string | null;
+      targetLat: number | null;
+      targetLng: number | null;
       adminNotes: string | null;
+      rejectionReason: string | null;
       assignedAt: string | null;
+      startedAt: string | null;
       createdAt: string;
+      pendingSubmission: DbTicketPendingSubmission | null;
       customer: {
         id: string;
         siaNumber: string;
@@ -84,17 +80,18 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // 3. Fetch active assigned tickets from Prisma DB
+    // 3. Fetch active & pending approval assigned tickets from Prisma DB
     let activeTickets: MobileTicketDto[] = [];
 
-    if (techUser && (await isDatabaseAvailable())) {
+    if ((techUser || isSuperAdminViewer) && (await isDatabaseAvailable())) {
       try {
         const tickets = await prisma.ticket.findMany({
           where: {
-            assignedTechId: techUser.id,
-            status: { in: ['OPEN', 'IN_PROGRESS'] },
+            ...(techUser ? { assignedTechId: techUser.id } : {}),
+            status: { in: ['OPEN', 'IN_PROGRESS', 'PENDING_APPROVAL'] },
           },
           include: {
+            assignedTech: true,
             customer: {
               include: {
                 cluster: true,
@@ -115,21 +112,56 @@ export async function GET(request: NextRequest) {
           const curAtt = t.customer.currentAttenuation
             ? Number(t.customer.currentAttenuation)
             : null;
+          const pendingSubmission =
+            t.pendingPayload && typeof t.pendingPayload === 'object'
+              ? (t.pendingPayload as unknown as DbTicketPendingSubmission)
+              : null;
+
           return {
             id: t.id,
             ticketNumber: t.ticketNumber,
             ticketType: t.ticketType,
             status: t.status,
+            vendorName: t.vendorName || t.assignedTech?.vendorCompany || null,
+            complaintSummary: t.complaintSummary || null,
+            customerPhone: t.customerPhone || null,
+            serviceAddress: t.serviceAddress || t.customer.address,
+            locationPlace: t.locationPlace || null,
+            targetLat:
+              t.targetLat !== null && t.targetLat !== undefined
+                ? Number(t.targetLat)
+                : t.customer.lat !== null && t.customer.lat !== undefined
+                  ? Number(t.customer.lat)
+                  : null,
+            targetLng:
+              t.targetLng !== null && t.targetLng !== undefined
+                ? Number(t.targetLng)
+                : t.customer.lng !== null && t.customer.lng !== undefined
+                  ? Number(t.customer.lng)
+                  : null,
             adminNotes: t.adminNotes,
-            assignedAt: t.assignedAt?.toISOString() || null,
+            rejectionReason: t.rejectionReason || null,
+            assignedAt: (t.dispatchedAt || t.assignedAt)?.toISOString() || null,
+            startedAt: t.startedAt?.toISOString() || null,
             createdAt: t.createdAt.toISOString(),
+            pendingSubmission,
             customer: {
               id: t.customer.id,
               siaNumber: t.customer.siaNumber,
               fullName: t.customer.fullName,
-              address: t.customer.address,
-              lat: t.customer.lat ? Number(t.customer.lat) : null,
-              lng: t.customer.lng ? Number(t.customer.lng) : null,
+              address: t.serviceAddress || t.customer.address,
+              lat:
+                t.targetLat !== null && t.targetLat !== undefined
+                  ? Number(t.targetLat)
+                  : t.customer.lat
+                    ? Number(t.customer.lat)
+                    : null,
+              lng:
+                t.targetLng !== null && t.targetLng !== undefined
+                  ? Number(t.targetLng)
+                  : t.customer.lng
+                    ? Number(t.customer.lng)
+                    : null,
               currentAttenuation: curAtt,
               attenuationHistory: hist.length > 0 ? hist : curAtt !== null ? [curAtt] : [],
               clusterName: t.customer.cluster?.name || 'Cluster',
@@ -144,39 +176,68 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fallback if DB empty or during mock dev
+    // Fallback if DB empty or offline
     if (activeTickets.length === 0) {
       const allTickets = await TicketService.listTickets();
-      const targetTech = username || queryTech || 'Andi Pratama';
+      const targetUser = normalizeTechUsernameAlias(queryTech || actor.username);
+      const targetFullName = (actor.fullName || '').trim().toLowerCase();
+
       activeTickets = allTickets
-        .filter(
-          (t) =>
-            t.status !== 'Selesai' &&
-            (t.assignedTech.toLowerCase().includes(targetTech.toLowerCase()) ||
-              targetTech.toLowerCase().includes('andi')),
-        )
+        .filter((t) => {
+          if (t.status === 'Selesai') return false;
+          if (isSuperAdminViewer) return true;
+
+          const ticketTechUser = normalizeTechUsernameAlias(
+            t.assignedTechUsername || t.assignedTech.toLowerCase().replace(/\s+/g, '.'),
+          );
+          const ticketTechName = t.assignedTech.toLowerCase();
+
+          return (
+            ticketTechUser === targetUser ||
+            (targetFullName.length > 0 && ticketTechName === targetFullName) ||
+            ticketTechName.includes(targetUser.replace('.', ' '))
+          );
+        })
         .map((t) => ({
           id: t.id,
           ticketNumber: t.ticketNumber,
-          ticketType: t.ticketType === 'Maintenance' ? 'MAINTENANCE' : 'PSB',
-          status: t.status === 'Dalam proses' ? 'IN_PROGRESS' : 'OPEN',
+          ticketType:
+            t.ticketType === 'Maintenance' || t.ticketType === 'Perbaikan'
+              ? 'MAINTENANCE'
+              : 'PSB',
+          status:
+            t.status === 'Menunggu verifikasi'
+              ? 'PENDING_APPROVAL'
+              : t.status === 'Dalam proses'
+                ? 'IN_PROGRESS'
+                : 'OPEN',
+          vendorName: t.vendorName || null,
+          complaintSummary: t.complaintSummary || null,
+          customerPhone: t.customerPhone || null,
+          serviceAddress: t.serviceAddress || 'Alamat belum tercantum',
+          locationPlace: t.locationPlace || null,
+          targetLat: t.targetLat ?? null,
+          targetLng: t.targetLng ?? null,
           adminNotes: t.adminNotes || null,
-          assignedAt: t.createdAt,
+          rejectionReason: t.rejectionReason || null,
+          assignedAt: t.dispatchedAt || t.createdAt,
+          startedAt: t.startedAt || null,
           createdAt: t.createdAt,
+          pendingSubmission: t.pendingSubmission || null,
           customer: {
             id: t.siaNumber,
             siaNumber: t.siaNumber,
             fullName: t.customerName,
-            address: 'Jl. Riau No. 45, Bandung',
-            lat: -6.914744,
-            lng: 107.60981,
+            address: t.serviceAddress || 'Alamat belum tercantum',
+            lat: t.targetLat ?? -6.914744,
+            lng: t.targetLng ?? 107.60981,
             currentAttenuation: t.currentAttenuation,
             attenuationHistory:
               typeof t.currentAttenuation === 'number' ? [t.currentAttenuation] : [],
             clusterName: t.cluster,
-            clusterCode: 'BDG-01',
-            splitterCode: 'ODP-BDG-01',
-            portNumber: 3,
+            clusterCode: t.clusterCode || 'BDG-01',
+            splitterCode: t.splitterCode || null,
+            portNumber: t.portNumber ?? null,
           },
         }));
     }
@@ -265,17 +326,11 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : 'Gagal memuat daftar tiket teknisi';
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'TECH_TICKETS_ERROR',
-          message,
-        },
-      },
-      { status: 500 },
+    return handleTechRouteError(
+      error,
+      'TECH_TICKETS_ERROR',
+      'Gagal memuat daftar tiket vendor',
+      500,
     );
   }
 }

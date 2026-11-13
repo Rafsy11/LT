@@ -22,6 +22,7 @@ enum TicketType {
 enum TicketStatus {
   OPEN
   IN_PROGRESS
+  PENDING_APPROVAL
   COMPLETED
   CANCELLED
 }
@@ -52,6 +53,7 @@ model User {
   nik              String?              @unique @map("nik")
   username         String               @unique
   fullName         String               @map("full_name")
+  vendorCompany    String?              @map("vendor_company")
   passwordHash     String               @map("password_hash")
   roleId           String               @map("role_id")
   role             Role                 @relation(fields: [roleId], references: [id])
@@ -173,7 +175,18 @@ model Ticket {
   createdByAdminId String               @map("created_by_admin_id")
   createdByAdmin   User                 @relation("CreatedAdmin", fields: [createdByAdminId], references: [id])
   status           TicketStatus         @default(OPEN)
+  vendorName       String?              @map("vendor_name")
+  complaintSummary String?              @map("complaint_summary")
+  customerPhone    String?              @map("customer_phone")
+  serviceAddress   String               @default("-") @map("service_address")
+  locationPlace    String?              @map("location_place")
+  targetLat        Decimal?             @map("target_lat") @db.Decimal(10, 7)
+  targetLng        Decimal?             @map("target_lng") @db.Decimal(10, 7)
   adminNotes       String?              @map("admin_notes")
+  dispatchedAt     DateTime?            @map("dispatched_at")
+  startedAt        DateTime?            @map("started_at")
+  pendingPayload   Json?                @map("pending_payload")
+  rejectionReason  String?              @map("rejection_reason")
   assignedAt       DateTime?            @map("assigned_at")
   completedAt      DateTime?            @map("completed_at")
   createdAt        DateTime             @default(now()) @map("created_at")

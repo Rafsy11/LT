@@ -103,7 +103,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
 
       setSessionUser(resolvedUser);
-      setPresetKey(authenticatedUser.userType === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : 'NOC_ADMIN');
+      setPresetKey(
+        authenticatedUser.userType === 'SUPER_ADMIN'
+          ? 'SUPER_ADMIN'
+          : authenticatedUser.userType === 'TECHNICIAN'
+            ? 'TECHNICIAN'
+            : 'NOC_ADMIN',
+      );
 
       try {
         window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(resolvedUser));

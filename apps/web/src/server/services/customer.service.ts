@@ -73,6 +73,8 @@ const FALLBACK_CUSTOMERS: CustomerListItem[] = [
     siaNumber: 'SIA-2024-001',
     fullName: 'Budi Santoso',
     address: 'Jl. Riau No. 45, Citarum, Kec. Bandung Wetan, Bandung',
+    lat: -6.9062,
+    lng: 107.6186,
     kecamatan: 'Bandung Wetan',
     kelurahan: 'Citarum',
     street: 'Jl. Riau No. 45',
@@ -259,6 +261,8 @@ export class CustomerService {
               siaNumber: c.siaNumber,
               fullName: c.fullName,
               address: c.address,
+              lat: c.lat ? Number(c.lat) : undefined,
+              lng: c.lng ? Number(c.lng) : undefined,
               kecamatan: parsed.kecamatan,
               kelurahan: parsed.kelurahan,
               street: parsed.street,
@@ -321,6 +325,8 @@ export class CustomerService {
               siaNumber: customer.siaNumber,
               fullName: customer.fullName,
               address: customer.address,
+              lat: customer.lat ? Number(customer.lat) : undefined,
+              lng: customer.lng ? Number(customer.lng) : undefined,
               cluster: customer.cluster?.name || 'Bandung Utara',
               clusterCode: customer.cluster?.clusterCode || 'BDG-01',
               splitterCode: customer.splitter?.splitterCode || 'ODP-BDG-01',
@@ -574,6 +580,8 @@ export class CustomerService {
               siaNumber,
               fullName: input.fullName,
               address: input.address,
+              lat: input.lat ?? null,
+              lng: input.lng ?? null,
               clusterId: cluster.id,
               splitterId,
               portNumber: input.portNumber ?? null,
@@ -608,6 +616,8 @@ export class CustomerService {
           siaNumber: created.customer.siaNumber,
           fullName: created.customer.fullName,
           address: created.customer.address,
+          lat: created.customer.lat ? Number(created.customer.lat) : input.lat,
+          lng: created.customer.lng ? Number(created.customer.lng) : input.lng,
           kecamatan: parsed.kecamatan,
           kelurahan: parsed.kelurahan,
           street: parsed.street,
@@ -643,6 +653,8 @@ export class CustomerService {
       siaNumber,
       fullName: input.fullName,
       address: input.address,
+      lat: input.lat,
+      lng: input.lng,
       kecamatan: parsed.kecamatan,
       kelurahan: parsed.kelurahan,
       street: parsed.street,
@@ -686,6 +698,8 @@ export class CustomerService {
             data: {
               fullName: input.fullName ?? existing.fullName,
               address: input.address ?? existing.address,
+              lat: input.lat ?? existing.lat,
+              lng: input.lng ?? existing.lng,
               status: input.status ?? existing.status,
               splitterId: shouldReleasePort ? null : existing.splitterId,
               portNumber: shouldReleasePort ? null : existing.portNumber,
@@ -753,12 +767,55 @@ export class CustomerService {
       fallback.kelurahan = p.kelurahan;
       fallback.kecamatan = p.kecamatan;
     }
+    if (input.lat !== undefined) fallback.lat = input.lat;
+    if (input.lng !== undefined) fallback.lng = input.lng;
     if (input.status) {
       fallback.status = input.status;
       if (input.status === 'DISMANTLED') fallback.portNumber = 0;
     }
     fallback.updatedAt = new Date().toISOString();
     return fallback;
+  }
+
+  /**
+   * Registers a fallback customer entry when CS creates a new PSB ticket offline.
+   */
+  public static ensureFallbackCustomer(params: {
+    siaNumber: string;
+    fullName: string;
+    address: string;
+    lat?: number;
+    lng?: number;
+    clusterName: string;
+    clusterCode: string;
+  }): CustomerListItem {
+    const existing = FALLBACK_CUSTOMERS.find(
+      (c) => c.siaNumber.toUpperCase() === params.siaNumber.toUpperCase(),
+    );
+    if (existing) {
+      return existing;
+    }
+    const parsed = parseCustomerAddress(params.address);
+    const created: CustomerListItem = {
+      id: `cust-${Date.now()}`,
+      siaNumber: params.siaNumber,
+      fullName: params.fullName,
+      address: params.address,
+      lat: params.lat,
+      lng: params.lng,
+      kecamatan: parsed.kecamatan,
+      kelurahan: parsed.kelurahan,
+      street: parsed.street,
+      cluster: params.clusterName,
+      clusterCode: params.clusterCode,
+      splitterCode: 'Belum dialokasi',
+      portNumber: 0,
+      currentAttenuation: -20.0,
+      status: 'PENDING_INSTALL',
+      updatedAt: new Date().toISOString(),
+    };
+    FALLBACK_CUSTOMERS.unshift(created);
+    return created;
   }
 
   /**

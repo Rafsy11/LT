@@ -53,6 +53,7 @@ export type TicketTypeEnum = (typeof TICKET_TYPES)[keyof typeof TICKET_TYPES];
 export const TICKET_STATUSES = {
   OPEN: 'OPEN',
   IN_PROGRESS: 'IN_PROGRESS',
+  PENDING_APPROVAL: 'PENDING_APPROVAL',
   COMPLETED: 'COMPLETED',
   CANCELLED: 'CANCELLED',
 } as const;
@@ -95,6 +96,7 @@ export const PERMISSIONS = {
   ALL: '*',
   TICKET_READ: 'ticket:read',
   TICKET_CREATE: 'ticket:create',
+  TICKET_SUBMIT: 'ticket:submit',
   TECH_MANAGE: 'tech:manage',
   CUSTOMER_READ: 'customer:read',
   CUSTOMER_UPDATE: 'customer:update',
@@ -163,12 +165,12 @@ export const ROLE_PRESETS: Record<string, RolePreset> = {
   },
   TECHNICIAN: {
     id: 'role-technician',
-    name: 'Teknisi Lapangan',
+    name: 'Vendor / Teknisi Lapangan',
     userType: 'TECHNICIAN',
     hierarchyLevel: 10,
-    permissions: [PERMISSIONS.TICKET_READ],
+    permissions: [PERMISSIONS.TICKET_READ, PERMISSIONS.TICKET_SUBMIT],
     description:
-      'Aplikasi mobile: Menerima tiket aktif, uji redaman OPM, cek GPS, dan submit laporan lapangan.',
+      'Vendor Mitra Lapangan (Web Portal /vendor, Mobile App & Bot Telegram): Menerima tugas berlokasi, check-in eksekusi, uji OPM/GPS, dan mengirim laporan terbaru ke Pusat.',
   },
 };
 

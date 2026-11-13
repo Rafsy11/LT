@@ -36,6 +36,8 @@ export const createCustomerSchema = z.object({
   siaNumber: z.string().trim().min(3, 'Nomor SIA minimal 3 karakter').max(40),
   fullName: z.string().trim().min(2, 'Nama pelanggan minimal 2 karakter').max(120),
   address: z.string().trim().min(5, 'Alamat instalasi minimal 5 karakter').max(300),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
   clusterCode: z.string().trim().min(2, 'Cluster wajib dipilih'),
   splitterCode: z.string().trim().optional(),
   portNumber: z.coerce.number().int().min(1).max(32).optional(),
@@ -48,6 +50,8 @@ export const updateCustomerSchema = z.object({
   siaNumber: z.string().trim().min(3),
   fullName: z.string().trim().min(2).max(120).optional(),
   address: z.string().trim().min(5).max(300).optional(),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
   status: z.enum(['PENDING_INSTALL', 'ACTIVE', 'ISOLATED', 'DISMANTLED']).optional(),
 });
 

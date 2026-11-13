@@ -35,7 +35,9 @@ export async function seedDatabase() {
 
   const techRole = await prisma.role.upsert({
     where: { name: 'Teknisi' },
-    update: {},
+    update: {
+      permissions: ['ticket:read', 'ticket:submit'],
+    },
     create: {
       name: 'Teknisi',
       permissions: ['ticket:read', 'ticket:submit'],
@@ -76,11 +78,12 @@ export async function seedDatabase() {
 
   const techAndi = await prisma.user.upsert({
     where: { username: 'tech.andi' },
-    update: { nik: '882043' },
+    update: { nik: '882043', vendorCompany: 'PT Mitra Fiber Nusantara' },
     create: {
       nik: '882043',
       username: 'tech.andi',
       fullName: 'Andi Pratama',
+      vendorCompany: 'PT Mitra Fiber Nusantara',
       passwordHash: '$2b$10$epw1...mockSecureHashForTechAndi',
       roleId: techRole.id,
       userType: 'TECHNICIAN',
@@ -91,11 +94,12 @@ export async function seedDatabase() {
 
   const techRizky = await prisma.user.upsert({
     where: { username: 'tech.rizky' },
-    update: { nik: '882044' },
+    update: { nik: '882044', vendorCompany: 'PT Sarana Optik Bandung' },
     create: {
       nik: '882044',
       username: 'tech.rizky',
       fullName: 'Rizky Maulana',
+      vendorCompany: 'PT Sarana Optik Bandung',
       passwordHash: '$2b$10$epw1...mockSecureHashForTechRizky',
       roleId: techRole.id,
       userType: 'TECHNICIAN',
@@ -252,7 +256,17 @@ export async function seedDatabase() {
   // 6. INITIAL TICKETS (Work Orders)
   await prisma.ticket.upsert({
     where: { ticketNumber: 'WO-2025-0842' },
-    update: {},
+    update: {
+      vendorName: 'PT Mitra Fiber Nusantara',
+      complaintSummary: 'Pelanggan melaporkan koneksi putus-nyambung dan redaman drop sejak pagi hari.',
+      customerPhone: '+62 812-2200-1045',
+      serviceAddress: 'Jl. Dago Atas No. 42, Coblong, Bandung',
+      locationPlace: 'Ruko Dago Vista Lt. 2 (Sebelah Apotek)',
+      targetLat: -6.8862,
+      targetLng: 107.6162,
+      dispatchedAt: new Date(Date.now() - 1000 * 60 * 45),
+      startedAt: new Date(Date.now() - 1000 * 60 * 20),
+    },
     create: {
       ticketNumber: 'WO-2025-0842',
       ticketType: 'MAINTENANCE',
@@ -260,6 +274,15 @@ export async function seedDatabase() {
       assignedTechId: techAndi.id,
       createdByAdminId: adminNoc.id,
       status: 'IN_PROGRESS',
+      vendorName: 'PT Mitra Fiber Nusantara',
+      complaintSummary: 'Pelanggan melaporkan koneksi putus-nyambung dan redaman drop sejak pagi hari.',
+      customerPhone: '+62 812-2200-1045',
+      serviceAddress: 'Jl. Dago Atas No. 42, Coblong, Bandung',
+      locationPlace: 'Ruko Dago Vista Lt. 2 (Sebelah Apotek)',
+      targetLat: -6.8862,
+      targetLng: 107.6162,
+      dispatchedAt: new Date(Date.now() - 1000 * 60 * 45),
+      startedAt: new Date(Date.now() - 1000 * 60 * 20),
       adminNotes:
         'Redaman optik drop drastis di bawah -25.0 dBm (-26.40 dBm). Lakukan re-splicing di ODP-CL01-01.',
       assignedAt: new Date(),
@@ -268,7 +291,17 @@ export async function seedDatabase() {
 
   await prisma.ticket.upsert({
     where: { ticketNumber: 'WO-2025-0841' },
-    update: {},
+    update: {
+      vendorName: 'PT Sarana Optik Bandung',
+      complaintSummary: 'Permintaan instalasi baru layanan internet bisnis 50 Mbps.',
+      customerPhone: '+62 813-9900-2211',
+      serviceAddress: 'Jl. Soekarno Hatta No. 210, Arcamanik, Bandung',
+      locationPlace: 'Kantor Cabang Arcamanik Blok B',
+      targetLat: -6.9192,
+      targetLng: 107.6692,
+      dispatchedAt: new Date(Date.now() - 1000 * 60 * 60 * 3),
+      startedAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
+    },
     create: {
       ticketNumber: 'WO-2025-0841',
       ticketType: 'PSB',
@@ -276,6 +309,15 @@ export async function seedDatabase() {
       assignedTechId: techRizky.id,
       createdByAdminId: superAdmin.id,
       status: 'COMPLETED',
+      vendorName: 'PT Sarana Optik Bandung',
+      complaintSummary: 'Permintaan instalasi baru layanan internet bisnis 50 Mbps.',
+      customerPhone: '+62 813-9900-2211',
+      serviceAddress: 'Jl. Soekarno Hatta No. 210, Arcamanik, Bandung',
+      locationPlace: 'Kantor Cabang Arcamanik Blok B',
+      targetLat: -6.9192,
+      targetLng: 107.6692,
+      dispatchedAt: new Date(Date.now() - 1000 * 60 * 60 * 3),
+      startedAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
       adminNotes: 'Aktivasi pelanggan baru paket 50 Mbps. Port 1 ODP-CL02-01.',
       assignedAt: new Date(Date.now() - 1000 * 60 * 60 * 3),
       completedAt: new Date(Date.now() - 1000 * 60 * 15),

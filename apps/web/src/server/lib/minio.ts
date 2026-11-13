@@ -63,6 +63,30 @@ class MinioStorageManager {
   }
 
   /**
+   * Uploads raw file buffer directly into MinIO object storage (e.g. from web upload or Telegram bot media).
+   */
+  public async putObjectBuffer(
+    objectKey: string,
+    buffer: Buffer,
+    contentType = 'image/jpeg',
+  ): Promise<{ stored: boolean; objectKey: string }> {
+    await this.ensureBucket();
+    if (this.isInCooldown()) {
+      return { stored: false, objectKey };
+    }
+    try {
+      await this.client.putObject(PROOF_BUCKET_NAME, objectKey, buffer, buffer.length, {
+        'Content-Type': contentType,
+      });
+      return { stored: true, objectKey };
+    } catch (err) {
+      this.lastFailureAt = Date.now();
+      console.warn('[MinIO] Warning uploading object buffer:', (err as Error).message);
+      return { stored: false, objectKey };
+    }
+  }
+
+  /**
    * Generates a Presigned GET URL for Web Admin to inspect photo evidence with temporary access.
    */
   public async generatePresignedGetUrl(objectKey: string, expirySeconds = 3600): Promise<string> {

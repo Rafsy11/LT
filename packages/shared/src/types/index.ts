@@ -107,6 +107,8 @@ export interface CustomerListItem {
   siaNumber: string;
   fullName: string;
   address: string;
+  lat?: number;
+  lng?: number;
   kecamatan?: string;
   kelurahan?: string;
   street?: string;
@@ -126,12 +128,14 @@ export interface DbTicketPendingSubmission {
   portNumber: number;
   attenuationDbm: number;
   photoObjectKey: string;
+  photoUrl?: string;
   submittedLat: number;
   submittedLng: number;
   distanceToSplitterM: number;
   isLocationFlagged: boolean;
   clientRecordedAt?: string;
   technicianNotes?: string;
+  channel?: 'WEB' | 'MOBILE' | 'TELEGRAM';
   submittedAt: string;
   techUsername: string;
   techFullName: string;
@@ -144,12 +148,24 @@ export interface DbTicket {
   siaNumber: string;
   ticketType: 'Pasang baru' | 'Perbaikan' | 'Maintenance' | 'Instalasi';
   cluster: string;
+  clusterCode?: string;
   assignedTech: string;
+  assignedTechUsername?: string;
+  vendorName?: string;
   techInitials: string;
   status: 'Menunggu' | 'Dalam proses' | 'Menunggu verifikasi' | 'Selesai' | 'Dibatalkan';
   priority?: 'Normal' | 'High' | 'Low';
   currentAttenuation: number;
+  complaintSummary?: string;
+  customerPhone?: string;
+  serviceAddress?: string;
+  locationPlace?: string;
+  targetLat?: number;
+  targetLng?: number;
   adminNotes?: string;
+  rejectionReason?: string;
+  dispatchedAt?: string;
+  startedAt?: string;
   createdAt: string;
   completedAt?: string;
   splitterCode?: string;
@@ -161,8 +177,11 @@ export interface DbTicket {
 
 export interface TechnicianListItem {
   id: string;
+  nik?: string | null;
   username: string;
   fullName: string;
+  vendorCompany?: string | null;
+  telegramBound?: boolean;
   cluster: string;
   initials: string;
   isActive: boolean;

@@ -32,25 +32,34 @@ export function Sidebar({
   onToggleCollapse,
 }: SidebarProps) {
   const pathname = usePathname();
-  const { user, logout, isLoggingOut } = useAuth();
+  const { user } = useAuth();
+  const isVendorUser = user.userType === 'TECHNICIAN' || pathname.startsWith('/vendor');
 
-  const navItems: NavItem[] = [
-    { label: 'Overview', href: '/', icon: 'home' },
-    { label: 'Live Monitoring', href: '/monitoring', icon: 'activity', hasLiveDot: true },
-    { label: 'Tiket & Work Order', href: '/tickets', icon: 'ticket', count: ticketCount },
-    { label: 'Cluster Jaringan', href: '/network', icon: 'network' },
-    { label: 'Pelanggan (SIA)', href: '/customers', icon: 'users' },
-    { label: 'Teknisi Lapangan', href: '/technicians', icon: 'wrench' },
-  ];
+  const navItems: NavItem[] = isVendorUser
+    ? [
+        {
+          label: 'Portal Kerja Vendor',
+          href: '/vendor',
+          icon: 'wrench',
+          count: ticketCount,
+          tag: 'Lapangan',
+        },
+      ]
+    : [
+        { label: 'Overview', href: '/', icon: 'home' },
+        { label: 'Live Monitoring', href: '/monitoring', icon: 'activity', hasLiveDot: true },
+        { label: 'Tiket & Work Order', href: '/tickets', icon: 'ticket', count: ticketCount },
+        { label: 'Cluster Jaringan', href: '/network', icon: 'network' },
+        { label: 'Pelanggan (SIA)', href: '/customers', icon: 'users' },
+        { label: 'Teknisi & Vendor', href: '/technicians', icon: 'wrench' },
+        ...(user.userType === 'SUPER_ADMIN'
+          ? [{ label: 'Portal Vendor', href: '/vendor', icon: 'send', tag: 'Simulasi' }]
+          : []),
+      ];
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/' || pathname === '';
     return pathname.startsWith(href);
-  };
-
-  const handleLogout = async () => {
-    if (onClose) onClose();
-    await logout();
   };
 
   return (
@@ -61,7 +70,7 @@ export function Sidebar({
       >
         <div className="sidebar-header-row">
           <Link
-            href="/"
+            href={isVendorUser ? '/vendor' : '/'}
             className="brand lintasarta-brand-wrap"
             aria-label="Beranda Lintasarta"
             onClick={onClose}

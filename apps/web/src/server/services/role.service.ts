@@ -47,8 +47,8 @@ const MEMORY_ROLES = [
   },
   {
     id: 'role-tech-field',
-    name: 'Teknisi Lapangan',
-    permissions: ['ticket:read'],
+    name: 'Vendor / Teknisi Lapangan',
+    permissions: ['ticket:read', 'ticket:submit'],
     hierarchyLevel: 10,
     _count: { users: 12 },
   },

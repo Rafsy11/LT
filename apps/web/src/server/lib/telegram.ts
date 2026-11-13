@@ -76,6 +76,186 @@ export function resolveTelegramChatId(params: { dbChatId?: string | null }): str
 }
 
 /**
+ * Sends an HTML-formatted message to a single Telegram chat via the Bot API.
+ */
+export async function sendTelegramHtmlMessage(
+  chatId: string | number,
+  htmlText: string,
+): Promise<{ sent: boolean; errorReason?: string }> {
+  ensureRootEnvLoaded();
+  const botToken = process.env.TELEGRAM_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN;
+
+  if (!botToken) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`\n[DEV Telegram -> Chat ${chatId}]\n${htmlText}\n`);
+      return { sent: true };
+    }
+    return { sent: false, errorReason: 'TELEGRAM_BOT_TOKEN_MISSING' };
+  }
+
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: htmlText,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      }),
+      signal: AbortSignal.timeout(TELEGRAM_API_TIMEOUT_MS),
+    });
+
+    const data = (await response.json().catch(() => null)) as TelegramSendMessageResponse | null;
+    if (!response.ok || !data?.ok) {
+      return { sent: false, errorReason: data?.description || 'TELEGRAM_API_REJECTED' };
+    }
+    return { sent: true };
+  } catch (err) {
+    return {
+      sent: false,
+      errorReason: (err as Error)?.message || 'NETWORK_ERROR',
+    };
+  }
+}
+
+/**
+ * Downloads a Telegram media file by file_id via Bot API getFile so it can be stored in MinIO.
+ */
+export async function downloadTelegramFileBuffer(
+  fileId: string,
+): Promise<{ buffer: Buffer; mimeType: string } | null> {
+  ensureRootEnvLoaded();
+  const botToken = process.env.TELEGRAM_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN;
+  if (!botToken || !fileId) return null;
+
+  try {
+    const metaRes = await fetch(
+      `https://api.telegram.org/bot${botToken}/getFile?file_id=${encodeURIComponent(fileId)}`,
+      { signal: AbortSignal.timeout(TELEGRAM_API_TIMEOUT_MS) },
+    );
+    const metaJson = (await metaRes.json().catch(() => null)) as {
+      ok?: boolean;
+      result?: { file_path?: string };
+    } | null;
+
+    const filePath = metaJson?.result?.file_path;
+    if (!metaRes.ok || !metaJson?.ok || !filePath) {
+      return null;
+    }
+
+    const fileRes = await fetch(`https://api.telegram.org/file/bot${botToken}/${filePath}`, {
+      signal: AbortSignal.timeout(TELEGRAM_API_TIMEOUT_MS),
+    });
+    if (!fileRes.ok) return null;
+
+    const arrBuf = await fileRes.arrayBuffer();
+    const mimeType = fileRes.headers.get('content-type') || 'image/jpeg';
+    return { buffer: Buffer.from(arrBuf), mimeType };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Dispatches task assignment notification with address, landmark/place, and map coordinates to Vendor Telegram.
+ */
+export async function sendVendorTaskDispatchTelegram(params: {
+  chatId: string | null | undefined;
+  vendorDisplayName: string;
+  vendorCompany?: string | null;
+  ticketNumber: string;
+  ticketType: string;
+  customerName: string;
+  siaNumber: string;
+  customerPhone?: string | null;
+  complaintSummary?: string | null;
+  serviceAddress?: string | null;
+  locationPlace?: string | null;
+  targetLat?: number | null;
+  targetLng?: number | null;
+  adminNotes?: string | null;
+}): Promise<boolean> {
+  const targetChatIds = parseValidChatIds(params.chatId);
+  if (targetChatIds.length === 0) return false;
+
+  const hasCoords =
+    typeof params.targetLat === 'number' &&
+    typeof params.targetLng === 'number' &&
+    Number.isFinite(params.targetLat) &&
+    Number.isFinite(params.targetLng);
+  const mapsUrl = hasCoords
+    ? `https://maps.google.com/?q=${params.targetLat},${params.targetLng}`
+    : null;
+
+  const htmlText = [
+    `📋 <b>PENUGASAN BARU DARI LINTASARTA PUSAT</b>`,
+    ``,
+    `• <b>No. Tiket:</b> <code>${params.ticketNumber}</code> (${params.ticketType})`,
+    `• <b>PIC Vendor:</b> ${params.vendorDisplayName}${params.vendorCompany ? ` — ${params.vendorCompany}` : ''}`,
+    `• <b>Pelanggan:</b> ${params.customerName} (SIA: <code>${params.siaNumber}</code>)`,
+    ...(params.customerPhone ? [`• <b>Kontak Pelanggan:</b> ${params.customerPhone}`] : []),
+    ...(params.complaintSummary ? [`• <b>Aduan / Permintaan:</b> ${params.complaintSummary}`] : []),
+    `• <b>Alamat Lokasi:</b> ${params.serviceAddress || '-'}`,
+    ...(params.locationPlace ? [`• <b>Tempat / Patokan:</b> ${params.locationPlace}`] : []),
+    ...(hasCoords
+      ? [
+          `• <b>Titik Koordinat:</b> <code>${params.targetLat}, ${params.targetLng}</code> (<a href="${mapsUrl}">Buka Google Maps</a>)`,
+        ]
+      : []),
+    ...(params.adminNotes ? [`• <b>Arahan Pusat:</b> ${params.adminNotes}`] : []),
+    ``,
+    `<b>Aksi Cepat Bot Telegram:</b>`,
+    `1. Tiba di lokasi: <code>/mulai ${params.ticketNumber}</code>`,
+    `2. Kirim laporan terbaru: <code>/lapor ${params.ticketNumber}</code>`,
+  ].join('\n');
+
+  const results = await Promise.allSettled(
+    targetChatIds.map((id) => sendTelegramHtmlMessage(id, htmlText)),
+  );
+  return results.some((r) => r.status === 'fulfilled' && r.value.sent);
+}
+
+/**
+ * Notifies Vendor Telegram when Lintasarta Pusat approves or requests revision on a report.
+ */
+export async function sendVendorVerificationResultTelegram(params: {
+  chatId: string | null | undefined;
+  ticketNumber: string;
+  customerName: string;
+  approved: boolean;
+  reason?: string;
+  reviewedBy?: string;
+}): Promise<boolean> {
+  const targetChatIds = parseValidChatIds(params.chatId);
+  if (targetChatIds.length === 0) return false;
+
+  const htmlText = params.approved
+    ? [
+        `✅ <b>LAPORAN DISETUJUI PUSAT LINTASARTA</b>`,
+        ``,
+        `• <b>No. Tiket:</b> <code>${params.ticketNumber}</code>`,
+        `• <b>Pelanggan:</b> ${params.customerName}`,
+        `• <b>Status:</b> Selesai (COMPLETED)`,
+        ...(params.reviewedBy ? [`• <b>Diverifikasi oleh:</b> ${params.reviewedBy}`] : []),
+      ].join('\n')
+    : [
+        `⚠️ <b>LAPORAN PERLU REVISI / PENGUKURAN ULANG</b>`,
+        ``,
+        `• <b>No. Tiket:</b> <code>${params.ticketNumber}</code>`,
+        `• <b>Pelanggan:</b> ${params.customerName}`,
+        `• <b>Alasan Pusat:</b> ${params.reason || 'Data belum memenuhi standar operasional'}`,
+        ``,
+        `Silakan kirim ulang laporan terbaru lewat Portal Web <code>/vendor</code>, Mobile App, atau ketik <code>/lapor ${params.ticketNumber}</code>.`,
+      ].join('\n');
+
+  const results = await Promise.allSettled(
+    targetChatIds.map((id) => sendTelegramHtmlMessage(id, htmlText)),
+  );
+  return results.some((r) => r.status === 'fulfilled' && r.value.sent);
+}
+
+/**
  * Sends a formatted 6-digit 2FA OTP message to one or more pre-bound Telegram Chat IDs.
  * When multiple contributor Chat IDs are configured via comma-separated list, sends in parallel
  * and succeeds if at least one recipient receives the message.
@@ -148,23 +328,9 @@ export async function sendTelegramOtpMessage(params: {
 
   const results = await Promise.allSettled(
     targetChatIds.map(async (singleChatId) => {
-      const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chat_id: singleChatId,
-          text: htmlText,
-          parse_mode: 'HTML',
-          disable_web_page_preview: true,
-        }),
-        signal: AbortSignal.timeout(TELEGRAM_API_TIMEOUT_MS),
-      });
-
-      const data = (await response.json().catch(() => null)) as TelegramSendMessageResponse | null;
-      if (!response.ok || !data?.ok) {
-        throw new Error(data?.description || 'TELEGRAM_API_REJECTED');
+      const outcome = await sendTelegramHtmlMessage(singleChatId, htmlText);
+      if (!outcome.sent) {
+        throw new Error(outcome.errorReason || 'TELEGRAM_API_REJECTED');
       }
       return singleChatId;
     }),

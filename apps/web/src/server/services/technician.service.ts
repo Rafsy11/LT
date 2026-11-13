@@ -14,8 +14,11 @@ function getInitials(name: string): string {
 const FALLBACK_TECHS: TechnicianListItem[] = [
   {
     id: 'tech-1',
+    nik: '882043',
     username: 'andi.pratama',
     fullName: 'Andi Pratama',
+    vendorCompany: 'PT Mitra Fiber Nusantara',
+    telegramBound: true,
     cluster: 'Bandung Utara',
     initials: 'AP',
     isActive: true,
@@ -39,8 +42,11 @@ const FALLBACK_TECHS: TechnicianListItem[] = [
   },
   {
     id: 'tech-2',
+    nik: '882044',
     username: 'rizky.maulana',
     fullName: 'Rizky Maulana',
+    vendorCompany: 'PT Sarana Optik Bandung',
+    telegramBound: true,
     cluster: 'Cimahi',
     initials: 'RM',
     isActive: true,
@@ -64,8 +70,11 @@ const FALLBACK_TECHS: TechnicianListItem[] = [
   },
   {
     id: 'tech-3',
+    nik: '882045',
     username: 'fajar.hidayat',
     fullName: 'Fajar Hidayat',
+    vendorCompany: 'PT Mitra Fiber Nusantara',
+    telegramBound: false,
     cluster: 'Bandung Barat',
     initials: 'FH',
     isActive: true,
@@ -89,8 +98,11 @@ const FALLBACK_TECHS: TechnicianListItem[] = [
   },
   {
     id: 'tech-4',
+    nik: '882046',
     username: 'dedi.kurniawan',
     fullName: 'Dedi Kurniawan',
+    vendorCompany: 'CV Jaringan Nusantara',
+    telegramBound: false,
     cluster: 'Rancaekek',
     initials: 'DK',
     isActive: true,
@@ -217,8 +229,11 @@ export class TechnicianService {
 
             return {
               id: t.id,
+              nik: t.nik,
               username: t.username,
               fullName: t.fullName,
+              vendorCompany: t.vendorCompany || null,
+              telegramBound: Boolean(t.telegramChatId),
               cluster: clusterName.includes('Bandung') ? clusterName : `Bandung ${clusterName}`,
               initials: getInitials(t.fullName),
               isActive: t.isActive,

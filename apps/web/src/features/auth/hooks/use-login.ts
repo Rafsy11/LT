@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ERROR_CODES, UserTypeEnum } from '@repo/shared';
 import { useAuth, useToast } from '@/providers';
 
-export type DemoAccountRole = 'SUPER_ADMIN' | 'ADMIN';
+export type DemoAccountRole = 'SUPER_ADMIN' | 'ADMIN' | 'TECHNICIAN';
 export type OtpDeliveryStatus = 'IDLE' | 'SENT';
 
 const DEMO_CREDENTIALS: Record<DemoAccountRole, { username: string; password: string }> = {
@@ -15,6 +15,10 @@ const DEMO_CREDENTIALS: Record<DemoAccountRole, { username: string; password: st
   },
   ADMIN: {
     username: 'admin.noc',
+    password: 'password123',
+  },
+  TECHNICIAN: {
+    username: 'tech.andi',
     password: 'password123',
   },
 };
@@ -160,12 +164,13 @@ export function useLogin() {
         `Verifikasi 2FA Berhasil: Selamat bertugas, ${userPayload.fullName || userPayload.username}.`,
       );
 
-      let targetUrl = '/';
+      const isVendor = userPayload.userType === 'TECHNICIAN';
+      let targetUrl = isVendor ? '/vendor' : '/';
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const callbackUrl = params.get('callbackUrl');
         if (callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')) {
-          targetUrl = callbackUrl;
+          targetUrl = isVendor && !callbackUrl.startsWith('/vendor') ? '/vendor' : callbackUrl;
         }
       }
 

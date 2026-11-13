@@ -1,9 +1,14 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import type { CreateTicketInput } from '@repo/shared';
+import React, { useState, useRef, useEffect } from 'react';
+import type {
+  CreateTicketInput,
+  CustomerListItem,
+  TechnicianListItem,
+} from '@repo/shared';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { useToast, useAuth } from '@/providers';
+import '@/styles/components/ticket-modal.css';
 
 export interface CreateTicketModalProps {
   isOpen: boolean;
@@ -11,6 +16,43 @@ export interface CreateTicketModalProps {
   onSubmit: (data: CreateTicketInput) => Promise<void> | void;
   initialValues?: Partial<CreateTicketInput>;
 }
+
+const FALLBACK_VENDOR_OPTIONS: Array<{
+  username: string;
+  fullName: string;
+  vendorCompany: string;
+  clusterLabel: string;
+  telegramBound: boolean;
+}> = [
+  {
+    username: 'andi.pratama',
+    fullName: 'Andi Pratama',
+    vendorCompany: 'PT Mitra Fiber Nusantara',
+    clusterLabel: 'Bandung Utara',
+    telegramBound: true,
+  },
+  {
+    username: 'rizky.maulana',
+    fullName: 'Rizky Maulana',
+    vendorCompany: 'PT Sarana Optik Bandung',
+    clusterLabel: 'Bandung Timur',
+    telegramBound: true,
+  },
+  {
+    username: 'fajar.hidayat',
+    fullName: 'Fajar Hidayat',
+    vendorCompany: 'PT Mitra Fiber Nusantara',
+    clusterLabel: 'Bandung Barat',
+    telegramBound: true,
+  },
+  {
+    username: 'agus.setiawan',
+    fullName: 'Agus Setiawan',
+    vendorCompany: 'PT Sarana Optik Bandung',
+    clusterLabel: 'Cimahi',
+    telegramBound: false,
+  },
+];
 
 export function CreateTicketModal({
   isOpen,
@@ -23,12 +65,165 @@ export function CreateTicketModal({
   const { showSuccess, showError } = useToast();
   const { canCreateTicket } = useAuth();
 
+  const [customerMode, setCustomerMode] = useState<'EXISTING' | 'NEW'>('EXISTING');
+  const [customers, setCustomers] = useState<CustomerListItem[]>([]);
+  const [technicians, setTechnicians] = useState(FALLBACK_VENDOR_OPTIONS);
+
+  const [customerName, setCustomerName] = useState('');
+  const [siaNumber, setSiaNumber] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [ticketType, setTicketType] = useState<'PSB' | 'MAINTENANCE'>('MAINTENANCE');
+  const [clusterCode, setClusterCode] = useState('Bandung Utara');
+  const [complaintSummary, setComplaintSummary] = useState('');
+  const [locationPlace, setLocationPlace] = useState('');
+  const [serviceAddress, setServiceAddress] = useState('');
+  const [targetLat, setTargetLat] = useState('');
+  const [targetLng, setTargetLng] = useState('');
+  const [assignedTechUsername, setAssignedTechUsername] = useState('andi.pratama');
+  const [vendorName, setVendorName] = useState('PT Mitra Fiber Nusantara');
+  const [adminNotes, setAdminNotes] = useState('');
+  const [lookupMatchedSia, setLookupMatchedSia] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+
+    setCustomerName(initialValues?.customerName || '');
+    setSiaNumber(initialValues?.siaNumber || '');
+    setCustomerPhone(initialValues?.customerPhone || '');
+    setTicketType(initialValues?.ticketType || (initialValues?.siaNumber ? 'MAINTENANCE' : 'PSB'));
+    setClusterCode(initialValues?.clusterCode || 'Bandung Utara');
+    setComplaintSummary(initialValues?.complaintSummary || '');
+    setLocationPlace(initialValues?.locationPlace || '');
+    setServiceAddress(initialValues?.serviceAddress || '');
+    setTargetLat(
+      typeof initialValues?.targetLat === 'number' ? String(initialValues.targetLat) : '',
+    );
+    setTargetLng(
+      typeof initialValues?.targetLng === 'number' ? String(initialValues.targetLng) : '',
+    );
+    setAssignedTechUsername(initialValues?.assignedTechUsername || 'andi.pratama');
+    setVendorName(initialValues?.vendorName || 'PT Mitra Fiber Nusantara');
+    setAdminNotes(initialValues?.adminNotes || '');
+    setLookupMatchedSia(null);
+
+    Promise.all([
+      fetch('/api/v1/admin/customers')
+        .then((r) => r.json())
+        .catch(() => null),
+      fetch('/api/v1/admin/technicians')
+        .then((r) => r.json())
+        .catch(() => null),
+    ]).then(([custJson, techJson]) => {
+      if (!active) return;
+
+      if (custJson?.success && Array.isArray(custJson.data)) {
+        const custList = custJson.data as CustomerListItem[];
+        setCustomers(custList);
+
+        if (initialValues?.siaNumber) {
+          const match = custList.find(
+            (c) => c.siaNumber.toLowerCase() === initialValues.siaNumber!.toLowerCase(),
+          );
+          if (match) {
+            setLookupMatchedSia(match.siaNumber);
+            setCustomerMode('EXISTING');
+            setCustomerName((prev) => prev || match.fullName);
+            setClusterCode(match.cluster || initialValues.clusterCode || 'Bandung Utara');
+            setServiceAddress((prev) => prev || match.address || '');
+            if (match.lat !== null && match.lat !== undefined) {
+              setTargetLat((prev) => prev || String(match.lat));
+            }
+            if (match.lng !== null && match.lng !== undefined) {
+              setTargetLng((prev) => prev || String(match.lng));
+            }
+          }
+        }
+      }
+
+      if (techJson?.success && Array.isArray(techJson.data) && techJson.data.length > 0) {
+        const mappedTechs = (techJson.data as TechnicianListItem[]).map((t) => ({
+          username: t.username,
+          fullName: t.fullName,
+          vendorCompany: t.vendorCompany || 'Tim Vendor Lapangan',
+          clusterLabel: t.cluster || 'Semua Cluster',
+          telegramBound: Boolean(t.telegramBound),
+        }));
+        setTechnicians(mappedTechs);
+        if (!initialValues?.assignedTechUsername && mappedTechs[0]) {
+          setAssignedTechUsername(mappedTechs[0].username);
+          setVendorName(mappedTechs[0].vendorCompany);
+        }
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen, initialValues]);
+
   if (!isOpen) return null;
+
+  const applyCustomerRecord = (cust: CustomerListItem) => {
+    setSiaNumber(cust.siaNumber);
+    setCustomerName(cust.fullName);
+    setClusterCode(cust.cluster || 'Bandung Utara');
+    setServiceAddress(cust.address || '');
+    setLocationPlace(cust.fullName);
+    setTargetLat(cust.lat !== null && cust.lat !== undefined ? String(cust.lat) : '');
+    setTargetLng(cust.lng !== null && cust.lng !== undefined ? String(cust.lng) : '');
+    setLookupMatchedSia(cust.siaNumber);
+  };
+
+  const handleSelectExistingCustomer = (sia: string) => {
+    const match = customers.find((c) => c.siaNumber === sia);
+    if (match) {
+      applyCustomerRecord(match);
+    }
+  };
+
+  const handleSiaChange = (val: string) => {
+    setSiaNumber(val);
+    const trimmed = val.trim().toLowerCase();
+    const match = customers.find((c) => c.siaNumber.toLowerCase() === trimmed);
+    if (match) {
+      applyCustomerRecord(match);
+    } else {
+      setLookupMatchedSia(null);
+    }
+  };
+
+  const handleModeSwitch = (mode: 'EXISTING' | 'NEW') => {
+    setCustomerMode(mode);
+    if (mode === 'NEW') {
+      setTicketType('PSB');
+      setLookupMatchedSia(null);
+      if (!siaNumber.trim()) {
+        const suffix = String(Date.now()).slice(-4);
+        setSiaNumber(`SLA-${new Date().getFullYear()}-${suffix}`);
+      }
+    }
+  };
+
+  const handleVendorChange = (username: string) => {
+    setAssignedTechUsername(username);
+    const selected = technicians.find((t) => t.username === username);
+    if (selected) {
+      setVendorName(selected.vendorCompany);
+    }
+  };
+
+  const parsedLat = targetLat.trim() !== '' ? Number(targetLat) : undefined;
+  const parsedLng = targetLng.trim() !== '' ? Number(targetLng) : undefined;
+  const hasValidCoords =
+    parsedLat !== undefined &&
+    parsedLng !== undefined &&
+    !Number.isNaN(parsedLat) &&
+    !Number.isNaN(parsedLng);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // 1. Permission Matrix check (Requirement 3)
     if (!canCreateTicket) {
       showError({
         code: 'FORBIDDEN',
@@ -37,30 +232,33 @@ export function CreateTicketModal({
       return;
     }
 
-    // 2. Debounce & instant millisecond locking (Requirement 2)
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSubmitting(true);
 
-    const form = new FormData(e.currentTarget);
-
     const payload: CreateTicketInput = {
-      customerName: String(form.get('customerName')),
-      siaNumber: String(form.get('siaNumber')),
-      ticketType: (form.get('ticketType') as CreateTicketInput['ticketType']) || 'PSB',
-      clusterCode: String(form.get('clusterCode')),
-      assignedTechUsername: String(form.get('assignedTechUsername') || 'Andi Pratama'),
-      adminNotes: String(form.get('adminNotes') || ''),
+      customerName: customerName.trim(),
+      siaNumber: siaNumber.trim(),
+      ticketType,
+      clusterCode,
+      assignedTechUsername,
+      vendorName: vendorName.trim() || undefined,
+      complaintSummary: complaintSummary.trim() || undefined,
+      customerPhone: customerPhone.trim() || undefined,
+      serviceAddress: serviceAddress.trim() || undefined,
+      locationPlace: locationPlace.trim() || undefined,
+      targetLat: hasValidCoords ? parsedLat : undefined,
+      targetLng: hasValidCoords ? parsedLng : undefined,
+      adminNotes: adminNotes.trim() || undefined,
     };
 
     try {
       await onSubmit(payload);
       showSuccess(
-        `Tiket untuk pelanggan ${payload.customerName} (${payload.siaNumber}) berhasil dibuat & ditugaskan.`,
+        `Aduan & penugasan ${payload.customerName} (${payload.siaNumber}) dikirim ke vendor ${payload.assignedTechUsername}.`,
       );
       onClose();
     } catch (err: unknown) {
-      // 3. Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
       showError(err);
     } finally {
       submittingRef.current = false;
@@ -70,97 +268,255 @@ export function CreateTicketModal({
 
   return (
     <ModalOverlay onClose={onClose} labelledBy="create-ticket-modal-title">
-      <article className="modal" onClick={(e) => e.stopPropagation()}>
+      <article
+        className="modal"
+        style={{ maxWidth: '660px', width: '100%' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="panel-heading">
-          <h2 id="create-ticket-modal-title">Buat tiket baru</h2>
+          <h2 id="create-ticket-modal-title">Catat Aduan Pelanggan &amp; Tugaskan Vendor</h2>
           <button className="dots" onClick={onClose} type="button" aria-label="Tutup modal">
             ×
           </button>
         </header>
 
         {!canCreateTicket && (
-          <aside
-            className="permission-lock-notice"
-            role="alert"
-          >
+          <aside className="permission-lock-notice" role="alert">
             <b>Akses Dibatasi:</b> Akun Anda tidak memiliki izin <code>ticket:create</code>. Tombol
             pembuatan tiket dikunci demi keamanan.
           </aside>
         )}
 
         <form className="modal-body" onSubmit={handleSubmit}>
+          <div className="ticket-mode-tabs" role="tablist" aria-label="Sumber Data Pelanggan">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={customerMode === 'EXISTING'}
+              className={`ticket-mode-btn ${customerMode === 'EXISTING' ? 'active' : ''}`}
+              onClick={() => handleModeSwitch('EXISTING')}
+            >
+              Pelanggan Terdaftar (Cari SIA)
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={customerMode === 'NEW'}
+              className={`ticket-mode-btn ${customerMode === 'NEW' ? 'active' : ''}`}
+              onClick={() => handleModeSwitch('NEW')}
+            >
+              Pelanggan Baru (Pasang Baru / PSB)
+            </button>
+          </div>
+
+          {customerMode === 'EXISTING' && customers.length > 0 && (
+            <label>
+              Pilih cepat pelanggan dari Master SIA
+              <select
+                value={lookupMatchedSia || ''}
+                onChange={(e) => handleSelectExistingCustomer(e.target.value)}
+                disabled={!canCreateTicket || submitting}
+              >
+                <option value="">-- Pilih pelanggan terdaftar (opsional) --</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.siaNumber}>
+                    {c.siaNumber} · {c.fullName} ({c.cluster})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <div className="ticket-form-grid">
+            <label>
+              Nomor SIA
+              <input
+                name="siaNumber"
+                required
+                value={siaNumber}
+                onChange={(e) => handleSiaChange(e.target.value)}
+                placeholder="Contoh: SLA-100244-001"
+                disabled={!canCreateTicket || submitting}
+              />
+            </label>
+
+            <label>
+              Nama pelanggan
+              <input
+                name="customerName"
+                required
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Nama perusahaan atau pelanggan"
+                disabled={!canCreateTicket || submitting}
+              />
+            </label>
+
+            <label>
+              No. Telepon / Kontak PIC
+              <input
+                name="customerPhone"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="+62 812-xxxx-xxxx"
+                disabled={!canCreateTicket || submitting}
+              />
+            </label>
+
+            <label>
+              Tipe pekerjaan
+              <select
+                name="ticketType"
+                value={ticketType}
+                onChange={(e) => setTicketType(e.target.value as 'PSB' | 'MAINTENANCE')}
+                disabled={!canCreateTicket || submitting}
+              >
+                <option value="MAINTENANCE">MAINTENANCE · Aduan Gangguan / Redaman</option>
+                <option value="PSB">PSB · Permintaan Pasang Baru</option>
+              </select>
+            </label>
+          </div>
+
           <label>
-            Nama pelanggan
-            <input
-              name="customerName"
-              required
-              defaultValue={initialValues?.customerName || ''}
-              placeholder="Nama lengkap pelanggan"
+            Aduan masalah / permintaan pelanggan
+            <textarea
+              name="complaintSummary"
+              rows={2}
+              value={complaintSummary}
+              onChange={(e) => setComplaintSummary(e.target.value)}
+              placeholder="Contoh: Koneksi putus sejak pagi, indikator ONT merah LOS..."
               disabled={!canCreateTicket || submitting}
             />
           </label>
+
+          <div className="ticket-form-grid">
+            <label>
+              Nama tempat / patokan lokasi
+              <input
+                name="locationPlace"
+                value={locationPlace}
+                onChange={(e) => setLocationPlace(e.target.value)}
+                placeholder="Contoh: Ruko Baros Sentral Blok C-4"
+                disabled={!canCreateTicket || submitting}
+              />
+            </label>
+
+            <label>
+              Cluster wilayah
+              <select
+                name="clusterCode"
+                value={clusterCode}
+                onChange={(e) => setClusterCode(e.target.value)}
+                disabled={!canCreateTicket || submitting}
+              >
+                <option value="Bandung Utara">Bandung Utara (CL-01)</option>
+                <option value="Bandung Timur">Bandung Timur (CL-02)</option>
+                <option value="Bandung Barat">Bandung Barat (CL-03)</option>
+                <option value="Bandung Selatan">Bandung Selatan (CL-04)</option>
+                <option value="Cimahi">Cimahi (CMH-01)</option>
+                <option value="Rancaekek">Rancaekek (RCK-01)</option>
+              </select>
+            </label>
+          </div>
+
           <label>
-            Nomor SIA
+            Alamat lengkap lokasi tugas
             <input
-              name="siaNumber"
+              name="serviceAddress"
               required
-              defaultValue={initialValues?.siaNumber || ''}
-              placeholder="Contoh: 100246"
+              value={serviceAddress}
+              onChange={(e) => setServiceAddress(e.target.value)}
+              placeholder="Contoh: Jl. Riau No. 45, Kec. Bandung Wetan, Bandung"
               disabled={!canCreateTicket || submitting}
             />
           </label>
+
+          <div className="ticket-form-grid">
+            <label>
+              Titik Latitude
+              <input
+                name="targetLat"
+                type="number"
+                step="any"
+                value={targetLat}
+                onChange={(e) => setTargetLat(e.target.value)}
+                placeholder="-6.906200"
+                disabled={!canCreateTicket || submitting}
+              />
+            </label>
+
+            <label>
+              Titik Longitude
+              <input
+                name="targetLng"
+                type="number"
+                step="any"
+                value={targetLng}
+                onChange={(e) => setTargetLng(e.target.value)}
+                placeholder="107.618600"
+                disabled={!canCreateTicket || submitting}
+              />
+              {hasValidCoords && (
+                <a
+                  href={`https://maps.google.com/?q=${parsedLat},${parsedLng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ticket-map-link"
+                  style={{ marginTop: '4px' }}
+                >
+                  Pratinjau titik di Google Maps
+                </a>
+              )}
+            </label>
+          </div>
+
+          <div className="ticket-form-grid">
+            <label>
+              Tugaskan ke vendor / teknisi
+              <select
+                name="assignedTechUsername"
+                value={assignedTechUsername}
+                onChange={(e) => handleVendorChange(e.target.value)}
+                disabled={!canCreateTicket || submitting}
+              >
+                {technicians.map((t) => (
+                  <option key={t.username} value={t.username}>
+                    {t.fullName} — {t.vendorCompany}
+                    {t.telegramBound ? ' (Telegram Aktif)' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Perusahaan vendor / mitra
+              <input
+                name="vendorName"
+                value={vendorName}
+                onChange={(e) => setVendorName(e.target.value)}
+                placeholder="Nama PT/CV Vendor Pelaksana"
+                disabled={!canCreateTicket || submitting}
+              />
+            </label>
+          </div>
+
           <label>
-            Tipe pekerjaan
-            <select
-              name="ticketType"
-              defaultValue={initialValues?.ticketType || 'PSB'}
-              disabled={!canCreateTicket || submitting}
-            >
-              <option value="PSB">PSB · Pasang baru</option>
-              <option value="MAINTENANCE">MAINTENANCE · Perbaikan redaman/gangguan</option>
-            </select>
-          </label>
-          <label>
-            Cluster target
-            <select
-              name="clusterCode"
-              defaultValue={initialValues?.clusterCode || 'Bandung Utara'}
-              disabled={!canCreateTicket || submitting}
-            >
-              <option value="Bandung Utara">Bandung Utara (CL-01)</option>
-              <option value="Bandung Timur">Bandung Timur (CL-02)</option>
-              <option value="Bandung Barat">Bandung Barat (CL-03)</option>
-              <option value="Bandung Selatan">Bandung Selatan (CL-04)</option>
-            </select>
-          </label>
-          <label>
-            Tugaskan ke teknisi
-            <select
-              name="assignedTechUsername"
-              defaultValue={initialValues?.assignedTechUsername || 'Andi Pratama'}
-              disabled={!canCreateTicket || submitting}
-            >
-              <option value="Andi Pratama">Andi Pratama (Bandung Utara)</option>
-              <option value="Rizky Maulana">Rizky Maulana (Bandung Timur)</option>
-              <option value="Fajar Hidayat">Fajar Hidayat (Bandung Barat)</option>
-              <option value="Dimas Saputra">Dimas Saputra (Bandung Selatan)</option>
-            </select>
-          </label>
-          <label>
-            Catatan admin (opsional)
+            Instruksi tambahan CS untuk vendor (opsional)
             <input
               name="adminNotes"
-              defaultValue={initialValues?.adminNotes || ''}
-              placeholder="Instruksi khusus untuk teknisi..."
+              value={adminNotes}
+              onChange={(e) => setAdminNotes(e.target.value)}
+              placeholder="Contoh: Bawa cadangan patchcord SC-UPC & koordinasi satpam gerbang timur"
               disabled={!canCreateTicket || submitting}
             />
           </label>
+
           <button
             className="button primary"
             disabled={submitting || !canCreateTicket}
             type="submit"
           >
-            {submitting ? 'Memproses Transaksi...' : 'Buat & Tugaskan Tiket'}
+            {submitting ? 'Mengirim Disposisi...' : 'Simpan Aduan & Tugaskan ke Vendor'}
           </button>
         </form>
       </article>

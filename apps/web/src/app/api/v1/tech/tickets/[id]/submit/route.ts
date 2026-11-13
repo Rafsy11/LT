@@ -1,37 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TicketService } from '@/server/services/ticket.service';
-import { redisManager } from '@/server/lib/redis';
 import { submitTicketSchema, ERROR_CODES } from '@repo/shared';
 import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
 import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
+import { resolveTechActor, handleTechRouteError } from '@/server/lib/tech-auth';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    // 1. Instant Force Logout Check via Redis (Task 2 & Law 4)
-    const deviceId = request.headers.get('x-device-id');
-    if (deviceId) {
-      const isBlacklisted = await redisManager.isSessionBlacklisted(deviceId);
-      if (isBlacklisted) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: {
-              code: ERROR_CODES.SESSION_REVOKED,
-              message:
-                'Sesi perangkat Anda telah dicabut oleh Administrator (Force Logout). Silakan login kembali.',
-            },
-          },
-          { status: 401 },
-        );
-      }
-    }
+    const actor = await resolveTechActor(request);
 
-    const techUsername = request.headers.get('x-username') || 'andi.pratama';
-    const techUserId = request.headers.get('x-user-id') || deviceId || 'anonymous_tech';
-
-    // 2. Rate Limiting: Maksimal 20 request per menit per Teknisi user ID
+    // Rate Limiting: Maksimal 20 request per menit per Vendor/Teknisi
     const rateResult = await checkRateLimit(
-      `tech_submit:${techUserId}`,
+      `tech_submit:${actor.userId}`,
       RATE_LIMIT_PROFILES.TECH_SUBMIT,
     );
     if (!rateResult.allowed) {
@@ -53,7 +33,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const { id } = await params;
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
 
     // Support Idempotency key from either header or body
     const headerIdempotencyKey =
@@ -63,8 +43,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const validated = submitTicketSchema.parse(body);
+    const channel = validated.channel || actor.channel;
 
-    // 3. Strict Security Validation Order:
+    // Strict Security Validation Order:
     // (1) Cek kepemilikan tiket (Anti-IDOR)
     // (2) Cek Idempotency (Laporan duplikat dikembalikan sukses tanpa terblokir status)
     // (3) Cek Status Tiket (Tolak submission baru jika tiket sudah COMPLETED/CANCELLED)
@@ -77,8 +58,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         });
 
         if (ticket) {
-          // (1) Ownership IDOR Check
-          if (techUserId && ticket.assignedTechId && ticket.assignedTechId !== techUserId) {
+          if (
+            actor.userType !== 'SUPER_ADMIN' &&
+            ticket.assignedTechId &&
+            ticket.assignedTechId !== actor.userId
+          ) {
             return NextResponse.json(
               {
                 success: false,
@@ -92,7 +76,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             );
           }
 
-          // (2) Idempotency Check BEFORE closed status with Cross-Ticket Guard
           const existingHistory = await prisma.attenuationHistory.findUnique({
             where: { submissionId: validated.submissionId },
             include: { ticket: true },
@@ -100,7 +83,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
           if (existingHistory) {
             const isSameTicket = existingHistory.ticketId === ticket.id;
-            const isSameTech = !techUserId || existingHistory.techId === techUserId;
+            const isSameTech = !actor.userId || existingHistory.techId === actor.userId;
 
             if (!isSameTicket || !isSameTech) {
               return NextResponse.json(
@@ -126,7 +109,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             });
           }
 
-          // (3) Lifecycle Status Check (reject new attempts on completed/cancelled tickets)
           if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') {
             return NextResponse.json(
               {
@@ -142,14 +124,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         }
       } catch (err) {
         markDatabaseUnavailable(err);
-        // In-memory / DB unavailable fallback
       }
     }
 
-    const result = await TicketService.submitTicketByTechnician(id, validated, {
-      id: techUserId,
-      username: techUsername,
-    });
+    const result = await TicketService.submitTicketByTechnician(
+      id,
+      { ...validated, channel },
+      {
+        id: actor.userId,
+        username: actor.canonicalUsername,
+      },
+    );
 
     return NextResponse.json({
       success: true,
@@ -162,39 +147,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
     });
   } catch (error: unknown) {
-    const err = error as Error & { name?: string; errors?: Array<{ message: string }> };
-    const isValidation = err.name === 'ZodError';
-    const isOccupied = err.message?.includes(ERROR_CODES.PORT_OCCUPIED);
-    const isMock = err.message?.includes(ERROR_CODES.MOCK_LOCATION_DETECTED);
-    const isIdor = err.message?.includes(ERROR_CODES.IDOR_VIOLATION);
-    const isClosed =
-      err.message?.includes('tidak dapat dimutasi') ||
-      err.message?.includes(ERROR_CODES.TICKET_ALREADY_CLOSED);
-
-    let status = 400;
-    if (isOccupied || isClosed) status = 409;
-    else if (isMock || isIdor) status = 403;
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: isOccupied
-            ? ERROR_CODES.PORT_OCCUPIED
-            : isClosed
-              ? ERROR_CODES.TICKET_ALREADY_CLOSED
-              : isMock
-                ? ERROR_CODES.MOCK_LOCATION_DETECTED
-                : isIdor
-                  ? ERROR_CODES.IDOR_VIOLATION
-                  : isValidation
-                    ? ERROR_CODES.VALIDATION_ERROR
-                    : 'SUBMISSION_ERROR',
-          message: isValidation ? err.errors?.[0]?.message : err.message,
-          details: err.errors,
-        },
-      },
-      { status },
-    );
+    return handleTechRouteError(error, 'SUBMISSION_ERROR', 'Gagal mengirim laporan tiket');
   }
 }

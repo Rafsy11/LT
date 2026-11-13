@@ -38,7 +38,7 @@ export function TicketCard({ ticket, onSelect, getDbmBadge }: TicketCardProps) {
           <span className="ticket-number-tag">{ticket.ticketNumber}</span>
           <span
             className={`badge ${
-              ticket.ticketType.includes('Pasang') || ticket.ticketType === 'PSB'
+              ticket.ticketType.includes('Pasang') || ticket.ticketType === 'Instalasi'
                 ? 'blue'
                 : 'neutral'
             }`}
@@ -98,33 +98,47 @@ export function TicketCard({ ticket, onSelect, getDbmBadge }: TicketCardProps) {
           </div>
         </div>
 
-        {/* 4. Optional Context Banner */}
-        {isPendingApproval && (
-          <div className="ticket-status-callout ticket-callout-pending">
-            <Icon name="clock" size={12} />
-            <span>Verifikasi hasil ukur lapangan menunggu persetujuan admin</span>
+        {/* 4. Location & Complaint Context */}
+        {(ticket.locationPlace || ticket.serviceAddress) && (
+          <div className="ticket-status-callout ticket-callout-notes">
+            <Icon name="mapPin" size={12} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {ticket.locationPlace || ticket.serviceAddress}
+            </span>
           </div>
         )}
 
-        {ticket.adminNotes && !isPendingApproval && (
+        {isPendingApproval && (
+          <div className="ticket-status-callout ticket-callout-pending">
+            <Icon name="clock" size={12} />
+            <span>
+              Laporan {ticket.pendingSubmission?.channel || 'LAPANGAN'} menunggu verifikasi pusat
+            </span>
+          </div>
+        )}
+
+        {!isPendingApproval && ticket.complaintSummary && (
           <div className="ticket-status-callout ticket-callout-notes">
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              Catatan: {ticket.adminNotes}
+              Aduan: {ticket.complaintSummary}
             </span>
           </div>
         )}
       </div>
 
-      {/* 5. Footer: Assigned Technician & Action Hint */}
+      {/* 5. Footer: Assigned Vendor & Action Hint */}
       <footer className="ticket-card-footer">
         <div className="ticket-tech-assigned">
-          <span className="tech-avatar-circle">{ticket.techInitials || 'TK'}</span>
-          <span className="ticket-tech-name">
-            {ticket.assignedTech || 'Belum ditugaskan'}
-          </span>
+          <span className="tech-avatar-circle">{ticket.techInitials || 'VN'}</span>
+          <div style={{ minWidth: 0 }}>
+            <span className="ticket-tech-name">
+              {ticket.assignedTech || 'Belum ditugaskan'}
+            </span>
+            {ticket.vendorName && <span className="ticket-vendor-sub">{ticket.vendorName}</span>}
+          </div>
         </div>
         <span className="ticket-action-hint">
-          {isPendingApproval ? 'Tinjau' : 'Detail'} <Icon name="arrow" size={12} />
+          {isPendingApproval ? 'Verifikasi' : 'Detail'} <Icon name="arrow" size={12} />
         </span>
       </footer>
     </article>

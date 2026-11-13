@@ -58,6 +58,22 @@ function stripSensitiveHeaders(original: Headers): Headers {
   return cleaned;
 }
 
+function buildVerifiedHeaders(original: Headers, payload: Record<string, unknown>): Headers {
+  const requestHeaders = stripSensitiveHeaders(original);
+  if (payload.sub) requestHeaders.set('x-user-id', String(payload.sub));
+  if (payload.username) requestHeaders.set('x-username', String(payload.username));
+  if (payload.role) requestHeaders.set('x-user-role', String(payload.role));
+  if (payload.userType) requestHeaders.set('x-user-type', String(payload.userType));
+  if (payload.deviceId) requestHeaders.set('x-device-id', String(payload.deviceId));
+  if (payload.hierarchyLevel) {
+    requestHeaders.set('x-hierarchy-level', String(payload.hierarchyLevel));
+  }
+  if (payload.assignedClusters) {
+    requestHeaders.set('x-assigned-clusters', JSON.stringify(payload.assignedClusters));
+  }
+  return requestHeaders;
+}
+
 const PUBLIC_API_ROUTES = [
   '/api/v1/auth/login',
   '/api/v1/auth/verify-otp',
@@ -74,6 +90,7 @@ const PROTECTED_DASHBOARD_PREFIXES = [
   '/network',
   '/customers',
   '/technicians',
+  '/vendor',
   '/roles',
   '/settings',
   '/ai',
@@ -93,13 +110,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // ---------------------------------------------------------------------------
-  // 1. Mobile Technician Gate: /api/v1/tech/*
-  // ---------------------------------------------------------------------------
+  // Allow Web Browser Vendor Portal cookies in addition to versioned Mobile Bearer JWTs
   if (pathname.startsWith('/api/v1/tech')) {
-    // a. Semver Check (Law 4 & AGENT.md Section 4: App Version Gate HTTP 426)
+    const authHeader = request.headers.get('authorization');
+    const cookieToken =
+      request.cookies.get('fiberops_session')?.value || request.cookies.get('session')?.value;
+    const isBearerRequest = Boolean(authHeader?.startsWith('Bearer '));
     const appVersion = request.headers.get('x-app-version');
-    if (isVersionOutdated(appVersion, MIN_MOBILE_APP_VERSION)) {
+
+    const mustCheckSemver = isBearerRequest || (!cookieToken && appVersion !== null);
+    if (mustCheckSemver && isVersionOutdated(appVersion, MIN_MOBILE_APP_VERSION)) {
       return NextResponse.json(
         {
           success: false,
@@ -116,41 +136,33 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    // b. JWT Bearer Token Validation
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const token = isBearerRequest
+      ? authHeader!.substring(7).trim()
+      : cookieToken?.trim() || null;
+
+    if (!token) {
       return NextResponse.json(
         {
           success: false,
           error: {
             code: ERROR_CODES.UNAUTHORIZED,
-            message: 'Akses ditolak: Bearer token otorisasi wajib disertakan.',
+            message: 'Akses ditolak: Token atau sesi otorisasi wajib disertakan.',
           },
         },
         { status: 401 },
       );
     }
 
-    const token = authHeader.substring(7).trim();
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET);
       if (payload.purpose === '2fa_pending') {
         throw new Error('INVALID_TOKEN_PURPOSE');
       }
 
-      // SECURITY: Strip ALL sensitive headers first, then inject verified claims only
-      const requestHeaders = stripSensitiveHeaders(request.headers);
-
-      if (payload.sub) requestHeaders.set('x-user-id', payload.sub);
-      if (payload.username) requestHeaders.set('x-username', String(payload.username));
-      if (payload.role) requestHeaders.set('x-user-role', String(payload.role));
-      if (payload.userType) requestHeaders.set('x-user-type', String(payload.userType));
-      if (payload.deviceId) requestHeaders.set('x-device-id', String(payload.deviceId));
-      if (payload.hierarchyLevel)
-        requestHeaders.set('x-hierarchy-level', String(payload.hierarchyLevel));
-      if (payload.assignedClusters) {
-        requestHeaders.set('x-assigned-clusters', JSON.stringify(payload.assignedClusters));
-      }
+      const requestHeaders = buildVerifiedHeaders(
+        request.headers,
+        payload as Record<string, unknown>,
+      );
 
       return NextResponse.next({
         request: {
@@ -270,7 +282,7 @@ export async function middleware(request: NextRequest) {
     if (cookieToken) {
       try {
         const { payload } = await jwtVerify(cookieToken, JWT_SECRET);
-        if (payload.userType !== 'TECHNICIAN' && payload.purpose !== '2fa_pending') {
+        if (payload.purpose !== '2fa_pending') {
           validWebPayload = payload as Record<string, unknown>;
         }
       } catch {
@@ -280,7 +292,8 @@ export async function middleware(request: NextRequest) {
 
     if (isLoginRoute) {
       if (validWebPayload) {
-        return NextResponse.redirect(new URL('/', request.url));
+        const homeTarget = validWebPayload.userType === 'TECHNICIAN' ? '/vendor' : '/';
+        return NextResponse.redirect(new URL(homeTarget, request.url));
       }
       return NextResponse.next();
     }
@@ -294,21 +307,15 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(loginUrl);
       }
 
-      const requestHeaders = stripSensitiveHeaders(request.headers);
-      if (validWebPayload.sub) requestHeaders.set('x-user-id', String(validWebPayload.sub));
-      if (validWebPayload.username)
-        requestHeaders.set('x-username', String(validWebPayload.username));
-      if (validWebPayload.role) requestHeaders.set('x-user-role', String(validWebPayload.role));
-      if (validWebPayload.userType)
-        requestHeaders.set('x-user-type', String(validWebPayload.userType));
-      if (validWebPayload.hierarchyLevel)
-        requestHeaders.set('x-hierarchy-level', String(validWebPayload.hierarchyLevel));
-      if (validWebPayload.assignedClusters) {
-        requestHeaders.set(
-          'x-assigned-clusters',
-          JSON.stringify(validWebPayload.assignedClusters),
-        );
+      if (
+        validWebPayload.userType === 'TECHNICIAN' &&
+        pathname !== '/vendor' &&
+        !pathname.startsWith('/vendor/')
+      ) {
+        return NextResponse.redirect(new URL('/vendor', request.url));
       }
+
+      const requestHeaders = buildVerifiedHeaders(request.headers, validWebPayload);
 
       return NextResponse.next({
         request: {
@@ -330,6 +337,7 @@ export const config = {
     '/network/:path*',
     '/customers/:path*',
     '/technicians/:path*',
+    '/vendor/:path*',
     '/roles/:path*',
     '/settings/:path*',
     '/ai/:path*',

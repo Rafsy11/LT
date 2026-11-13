@@ -6,9 +6,18 @@ export interface MobileTicketItem {
   id: string;
   ticketNumber: string;
   ticketType: 'PSB' | 'MAINTENANCE';
-  status: 'OPEN' | 'IN_PROGRESS';
+  status: 'OPEN' | 'IN_PROGRESS' | 'PENDING_APPROVAL';
+  vendorName?: string | null;
+  complaintSummary?: string | null;
+  customerPhone?: string | null;
+  serviceAddress?: string;
+  locationPlace?: string | null;
+  targetLat?: number | null;
+  targetLng?: number | null;
   adminNotes: string | null;
+  rejectionReason?: string | null;
   assignedAt: string | null;
+  startedAt?: string | null;
   createdAt: string;
   customer: {
     id: string;
@@ -98,6 +107,26 @@ export function TicketListScreen({ apiClient, onSelectTicket, onLogout }: Ticket
     }
   };
 
+  const handleStartExecution = async (
+    ticketId: string,
+    coords?: { latitude: number; longitude: number },
+  ) => {
+    setError(null);
+    const res = await apiClient.request<unknown>(`/api/v1/tech/tickets/${ticketId}/start`, {
+      method: 'POST',
+      body: JSON.stringify({
+        channel: 'MOBILE',
+        checkInLat: coords?.latitude,
+        checkInLng: coords?.longitude,
+      }),
+    });
+    if (!res.success) {
+      setError(res.error.message || 'Gagal memulai eksekusi lapangan.');
+      throw new Error(res.error.message || 'Gagal memulai eksekusi lapangan.');
+    }
+    await fetchTickets();
+  };
+
   const filteredTickets = tickets.filter((t) => {
     if (filterType !== 'ALL' && t.ticketType !== filterType) {
       return false;
@@ -107,8 +136,10 @@ export function TicketListScreen({ apiClient, onSelectTicket, onLogout }: Ticket
       const matchNum = t.ticketNumber.toLowerCase().includes(q);
       const matchName = t.customer.fullName.toLowerCase().includes(q);
       const matchSia = t.customer.siaNumber.toLowerCase().includes(q);
-      const matchAddr = t.customer.address.toLowerCase().includes(q);
-      return matchNum || matchName || matchSia || matchAddr;
+      const matchAddr = (t.serviceAddress || t.customer.address).toLowerCase().includes(q);
+      const matchPlace = (t.locationPlace || '').toLowerCase().includes(q);
+      const matchComplaint = (t.complaintSummary || '').toLowerCase().includes(q);
+      return matchNum || matchName || matchSia || matchAddr || matchPlace || matchComplaint;
     }
     return true;
   });
@@ -131,6 +162,7 @@ export function TicketListScreen({ apiClient, onSelectTicket, onLogout }: Ticket
       setSearchQuery,
       refresh: fetchTickets,
       syncOfflineQueue: handleManualSync,
+      startExecution: handleStartExecution,
       selectTicket: (ticket: MobileTicketItem) => onSelectTicket(ticket, splitters),
       logout: onLogout,
     },

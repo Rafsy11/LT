@@ -27,11 +27,12 @@ const PRE_AUTH_TOKEN_EXPIRY = '5m'; // 2FA OTP challenge token
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const BCRYPT_SALT_ROUNDS = 10;
 
-interface FallbackAccount {
+export interface FallbackAccount {
   id: string;
   nik?: string | null;
   username: string;
   fullName: string;
+  vendorCompany?: string | null;
   passwordHash?: string;
   telegramChatId?: string | null;
   twoFactorEnabled?: boolean;
@@ -104,43 +105,95 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
     nik: '882043',
     username: 'tech.andi',
     fullName: 'Andi Pratama',
+    vendorCompany: 'PT Mitra Fiber Nusantara',
     userType: 'TECHNICIAN',
     isActive: true,
     assignedClusters: ['Bandung Utara'],
     role: {
       id: 'role-technician',
-      name: 'Teknisi Lapangan',
+      name: 'Vendor / Teknisi Lapangan',
       hierarchyLevel: 10,
-      permissions: ['ticket:read'],
+      permissions: ['ticket:read', 'ticket:submit'],
     },
   },
   'andi.pratama': {
     id: '00000000-0000-4000-8000-000000000003',
     nik: '882043',
-    username: 'tech.andi',
+    username: 'andi.pratama',
     fullName: 'Andi Pratama',
+    vendorCompany: 'PT Mitra Fiber Nusantara',
     userType: 'TECHNICIAN',
     isActive: true,
     assignedClusters: ['Bandung Utara'],
     role: {
       id: 'role-technician',
-      name: 'Teknisi Lapangan',
+      name: 'Vendor / Teknisi Lapangan',
       hierarchyLevel: 10,
-      permissions: ['ticket:read'],
+      permissions: ['ticket:read', 'ticket:submit'],
     },
   },
   'tech.rizky': {
     id: '00000000-0000-4000-8000-000000000004',
+    nik: '882044',
     username: 'tech.rizky',
     fullName: 'Rizky Maulana',
+    vendorCompany: 'PT Sarana Optik Bandung',
     userType: 'TECHNICIAN',
     isActive: true,
-    assignedClusters: ['Bandung Timur'],
+    assignedClusters: ['Bandung Timur', 'Cimahi'],
     role: {
       id: 'role-technician',
-      name: 'Teknisi Lapangan',
+      name: 'Vendor / Teknisi Lapangan',
       hierarchyLevel: 10,
-      permissions: ['ticket:read'],
+      permissions: ['ticket:read', 'ticket:submit'],
+    },
+  },
+  'rizky.maulana': {
+    id: '00000000-0000-4000-8000-000000000004',
+    nik: '882044',
+    username: 'rizky.maulana',
+    fullName: 'Rizky Maulana',
+    vendorCompany: 'PT Sarana Optik Bandung',
+    userType: 'TECHNICIAN',
+    isActive: true,
+    assignedClusters: ['Bandung Timur', 'Cimahi'],
+    role: {
+      id: 'role-technician',
+      name: 'Vendor / Teknisi Lapangan',
+      hierarchyLevel: 10,
+      permissions: ['ticket:read', 'ticket:submit'],
+    },
+  },
+  'fajar.hidayat': {
+    id: '00000000-0000-4000-8000-000000000005',
+    nik: '882045',
+    username: 'fajar.hidayat',
+    fullName: 'Fajar Hidayat',
+    vendorCompany: 'PT Mitra Fiber Nusantara',
+    userType: 'TECHNICIAN',
+    isActive: true,
+    assignedClusters: ['Bandung Barat'],
+    role: {
+      id: 'role-technician',
+      name: 'Vendor / Teknisi Lapangan',
+      hierarchyLevel: 10,
+      permissions: ['ticket:read', 'ticket:submit'],
+    },
+  },
+  'dedi.kurniawan': {
+    id: '00000000-0000-4000-8000-000000000006',
+    nik: '882046',
+    username: 'dedi.kurniawan',
+    fullName: 'Dedi Kurniawan',
+    vendorCompany: 'CV Jaringan Nusantara',
+    userType: 'TECHNICIAN',
+    isActive: true,
+    assignedClusters: ['Rancaekek'],
+    role: {
+      id: 'role-technician',
+      name: 'Vendor / Teknisi Lapangan',
+      hierarchyLevel: 10,
+      permissions: ['ticket:read', 'ticket:submit'],
     },
   },
 };
@@ -323,10 +376,52 @@ export class AuthService {
     }
   }
 
+  private static mapDbUserToAccount(found: {
+    id: string;
+    nik: string | null;
+    username: string;
+    fullName: string;
+    vendorCompany?: string | null;
+    passwordHash: string;
+    telegramChatId: string | null;
+    twoFactorEnabled: boolean;
+    userType: string;
+    isActive: boolean;
+    assignedClusters: string[];
+    role: {
+      id: string;
+      name: string;
+      hierarchyLevel: number;
+      permissions: unknown;
+    };
+  }): FallbackAccount {
+    return {
+      id: found.id,
+      nik: found.nik,
+      username: found.username,
+      fullName: found.fullName,
+      vendorCompany: found.vendorCompany ?? null,
+      passwordHash: found.passwordHash,
+      telegramChatId: found.telegramChatId,
+      twoFactorEnabled: found.twoFactorEnabled,
+      userType: found.userType as UserTypeEnum,
+      isActive: found.isActive,
+      assignedClusters: found.assignedClusters,
+      role: {
+        id: found.role.id,
+        name: found.role.name,
+        hierarchyLevel: found.role.hierarchyLevel,
+        permissions: Array.isArray(found.role.permissions)
+          ? (found.role.permissions as string[])
+          : [],
+      },
+    };
+  }
+
   /**
-   * Resolves a web operator account by username from PostgreSQL or fallback seed accounts.
+   * Resolves a web operator or vendor account by username from PostgreSQL or fallback seed accounts.
    */
-  private static async resolveAccountByUsername(username: string): Promise<FallbackAccount | null> {
+  public static async resolveAccountByUsername(username: string): Promise<FallbackAccount | null> {
     const normalizedUsername = username.trim().toLowerCase();
     let dbUser: FallbackAccount | null = null;
 
@@ -337,30 +432,10 @@ export class AuthService {
           include: { role: true },
         });
         if (found) {
-          dbUser = {
-            id: found.id,
-            nik: found.nik,
-            username: found.username,
-            fullName: found.fullName,
-            passwordHash: found.passwordHash,
-            telegramChatId: found.telegramChatId,
-            twoFactorEnabled: found.twoFactorEnabled,
-            userType: found.userType as UserTypeEnum,
-            isActive: found.isActive,
-            assignedClusters: found.assignedClusters,
-            role: {
-              id: found.role.id,
-              name: found.role.name,
-              hierarchyLevel: found.role.hierarchyLevel,
-              permissions: Array.isArray(found.role.permissions)
-                ? (found.role.permissions as string[])
-                : [],
-            },
-          };
+          dbUser = this.mapDbUserToAccount(found);
         }
       } catch (err) {
         markDatabaseUnavailable(err);
-        // Fallback to in-memory seed accounts when DB is offline in local/on-premise environment
       }
     }
 
@@ -379,26 +454,7 @@ export class AuthService {
           include: { role: true },
         });
         if (found) {
-          return {
-            id: found.id,
-            nik: found.nik,
-            username: found.username,
-            fullName: found.fullName,
-            passwordHash: found.passwordHash,
-            telegramChatId: found.telegramChatId,
-            twoFactorEnabled: found.twoFactorEnabled,
-            userType: found.userType as UserTypeEnum,
-            isActive: found.isActive,
-            assignedClusters: found.assignedClusters,
-            role: {
-              id: found.role.id,
-              name: found.role.name,
-              hierarchyLevel: found.role.hierarchyLevel,
-              permissions: Array.isArray(found.role.permissions)
-                ? (found.role.permissions as string[])
-                : [],
-            },
-          };
+          return this.mapDbUserToAccount(found);
         }
       } catch (err) {
         markDatabaseUnavailable(err);
@@ -409,6 +465,41 @@ export class AuthService {
       (u) =>
         Boolean(u.nik && u.nik.toUpperCase() === cleanNik) ||
         u.username.toLowerCase() === cleanNik.toLowerCase(),
+    );
+    return fallback || null;
+  }
+
+  /**
+   * Resolves an active operator or vendor account by pre-bound Telegram Chat ID.
+   */
+  public static async resolveAccountByTelegramChatId(
+    chatId: string,
+  ): Promise<FallbackAccount | null> {
+    const cleanId = String(chatId).trim();
+    if (!cleanId) return null;
+
+    if (await isDatabaseAvailable()) {
+      try {
+        const found = await prisma.user.findFirst({
+          where: {
+            isActive: true,
+            OR: [
+              { telegramChatId: cleanId },
+              { telegramChatId: { contains: cleanId } },
+            ],
+          },
+          include: { role: true },
+        });
+        if (found) {
+          return this.mapDbUserToAccount(found);
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+      }
+    }
+
+    const fallback = Object.values(FALLBACK_SEED_USERS).find(
+      (u) => u.isActive && u.telegramChatId?.split(',').map((s) => s.trim()).includes(cleanId),
     );
     return fallback || null;
   }
@@ -563,16 +654,7 @@ export class AuthService {
       throw forbiddenErr;
     }
 
-    if (user.userType === 'TECHNICIAN' || user.role.name.toLowerCase().includes('teknisi')) {
-      const techErr = new Error(
-        'Akun Teknisi Lapangan hanya dapat mengakses sistem melalui Aplikasi Mobile FiberOps.',
-      );
-      (techErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
-      (techErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
-      throw techErr;
-    }
-
-    // Mandatory 2FA OTP via Telegram Bot for all Web NOC accounts (Strict Pre-Bound Chat ID)
+    // Mandatory 2FA OTP via Telegram Bot for all Web CS & Vendor accounts (Strict Pre-Bound Chat ID)
     let resolvedChatId = resolveTelegramChatId({
       dbChatId: user.telegramChatId,
     });
@@ -641,6 +723,7 @@ export class AuthService {
         nik: user.nik || null,
         username: user.username,
         fullName: user.fullName,
+        vendorCompany: user.vendorCompany || null,
         role: user.role.name,
         roleName: user.role.name,
         userType: user.userType as UserTypeEnum,
@@ -666,15 +749,6 @@ export class AuthService {
       (forbiddenErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
       (forbiddenErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
       throw forbiddenErr;
-    }
-
-    if (user.userType === 'TECHNICIAN') {
-      const techErr = new Error(
-        'Akun Teknisi Lapangan hanya dapat mengakses sistem melalui Aplikasi Mobile FiberOps.',
-      );
-      (techErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
-      (techErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
-      throw techErr;
     }
 
     const token = await this.generateAccessToken(
@@ -716,6 +790,7 @@ export class AuthService {
         nik: user.nik || null,
         username: user.username,
         fullName: user.fullName,
+        vendorCompany: user.vendorCompany || null,
         role: user.role.name,
         roleName: user.role.name,
         userType: user.userType as UserTypeEnum,

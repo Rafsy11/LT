@@ -10,10 +10,12 @@ import {
   getCachedData,
   subscribeQueryCache,
 } from '@/lib/query-cache';
+import { useAuth } from '@/providers';
 import '@/styles/layout/shell.css';
 import '@/styles/components/primitives.css';
 
-const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
+const ADMIN_TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
+const TECH_TICKETS_CACHE_KEY = '/api/v1/tech/tickets';
 
 const pageTitleMap: Record<string, string> = {
   '/': 'Overview',
@@ -21,7 +23,8 @@ const pageTitleMap: Record<string, string> = {
   '/tickets': 'Tiket & Work Order',
   '/network': 'Master Jaringan',
   '/customers': 'Master Pelanggan (SIA)',
-  '/technicians': 'Teknisi Lapangan',
+  '/technicians': 'Teknisi & Vendor',
+  '/vendor': 'Portal Kerja Vendor',
   '/roles': 'Role-Based Access Control',
   '/settings': 'Pengaturan',
   '/ai': 'AI Assistant',
@@ -29,10 +32,13 @@ const pageTitleMap: Record<string, string> = {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const isVendorScope = pathname.startsWith('/vendor') || user.userType === 'TECHNICIAN';
+  const activeCacheKey = isVendorScope ? TECH_TICKETS_CACHE_KEY : ADMIN_TICKETS_CACHE_KEY;
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
   const title = pageTitleMap[pathname] || 'Dashboard';
-  const [ticketCount, setTicketCount] = useState(24);
+  const [ticketCount, setTicketCount] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -66,7 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     const syncTicketCountFromCache = () => {
-      const cached = getCachedData<unknown[]>(TICKETS_CACHE_KEY);
+      const cached = getCachedData<unknown[]>(activeCacheKey);
       if (Array.isArray(cached)) {
         setTicketCount(cached.length);
       }
@@ -74,10 +80,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const fetchTicketCount = (force = false) =>
       fetchWithCache<unknown[]>(
-        TICKETS_CACHE_KEY,
+        activeCacheKey,
         async () => {
-          const res = await fetch(TICKETS_CACHE_KEY);
+          const res = await fetch(activeCacheKey);
           const json = await res.json();
+          if (isVendorScope) {
+            const list = Array.isArray(json?.data?.tickets) ? json.data.tickets : [];
+            return list;
+          }
           if (!res.ok || !json.success || !Array.isArray(json.data)) {
             throw new Error(json.error?.message || 'Gagal memuat daftar tiket');
           }
@@ -91,17 +101,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .catch(() => {});
 
     syncTicketCountFromCache();
-    const unsubscribe = subscribeQueryCache(TICKETS_CACHE_KEY, syncTicketCountFromCache);
+    const unsubscribe = subscribeQueryCache(activeCacheKey, syncTicketCountFromCache);
 
-    // Avoid firing duplicate /tickets call when landing directly on / which fetches /overview and seeds this cache
-    if (pathnameRef.current !== '/' && !getCachedData<unknown[]>(TICKETS_CACHE_KEY)) {
+    if (
+      pathnameRef.current !== '/' &&
+      !pathnameRef.current.startsWith('/vendor') &&
+      !getCachedData<unknown[]>(activeCacheKey)
+    ) {
+      fetchTicketCount();
+    } else if (isVendorScope && !getCachedData<unknown[]>(activeCacheKey)) {
       fetchTicketCount();
     }
 
     const handleGlobalRefresh = () => {
       const currentPath = pathnameRef.current;
-      // Overview, Tickets, and Monitoring views already force-refresh or seed TICKETS_CACHE_KEY on global refresh
-      if (currentPath !== '/' && currentPath !== '/tickets' && currentPath !== '/monitoring') {
+      if (
+        currentPath !== '/' &&
+        currentPath !== '/tickets' &&
+        currentPath !== '/monitoring' &&
+        currentPath !== '/vendor'
+      ) {
         fetchTicketCount(true);
       }
     };
@@ -112,7 +131,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       window.removeEventListener('app:refresh-data', handleGlobalRefresh);
       unsubscribe();
     };
-  }, []);
+  }, [activeCacheKey, isVendorScope]);
 
   return (
     <div className="app">
@@ -141,7 +160,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span className="footer-version">Versi 1.0.0 (On-Premise)</span>
         </footer>
       </div>
-      <AiChatWidget />
+      {!isVendorScope && <AiChatWidget />}
     </div>
   );
 }
