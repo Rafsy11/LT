@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -33,7 +33,26 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const asideRef = useRef<HTMLElement>(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const isVendorUser = user.userType === 'TECHNICIAN' || pathname.startsWith('/vendor');
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia('(max-width: 1023px)');
+    const syncViewport = () => setIsMobileViewport(mql.matches);
+    syncViewport();
+    mql.addEventListener('change', syncViewport);
+    return () => mql.removeEventListener('change', syncViewport);
+  }, []);
+
+  const isClosedMobile = isMobileViewport && !isOpen;
+
+  useEffect(() => {
+    const el = asideRef.current;
+    if (!el) return;
+    (el as HTMLElement & { inert: boolean }).inert = isClosedMobile;
+  }, [isClosedMobile]);
 
   const navItems: NavItem[] = isVendorUser
     ? [
@@ -46,9 +65,9 @@ export function Sidebar({
         },
       ]
     : [
-        { label: 'Overview', href: '/', icon: 'home' },
-        { label: 'Live Monitoring', href: '/monitoring', icon: 'activity', hasLiveDot: true },
-        { label: 'Tiket & Work Order', href: '/tickets', icon: 'ticket', count: ticketCount },
+        { label: 'Ringkasan', href: '/', icon: 'home' },
+        { label: 'Pantauan Langsung', href: '/monitoring', icon: 'activity', hasLiveDot: true },
+        { label: 'Tiket & Tugas', href: '/tickets', icon: 'ticket', count: ticketCount },
         { label: 'Cluster Jaringan', href: '/network', icon: 'network' },
         { label: 'Pelanggan (SIA)', href: '/customers', icon: 'users' },
         { label: 'Teknisi & Vendor', href: '/technicians', icon: 'wrench' },
@@ -65,8 +84,10 @@ export function Sidebar({
   return (
     <>
       <aside
+        ref={asideRef}
         className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}
         aria-label="Sidebar Navigasi"
+        aria-hidden={isClosedMobile || undefined}
       >
         <div className="sidebar-header-row">
           <Link
@@ -110,11 +131,14 @@ export function Sidebar({
           </button>
         </div>
 
-        <section className="sidebar-workspace-section" aria-label="Workspace">
-          <h2 className="nav-label">WORKSPACE</h2>
+        <section className="sidebar-workspace-section" aria-label="Operasional">
+          <h2 className="nav-label">OPERASIONAL</h2>
           <nav aria-label="Navigasi Utama">
             {navItems.map((item) => {
               const active = isActive(item.href);
+              const hasTrailingBadge = Boolean(
+                item.hasLiveDot || item.tag || item.count !== undefined,
+              );
               return (
                 <Link
                   key={item.href}
@@ -126,8 +150,11 @@ export function Sidebar({
                 >
                   <Icon name={item.icon} size={18} />
                   <span>{item.label}</span>
-                  {active && item.href === '/' && (
-                    <span className="nav-active-dot" aria-hidden="true" />
+                  {active && (
+                    <span
+                      className={`nav-active-dot${hasTrailingBadge ? ' nav-active-dot--compact-only' : ''}`}
+                      aria-hidden="true"
+                    />
                   )}
                   {item.hasLiveDot && <i className="green-dot" aria-label="Status Live Aktif" />}
                   {item.tag && <span className="ai-tag">{item.tag}</span>}

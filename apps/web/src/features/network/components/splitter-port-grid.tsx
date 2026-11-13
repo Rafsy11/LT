@@ -119,7 +119,7 @@ export function SplitterPortGrid({
                       style={{ cursor: 'pointer' }}
                     >
                       {/* Chevron Expand */}
-                      <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                      <td className="ui-text-muted" style={{ textAlign: 'center', fontSize: '13px' }}>
                         <span>{isExpanded ? '⌄' : '›'}</span>
                       </td>
 
@@ -149,7 +149,7 @@ export function SplitterPortGrid({
                             <div className="customer-sia-code">{port.siaNumber || '-'}</div>
                           </div>
                         ) : (
-                          <span style={{ color: '#94a3b8' }}>-</span>
+                          <span className="ui-text-muted">-</span>
                         )}
                       </td>
 
@@ -161,7 +161,7 @@ export function SplitterPortGrid({
                             <SignalStrengthBars status={attMeta.status} />
                           </span>
                         ) : (
-                          <span style={{ color: '#94a3b8' }}>-</span>
+                          <span className="ui-text-muted">-</span>
                         )}
                       </td>
 
@@ -204,7 +204,7 @@ export function SplitterPortGrid({
                             <span className="activity-sub-clean">{port.lastActivity.date}</span>
                           </div>
                         ) : (
-                          <span style={{ color: '#94a3b8' }}>-</span>
+                          <span className="ui-text-muted">-</span>
                         )}
                       </td>
 
@@ -253,8 +253,7 @@ export function SplitterPortGrid({
                               <div className="inline-inspect-col">
                                 <span className="inline-inspect-col-label">Hasil Inspeksi</span>
                                 <span
-                                  className="inline-inspect-col-val"
-                                  style={{ color: isOccupied ? '#16a34a' : '#0284c7' }}
+                                  className={`inline-inspect-col-val ${isOccupied ? 'is-ok' : 'is-info'}`}
                                 >
                                   {isOccupied ? 'Normal' : 'Port Siap Alokasi PSB'}
                                 </span>

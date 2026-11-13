@@ -1,11 +1,26 @@
 'use client';
 
-import React, { useEffect, useId, useSyncExternalStore } from 'react';
+import React, { useEffect, useId, useRef, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 
 const emptySubscribe = () => () => {};
 const openModalStack: string[] = [];
 let previousHtmlOverflow: string | null = null;
+
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ');
+
+function getVisibleFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (el) => el.getAttribute('aria-hidden') !== 'true' && (el.offsetParent !== null || el.getClientRects().length > 0),
+  );
+}
 
 function lockBodyScroll(id: string) {
   if (typeof document === 'undefined') return;
@@ -64,32 +79,78 @@ export function ModalOverlay({
   children,
 }: ModalOverlayProps) {
   const modalId = useId();
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const isClient = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   useEffect(() => {
     if (!isClient) return;
+    const previousFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     lockBodyScroll(modalId);
 
+    const frameId = requestAnimationFrame(() => {
+      const container = overlayRef.current;
+      if (!container) return;
+      if (container.contains(document.activeElement)) return;
+      const focusables = getVisibleFocusableElements(container);
+      const target = focusables[0] ?? container;
+      target.focus({ preventScroll: true });
+    });
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
       const topModalId = openModalStack[openModalStack.length - 1];
-      if (topModalId === modalId) {
+      if (topModalId !== modalId) return;
+
+      if (event.key === 'Escape') {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key === 'Tab') {
+        const container = overlayRef.current;
+        if (!container) return;
+        const focusables = getVisibleFocusableElements(container);
+        if (focusables.length === 0) {
+          event.preventDefault();
+          container.focus({ preventScroll: true });
+          return;
+        }
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+
+        if (event.shiftKey) {
+          if (!active || active === first || !container.contains(active)) {
+            event.preventDefault();
+            last.focus();
+          }
+        } else if (!active || active === last || !container.contains(active)) {
+          event.preventDefault();
+          first.focus();
+        }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      cancelAnimationFrame(frameId);
+      window.removeEventListener('keydown', handleKeyDown, true);
       unlockBodyScroll(modalId);
+      if (previousFocused && previousFocused.isConnected) {
+        previousFocused.focus({ preventScroll: true });
+      }
     };
-  }, [isClient, modalId, onClose]);
+  }, [isClient, modalId]);
 
   if (!isClient) return null;
 
   return createPortal(
     <div
+      ref={overlayRef}
+      tabIndex={-1}
       className={className ? `overlay ${className}` : 'overlay'}
       role="dialog"
       aria-modal="true"

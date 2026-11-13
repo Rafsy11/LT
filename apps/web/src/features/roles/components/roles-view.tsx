@@ -64,7 +64,7 @@ export function RolesView() {
   }, [fetchRoles]);
 
   return (
-    <main className="roles-page" style={{ paddingBottom: '32px' }}>
+    <main className="roles-page" id="main-content" style={{ paddingBottom: '32px' }}>
       {/* Overview Header */}
       <RoleHeader
         isFetching={isFetching}
@@ -84,6 +84,7 @@ export function RolesView() {
       <section className="panel" style={{ padding: '20px 24px' }}>
         {/* Navigation Toolbar */}
         <header
+          className="ui-divider-bottom"
           style={{
             display: 'flex',
             flexWrap: 'wrap',
@@ -92,7 +93,6 @@ export function RolesView() {
             gap: '16px',
             marginBottom: '20px',
             paddingBottom: '16px',
-            borderBottom: '1px solid #f1f5f9',
           }}
         >
           {/* Segmented View Switcher */}

@@ -44,6 +44,7 @@ export function SettingsView() {
 
   return (
     <main
+      id="main-content"
       className="settings-page"
       style={{ paddingBottom: '48px', maxWidth: '1600px', margin: '0 auto' }}
     >

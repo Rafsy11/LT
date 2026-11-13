@@ -3,6 +3,7 @@
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { TicketsSkeleton } from '@/components/ui/PageSkeleton';
+import { SearchInput } from '@/components/ui/search-input';
 import { useAuth } from '@/providers';
 import {
   useVendorTickets,
@@ -53,7 +54,8 @@ export function VendorPortalView() {
   const pendingApprovalCount = tickets.filter((t) => t.status === 'PENDING_APPROVAL').length;
 
   return (
-    <main className="main-content vendor-page" aria-label="Portal Kerja Vendor Lapangan">
+    <main id="main-content" className="main-content vendor-page" aria-label="Portal Kerja Vendor Lapangan">
+      <h1 className="sr-only">Portal Kerja Vendor Lapangan</h1>
       <div className="vendor-channel-banner">
         <div>
           <strong>Portal Multi-Kanal Vendor ({user.fullName}):</strong> Anda dapat mengerjakan dan
@@ -98,19 +100,13 @@ export function VendorPortalView() {
           ))}
         </div>
 
-        <div className="vendor-search-box">
-          <span className="vendor-search-icon" aria-hidden="true">
-            <Icon name="search" size={15} />
-          </span>
-          <input
-            type="search"
-            className="vendor-search-input"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari tiket, pelanggan, SIA, atau alamat..."
-            aria-label="Cari tugas vendor"
-          />
-        </div>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Cari tiket, pelanggan, SIA, atau alamat..."
+          ariaLabel="Cari tugas vendor"
+          className="vendor-search-box"
+        />
       </div>
 
       {filteredTickets.length === 0 ? (
@@ -135,7 +131,7 @@ export function VendorPortalView() {
                 </header>
 
                 <div className="vendor-task-customer">
-                  <h3>{ticket.customer.fullName}</h3>
+                  <h2>{ticket.customer.fullName}</h2>
                   <div className="vendor-task-meta">
                     <code>{ticket.customer.siaNumber}</code>
                     <span>·</span>

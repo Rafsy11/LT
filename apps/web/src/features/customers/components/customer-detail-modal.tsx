@@ -270,7 +270,8 @@ export function CustomerDetailModal({
 
             {loadingHistory ? (
               <div
-                style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}
+                className="ui-text-muted"
+                style={{ padding: '24px', textAlign: 'center', fontSize: '12px' }}
               >
                 Memuat riwayat redaman...
               </div>
@@ -317,21 +318,21 @@ export function CustomerDetailModal({
                           </td>
                           <td style={{ padding: '8px 10px' }}>
                             <span
-                              style={{
-                                fontWeight: 600,
-                                color:
-                                  histTone === 'green'
-                                    ? '#166534'
-                                    : histTone === 'orange'
-                                      ? '#b45309'
-                                      : '#be123c',
-                              }}
+                              className={
+                                histTone === 'green'
+                                  ? 'ui-text-success-strong'
+                                  : histTone === 'orange'
+                                    ? 'ui-text-warn'
+                                    : 'ui-text-critical-strong'
+                              }
+                              style={{ fontWeight: 600 }}
                             >
                               {h.newAttenuation.toFixed(1)} dBm
                             </span>
                             {h.oldAttenuation !== null && (
                               <span
-                                style={{ fontSize: '10px', color: '#94a3b8', marginLeft: '6px' }}
+                                className="ui-text-muted"
+                                style={{ fontSize: '10px', marginLeft: '6px' }}
                               >
                                 (sebelumnya: {h.oldAttenuation.toFixed(1)})
                               </span>

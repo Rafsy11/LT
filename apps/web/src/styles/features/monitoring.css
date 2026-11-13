@@ -143,8 +143,7 @@
 
 .noc-incident-bar {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-left: 3px solid #dc2626;
+  border: 1px solid #fecaca;
   border-radius: 8px;
   padding: 10px 16px;
   margin-bottom: 20px;
@@ -228,10 +227,12 @@
   gap: 5px;
 }
 
-.noc-incident-btn:hover {
-  background: #f8fafc;
-  color: #0f172a;
-  border-color: #cbd5e1;
+@media (hover: hover) and (pointer: fine) {
+  .noc-incident-btn:hover {
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: #cbd5e1;
+  }
 }
 
 .noc-incident-btn.noc-incident-btn-primary {
@@ -240,9 +241,11 @@
   border-color: #0e5b92;
 }
 
-.noc-incident-btn.noc-incident-btn-primary:hover {
-  background: #0b4975;
-  border-color: #0b4975;
+@media (hover: hover) and (pointer: fine) {
+  .noc-incident-btn.noc-incident-btn-primary:hover {
+    background: #0b4975;
+    border-color: #0b4975;
+  }
 }
 
 .noc-console-layout {
@@ -278,33 +281,9 @@
 }
 
 .noc-search-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #ffffff;
-  border: 1px solid #dce7f0;
-  border-radius: 6px;
-  padding: 5px 10px;
-  flex: 1;
+  flex: 1 1 240px;
   min-width: 220px;
-  max-width: 340px;
-  color: #64748b;
-}
-
-.noc-search-box:focus-within {
-  border-color: #0e5b92;
-  box-shadow: 0 0 0 2px rgba(14, 91, 146, 0.1);
-  color: #0e5b92;
-}
-
-.noc-search-box input {
-  width: 100%;
-  font-size: 12px;
-  color: #0f172a;
-}
-
-.noc-search-box input::placeholder {
-  color: #64748b;
+  max-width: 360px;
 }
 
 .noc-filters-group {
@@ -321,12 +300,13 @@
   background: #ffffff;
   font-size: 11.5px;
   color: #334155;
-  outline: none;
   cursor: pointer;
 }
 
-.noc-select:focus {
+.noc-select:focus-visible {
   border-color: #0e5b92;
+  outline: 2px solid #0e5b92;
+  outline-offset: 2px;
 }
 
 .noc-toolbar-bottom {
@@ -350,10 +330,10 @@
 .noc-tab-btn {
   border: none;
   background: transparent;
-  color: #64748b;
+  color: #475569;
   font-size: 11.5px;
   font-weight: 500;
-  padding: 4px 10px;
+  padding: 5px 10px;
   border-radius: 5px;
   cursor: pointer;
   display: inline-flex;
@@ -361,8 +341,10 @@
   gap: 6px;
 }
 
-.noc-tab-btn:hover {
-  color: #0f172a;
+@media (hover: hover) and (pointer: fine) {
+  .noc-tab-btn:hover {
+    color: #0f172a;
+  }
 }
 
 .noc-tab-btn.active {
@@ -376,7 +358,7 @@
   font-size: 11px;
   font-weight: 500;
   padding: 0.5px 5px;
-  border-radius: 9999px;
+  border-radius: 4px;
   background: #e2e8f0;
   color: #475569;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -423,8 +405,10 @@
   position: relative;
 }
 
-.noc-stream-row:hover {
-  background: #f8fafc;
+@media (hover: hover) and (pointer: fine) {
+  .noc-stream-row:hover {
+    background: #f8fafc;
+  }
 }
 
 .noc-stream-row.active {
@@ -488,15 +472,15 @@
 }
 
 .hud-gauge-card.normal {
-  border-left: 3px solid #16a34a;
+  border-color: #bbf7d0;
 }
 
 .hud-gauge-card.warning {
-  border-left: 3px solid #d97706;
+  border-color: #fde68a;
 }
 
 .hud-gauge-card.critical {
-  border-left: 3px solid #e11d48;
+  border-color: #fecdd3;
   background: #fffafa;
 }
 
@@ -690,8 +674,10 @@
   gap: 6px;
 }
 
-.hud-btn-primary:hover {
-  background: #1e293b;
+@media (hover: hover) and (pointer: fine) {
+  .hud-btn-primary:hover {
+    background: #1e293b;
+  }
 }
 
 .hud-btn-secondary {
@@ -709,9 +695,11 @@
   gap: 6px;
 }
 
-.hud-btn-secondary:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+@media (hover: hover) and (pointer: fine) {
+  .hud-btn-secondary:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
 }
 
 .noc-empty-stream {
@@ -763,39 +751,10 @@ html.dark .noc-inspector-panel,
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
 }
 
-.noc-search-box input {
-  background: transparent !important;
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-html.dark .noc-search-box input,
-[data-theme='dark'] .noc-search-box input {
-  background: transparent !important;
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-  color: #f1f5f9 !important;
-}
-
-.noc-search-box input:focus,
-.noc-search-box input:focus-visible,
-html.dark .noc-search-box input:focus,
-html.dark .noc-search-box input:focus-visible,
-[data-theme='dark'] .noc-search-box input:focus,
-[data-theme='dark'] .noc-search-box input:focus-visible {
-  background: transparent !important;
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-}
-
 html.dark .noc-incident-bar,
 [data-theme='dark'] .noc-incident-bar {
   background: #0f172a !important;
-  border: 1px solid #1e293b !important;
-  border-left: 4px solid #ef4444 !important;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important;
 }
 
@@ -826,10 +785,12 @@ html.dark .noc-incident-btn,
   color: #f1f5f9 !important;
 }
 
-html.dark .noc-incident-btn:hover,
-[data-theme='dark'] .noc-incident-btn:hover {
-  background: #334155 !important;
-  border-color: #2585d0 !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .noc-incident-btn:hover,
+  [data-theme='dark'] .noc-incident-btn:hover {
+    background: #334155 !important;
+    border-color: #2585d0 !important;
+  }
 }
 
 html.dark .noc-incident-btn-primary,
@@ -851,8 +812,6 @@ html.dark .noc-stream-toolbar,
   border-bottom: 1px solid #1e293b !important;
 }
 
-html.dark .noc-search-box,
-[data-theme='dark'] .noc-search-box,
 html.dark .noc-select,
 [data-theme='dark'] .noc-select {
   background: #020617 !important;
@@ -864,6 +823,7 @@ html.dark .noc-tab-btn,
 [data-theme='dark'] .noc-tab-btn {
   background: #1e293b !important;
   border: 1px solid #334155 !important;
+  color: #cbd5e1 !important;
 }
 
 html.dark .noc-tab-btn.active,
@@ -877,10 +837,12 @@ html.dark .noc-card,
   border: 1px solid #1e293b !important;
 }
 
-html.dark .noc-card:hover,
-[data-theme='dark'] .noc-card:hover {
-  background: #1e293b !important;
-  border-color: #2585d0 !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .noc-card:hover,
+  [data-theme='dark'] .noc-card:hover {
+    background: #1e293b !important;
+    border-color: #2585d0 !important;
+  }
 }
 
 html.dark .noc-card.active,
@@ -930,15 +892,17 @@ html.dark .noc-stream-row,
   color: #f1f5f9 !important;
 }
 
-html.dark .noc-stream-row:hover,
-[data-theme='dark'] .noc-stream-row:hover {
-  background: #1e293b !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .noc-stream-row:hover,
+  [data-theme='dark'] .noc-stream-row:hover {
+    background: #1e293b !important;
+  }
 }
 
 html.dark .noc-stream-row.active,
 [data-theme='dark'] .noc-stream-row.active {
   background: #1e293b !important;
-  border-left: 3px solid #2698e8 !important;
+  box-shadow: inset 3px 0 0 #2698e8 !important;
 }
 
 html.dark .noc-incident-badge,
@@ -1042,9 +1006,11 @@ html.dark .hud-btn-primary,
   color: #ffffff !important;
 }
 
-html.dark .hud-btn-primary:hover,
-[data-theme='dark'] .hud-btn-primary:hover {
-  background: #1d70b8 !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .hud-btn-primary:hover,
+  [data-theme='dark'] .hud-btn-primary:hover {
+    background: #1d70b8 !important;
+  }
 }
 
 html.dark .hud-btn-secondary,
@@ -1054,10 +1020,12 @@ html.dark .hud-btn-secondary,
   color: #f1f5f9 !important;
 }
 
-html.dark .hud-btn-secondary:hover,
-[data-theme='dark'] .hud-btn-secondary:hover {
-  background: #334155 !important;
-  border-color: #2585d0 !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .hud-btn-secondary:hover,
+  [data-theme='dark'] .hud-btn-secondary:hover {
+    background: #334155 !important;
+    border-color: #2585d0 !important;
+  }
 }
 
 html.dark .noc-status-tabs,
@@ -1071,10 +1039,12 @@ html.dark .noc-tab-btn,
   color: #94a3b8 !important;
 }
 
-html.dark .noc-tab-btn:hover,
-[data-theme='dark'] .noc-tab-btn:hover {
-  color: #f1f5f9 !important;
-  background: rgba(30, 41, 59, 0.6) !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .noc-tab-btn:hover,
+  [data-theme='dark'] .noc-tab-btn:hover {
+    color: #f1f5f9 !important;
+    background: rgba(30, 41, 59, 0.6) !important;
+  }
 }
 
 html.dark .noc-tab-btn.active,

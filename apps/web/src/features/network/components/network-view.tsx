@@ -72,7 +72,7 @@ export function NetworkView() {
   }, [fetchClusters]);
 
   return (
-    <main className="network-page-container">
+    <main className="network-page-container" id="main-content">
       {/* Header Section matching Lintasarta FTTH Network Dashboard reference */}
       <header className="network-header-v2">
         <div className="network-header-titles">
@@ -162,11 +162,11 @@ export function NetworkView() {
                     </div>
                     <p className="odp-sub-specs-line">
                       <span>Cluster: {activeSplitter.clusterCode}</span>
-                      <span>·</span>
+                      <span aria-hidden="true">·</span>
                       <span>
                         Koordinat: {activeSplitter.lat.toFixed(4)}, {activeSplitter.lng.toFixed(4)}
                       </span>
-                      <span>·</span>
+                      <span aria-hidden="true">·</span>
                       <span>
                         Splitter: {activeSplitter.maxPorts === 8 ? '1x8 PLC' : '1x16 PLC'}
                       </span>
@@ -177,9 +177,9 @@ export function NetworkView() {
                 <div className="odp-header-right-stats">
                   <div className="odp-port-summary-clean">
                     <span>Total Port {activeSplitter.maxPorts}</span>
-                    <span className="sep">|</span>
+                    <span className="sep" aria-hidden="true">|</span>
                     <span>Terisi {activeSplitter.usedPorts}</span>
-                    <span className="sep">|</span>
+                    <span className="sep" aria-hidden="true">|</span>
                     <span>Siap PSB {activeSplitter.maxPorts - activeSplitter.usedPorts}</span>
                   </div>
                   {canManageNetwork && (

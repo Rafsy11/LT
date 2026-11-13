@@ -105,12 +105,9 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
           <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {error && (
               <div
+                className="ui-alert-banner ui-alert-banner--error"
                 style={{
                   padding: '8px 12px',
-                  borderRadius: '6px',
-                  background: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  color: '#b91c1c',
                   fontSize: '12px',
                 }}
               >
@@ -137,7 +134,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                   marginTop: 0,
                   padding: '8px 12px',
                   borderRadius: '6px',
-                  border: '1px solid var(--color-border-subtle, #cbd5e1)',
+                  border: '1px solid var(--color-border-subtle)',
                   fontSize: '12.5px',
                   boxSizing: 'border-box',
                 }}
@@ -164,7 +161,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                     marginTop: 0,
                     padding: '8px 12px',
                     borderRadius: '6px',
-                    border: '1px solid var(--color-border-subtle, #cbd5e1)',
+                    border: '1px solid var(--color-border-subtle)',
                     fontSize: '12.5px',
                     boxSizing: 'border-box',
                     fontFamily: 'var(--font-mono)',
@@ -191,7 +188,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                     marginTop: 0,
                     padding: '8px 12px',
                     borderRadius: '6px',
-                    border: '1px solid var(--color-border-subtle, #cbd5e1)',
+                    border: '1px solid var(--color-border-subtle)',
                     fontSize: '12.5px',
                     boxSizing: 'border-box',
                   }}
@@ -218,7 +215,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                   marginTop: 0,
                   padding: '8px 12px',
                   borderRadius: '6px',
-                  border: '1px solid var(--color-border-subtle, #cbd5e1)',
+                  border: '1px solid var(--color-border-subtle)',
                   fontSize: '12.5px',
                   boxSizing: 'border-box',
                 }}
@@ -242,7 +239,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                     marginTop: 0,
                     padding: '8px 10px',
                     borderRadius: '6px',
-                    border: '1px solid var(--color-border-subtle, #cbd5e1)',
+                    border: '1px solid var(--color-border-subtle)',
                     fontSize: '12.5px',
                     boxSizing: 'border-box',
                   }}
@@ -271,7 +268,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                     marginTop: 0,
                     padding: '8px 10px',
                     borderRadius: '6px',
-                    border: '1px solid var(--color-border-subtle, #cbd5e1)',
+                    border: '1px solid var(--color-border-subtle)',
                     fontSize: '12.5px',
                     boxSizing: 'border-box',
                   }}
@@ -286,11 +283,10 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
             </div>
 
             <div
-              className="modal-info-note"
+              className="modal-info-note ui-surface-subtle"
               style={{
                 padding: '10px 12px',
                 borderRadius: '6px',
-                background: 'var(--color-surface, #f8fafc)',
                 border: '1px solid var(--color-border)',
                 fontSize: '11.5px',
                 color: 'var(--color-text-muted)',
@@ -299,7 +295,12 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                 gap: '8px',
               }}
             >
-              <Icon name="bot" size={15} style={{ marginTop: '1px', flexShrink: 0, color: 'var(--color-primary, #0e5b92)' }} />
+              <Icon
+                name="bot"
+                size={15}
+                className="ui-text-primary"
+                style={{ marginTop: '1px', flexShrink: 0 }}
+              />
               <span>
                 Karyawan dapat langsung mengaktifkan 2FA OTP dengan mengirimkan NIK (<strong>{nik || '...'}</strong>) ke bot Telegram <strong>@FiberOpsNOCBot</strong>.
               </span>
@@ -317,14 +318,12 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
             </button>
             <button
               type="submit"
-              className="button primary"
+              className="button primary ui-btn-solid-primary"
               style={{
                 padding: '8px 18px',
                 borderRadius: '6px',
                 fontSize: '12.5px',
                 fontWeight: 600,
-                background: '#0e5b92',
-                color: '#ffffff',
                 border: 'none',
                 cursor: 'pointer',
               }}

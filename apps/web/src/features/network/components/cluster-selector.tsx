@@ -1,5 +1,5 @@
 import React from 'react';
-import { Icon } from '@/components/ui/Icon';
+import { SearchInput } from '@/components/ui/search-input';
 import type { ClusterListItem } from '@repo/shared';
 import type { ClusterGroup } from '../hooks/use-network';
 
@@ -32,19 +32,13 @@ export function ClusterSelector({
         </h2>
       </header>
 
-      <search className="tree-sidebar-search" role="search">
-        <span className="tree-sidebar-search-icon">
-          <Icon name="search" size={13} />
-        </span>
-        <input
-          type="text"
-          aria-label="Cari cluster atau ODP"
-          className="tree-sidebar-search-input"
-          placeholder="Cari cluster atau ODP..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </search>
+      <SearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Cari cluster atau ODP..."
+        ariaLabel="Cari cluster atau ODP"
+        className="tree-sidebar-search"
+      />
 
       <div className="tree-clusters-accordion">
         {clusterGroups.map((group) => {
@@ -62,7 +56,7 @@ export function ClusterSelector({
                 onClick={() => toggleClusterExpand(group.clusterCode)}
               >
                 <div className="tree-cluster-left-content">
-                  <span className={`tree-chevron-icon ${isExpanded ? 'expanded' : ''}`}>▶</span>
+                  <span className={`tree-chevron-icon ${isExpanded ? 'expanded' : ''}`} aria-hidden="true">▶</span>
                   <span className="tree-cluster-title-text">{group.name}</span>
                 </div>
                 <span className="tree-cluster-port-count">
@@ -85,7 +79,7 @@ export function ClusterSelector({
                         className={`tree-odp-item-clean ${isSelected ? 'is-selected' : ''}`}
                       >
                         <div className="tree-odp-leaf-left">
-                          <span className="tree-odp-leaf-chevron">›</span>
+                          <span className="tree-odp-leaf-chevron" aria-hidden="true">›</span>
                           <span>{s.splitterCode}</span>
                         </div>
                         <span className="tree-odp-leaf-right">

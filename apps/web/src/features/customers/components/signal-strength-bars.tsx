@@ -5,14 +5,14 @@ export function SignalStrengthBars({
 }: {
   status: 'normal' | 'warning' | 'critical' | 'neutral';
 }) {
-  const activeColor =
+  const toneClass =
     status === 'normal'
-      ? '#16a34a'
+      ? 'signal-bars--ok'
       : status === 'warning'
-        ? '#d97706'
+        ? 'signal-bars--warn'
         : status === 'critical'
-          ? '#dc2626'
-          : '#cbd5e1';
+          ? 'signal-bars--danger'
+          : 'signal-bars--muted';
   const activeBars =
     status === 'normal' ? 4 : status === 'warning' ? 2 : status === 'critical' ? 1 : 0;
 
@@ -22,6 +22,7 @@ export function SignalStrengthBars({
       height="13"
       viewBox="0 0 14 13"
       fill="none"
+      className={`signal-bars ${toneClass}`}
       style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '6px' }}
       aria-label={`Kualitas redaman: ${status}`}
     >
@@ -31,7 +32,7 @@ export function SignalStrengthBars({
         width="2"
         height="3.5"
         rx="0.5"
-        fill={activeBars >= 1 ? activeColor : '#e2e8f0'}
+        className={`signal-bar ${activeBars >= 1 ? 'is-active' : ''}`}
       />
       <rect
         x="4"
@@ -39,7 +40,7 @@ export function SignalStrengthBars({
         width="2"
         height="6.5"
         rx="0.5"
-        fill={activeBars >= 2 ? activeColor : '#e2e8f0'}
+        className={`signal-bar ${activeBars >= 2 ? 'is-active' : ''}`}
       />
       <rect
         x="7.5"
@@ -47,7 +48,7 @@ export function SignalStrengthBars({
         width="2"
         height="9.5"
         rx="0.5"
-        fill={activeBars >= 3 ? activeColor : '#e2e8f0'}
+        className={`signal-bar ${activeBars >= 3 ? 'is-active' : ''}`}
       />
       <rect
         x="11"
@@ -55,7 +56,7 @@ export function SignalStrengthBars({
         width="2"
         height="12.5"
         rx="0.5"
-        fill={activeBars >= 4 ? activeColor : '#e2e8f0'}
+        className={`signal-bar ${activeBars >= 4 ? 'is-active' : ''}`}
       />
     </svg>
   );

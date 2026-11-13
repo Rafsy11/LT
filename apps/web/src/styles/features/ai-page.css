@@ -71,10 +71,12 @@
   box-shadow: 0 1px 3px rgba(27, 92, 162, 0.04);
 }
 
-.ai-hero-suggestion-btn:hover {
-  background: #e1f0fc;
-  border-color: #93c5fd;
-  color: #0e5b92;
+@media (hover: hover) and (pointer: fine) {
+  .ai-hero-suggestion-btn:hover {
+    background: #e1f0fc;
+    border-color: #93c5fd;
+    color: #0e5b92;
+  }
 }
 
 .ai-page-layout,
@@ -116,11 +118,13 @@ html.dark .ai-hero-suggestion-btn,
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
 }
 
-html.dark .ai-hero-suggestion-btn:hover,
-[data-theme='dark'] .ai-hero-suggestion-btn:hover {
-  background: #1e293b !important;
-  border-color: #2585d0 !important;
-  color: #42aef5 !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .ai-hero-suggestion-btn:hover,
+  [data-theme='dark'] .ai-hero-suggestion-btn:hover {
+    background: #1e293b !important;
+    border-color: #2585d0 !important;
+    color: #42aef5 !important;
+  }
 }
 
 html.dark .ai-footer,

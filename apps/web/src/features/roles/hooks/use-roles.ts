@@ -500,34 +500,34 @@ export function useRoles() {
     switch (roleName) {
       case 'Super Admin':
         return {
-          background: '#f0f7ff',
-          color: '#0e5b92',
-          border: '1px solid #c8e0f4',
+          background: 'var(--color-surface-accent)',
+          color: 'var(--color-primary-text)',
+          border: '1px solid var(--color-info-card-border)',
         };
       case 'Admin Operasional':
         return {
-          background: '#eff6ff',
-          color: '#1d4ed8',
-          border: '1px solid #bfdbfe',
+          background: 'var(--color-info-card-bg)',
+          color: 'var(--color-info-card-title)',
+          border: '1px solid var(--color-info-card-border)',
         };
       case 'NOC Monitoring':
         return {
-          background: '#f0fdfa',
-          color: '#0f766e',
-          border: '1px solid #99f6e4',
+          background: 'var(--color-surface-subtle)',
+          color: 'var(--color-primary-text)',
+          border: '1px solid var(--color-border-strong)',
         };
       case 'Customer Support':
         return {
-          background: '#f0fdf4',
-          color: '#15803d',
-          border: '1px solid #bbf7d0',
+          background: 'var(--color-success-bg)',
+          color: 'var(--color-success-text)',
+          border: '1px solid var(--color-success-border)',
         };
       case 'Teknisi Lapangan':
       default:
         return {
-          background: '#f8fafc',
-          color: '#475569',
-          border: '1px solid #e2e8f0',
+          background: 'var(--color-surface-subtle)',
+          color: 'var(--color-text-muted)',
+          border: '1px solid var(--color-border-strong)',
         };
     }
   };

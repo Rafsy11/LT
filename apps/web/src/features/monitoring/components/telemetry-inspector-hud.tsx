@@ -23,7 +23,7 @@ export function TelemetryInspectorHud({
   return (
     <aside className="noc-inspector-panel" aria-label="Inspektor Telemetri Real-Time">
       <header className="noc-inspector-header">
-        <span className="noc-inspector-title">INSPEKTOR TELEMETRI</span>
+        <h2 className="noc-inspector-title" style={{ margin: 0 }}>INSPEKTOR TELEMETRI</h2>
         <span className="ticket-tag-mono">{activeReport.ticketNumber}</span>
       </header>
 

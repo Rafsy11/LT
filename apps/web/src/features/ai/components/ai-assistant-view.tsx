@@ -21,7 +21,8 @@ export function AiAssistantView() {
   } = useAiAssistant();
 
   return (
-    <section
+    <main
+      id="main-content"
       className="ai-assistant-page"
       aria-label="Ruang Kerja AI Assistant"
       style={{
@@ -36,6 +37,7 @@ export function AiAssistantView() {
         boxSizing: 'border-box',
       }}
     >
+      {messages.length > 0 && <h1 className="sr-only">AI Assistant FiberOps</h1>}
       {!messages.length ? (
         <AiHero suggestions={suggestions} onSelectSuggestion={(text) => sendMessage(text)} />
       ) : (
@@ -54,6 +56,6 @@ export function AiAssistantView() {
         loading={loading}
         onSubmit={(text) => sendMessage(text)}
       />
-    </section>
+    </main>
   );
 }

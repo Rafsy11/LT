@@ -164,12 +164,12 @@ export function PermissionMatrixPanel({
                         aria-checked={isChecked}
                         disabled={isLocked}
                         onClick={() => onTogglePermission(perm.code)}
+                        className={`ui-switch-track ${isChecked ? 'is-on' : ''}`}
                         style={{
                           position: 'relative',
                           width: '40px',
                           height: '22px',
                           borderRadius: '11px',
-                          background: isChecked ? '#0e5b92' : '#cbd5e1',
                           border: 'none',
                           cursor: isLocked ? 'not-allowed' : 'pointer',
                           padding: 0,
@@ -184,6 +184,7 @@ export function PermissionMatrixPanel({
                         }
                       >
                         <span
+                          className="ui-switch-thumb"
                           style={{
                             position: 'absolute',
                             top: '2px',
@@ -191,7 +192,6 @@ export function PermissionMatrixPanel({
                             width: '18px',
                             height: '18px',
                             borderRadius: '50%',
-                            background: '#ffffff',
                             boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
                           }}
                         />
@@ -208,10 +208,10 @@ export function PermissionMatrixPanel({
       {/* Bottom Save Action Bar */}
       {isEditable && (
         <footer
+          className="ui-divider-top"
           style={{
             marginTop: '24px',
             paddingTop: '16px',
-            borderTop: '1px solid #f1f5f9',
             display: 'flex',
             justifyContent: 'flex-end',
             alignItems: 'center',

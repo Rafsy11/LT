@@ -232,12 +232,7 @@ export function InfrastructurePanel({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
                     <span
-                      style={{
-                        width: '6px',
-                        height: '6px',
-                        borderRadius: '50%',
-                        background: c.status === 'HEALTHY' ? '#16a34a' : '#ea580c',
-                      }}
+                      className={`status-dot ${c.status === 'HEALTHY' ? 'status-dot--ok' : 'status-dot--warn'}`}
                     />
                     <span className="docker-container-name">
                       {c.name}
@@ -406,7 +401,7 @@ export function InfrastructurePanel({
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Sertifikat TLS / HTTPS:</span>
-              <span style={{ fontWeight: 600, color: '#16a34a' }}>Aktif (Valid s/d 2027)</span>
+              <span className="settings-tls-status active">Aktif (Valid s/d 2027)</span>
             </div>
           </div>
         </aside>

@@ -79,15 +79,7 @@ export function TechnicianDetailModal({
 
           {isActiveSession && (
             <div className="technician-banner active-session">
-              <span
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: '#16a34a',
-                  display: 'inline-block',
-                }}
-              />
+              <span className="status-dot status-dot--lg status-dot--ok" />
               <div>
                 <b>Sesi Mobile Aktif:</b> Perangkat terikat secara sah ke Redis Session Store &
                 PostgreSQL. Akses ke API mobile diizinkan.
@@ -202,20 +194,21 @@ export function TechnicianDetailModal({
                     gap: '6px',
                     fontSize: '11.5px',
                     fontWeight: 600,
-                    color: isActiveSession ? 'var(--color-success-text, #166534)' : isRevokedSession ? 'var(--color-critical-text, #991b1b)' : 'var(--color-text-muted)',
+                    color: isActiveSession
+                      ? 'var(--color-success-text)'
+                      : isRevokedSession
+                        ? 'var(--color-critical-text)'
+                        : 'var(--color-text-muted)',
                   }}
                 >
                   <span
-                    style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      background: isActiveSession
-                        ? '#16a34a'
+                    className={`status-dot ${
+                      isActiveSession
+                        ? 'status-dot--ok'
                         : isRevokedSession
-                          ? '#dc2626'
-                          : '#94a3b8',
-                    }}
+                          ? 'status-dot--danger'
+                          : 'status-dot--muted'
+                    }`}
                   />
                   {isActiveSession
                     ? 'Sesi Aktif (Sah)'
@@ -258,7 +251,7 @@ export function TechnicianDetailModal({
               }}
             >
               <span>Tiket Penugasan Aktif Lapangan ({technician.activeTicketsCount})</span>
-              <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>
+              <span className="ui-text-muted" style={{ textTransform: 'none', fontWeight: 400 }}>
                 Total Selesai: {technician.completedTicketsCount} Tiket
               </span>
             </div>
@@ -348,9 +341,9 @@ export function TechnicianDetailModal({
                   </button>
                 ) : (
                   <span
+                    className="ui-text-muted"
                     style={{
                       fontSize: '11.5px',
-                      color: '#94a3b8',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '4px',
@@ -379,7 +372,7 @@ export function TechnicianDetailModal({
                 </button>
               </>
             ) : (
-              <span style={{ fontSize: '11.5px', color: '#94a3b8' }}>
+              <span className="ui-text-muted" style={{ fontSize: '11.5px' }}>
                 🔒 Mode Lihat Saja (Izin <code>tech:manage</code> diperlukan)
               </span>
             )}

@@ -39,7 +39,7 @@ export function TechnicianCard({
           <DefaultAvatar size={30} name={tech.fullName} />
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', flexWrap: 'wrap' }}>
-              <h3
+              <h2
                 className="tech-card-name"
                 style={{
                   margin: 0,
@@ -50,7 +50,7 @@ export function TechnicianCard({
                 }}
               >
                 {tech.fullName}
-              </h3>
+              </h2>
               <span className="tech-card-username" style={{ fontSize: '10.5px', fontFamily: 'monospace', color: 'var(--color-text-muted)' }}>
                 @{tech.username}
               </span>

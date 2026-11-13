@@ -65,7 +65,7 @@ export function CustomersView() {
   }
 
   return (
-    <main className="customers-page" style={{ paddingBottom: '32px' }}>
+    <main className="customers-page" id="main-content" style={{ paddingBottom: '32px' }}>
       {/* Overview Command Header */}
       <header className="overview-header" style={{ marginBottom: '28px' }}>
         <div className="overview-header-copy">
@@ -78,16 +78,7 @@ export function CustomersView() {
 
         <nav className="overview-toolbar" aria-label="Aksi bilah status pelanggan">
           <div className="overview-status-pill">
-            <span
-              style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                background: '#16a34a',
-                display: 'inline-block',
-                boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.2)',
-              }}
-            />
+            <span className="status-dot status-dot--ok" aria-hidden="true" />
             PostgreSQL Master Data: Aktif
           </div>
           {hasPermission(PERMISSIONS.CUSTOMER_UPDATE) && (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Icon } from '@/components/ui/Icon';
+import { SearchInput } from '@/components/ui/search-input';
 
 export type TechnicianFilterTab = 'all' | 'active_session' | 'busy' | 'revoked' | 'inactive';
 
@@ -36,40 +36,13 @@ export function TechnicianFilters({
       aria-label="Bilah Filter Teknisi"
     >
       {/* Left: Clean Inline Search Box */}
-      <search
-        role="search"
-        aria-label="Cari teknisi"
+      <SearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Cari nama, username, ID perangkat..."
+        ariaLabel="Cari teknisi"
         className="customer-search-box"
-      >
-        <span style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-          <Icon name="search" size={14} />
-        </span>
-        <input
-          aria-label="Cari teknisi"
-          placeholder="Cari nama, username, ID perangkat..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="customer-search-input"
-        />
-        {search && (
-          <button
-            type="button"
-            onClick={() => setSearch('')}
-            aria-label="Hapus pencarian"
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              color: '#94a3b8',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Icon name="x" size={13} />
-          </button>
-        )}
-      </search>
+      />
 
       {/* Right: Cluster Dropdown beside Segmented Filter Tabs */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>

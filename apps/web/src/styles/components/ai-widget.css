@@ -63,8 +63,12 @@
 .chat form input {
   width: 100%;
   border: 0;
-  outline: none;
   font-size: 11px;
+}
+
+.chat form:focus-within {
+  outline: 2px solid #0e5b92;
+  outline-offset: -2px;
 }
 
 .chat-reply {
@@ -80,7 +84,6 @@
   margin-top: 14px;
   background: #ffffff;
   border: 1px solid #cbd5e1;
-  border-top: 3px solid #0e5b92;
   border-radius: 8px;
   padding: 16px 18px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
@@ -159,7 +162,7 @@
 
 html.dark .draft-card,
 [data-theme='dark'] .draft-card {
-  border-top: 3px solid #2698e8 !important;
+  border-color: #334155 !important;
 }
 
 html.dark .draft-card h3,
@@ -253,10 +256,12 @@ html.dark .chat .panel-heading .dots,
   background: transparent !important;
 }
 
-html.dark .chat .panel-heading .dots:hover,
-[data-theme='dark'] .chat .panel-heading .dots:hover {
-  color: #f1f5f9 !important;
-  background: #1e293b !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .chat .panel-heading .dots:hover,
+  [data-theme='dark'] .chat .panel-heading .dots:hover {
+    color: #f1f5f9 !important;
+    background: #1e293b !important;
+  }
 }
 
 html.dark .chat-body,
@@ -278,10 +283,16 @@ html.dark .chat form input,
   color: #f1f5f9 !important;
 }
 
+html.dark .chat form:focus-within,
+[data-theme='dark'] .chat form:focus-within {
+  outline: 2px solid #38bdf8;
+  outline-offset: -2px;
+}
+
 html.dark .chat form input:focus,
 [data-theme='dark'] .chat form input:focus {
   border-color: #2585d0 !important;
-  outline: none !important;
+  outline: 2px solid transparent !important;
 }
 
 html.dark .draft-card,

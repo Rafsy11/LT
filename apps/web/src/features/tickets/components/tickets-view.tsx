@@ -52,7 +52,7 @@ export function TicketsView() {
   }
 
   return (
-    <main className="tickets-page">
+    <main className="tickets-page" id="main-content">
       {/* Page Heading matching Enterprise System */}
       <header className="overview-header">
         <div className="overview-header-copy">

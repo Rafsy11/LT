@@ -42,10 +42,10 @@ export function PortDetailPanel({
         <section className="inspection-chassis-grid" aria-label="Kualitas Enclosure dan Sasis ODP">
           <article className="inspection-chassis-card">
             <header className="inspection-chassis-card-header">
-              <Icon name="shield" size={13} style={{ color: '#16a34a' }} />
+              <Icon name="shield" size={13} className="ui-text-ok" />
               <span>Enclosure ODP Box</span>
             </header>
-            <div className="inspection-chassis-val" style={{ color: '#16a34a' }}>
+            <div className="inspection-chassis-val ui-text-ok">
               Terkunci & Aman (IP65)
             </div>
             <div className="inspection-chassis-sub">
@@ -55,7 +55,7 @@ export function PortDetailPanel({
 
           <article className="inspection-chassis-card">
             <header className="inspection-chassis-card-header">
-              <Icon name="sliders" size={13} style={{ color: '#0284c7' }} />
+              <Icon name="sliders" size={13} className="ui-text-primary" />
               <span>Manajemen Tray & Pigtail</span>
             </header>
             <div className="inspection-chassis-val">
@@ -68,7 +68,7 @@ export function PortDetailPanel({
 
           <article className="inspection-chassis-card">
             <header className="inspection-chassis-card-header">
-              <Icon name="spark" size={13} style={{ color: '#0284c7' }} />
+              <Icon name="spark" size={13} className="ui-text-primary" />
               <span>Kebersihan Ferrule</span>
             </header>
             <div className="inspection-chassis-val">
@@ -81,10 +81,10 @@ export function PortDetailPanel({
 
           <article className="inspection-chassis-card">
             <header className="inspection-chassis-card-header">
-              <Icon name="activity" size={13} style={{ color: '#16a34a' }} />
+              <Icon name="activity" size={13} className="ui-text-ok" />
               <span>Input Sinyal Feeder ODC</span>
             </header>
-            <div className="inspection-chassis-val" style={{ color: '#16a34a' }}>
+            <div className="inspection-chassis-val ui-text-ok">
               -12.5 dBm
             </div>
             <div className="inspection-chassis-sub">
@@ -175,7 +175,7 @@ export function PortDetailPanel({
                           <SignalStrengthBars status={attMeta.status} />
                         </span>
                       ) : (
-                        <span style={{ color: '#94a3b8' }}>-</span>
+                        <span className="ui-text-muted">-</span>
                       )}
                     </td>
 
@@ -323,7 +323,7 @@ export function PortDetailPanel({
                     {log.attenuationDelta && (
                       <>
                         <span>·</span>
-                        <span style={{ color: 'var(--color-primary-text, #0369a1)', fontWeight: 600 }}>
+                        <span className="ui-text-primary" style={{ fontWeight: 600 }}>
                           Redaman: {log.attenuationDelta}
                         </span>
                       </>
@@ -371,14 +371,14 @@ export function PortDetailPanel({
           <section className="audit-kpi-grid" aria-label="Metrik KPI Audit">
             <div className="audit-kpi-box">
               <div className="audit-kpi-box-label">Tabrakan Port (Collision)</div>
-              <div className="audit-kpi-box-val" style={{ color: '#16a34a' }}>
+              <div className="audit-kpi-box-val ui-text-ok">
                 0 Terdeteksi
               </div>
             </div>
 
             <div className="audit-kpi-box">
               <div className="audit-kpi-box-label">Port Terkunci Atomik</div>
-              <div className="audit-kpi-box-val" style={{ color: '#0284c7' }}>
+              <div className="audit-kpi-box-val ui-text-primary">
                 {activeSplitter.usedPorts} Port Aktif
               </div>
             </div>

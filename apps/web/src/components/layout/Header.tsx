@@ -7,10 +7,23 @@ import { Icon } from '@/components/ui/Icon';
 import { useAuth, useTheme } from '@/providers';
 import { PERMISSIONS } from '@repo/shared';
 
+export interface HeaderNotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  href: string;
+  severity: 'critical' | 'warning' | 'info' | 'success';
+  isUnread?: boolean;
+}
+
 interface HeaderProps {
   pageTitle?: string;
   isMobileMenuOpen?: boolean;
   onToggleMobileMenu?: () => void;
+  notifications?: HeaderNotificationItem[];
+  onMarkAllRead?: () => void;
+  onMarkNotificationRead?: (id: string) => void;
 }
 
 const THEME_OPTIONS: Array<{ value: 'light' | 'dark' | 'system'; label: string; icon: string }> = [
@@ -23,6 +36,9 @@ export function Header({
   pageTitle: _pageTitle,
   isMobileMenuOpen = false,
   onToggleMobileMenu,
+  notifications = [],
+  onMarkAllRead,
+  onMarkNotificationRead,
 }: HeaderProps = {}) {
   const [notice, setNotice] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
@@ -75,6 +91,7 @@ export function Header({
 
   const canEditRole = hasPermission(PERMISSIONS.ROLE_EDIT);
   const isVendorSession = user.userType === 'TECHNICIAN' || pathname.startsWith('/vendor');
+  const unreadCount = notifications.filter((item) => item.isUnread !== false).length;
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -89,6 +106,7 @@ export function Header({
       {/* Mobile Hamburger Menu Toggle */}
       <div className="header-left">
         <button
+          id="mobile-menu-toggle-btn"
           type="button"
           className="header-hamburger-btn"
           onClick={onToggleMobileMenu}
@@ -122,13 +140,13 @@ export function Header({
               <Link
                 href="/ai"
                 className={`icon-button header-action-btn ${pathname.startsWith('/ai') ? 'active' : ''}`}
-                title="AI Assistant (On-Premise)"
-                aria-label="AI Assistant"
+                title="Asisten AI (On-Premise)"
+                aria-label="Asisten AI"
               >
                 <Icon name="bot" size={18} />
               </Link>
 
-              {canEditRole ? (
+              {canEditRole && (
                 <Link
                   href="/roles"
                   className={`icon-button header-action-btn ${pathname.startsWith('/roles') ? 'active' : ''}`}
@@ -137,15 +155,6 @@ export function Header({
                 >
                   <Icon name="user" size={19} />
                 </Link>
-              ) : (
-                <div
-                  className="icon-button header-action-btn disabled"
-                  title="Izin role:edit diperlukan untuk membuka menu ini"
-                  aria-label="Role & Akses (Terkunci)"
-                  style={{ opacity: 0.4, cursor: 'not-allowed' }}
-                >
-                  <Icon name="user" size={19} />
-                </div>
               )}
 
               <Link
@@ -219,19 +228,67 @@ export function Header({
           <button
             className={`icon-button notification ${notice ? 'active' : ''}`}
             onClick={() => setNotice((prev) => !prev)}
-            aria-label="Notifikasi"
+            aria-label={unreadCount > 0 ? `Notifikasi (${unreadCount} belum dibaca)` : 'Notifikasi'}
             aria-expanded={notice}
             type="button"
           >
             <Icon name="bell" size={19} />
-            <i className="notification-dot" />
+            {unreadCount > 0 && <i className="notification-dot" aria-hidden="true" />}
           </button>
 
           {notice && (
             <aside className="notification-pop" role="dialog" aria-label="Notifikasi terbaru">
-              <b>Notifikasi terbaru</b>
-              <p>Gangguan koneksi - Critical pada SIA 100245 (Cluster Bandung Utara: -26.4 dBm).</p>
-              <small>Feed real-time · 2 menit lalu</small>
+              <div className="notification-pop-header">
+                <b>Notifikasi {unreadCount > 0 ? `(${unreadCount})` : ''}</b>
+                {unreadCount > 0 && onMarkAllRead && (
+                  <button
+                    type="button"
+                    className="notification-mark-read"
+                    onClick={onMarkAllRead}
+                  >
+                    Tandai semua dibaca
+                  </button>
+                )}
+              </div>
+              {notifications.length > 0 ? (
+                <div className="notification-list">
+                  {notifications.map((item) => {
+                    const dotClass =
+                      item.severity === 'critical'
+                        ? 'red'
+                        : item.severity === 'warning'
+                          ? 'amber'
+                          : item.severity === 'success'
+                            ? 'green'
+                            : '';
+                    return (
+                      <Link
+                        key={item.id}
+                        href={item.href}
+                        className={`notification-item ${item.isUnread !== false ? 'unread' : ''}`}
+                        onClick={() => {
+                          onMarkNotificationRead?.(item.id);
+                          setNotice(false);
+                        }}
+                      >
+                        <div className="notification-item-top">
+                          <span className="notification-item-title">
+                            <span className={`status-dot ${dotClass}`} aria-hidden="true" />
+                            <strong>{item.title}</strong>
+                          </span>
+                          <time>{item.timestamp}</time>
+                        </div>
+                        <p>{item.message}</p>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <>
+                  <p className="notification-empty">Belum ada notifikasi insiden baru.</p>
+                  <small>Peringatan eskalasi telemetri dan tiket aktif akan tampil di sini.</small>
+                </>
+              )}
             </aside>
           )}
         </div>

@@ -67,12 +67,11 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
         <header className="panel-heading">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span
+              className="ui-telegram-chip"
               style={{
                 width: '28px',
                 height: '28px',
                 borderRadius: '6px',
-                background: '#f0f7ff',
-                color: '#0e5b92',
                 display: 'grid',
                 placeItems: 'center',
               }}
@@ -144,22 +143,19 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
           {/* Status Content */}
           {user.telegramChatId ? (
             <section
-              className="telegram-connected-box"
+              className="telegram-connected-box ui-alert-banner ui-alert-banner--success"
               style={{
                 padding: '14px',
                 borderRadius: '8px',
-                background: 'rgba(34, 197, 94, 0.08)',
-                border: '1px solid rgba(34, 197, 94, 0.25)',
                 marginBottom: confirmUnlink ? '16px' : '0',
                 fontSize: '12px',
-                color: 'var(--color-success-text, #15803d)',
               }}
             >
               <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Icon name="check" size={14} />
                 Telegram 2FA Sudah Aktif
               </div>
-              <p style={{ margin: '6px 0 0', fontSize: '11.5px', color: 'var(--color-success-text, #166534)', lineHeight: 1.5 }}>
+              <p className="ui-alert-banner-sub" style={{ margin: '6px 0 0', fontSize: '11.5px', lineHeight: 1.5 }}>
                 Chat ID: <code style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{user.telegramChatId}</code>.
                 Kode OTP login resmi akan selalu dikirimkan ke akun Telegram ini. Jika karyawan mengganti akun Telegram, Anda dapat melepas ikatan di bawah.
               </p>
@@ -171,10 +167,9 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
               </p>
 
               <div
-                className="telegram-instruction-box"
+                className="telegram-instruction-box ui-surface-subtle"
                 style={{
                   position: 'relative',
-                  background: 'var(--color-surface, #f8fafc)',
                   border: '1px solid var(--color-border)',
                   borderRadius: '8px',
                   padding: '12px 14px',
@@ -193,17 +188,16 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
           {/* Unlink Confirmation Panel */}
           {confirmUnlink && (
             <div
+              className="ui-alert-banner ui-alert-banner--error"
               style={{
                 padding: '12px',
                 borderRadius: '8px',
-                background: 'var(--color-critical-bg, #fef2f2)',
-                border: '1px solid var(--color-critical-border, #fecaca)',
               }}
             >
-              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-critical-text, #991b1b)', marginBottom: '6px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>
                 Lepas ikatan Telegram 2FA {user.name}?
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--color-critical-text, #7f1d1d)', marginBottom: '10px' }}>
+              <div className="ui-alert-banner-sub" style={{ fontSize: '11px', marginBottom: '10px' }}>
                 Karyawan tidak akan menerima OTP sampai mendaftarkan kembali NIK melalui bot Telegram.
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
@@ -218,13 +212,12 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
                 <button
                   type="button"
                   onClick={handleExecuteUnlink}
+                  className="button ui-btn-solid-danger"
                   style={{
                     padding: '4px 10px',
                     fontSize: '11.5px',
                     fontWeight: 600,
                     borderRadius: '6px',
-                    background: '#dc2626',
-                    color: '#ffffff',
                     border: 'none',
                     cursor: 'pointer',
                   }}
@@ -243,10 +236,8 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
               <button
                 type="button"
                 onClick={() => setConfirmUnlink(true)}
+                className="button ui-btn-outline-danger"
                 style={{
-                  background: 'none',
-                  border: '1px solid #fca5a5',
-                  color: '#dc2626',
                   borderRadius: '6px',
                   padding: '6px 12px',
                   fontSize: '11.5px',
@@ -264,7 +255,7 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
               <button
                 type="button"
                 onClick={handleCopy}
-                className="button primary"
+                className={`button ${copied ? 'ui-btn-solid-success' : 'primary ui-btn-solid-primary'}`}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -273,8 +264,6 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
                   fontSize: '12px',
                   fontWeight: 600,
                   borderRadius: '6px',
-                  background: copied ? '#16a34a' : '#0e5b92',
-                  color: '#ffffff',
                   border: 'none',
                   cursor: 'pointer',
                 }}

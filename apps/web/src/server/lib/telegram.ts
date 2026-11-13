@@ -192,7 +192,7 @@ export async function sendVendorTaskDispatchTelegram(params: {
     `📋 <b>PENUGASAN BARU DARI LINTASARTA PUSAT</b>`,
     ``,
     `• <b>No. Tiket:</b> <code>${params.ticketNumber}</code> (${params.ticketType})`,
-    `• <b>PIC Vendor:</b> ${params.vendorDisplayName}${params.vendorCompany ? ` — ${params.vendorCompany}` : ''}`,
+    `• <b>PIC Vendor:</b> ${params.vendorDisplayName}${params.vendorCompany ? ` - ${params.vendorCompany}` : ''}`,
     `• <b>Pelanggan:</b> ${params.customerName} (SIA: <code>${params.siaNumber}</code>)`,
     ...(params.customerPhone ? [`• <b>Kontak Pelanggan:</b> ${params.customerPhone}`] : []),
     ...(params.complaintSummary ? [`• <b>Aduan / Permintaan:</b> ${params.complaintSummary}`] : []),
@@ -313,7 +313,7 @@ export async function sendTelegramOtpMessage(params: {
   }).format(new Date());
 
   const htmlText = [
-    `🔐 <b>FIBEROPS NOC — VERIFIKASI 2FA</b>`,
+    `🔐 <b>FIBEROPS NOC - VERIFIKASI 2FA</b>`,
     ``,
     `Kode OTP Anda: <code>${params.otpCode}</code>`,
     ``,

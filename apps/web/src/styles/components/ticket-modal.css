@@ -110,10 +110,12 @@
   color: #334155;
 }
 
-.modal-link-btn:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  color: #0f172a;
+@media (hover: hover) and (pointer: fine) {
+  .modal-link-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
 }
 
 .modal-primary-close-btn {
@@ -128,8 +130,10 @@
   box-shadow: 0 2px 6px rgba(14, 91, 146, 0.2);
 }
 
-.modal-primary-close-btn:hover {
-  background: #0b4a78;
+@media (hover: hover) and (pointer: fine) {
+  .modal-primary-close-btn:hover {
+    background: #0b4a78;
+  }
 }
 
 .modal-footer-pending-actions {
@@ -160,8 +164,10 @@
   cursor: pointer;
 }
 
-.reject-action-btn:hover {
-  background: #fef2f2;
+@media (hover: hover) and (pointer: fine) {
+  .reject-action-btn:hover {
+    background: #fef2f2;
+  }
 }
 
 .approve-action-btn {
@@ -179,8 +185,10 @@
   box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2);
 }
 
-.approve-action-btn:hover {
-  background: #15803d;
+@media (hover: hover) and (pointer: fine) {
+  .approve-action-btn:hover {
+    background: #15803d;
+  }
 }
 
 html.dark .ticket-admin-sim-card,
@@ -261,7 +269,11 @@ html.dark .modal-proof-action,
   font-size: 12px;
   color: #1e293b;
   resize: none;
-  outline: none;
+}
+
+.ticket-reject-textarea:focus-visible {
+  outline: 2px solid #dc2626;
+  outline-offset: 2px;
 }
 
 html.dark .ticket-reject-card,
@@ -284,11 +296,13 @@ html.dark .modal-link-btn,
   color: #f1f5f9 !important;
 }
 
-html.dark .modal-link-btn:hover,
-[data-theme='dark'] .modal-link-btn:hover {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-  color: #ffffff !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .modal-link-btn:hover,
+  [data-theme='dark'] .modal-link-btn:hover {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #ffffff !important;
+  }
 }
 
 html.dark .modal-primary-close-btn,
@@ -297,9 +311,11 @@ html.dark .modal-primary-close-btn,
   color: #ffffff !important;
 }
 
-html.dark .modal-primary-close-btn:hover,
-[data-theme='dark'] .modal-primary-close-btn:hover {
-  background: #1b5ca2 !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .modal-primary-close-btn:hover,
+  [data-theme='dark'] .modal-primary-close-btn:hover {
+    background: #1b5ca2 !important;
+  }
 }
 
 html.dark .ticket-workflow-banner.pending,
@@ -405,8 +421,10 @@ button.modal-proof-action {
   border-radius: 4px;
 }
 
-button.modal-proof-action:hover {
-  background: rgba(14, 91, 146, 0.1);
+@media (hover: hover) and (pointer: fine) {
+  button.modal-proof-action:hover {
+    background: rgba(14, 91, 146, 0.1);
+  }
 }
 
 .modal-proof-preview {
@@ -671,8 +689,10 @@ html.dark .modal-proof-image,
   text-decoration: none;
 }
 
-.ticket-map-link:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .ticket-map-link:hover {
+    text-decoration: underline;
+  }
 }
 
 .ticket-rejection-alert {
@@ -701,7 +721,7 @@ html.dark .modal-proof-image,
   font-size: 10.5px;
   font-weight: 700;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 4px;
   background: #e0f2fe;
   color: #0369a1;
   text-transform: uppercase;
@@ -711,10 +731,15 @@ html.dark .modal-proof-image,
 .ticket-vendor-sub {
   display: block;
   font-size: 11px;
-  color: #64748b;
+  color: #475569;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+html.dark .ticket-vendor-sub,
+[data-theme='dark'] .ticket-vendor-sub {
+  color: #94a3b8 !important;
 }
 
 html.dark .ticket-mode-btn,

@@ -424,16 +424,13 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                       {vendors.length > 0 ? (
                         vendors.map((v) => (
                           <option key={v.id} value={v.username}>
-                            {v.fullName} — {v.vendorCompany || 'Vendor Lapangan'}
+                            {v.fullName} - {v.vendorCompany || 'Vendor Lapangan'}
                           </option>
                         ))
+                      ) : editTechUsername ? (
+                        <option value={editTechUsername}>{editTechUsername}</option>
                       ) : (
-                        <>
-                          <option value="andi.pratama">Andi Pratama — PT Mitra Fiber Nusantara</option>
-                          <option value="rizky.maulana">Rizky Maulana — PT Sarana Optik Bandung</option>
-                          <option value="fajar.hidayat">Fajar Hidayat — PT Mitra Fiber Nusantara</option>
-                          <option value="agus.setiawan">Agus Setiawan — PT Sarana Optik Bandung</option>
-                        </>
+                        <option value="">Daftar vendor belum tersedia</option>
                       )}
                     </select>
                   </label>
@@ -494,19 +491,18 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
 
           {/* Status Workflow Banners without Cliché AI Icons */}
           {isPending && (
-            <div className="ticket-workflow-banner pending">
+            <div className="ticket-workflow-banner pending ui-alert-banner--warn">
               <div>
                 <div
                   style={{
                     fontWeight: 600,
-                    color: '#92400e',
                     marginBottom: '2px',
                     fontSize: '12.5px',
                   }}
                 >
                   Status: Menunggu Konfirmasi Vendor di Lokasi
                 </div>
-                <div style={{ fontSize: '11.5px', color: '#78350f', lineHeight: 1.4 }}>
+                <div className="ui-alert-banner-sub" style={{ fontSize: '11.5px', lineHeight: 1.4 }}>
                   Penugasan beserta alamat dan titik lokasi telah dikirim ke Vendor via Portal Web,
                   Aplikasi Mobile, dan Bot Telegram.
                 </div>
@@ -515,19 +511,18 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
           )}
 
           {isInProgress && (
-            <div className="ticket-workflow-banner in-progress">
+            <div className="ticket-workflow-banner in-progress ui-alert-banner--info">
               <div>
                 <div
                   style={{
                     fontWeight: 600,
-                    color: '#1e40af',
                     marginBottom: '2px',
                     fontSize: '12.5px',
                   }}
                 >
                   Vendor Sedang Mengeksekusi di Lokasi Pelanggan
                 </div>
-                <div style={{ fontSize: '11.5px', color: '#1e3a8a', lineHeight: 1.4 }}>
+                <div className="ui-alert-banner-sub" style={{ fontSize: '11.5px', lineHeight: 1.4 }}>
                   Vendor dapat mengirimkan laporan terbaru beserta bukti foto OPM dan lokasi melalui
                   Portal Web Vendor (/vendor), Mobile App, atau Bot Telegram (/lapor).
                 </div>
@@ -551,12 +546,11 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
           )}
 
           {isCompleted && (
-            <div className="ticket-workflow-banner completed">
+            <div className="ticket-workflow-banner completed ui-alert-banner--success">
               <div>
                 <div
                   style={{
                     fontWeight: 600,
-                    color: 'var(--color-success-text, #166534)',
                     marginBottom: '2px',
                     fontSize: '12.5px',
                   }}
@@ -564,9 +558,9 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                   Work Order Telah Selesai &amp; Terverifikasi
                 </div>
                 <div
+                  className="ui-alert-banner-sub"
                   style={{
                     fontSize: '11.5px',
-                    color: 'var(--color-success-text, #14532d)',
                     lineHeight: 1.4,
                   }}
                 >
@@ -651,6 +645,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                     Integritas Lokasi (Anti-Fake GPS)
                   </span>
                   <div
+                    className={pendingData?.isLocationFlagged ? 'ui-text-danger' : 'ui-text-ok'}
                     style={{
                       marginTop: '4px',
                       display: 'inline-flex',
@@ -658,20 +653,12 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                       gap: '6px',
                       fontWeight: 500,
                       fontSize: '12px',
-                      color: pendingData?.isLocationFlagged
-                        ? 'var(--color-danger, #dc2626)'
-                        : 'var(--color-success, #16a34a)',
                     }}
                   >
                     <span
-                      style={{
-                        width: '6px',
-                        height: '6px',
-                        borderRadius: '50%',
-                        background: pendingData?.isLocationFlagged
-                          ? 'var(--color-danger, #dc2626)'
-                          : 'var(--color-success, #16a34a)',
-                      }}
+                      className={`status-dot ${
+                        pendingData?.isLocationFlagged ? 'status-dot--danger' : 'status-dot--ok'
+                      }`}
                     />
                     <span>
                       {pendingData?.distanceToSplitterM !== undefined
@@ -885,9 +872,8 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                 </button>
                 <button
                   type="button"
+                  className="button ui-btn-solid-danger"
                   style={{
-                    background: '#dc2626',
-                    color: '#ffffff',
                     border: 'none',
                     borderRadius: '6px',
                     padding: '5px 12px',

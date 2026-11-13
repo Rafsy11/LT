@@ -66,9 +66,9 @@ export function TicketCard({ ticket, onSelect, getDbmBadge }: TicketCardProps) {
       {/* 2. Customer & Cluster Info */}
       <div className="ticket-card-body">
         <div className="ticket-customer-header">
-          <h3 className="ticket-customer-name" title={ticket.customerName}>
+          <h2 className="ticket-customer-name" title={ticket.customerName}>
             {ticket.customerName}
-          </h3>
+          </h2>
           <div className="ticket-meta-row">
             <code className="ticket-sia-badge">{ticket.siaNumber}</code>
             <span>·</span>

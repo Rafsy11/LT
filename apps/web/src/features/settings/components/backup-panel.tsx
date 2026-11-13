@@ -40,12 +40,10 @@ export function BackupPanel({
           }}
         >
           <div>
-            <h2
-              style={{ fontSize: '15px', fontWeight: 600, color: '#182230', margin: '0 0 4px 0' }}
-            >
+            <h2 className="ui-settings-heading">
               Strategi Disaster Recovery 3-2-1
             </h2>
-            <p style={{ fontSize: '12.5px', color: '#515a62', margin: 0 }}>
+            <p className="ui-settings-sub">
               Perlindungan master data FTTH terhadap kegagalan hardware fisik dengan 3 salinan data,
               2 media penyimpanan, dan 1 salinan off-site.
             </p>
@@ -55,11 +53,10 @@ export function BackupPanel({
             type="button"
             onClick={onTriggerBackup}
             disabled={isBackingUp || !isSuperAdmin}
+            className="button primary ui-btn-solid-primary"
             style={{
               padding: '8px 16px',
               borderRadius: '6px',
-              background: '#0e5b92',
-              color: '#ffffff',
               fontSize: '12.5px',
               fontWeight: 600,
               display: 'inline-flex',

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Icon } from '@/components/ui/Icon';
 import { TelemetryStreamSkeletonRows } from '@/components/ui/PageSkeleton';
+import { SearchInput } from '@/components/ui/search-input';
 import { classifyDbm, dbmTone } from '@repo/shared';
 import type { LiveReportItem } from '../hooks/use-monitoring';
 
@@ -57,18 +57,17 @@ export function TelemetryStreamPanel({
 }: TelemetryStreamPanelProps) {
   return (
     <section className="noc-stream-panel" aria-label="Aliran Telemetri Real-Time">
+      <h2 className="sr-only">Aliran Telemetri Real-Time</h2>
       {/* Stream Toolbar */}
       <header className="noc-stream-toolbar">
         <div className="noc-toolbar-top">
-          <search className="noc-search-box" role="search">
-            <Icon name="search" size={14} />
-            <input
-              aria-label="Cari data live stream"
-              placeholder="Cari pelanggan, nomor SIA, ODP, atau teknisi..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </search>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Cari pelanggan, nomor SIA, ODP, atau teknisi..."
+            ariaLabel="Cari data live stream"
+            className="noc-search-box"
+          />
 
           <div className="noc-filters-group">
             <select

@@ -156,17 +156,18 @@ export function DraftActionCard({
       >
         <div>
           <div
+            className={
+              state === 'EXECUTED'
+                ? 'ui-text-ok'
+                : state === 'CANCELLED'
+                  ? 'ui-text-muted'
+                  : state === 'EXPIRED' || state === 'FAILED_REPLAY_BLOCKED'
+                    ? 'ui-text-danger'
+                    : 'ui-text-primary'
+            }
             style={{
               fontSize: '11px',
               fontWeight: 600,
-              color:
-                state === 'EXECUTED'
-                  ? '#16a34a'
-                  : state === 'CANCELLED'
-                    ? '#94a3b8'
-                    : state === 'EXPIRED' || state === 'FAILED_REPLAY_BLOCKED'
-                      ? '#dc2626'
-                      : '#0e5b92',
               textTransform: 'uppercase',
               letterSpacing: '0.4px',
               marginBottom: '3px',
@@ -190,9 +191,9 @@ export function DraftActionCard({
 
         {/* Monospace HMAC Verification & Live Countdown */}
         <div
+          className="ui-text-muted"
           style={{
             fontSize: '11px',
-            color: '#94a3b8',
             fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
             textAlign: 'right',
             flexShrink: 0,
@@ -203,13 +204,18 @@ export function DraftActionCard({
           </div>
           <time
             dateTime={`PT${remainingSeconds}S`}
+            className={
+              state === 'PENDING'
+                ? remainingSeconds < 60
+                  ? 'ui-text-danger'
+                  : 'ui-text-primary'
+                : 'ui-text-muted'
+            }
             style={{
               display: 'block',
               fontSize: '11px',
               marginTop: '3px',
               fontWeight: 600,
-              color:
-                state === 'PENDING' ? (remainingSeconds < 60 ? '#dc2626' : '#0e5b92') : '#94a3b8',
             }}
           >
             {state === 'PENDING' ? `Sisa: ${formatCountdown(remainingSeconds)}` : 'Kedaluwarsa'}
@@ -241,13 +247,10 @@ export function DraftActionCard({
         <aside
           role="alert"
           aria-live="assertive"
+          className="ui-alert-banner ui-alert-banner--error"
           style={{
             padding: '8px 12px',
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '6px',
             fontSize: '12px',
-            color: '#b91c1c',
             marginBottom: '12px',
             display: 'flex',
             alignItems: 'center',
@@ -263,9 +266,9 @@ export function DraftActionCard({
       <footer>
         {state === 'EXECUTED' ? (
           <div
+            className="ui-text-ok"
             style={{
               fontSize: '12px',
-              color: '#16a34a',
               lineHeight: 1.5,
               fontWeight: 500,
               display: 'flex',
@@ -276,11 +279,11 @@ export function DraftActionCard({
             <span>✓ Mutasi telah tervalidasi dan tercatat permanen pada activity_logs.</span>
           </div>
         ) : state === 'CANCELLED' ? (
-          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+          <div className="ui-text-muted" style={{ fontSize: '12px' }}>
             Aksi dibatalkan. Tidak ada mutasi yang diterapkan pada database.
           </div>
         ) : state === 'EXPIRED' ? (
-          <div style={{ fontSize: '12px', color: '#ef4444' }}>
+          <div className="ui-text-danger" style={{ fontSize: '12px' }}>
             Masa aktif 5 menit telah habis. Token HMAC ini tidak dapat dieksekusi lagi demi
             keamanan. Silakan minta AI membuat draf baru.
           </div>
@@ -291,7 +294,7 @@ export function DraftActionCard({
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <button
-              className="button primary"
+              className={`button primary ${state === 'EXECUTING' ? '' : 'ui-btn-solid-primary'}`}
               disabled={state === 'EXECUTING'}
               onClick={handleApprove}
               type="button"
@@ -302,9 +305,7 @@ export function DraftActionCard({
                 padding: '8px 18px',
                 fontSize: '12.5px',
                 fontWeight: 600,
-                borderRadius: '9999px',
-                background: state === 'EXECUTING' ? 'var(--color-text-muted)' : '#0e5b92',
-                color: '#ffffff',
+                borderRadius: '6px',
                 cursor: state === 'EXECUTING' ? 'not-allowed' : 'pointer',
               }}
             >
@@ -318,15 +319,14 @@ export function DraftActionCard({
               )}
             </button>
             <button
-              className="button"
+              className="button ui-text-muted"
               disabled={state === 'EXECUTING'}
               onClick={handleCancel}
               type="button"
               style={{
                 padding: '8px 16px',
                 fontSize: '12.5px',
-                color: 'var(--color-text-muted)',
-                borderRadius: '9999px',
+                borderRadius: '6px',
                 border: 'none',
                 background: 'transparent',
                 cursor: state === 'EXECUTING' ? 'not-allowed' : 'pointer',

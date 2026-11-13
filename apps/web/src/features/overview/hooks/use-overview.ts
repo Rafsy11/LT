@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth, useToast } from '@/providers';
 import type { DbTicket } from '@repo/shared';
 import {
@@ -68,48 +68,73 @@ export function useOverview() {
   const { canCreateTicket, user } = useAuth();
   const { showError } = useToast();
 
-  const [feedItems, setFeedItems] = useState<OverviewFeedItem[]>([
-    {
-      id: 'f-1',
-      title: 'Gangguan koneksi - Critical',
-      clusterLine: 'Cluster Bandung Utara - ODP-017A',
-      customerLine: 'Pelanggan: PT. Maju Jaya',
-      tag: 'Gangguan Jaringan',
-      tagType: 'critical',
-      timeAgo: '09:42',
-      type: 'critical',
-    },
-    {
-      id: 'f-2',
-      title: 'Tiket maintenance ditugaskan',
-      clusterLine: 'SLA100245 - Bandung Barat',
-      customerLine: 'Teknisi: Fajar Hidayat',
-      tag: 'Maintenance',
-      tagType: 'warning',
-      timeAgo: '09:15',
-      type: 'warning',
-    },
-    {
-      id: 'f-3',
-      title: 'Pemulihan layanan',
-      clusterLine: 'Cluster Cimahi - ODP-003B',
-      customerLine: 'Layanan kembali normal',
-      tag: 'Jaringan',
-      tagType: 'success',
-      timeAgo: '08:56',
-      type: 'success',
-    },
-    {
-      id: 'f-4',
-      title: 'Tiket baru dibuat',
-      clusterLine: 'SLA100244 - Rancaekek',
-      customerLine: 'Pelanggan: CV. Sinar Abadi',
-      tag: 'Helpdesk',
-      tagType: 'info',
-      timeAgo: '08:32',
-      type: 'info',
-    },
-  ]);
+  const feedItems = useMemo<OverviewFeedItem[]>(() => {
+    const sorted = [...tickets].sort((a, b) => {
+      const aTime =
+        new Date(a.completedAt || a.dispatchedAt || a.startedAt || a.createdAt).getTime() || 0;
+      const bTime =
+        new Date(b.completedAt || b.dispatchedAt || b.startedAt || b.createdAt).getTime() || 0;
+      return bTime - aTime;
+    });
+
+    return sorted.slice(0, 4).map((t) => {
+      const eventIso = t.completedAt || t.dispatchedAt || t.startedAt || t.createdAt;
+      const eventDate = new Date(eventIso);
+      const timeAgo = Number.isNaN(eventDate.getTime())
+        ? '--:--'
+        : eventDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+      const isCriticalAttenuation =
+        typeof t.currentAttenuation === 'number' &&
+        t.currentAttenuation !== 0 &&
+        t.currentAttenuation < -24;
+
+      let type: OverviewFeedItem['type'] = 'info';
+      let title = `${t.ticketNumber} · Menunggu Penugasan`;
+      let tag: string = t.ticketType;
+
+      if (t.status === 'Menunggu verifikasi') {
+        type = 'warning';
+        title = `${t.ticketNumber} · Verifikasi Laporan`;
+        tag = 'Verifikasi Lintasarta';
+      } else if (t.status === 'Selesai') {
+        type = 'success';
+        title = `${t.ticketNumber} · Selesai Ditangani`;
+        tag = 'Selesai';
+      } else if (t.status === 'Dibatalkan') {
+        type = 'info';
+        title = `${t.ticketNumber} · Dibatalkan`;
+        tag = 'Dibatalkan';
+      } else if (t.isLocationFlagged || isCriticalAttenuation) {
+        type = 'critical';
+        title = t.isLocationFlagged
+          ? `${t.ticketNumber} · Anomali Lokasi`
+          : `${t.ticketNumber} · Redaman Kritis (${t.currentAttenuation} dBm)`;
+        tag = 'Prioritas';
+      } else if (t.status === 'Dalam proses') {
+        type = 'warning';
+        title = `${t.ticketNumber} · Sedang Dikerjakan`;
+        tag = 'Lapangan';
+      }
+
+      const techLabel = t.assignedTech ? `Teknisi: ${t.assignedTech}` : 'Belum ditugaskan';
+      return {
+        id: t.id,
+        title,
+        clusterLine: t.splitterCode ? `${t.cluster} · ${t.splitterCode}` : t.cluster,
+        customerLine: `${t.customerName} · ${techLabel}`,
+        tag,
+        tagType: type,
+        timeAgo,
+        type,
+        customerName: t.customerName,
+        siaNumber: t.siaNumber,
+        cluster: t.cluster,
+        techName: t.assignedTech,
+        attenuation: t.currentAttenuation,
+      };
+    });
+  }, [tickets]);
 
   const fetchOverview = useCallback(
     async (force = false) => {
@@ -264,7 +289,6 @@ export function useOverview() {
     statusFilter,
     setStatusFilter,
     feedItems,
-    setFeedItems,
     canCreateTicket,
     user,
     filteredTickets,

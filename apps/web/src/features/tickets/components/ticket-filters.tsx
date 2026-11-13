@@ -1,5 +1,5 @@
 import React from 'react';
-import { Icon } from '@/components/ui/Icon';
+import { SearchInput } from '@/components/ui/search-input';
 
 export interface TicketFiltersProps {
   search: string;
@@ -33,19 +33,13 @@ export function TicketFilters({
       {/* Filter Toolbar without Clutter Pills */}
       <section className="tickets-toolbar">
         <div className="tickets-filter-group">
-          <search className="tickets-search" role="search">
-            <span className="tickets-search-icon">
-              <Icon name="search" size={13} />
-            </span>
-            <input
-              type="text"
-              aria-label="Cari tiket"
-              className="tickets-search-input"
-              placeholder="Cari nomor tiket, SIA, pelanggan, atau teknisi..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </search>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Cari nomor tiket, SIA, pelanggan, atau teknisi..."
+            ariaLabel="Cari tiket"
+            className="tickets-search"
+          />
 
           <div className="select-wrapper">
             <select

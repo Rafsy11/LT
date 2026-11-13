@@ -40,15 +40,7 @@ export function AiMessageList({
       {/* Subtle conversation toolbar */}
       <header className="ai-chat-toolbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span
-            style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: '#16a34a',
-              display: 'inline-block',
-            }}
-          />
+          <span className="status-dot status-dot--ok" aria-hidden="true" />
           <span className="ai-chat-model-text">
             AI Assistant · Qwen 2.5 7B On-Premise
           </span>

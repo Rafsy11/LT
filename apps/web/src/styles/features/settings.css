@@ -194,8 +194,10 @@
   white-space: nowrap;
 }
 
-.settings-tab-btn:hover {
-  color: #0e5b92;
+@media (hover: hover) and (pointer: fine) {
+  .settings-tab-btn:hover {
+    color: #0e5b92;
+  }
 }
 
 .settings-tab-btn.active {
@@ -312,9 +314,11 @@ html.dark .settings-tab-btn,
   color: #94a3b8 !important;
 }
 
-html.dark .settings-tab-btn:hover,
-[data-theme='dark'] .settings-tab-btn:hover {
-  color: #f1f5f9 !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .settings-tab-btn:hover,
+  [data-theme='dark'] .settings-tab-btn:hover {
+    color: #f1f5f9 !important;
+  }
 }
 
 html.dark .settings-tab-btn.active,
@@ -561,7 +565,17 @@ html.dark .settings-policy-radio-desc,
 }
 
 .settings-gauge-val.gpu {
-  color: #16a34a;
+  color: #15803d;
+}
+
+.settings-tls-status.active {
+  font-weight: 600;
+  color: #15803d;
+}
+
+html.dark .settings-tls-status.active,
+[data-theme='dark'] .settings-tls-status.active {
+  color: #4ade80 !important;
 }
 
 .settings-gauge-title {

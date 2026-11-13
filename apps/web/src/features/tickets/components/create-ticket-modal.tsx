@@ -17,42 +17,13 @@ export interface CreateTicketModalProps {
   initialValues?: Partial<CreateTicketInput>;
 }
 
-const FALLBACK_VENDOR_OPTIONS: Array<{
+interface VendorOption {
   username: string;
   fullName: string;
   vendorCompany: string;
   clusterLabel: string;
   telegramBound: boolean;
-}> = [
-  {
-    username: 'andi.pratama',
-    fullName: 'Andi Pratama',
-    vendorCompany: 'PT Mitra Fiber Nusantara',
-    clusterLabel: 'Bandung Utara',
-    telegramBound: true,
-  },
-  {
-    username: 'rizky.maulana',
-    fullName: 'Rizky Maulana',
-    vendorCompany: 'PT Sarana Optik Bandung',
-    clusterLabel: 'Bandung Timur',
-    telegramBound: true,
-  },
-  {
-    username: 'fajar.hidayat',
-    fullName: 'Fajar Hidayat',
-    vendorCompany: 'PT Mitra Fiber Nusantara',
-    clusterLabel: 'Bandung Barat',
-    telegramBound: true,
-  },
-  {
-    username: 'agus.setiawan',
-    fullName: 'Agus Setiawan',
-    vendorCompany: 'PT Sarana Optik Bandung',
-    clusterLabel: 'Cimahi',
-    telegramBound: false,
-  },
-];
+}
 
 export function CreateTicketModal({
   isOpen,
@@ -67,7 +38,8 @@ export function CreateTicketModal({
 
   const [customerMode, setCustomerMode] = useState<'EXISTING' | 'NEW'>('EXISTING');
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
-  const [technicians, setTechnicians] = useState(FALLBACK_VENDOR_OPTIONS);
+  const [technicians, setTechnicians] = useState<VendorOption[]>([]);
+  const [loadingVendors, setLoadingVendors] = useState(false);
 
   const [customerName, setCustomerName] = useState('');
   const [siaNumber, setSiaNumber] = useState('');
@@ -79,8 +51,8 @@ export function CreateTicketModal({
   const [serviceAddress, setServiceAddress] = useState('');
   const [targetLat, setTargetLat] = useState('');
   const [targetLng, setTargetLng] = useState('');
-  const [assignedTechUsername, setAssignedTechUsername] = useState('andi.pratama');
-  const [vendorName, setVendorName] = useState('PT Mitra Fiber Nusantara');
+  const [assignedTechUsername, setAssignedTechUsername] = useState('');
+  const [vendorName, setVendorName] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
   const [lookupMatchedSia, setLookupMatchedSia] = useState<string | null>(null);
 
@@ -102,10 +74,11 @@ export function CreateTicketModal({
     setTargetLng(
       typeof initialValues?.targetLng === 'number' ? String(initialValues.targetLng) : '',
     );
-    setAssignedTechUsername(initialValues?.assignedTechUsername || 'andi.pratama');
-    setVendorName(initialValues?.vendorName || 'PT Mitra Fiber Nusantara');
+    setAssignedTechUsername(initialValues?.assignedTechUsername || '');
+    setVendorName(initialValues?.vendorName || '');
     setAdminNotes(initialValues?.adminNotes || '');
     setLookupMatchedSia(null);
+    setLoadingVendors(true);
 
     Promise.all([
       fetch('/api/v1/admin/customers')
@@ -141,7 +114,7 @@ export function CreateTicketModal({
         }
       }
 
-      if (techJson?.success && Array.isArray(techJson.data) && techJson.data.length > 0) {
+      if (techJson?.success && Array.isArray(techJson.data)) {
         const mappedTechs = (techJson.data as TechnicianListItem[]).map((t) => ({
           username: t.username,
           fullName: t.fullName,
@@ -154,6 +127,10 @@ export function CreateTicketModal({
           setAssignedTechUsername(mappedTechs[0].username);
           setVendorName(mappedTechs[0].vendorCompany);
         }
+      }
+    }).finally(() => {
+      if (active) {
+        setLoadingVendors(false);
       }
     });
 
@@ -228,6 +205,14 @@ export function CreateTicketModal({
       showError({
         code: 'FORBIDDEN',
         message: 'Anda tidak memiliki hak akses (ticket:create) untuk membuat tiket baru.',
+      });
+      return;
+    }
+
+    if (!assignedTechUsername.trim()) {
+      showError({
+        code: 'VALIDATION_ERROR',
+        message: 'Pilih vendor atau teknisi lapangan penanggung jawab terlebih dahulu.',
       });
       return;
     }
@@ -475,16 +460,23 @@ export function CreateTicketModal({
               Tugaskan ke vendor / teknisi
               <select
                 name="assignedTechUsername"
+                required
                 value={assignedTechUsername}
                 onChange={(e) => handleVendorChange(e.target.value)}
-                disabled={!canCreateTicket || submitting}
+                disabled={!canCreateTicket || submitting || loadingVendors}
               >
-                {technicians.map((t) => (
-                  <option key={t.username} value={t.username}>
-                    {t.fullName} — {t.vendorCompany}
-                    {t.telegramBound ? ' (Telegram Aktif)' : ''}
-                  </option>
-                ))}
+                {loadingVendors ? (
+                  <option value="">Memuat daftar vendor / teknisi...</option>
+                ) : technicians.length === 0 ? (
+                  <option value="">Belum ada vendor / teknisi terdaftar</option>
+                ) : (
+                  technicians.map((t) => (
+                    <option key={t.username} value={t.username}>
+                      {t.fullName} - {t.vendorCompany}
+                      {t.telegramBound ? ' (Telegram Aktif)' : ''}
+                    </option>
+                  ))
+                )}
               </select>
             </label>
 

@@ -48,15 +48,7 @@ export function SettingsHeader({
             fontWeight: 500,
           }}
         >
-          <span
-            style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: '#16a34a',
-              display: 'inline-block',
-            }}
-          />
+          <span className="status-dot status-dot--ok" />
           <span>Docker: 6 Layanan Normal</span>
         </div>
 

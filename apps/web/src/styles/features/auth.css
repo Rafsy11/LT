@@ -20,19 +20,6 @@
   );
 }
 
-.auth-page::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image: linear-gradient(to right, #e2e8f0 1px, transparent 1px),
-    linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
-  background-size: 24px 24px;
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 35%, transparent 100%);
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 35%, transparent 100%);
-}
-
 .auth-card {
   width: 100%;
   max-width: 440px;
@@ -80,7 +67,7 @@
   padding: 3px 9px;
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
-  border-radius: 9999px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -216,7 +203,7 @@
   min-height: 44px;
   padding: 10px 12px;
   border: none !important;
-  outline: none !important;
+  outline: 2px solid transparent !important;
   box-shadow: none !important;
   background: transparent !important;
   color: #0f172a;
@@ -260,14 +247,23 @@
   flex-shrink: 0;
 }
 
-.auth-password-toggle:hover {
-  color: #0f172a;
-  background: #f1f5f9;
+@media (hover: hover) and (pointer: fine) {
+  .auth-password-toggle:hover {
+    color: #0f172a;
+    background: #f1f5f9;
+  }
 }
 
 .auth-password-toggle:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: -2px;
+}
+
+@media (max-width: 767px) {
+  .auth-password-toggle {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 .auth-submit-btn {
@@ -287,8 +283,10 @@
   cursor: pointer;
 }
 
-.auth-submit-btn:hover:not(:disabled) {
-  background: #0e5b92;
+@media (hover: hover) and (pointer: fine) {
+  .auth-submit-btn:hover:not(:disabled) {
+    background: #0e5b92;
+  }
 }
 
 .auth-submit-btn:disabled {
@@ -417,16 +415,18 @@
   cursor: pointer;
 }
 
-.auth-request-otp-btn:hover:not(:disabled) {
-  background: #e0f2fe;
-  border-color: #38bdf8;
-  color: #075985;
+@media (hover: hover) and (pointer: fine) {
+  .auth-request-otp-btn:hover:not(:disabled) {
+    background: #e0f2fe;
+    border-color: #38bdf8;
+    color: #075985;
+  }
 }
 
 .auth-request-otp-btn:disabled {
   background: #f1f5f9;
-  border-color: #e2e8f0;
-  color: #64748b;
+  border-color: #cbd5e1;
+  color: #475569;
   cursor: not-allowed;
 }
 
@@ -457,7 +457,7 @@
 .auth-input-wrap input {
   background: transparent !important;
   border: none !important;
-  outline: none !important;
+  outline: 2px solid transparent !important;
   box-shadow: none !important;
 }
 
@@ -465,7 +465,7 @@ html.dark .auth-input-wrap input,
 [data-theme='dark'] .auth-input-wrap input {
   background: transparent !important;
   border: none !important;
-  outline: none !important;
+  outline: 2px solid transparent !important;
   box-shadow: none !important;
   color: #f1f5f9 !important;
 }
@@ -478,7 +478,7 @@ html.dark .auth-input-wrap input:focus-visible,
 [data-theme='dark'] .auth-input-wrap input:focus-visible {
   background: transparent !important;
   border: none !important;
-  outline: none !important;
+  outline: 2px solid transparent !important;
   box-shadow: none !important;
 }
 
@@ -490,18 +490,6 @@ html.dark .auth-page,
     rgba(38, 152, 232, 0.14),
     transparent 70%
   ) !important;
-}
-
-html.dark .auth-page::before,
-[data-theme='dark'] .auth-page::before {
-  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px) !important;
-  -webkit-mask-image: radial-gradient(
-    ellipse 70% 60% at 50% 45%,
-    #000 35%,
-    transparent 100%
-  ) !important;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 35%, transparent 100%) !important;
 }
 
 html.dark .auth-card,
@@ -580,18 +568,27 @@ html.dark .auth-input-wrap:focus-within .auth-input-icon,
 html.dark .auth-input,
 html.dark .auth-input:focus,
 html.dark .auth-input:active,
-html.dark .auth-input:hover,
 html.dark .auth-input:focus-visible,
 [data-theme='dark'] .auth-input,
 [data-theme='dark'] .auth-input:focus,
 [data-theme='dark'] .auth-input:active,
-[data-theme='dark'] .auth-input:hover,
 [data-theme='dark'] .auth-input:focus-visible {
   background: transparent !important;
   border: none !important;
-  outline: none !important;
+  outline: 2px solid transparent !important;
   box-shadow: none !important;
   color: #f1f5f9 !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html.dark .auth-input:hover,
+  [data-theme='dark'] .auth-input:hover {
+    background: transparent !important;
+    border: none !important;
+    outline: 2px solid transparent !important;
+    box-shadow: none !important;
+    color: #f1f5f9 !important;
+  }
 }
 
 html.dark .auth-input::placeholder,
@@ -618,10 +615,12 @@ html.dark .auth-password-toggle,
   background: transparent !important;
 }
 
-html.dark .auth-password-toggle:hover,
-[data-theme='dark'] .auth-password-toggle:hover {
-  color: #f1f5f9 !important;
-  background: #1e293b !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .auth-password-toggle:hover,
+  [data-theme='dark'] .auth-password-toggle:hover {
+    color: #f1f5f9 !important;
+    background: #1e293b !important;
+  }
 }
 
 html.dark .auth-otp-timer,
@@ -638,11 +637,13 @@ html.dark .auth-request-otp-btn,
   color: #38bdf8 !important;
 }
 
-html.dark .auth-request-otp-btn:hover:not(:disabled),
-[data-theme='dark'] .auth-request-otp-btn:hover:not(:disabled) {
-  background: rgba(14, 91, 146, 0.4) !important;
-  border-color: #38bdf8 !important;
-  color: #f1f5f9 !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .auth-request-otp-btn:hover:not(:disabled),
+  [data-theme='dark'] .auth-request-otp-btn:hover:not(:disabled) {
+    background: rgba(14, 91, 146, 0.4) !important;
+    border-color: #38bdf8 !important;
+    color: #f1f5f9 !important;
+  }
 }
 
 html.dark .auth-request-otp-btn:disabled,
@@ -670,9 +671,11 @@ html.dark .auth-submit-btn,
   color: #ffffff !important;
 }
 
-html.dark .auth-submit-btn:hover:not(:disabled),
-[data-theme='dark'] .auth-submit-btn:hover:not(:disabled) {
-  background: #2585d0 !important;
+@media (hover: hover) and (pointer: fine) {
+  html.dark .auth-submit-btn:hover:not(:disabled),
+  [data-theme='dark'] .auth-submit-btn:hover:not(:disabled) {
+    background: #2585d0 !important;
+  }
 }
 
 html.dark .auth-submit-btn:disabled,

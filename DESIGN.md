@@ -35,8 +35,8 @@
 
 ## 4. Typography
 
-- **Font Family**: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
-- **Telemetry / Monospace**: JetBrains Mono, "SF Mono", monospace for numbers, attenuation dBm values, and SIA codes.
+- **Font Family**: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
+- **Telemetry / Monospace**: "JetBrains Mono", "SF Mono", monospace for numbers, attenuation dBm values, and SIA codes.
 - **Scale**:
   - Page Title: 20px / 24px, SemiBold (600)
   - Section Heading: 15px / 20px, SemiBold (600)

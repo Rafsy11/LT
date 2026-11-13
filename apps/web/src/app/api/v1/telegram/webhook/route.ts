@@ -201,13 +201,13 @@ async function handleBoundCommandHelp(chatId: string, account: FallbackAccount) 
     `Halo, <b>${escapeHtml(account.fullName)}</b>${vendorLabel}.`,
     ``,
     `<b>Perintah Operasional Lapangan:</b>`,
-    `• /tugas — Lihat daftar tugas aktif, alamat &amp; titik lokasi`,
-    `• /mulai <code>NO_TIKET</code> — Catat waktu mulai eksekusi di lokasi`,
-    `• /lapor <code>NO_TIKET</code> — Mulai sesi laporan (foto OPM + lokasi + ODP/redaman)`,
-    `• /lapor <code>NO_TIKET | ODP | PORT | DBM | CATATAN</code> — Kirim laporan cepat 1 baris`,
-    `• /batal — Batalkan draf laporan aktif`,
-    `• /status — Cek status akun &amp; ringkasan tugas`,
-    `• /unlink — Lepas tautan Telegram`,
+    `• /tugas - Lihat daftar tugas aktif, alamat &amp; titik lokasi`,
+    `• /mulai <code>NO_TIKET</code> - Catat waktu mulai eksekusi di lokasi`,
+    `• /lapor <code>NO_TIKET</code> - Mulai sesi laporan (foto OPM + lokasi + ODP/redaman)`,
+    `• /lapor <code>NO_TIKET | ODP | PORT | DBM | CATATAN</code> - Kirim laporan cepat 1 baris`,
+    `• /batal - Batalkan draf laporan aktif`,
+    `• /status - Cek status akun &amp; ringkasan tugas`,
+    `• /unlink - Lepas tautan Telegram`,
   ].join('\n');
 
   await sendTelegramHtmlMessage(chatId, html);
@@ -360,7 +360,7 @@ export async function POST(request: NextRequest) {
             ? `\n  📍 <a href="https://maps.google.com/?q=${t.targetLat},${t.targetLng}">Buka Titik (${t.targetLat.toFixed(5)}, ${t.targetLng.toFixed(5)})</a>`
             : '';
         return [
-          `🎫 <code>${escapeHtml(t.ticketNumber)}</code> — <b>${escapeHtml(t.status)}</b>`,
+          `🎫 <code>${escapeHtml(t.ticketNumber)}</code> - <b>${escapeHtml(t.status)}</b>`,
           `  • <b>Pelanggan:</b> ${escapeHtml(t.customerName)}${t.customerPhone ? ` (${escapeHtml(t.customerPhone)})` : ''}`,
           `  • <b>Aduan:</b> ${escapeHtml(t.complaintSummary || t.ticketType)}`,
           `  • <b>Tempat:</b> ${escapeHtml(t.locationPlace || '-')}`,
@@ -446,12 +446,12 @@ export async function POST(request: NextRequest) {
           [
             `📝 <b>CARA MELAPOR HASIL VENDOR</b>`,
             ``,
-            `<b>Cara 1 — Interaktif (Dengan Foto OPM &amp; Share Location):</b>`,
+            `<b>Cara 1 - Interaktif (Dengan Foto OPM &amp; Share Location):</b>`,
             `1. Kirim: <code>/lapor TK-2024-001</code>`,
             `2. Kirim <b>Share Location</b> + <b>Foto Bukti OPM</b>`,
             `3. Balas format: <code>ODP-BDG-01 | 2 | -19.2 | Catatan pekerjaan</code>`,
             ``,
-            `<b>Cara 2 — Cepat 1 Baris:</b>`,
+            `<b>Cara 2 - Cepat 1 Baris:</b>`,
             `<code>/lapor TK-2024-001 | ODP-BDG-01 | 2 | -19.2 | Splicing selesai</code>`,
           ].join('\n'),
         );

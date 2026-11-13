@@ -227,7 +227,7 @@ export function VendorReportModal({
               {ticket.customer.fullName} ({ticket.customer.siaNumber})
             </div>
             <div className="ticket-location-address">
-              {ticket.locationPlace ? `${ticket.locationPlace} — ` : ''}
+              {ticket.locationPlace ? `${ticket.locationPlace} - ` : ''}
               {ticket.serviceAddress}
             </div>
             {ticket.complaintSummary && (
@@ -254,7 +254,7 @@ export function VendorReportModal({
                 {splitters.length > 0 ? (
                   splitters.map((s) => (
                     <option key={s.id} value={s.splitterCode}>
-                      {s.splitterCode} — {s.clusterName} (Sisa {s.availablePorts.length} port)
+                      {s.splitterCode} - {s.clusterName} (Sisa {s.availablePorts.length} port)
                     </option>
                   ))
                 ) : (

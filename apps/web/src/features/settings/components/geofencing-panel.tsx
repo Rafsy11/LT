@@ -21,10 +21,10 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
       {/* Left: Geofencing Radius & Location Policy */}
       <article className="settings-card">
         <header>
-          <h2 style={{ fontSize: '15px', fontWeight: 600, color: '#182230', margin: '0 0 4px 0' }}>
+          <h2 className="ui-settings-heading">
             Batas Toleransi Geofencing Teknisi Lapangan
           </h2>
-          <p style={{ fontSize: '12.5px', color: '#515a62', margin: '0 0 16px 0' }}>
+          <p className="ui-settings-sub" style={{ margin: '0 0 16px 0' }}>
             Jarak maksimal yang diizinkan antara koordinat GPS ponsel teknisi dengan koordinat tiang
             ODP saat menekan tombol Submit.
           </p>
@@ -81,7 +81,8 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
         {/* Policy Selection */}
         <fieldset
           aria-label="Kebijakan Penanganan Laporan di Luar Radius"
-          style={{ border: 0, margin: 0, padding: 0, borderTop: '1px solid #edf2f7', paddingTop: '18px' }}
+          className="ui-divider-top"
+          style={{ border: 0, margin: 0, padding: 0, paddingTop: '18px' }}
         >
           <legend
             style={{
@@ -155,7 +156,7 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
       >
         <article className="settings-card">
           <header>
-            <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#182230', margin: '0 0 12px 0' }}>
+            <h3 className="ui-settings-subheading">
               Perlindungan Integritas &amp; Anti-Fake GPS
             </h3>
           </header>

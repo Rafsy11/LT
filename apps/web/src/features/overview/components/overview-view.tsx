@@ -79,12 +79,13 @@ export function OverviewView() {
 
   return (
     <main className="overview-page" id="main-content">
+      <h1 className="sr-only">Dashboard Operasional FiberOps NOC</h1>
       {/* Page Header with Reorganized Command Bar (Stage 2) */}
       <header className="overview-header">
         <div className="overview-header-left">
           <div className="overview-datetime-header" title="Waktu operasional aktif">
-            <span className="overview-date-title">{currentDateTime.date || 'Rabu, 4 November 2026'}</span>
-            <span className="overview-time-title">{currentDateTime.time || '10.12 WIB'}</span>
+            <span className="overview-date-title">{currentDateTime.date || 'Memuat tanggal...'}</span>
+            <span className="overview-time-title">{currentDateTime.time || '--:-- WIB'}</span>
           </div>
 
           <div className="select-wrapper overview-cluster-select-wrap">

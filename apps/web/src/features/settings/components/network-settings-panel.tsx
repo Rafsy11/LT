@@ -25,10 +25,10 @@ export function NetworkSettingsPanel({
       {/* Left: Public Access & Workspace Identity */}
       <article className="settings-card">
         <header>
-          <h2 style={{ fontSize: '15px', fontWeight: 600, color: '#182230', margin: '0 0 4px 0' }}>
+          <h2 className="ui-settings-heading">
             Metode Akses Publik untuk 200 Teknisi
           </h2>
-          <p style={{ fontSize: '12.5px', color: '#515a62', margin: '0 0 16px 0' }}>
+          <p className="ui-settings-sub" style={{ margin: '0 0 16px 0' }}>
             Jalur koneksi terenkripsi HTTPS agar aplikasi mobile Android/iOS dapat mengakses API,
             kamera, dan koordinat GPS.
           </p>
@@ -148,7 +148,8 @@ export function NetworkSettingsPanel({
         {/* Nginx Reverse Proxy Config */}
         <section
           aria-label="Konfigurasi Nginx Reverse Proxy"
-          style={{ borderTop: '1px solid #edf2f7', paddingTop: '16px' }}
+          className="ui-divider-top"
+          style={{ paddingTop: '16px' }}
         >
           <header>
             <h3 className="settings-section-heading" style={{ fontSize: '13px', margin: '0 0 10px 0' }}>

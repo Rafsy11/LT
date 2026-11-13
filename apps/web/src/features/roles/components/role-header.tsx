@@ -34,14 +34,8 @@ export function RoleHeader({ isFetching, onRefresh, onOpenAddUser }: RoleHeaderP
           }}
         >
           <span
-            style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: '#16a34a',
-              display: 'inline-block',
-              boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.2)',
-            }}
+            className="status-dot status-dot--ok"
+            style={{ boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.2)' }}
           />
           Otoritas Sistem Terpantau
         </div>
@@ -50,7 +44,7 @@ export function RoleHeader({ isFetching, onRefresh, onOpenAddUser }: RoleHeaderP
           <button
             type="button"
             onClick={onOpenAddUser}
-            className="button primary"
+            className="button primary ui-btn-solid-primary"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -59,8 +53,6 @@ export function RoleHeader({ isFetching, onRefresh, onOpenAddUser }: RoleHeaderP
               fontSize: '12px',
               fontWeight: 600,
               borderRadius: '6px',
-              background: '#0e5b92',
-              color: '#ffffff',
               border: 'none',
               cursor: 'pointer',
               boxShadow: '0 1px 3px rgba(14, 91, 146, 0.25)',

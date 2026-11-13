@@ -2,6 +2,7 @@ import React from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
 import { OverviewTableSkeletonRows } from '@/components/ui/PageSkeleton';
+import { SearchInput } from '@/components/ui/search-input';
 import type { DbTicket } from '@repo/shared';
 
 const OVERVIEW_SKELETON_ROW_COUNT = 4;
@@ -57,15 +58,13 @@ export function OverviewTicketQueue({
             </nav>
 
             {/* Search Box */}
-            <search className="table-search-box" role="search">
-              <Icon name="search" size={14} />
-              <input
-                placeholder="Cari tiket atau pelanggan..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                aria-label="Cari tiket atau pelanggan"
-              />
-            </search>
+            <SearchInput
+              value={query}
+              onChange={setQuery}
+              placeholder="Cari tiket atau pelanggan..."
+              ariaLabel="Cari tiket atau pelanggan"
+              className="table-search-box"
+            />
 
             {/* Filter Button */}
             <button className="button-filter" type="button" aria-label="Buka filter lanjutan">

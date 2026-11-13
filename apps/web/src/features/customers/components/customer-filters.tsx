@@ -1,5 +1,6 @@
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { SearchInput } from '@/components/ui/search-input';
 
 export type CustomerStatusTab = 'all' | 'ACTIVE' | 'PENDING_INSTALL' | 'critical' | 'ISOLATED';
 
@@ -103,30 +104,13 @@ export function CustomerFilters({
       <div className="customer-sub-toolbar">
         {/* Left: Search Box + Integrated Filter Wilayah */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <search className="customer-search-box" role="search">
-            <span
-              style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', flexShrink: 0 }}
-            >
-              <Icon name="search" size={14} />
-            </span>
-            <input
-              aria-label="Cari pelanggan"
-              placeholder="Cari nama, nomor SIA, ODP, atau alamat..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="customer-search-input"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                aria-label="Hapus pencarian"
-                className="customer-search-clear"
-              >
-                <Icon name="x" size={13} />
-              </button>
-            )}
-          </search>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Cari nama, nomor SIA, ODP, atau alamat..."
+            ariaLabel="Cari pelanggan"
+            className="customer-search-box"
+          />
 
           {/* Tombol Filter Wilayah (Kecamatan, Kelurahan, Jalan) */}
           <button
@@ -238,10 +222,10 @@ export function CustomerFilters({
               <button
                 type="button"
                 onClick={resetWilayahFilters}
+                className="ui-text-danger"
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#dc2626',
                   fontSize: '11.5px',
                   fontWeight: 500,
                   cursor: 'pointer',
@@ -413,10 +397,10 @@ export function CustomerFilters({
           <button
             type="button"
             onClick={resetWilayahFilters}
+            className="ui-text-danger"
             style={{
               background: 'none',
               border: 'none',
-              color: '#dc2626',
               cursor: 'pointer',
               fontSize: '11px',
               fontWeight: 500,

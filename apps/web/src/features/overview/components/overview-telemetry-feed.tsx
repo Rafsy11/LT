@@ -27,34 +27,40 @@ export function OverviewTelemetryFeed({ feedItems }: OverviewTelemetryFeedProps)
           </Link>
         </header>
 
-        <ol className="feed-stream" aria-label="Daftar aktivitas terkini">
-          {feedItems.slice(0, 4).map((item) => (
-            <li className="feed-stream-item" key={item.id}>
-              <div className={`feed-stream-icon ${item.type}`} aria-hidden="true">
-                <Icon
-                  name={
-                    item.type === 'critical'
-                      ? 'activity'
-                      : item.type === 'warning'
-                        ? 'wrench'
-                        : item.type === 'success'
-                          ? 'check'
-                          : 'fileText'
-                  }
-                  size={15}
-                />
-              </div>
-              <article className="feed-stream-body">
-                <div className="feed-stream-top-row">
-                  <b className="feed-stream-title">{item.title}</b>
-                  <time className="feed-stream-time">{item.timeAgo}</time>
+        {feedItems.length === 0 ? (
+          <p className="ui-text-secondary" style={{ fontSize: '12.5px', padding: '12px 0' }}>
+            Belum ada aktivitas tiket atau telemetri terbaru.
+          </p>
+        ) : (
+          <ol className="feed-stream" aria-label="Daftar aktivitas terkini">
+            {feedItems.slice(0, 4).map((item) => (
+              <li className="feed-stream-item" key={item.id}>
+                <div className={`feed-stream-icon ${item.type}`} aria-hidden="true">
+                  <Icon
+                    name={
+                      item.type === 'critical'
+                        ? 'activity'
+                        : item.type === 'warning'
+                          ? 'wrench'
+                          : item.type === 'success'
+                            ? 'check'
+                            : 'fileText'
+                    }
+                    size={15}
+                  />
                 </div>
-                <p className="feed-stream-subtitle">{item.clusterLine}</p>
-                <p className="feed-stream-subtitle muted-line">{item.customerLine}</p>
-              </article>
-            </li>
-          ))}
-        </ol>
+                <article className="feed-stream-body">
+                  <div className="feed-stream-top-row">
+                    <b className="feed-stream-title">{item.title}</b>
+                    <time className="feed-stream-time">{item.timeAgo}</time>
+                  </div>
+                  <p className="feed-stream-subtitle">{item.clusterLine}</p>
+                  <p className="feed-stream-subtitle muted-line">{item.customerLine}</p>
+                </article>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
     </section>
   );

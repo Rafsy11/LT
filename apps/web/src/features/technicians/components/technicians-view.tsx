@@ -48,7 +48,7 @@ export function TechniciansView() {
   }
 
   return (
-    <main className="technicians-page" style={{ paddingBottom: '32px' }}>
+    <main className="technicians-page" id="main-content" style={{ paddingBottom: '32px' }}>
       {/* Page Heading & Redis Telemetry Beacon */}
       <header className="overview-header" style={{ marginBottom: '28px' }}>
         <div className="overview-header-copy">
@@ -62,14 +62,8 @@ export function TechniciansView() {
         <nav className="overview-toolbar" aria-label="Aksi bilah status teknisi">
           <div className="overview-status-pill">
             <span
-              style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                background: '#16a34a',
-                display: 'inline-block',
-                boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.2)',
-              }}
+              className="status-dot status-dot--ok"
+              style={{ boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.2)' }}
             />
             Redis Session Store: Aktif
           </div>
@@ -81,18 +75,14 @@ export function TechniciansView() {
       {/* Permission Guard Banner */}
       {!canManageTech && (
         <aside
-          className="info-strip"
+          className="info-strip ui-alert-banner ui-alert-banner--warn"
           role="alert"
           style={{
-            background: '#fffbeb',
-            borderColor: '#fde68a',
-            color: '#92400e',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
             marginBottom: '20px',
             padding: '10px 14px',
-            borderRadius: '6px',
             fontSize: '12.5px',
           }}
         >

@@ -42,7 +42,8 @@ export function LoginView() {
   const isLocked = isSubmitting || rateLimitSeconds > 0;
 
   return (
-    <main className="auth-page" aria-label="Portal Kendali NOC FiberOps">
+    <main id="main-content" className="auth-page" aria-label="Portal Kendali NOC FiberOps">
+      <h1 className="sr-only">Masuk ke Portal Kendali NOC FiberOps</h1>
       <article className="auth-card">
         <header className="auth-header">
           <div className="auth-brand-bar">

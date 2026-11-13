@@ -3,6 +3,7 @@
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
+import { SearchInput } from '@/components/ui/search-input';
 import { UserAccessItem } from '../hooks/use-roles';
 
 export interface RoleDirectoryTableProps {
@@ -69,36 +70,13 @@ export function RoleDirectoryTable({
         }}
       >
         {/* Search input */}
-        <search
-          role="search"
-          aria-label="Cari pengguna"
-          className="table-search-box"
-          style={{ width: '260px' }}
-        >
-          <Icon name="search" size={14} />
-          <input
-            aria-label="Cari pengguna"
-            placeholder="Cari nama, NIK, username, email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              aria-label="Hapus pencarian"
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                color: '#94a3b8',
-              }}
-            >
-              <Icon name="x" size={13} />
-            </button>
-          )}
-        </search>
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Cari nama, NIK, username, email..."
+          ariaLabel="Cari pengguna"
+          className="table-search-box roles-search-box"
+        />
 
         {/* Filter by Role */}
         <select
@@ -162,7 +140,8 @@ export function RoleDirectoryTable({
               <tr>
                 <td
                   colSpan={6}
-                  style={{ padding: '40px 16px', textAlign: 'center', color: '#94a3b8' }}
+                  className="ui-text-muted"
+                  style={{ padding: '40px 16px', textAlign: 'center' }}
                 >
                   Tidak ada pengguna yang sesuai dengan filter pencarian ini.
                 </td>
@@ -261,12 +240,12 @@ export function RoleDirectoryTable({
                           aria-checked={u.isActive}
                           disabled={isCurrentUser || actionInProgress === u.id}
                           onClick={() => onToggleUserStatus(u)}
+                          className={`ui-switch-track ${u.isActive ? 'is-on' : ''}`}
                           style={{
                             position: 'relative',
                             width: '38px',
                             height: '20px',
                             borderRadius: '10px',
-                            background: u.isActive ? '#0e5b92' : '#cbd5e1',
                             border: 'none',
                             cursor: isCurrentUser ? 'not-allowed' : 'pointer',
                             padding: 0,
@@ -281,6 +260,7 @@ export function RoleDirectoryTable({
                           }
                         >
                           <span
+                            className="ui-switch-thumb"
                             style={{
                               position: 'absolute',
                               top: '2px',
@@ -288,7 +268,6 @@ export function RoleDirectoryTable({
                               width: '16px',
                               height: '16px',
                               borderRadius: '50%',
-                              background: '#ffffff',
                               boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
                             }}
                           />
