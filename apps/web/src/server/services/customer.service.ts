@@ -12,7 +12,7 @@ import {
   rethrowIfStrictDatabaseError,
 } from '../lib/live-data';
 
-const DEFAULT_CUSTOMER_LIST_LIMIT = 200;
+const DEFAULT_CUSTOMER_LIST_LIMIT = 1000;
 
 export type { CustomerListItem };
 
@@ -22,50 +22,87 @@ export function parseCustomerAddress(address: string): {
   kecamatan: string;
 } {
   const lower = address.toLowerCase();
-  const street = address.split(',')[0]?.trim() || address;
+  const parts = address.split(',').map((p) => p.trim()).filter(Boolean);
+  const street = parts[0] || address;
 
-  let kecamatan = 'Bandung Wetan';
-  if (lower.includes('coblong') || lower.includes('dago') || lower.includes('cikutra')) {
+  let kecamatan = '-';
+  let kelurahan = '-';
+
+  // Palembang landmarks and sub-districts
+  if (
+    lower.includes('h. r. agam') ||
+    lower.includes('ps mall') ||
+    lower.includes('palembang square') ||
+    lower.includes('ilir barat') ||
+    lower.includes('lorok pakjo') ||
+    lower.includes('bukit kecil')
+  ) {
+    kecamatan = 'Ilir Barat I';
+    kelurahan = 'Lorok Pakjo';
+  } else if (
+    lower.includes('basuki rahmat') ||
+    lower.includes('polda') ||
+    lower.includes('kemuning') ||
+    lower.includes('pipa reja') ||
+    lower.includes('sekip')
+  ) {
+    kecamatan = 'Kemuning';
+    kelurahan = 'Pipa Reja';
+  } else if (
+    lower.includes('kebun bunga') ||
+    lower.includes('sukarami') ||
+    lower.includes('bandara') ||
+    lower.includes('km')
+  ) {
+    kecamatan = 'Sukarami';
+    kelurahan = 'Kebun Bunga';
+  } else if (
+    lower.includes('kenten') ||
+    lower.includes('sako') ||
+    lower.includes('ilir timur') ||
+    lower.includes('musi raya')
+  ) {
+    kecamatan = 'Sako';
+    kelurahan = 'Kenten';
+  } else if (lower.includes('palembang')) {
+    kecamatan = 'Ilir Barat I';
+    kelurahan = 'Demang Lebar Daun';
+  } else if (lower.includes('coblong') || lower.includes('dago') || lower.includes('cikutra')) {
     kecamatan = 'Coblong';
+    kelurahan = lower.includes('dago') ? 'Dago' : 'Sadangserang';
   } else if (lower.includes('sukajadi') || lower.includes('pasteur')) {
     kecamatan = 'Sukajadi';
+    kelurahan = 'Pasteur';
   } else if (lower.includes('lengkong') || lower.includes('buah batu')) {
     kecamatan = 'Lengkong';
+    kelurahan = 'Malabar';
   } else if (
     lower.includes('arcamanik') ||
     lower.includes('soekarno hatta') ||
     lower.includes('sukamiskin')
   ) {
     kecamatan = 'Arcamanik';
+    kelurahan = 'Sukamiskin';
   } else if (lower.includes('cimahi') || lower.includes('baros')) {
     kecamatan = 'Cimahi Tengah';
+    kelurahan = 'Baros';
   } else if (lower.includes('rancaekek')) {
     kecamatan = 'Rancaekek';
+    kelurahan = 'Rancaekek Kencana';
   } else if (
     lower.includes('riau') ||
     lower.includes('bandung wetan') ||
     lower.includes('citarum')
   ) {
     kecamatan = 'Bandung Wetan';
-  }
-
-  let kelurahan = 'Citarum';
-  if (lower.includes('dago')) {
-    kelurahan = 'Dago';
-  } else if (lower.includes('citarum') || lower.includes('riau')) {
     kelurahan = 'Citarum';
-  } else if (lower.includes('sadangserang') || lower.includes('cikutra')) {
-    kelurahan = 'Sadangserang';
-  } else if (lower.includes('malabar') || lower.includes('buah batu')) {
-    kelurahan = 'Malabar';
-  } else if (lower.includes('sukamiskin') || lower.includes('soekarno hatta')) {
-    kelurahan = 'Sukamiskin';
-  } else if (lower.includes('pasteur')) {
-    kelurahan = 'Pasteur';
-  } else if (lower.includes('baros')) {
-    kelurahan = 'Baros';
-  } else if (lower.includes('rancaekek')) {
-    kelurahan = 'Rancaekek Kencana';
+  } else if (lower.includes('bandung')) {
+    kecamatan = 'Bandung Wetan';
+    kelurahan = 'Citarum';
+  } else {
+    // Graceful fallback for non-Bandung generic addresses
+    kecamatan = parts[2]?.replace(/^kec\.?\s*/i, '') || parts[1] || 'Umum';
+    kelurahan = parts[1]?.replace(/^kel\.?\s*/i, '') || parts[0] || 'Umum';
   }
 
   return { street, kelurahan, kecamatan };
@@ -75,132 +112,134 @@ export function parseCustomerAddress(address: string): {
 const FALLBACK_CUSTOMERS: CustomerListItem[] = [
   {
     id: 'cust-1',
-    siaNumber: 'SIA-2024-001',
-    fullName: 'Budi Santoso',
-    address: 'Jl. Riau No. 45, Citarum, Kec. Bandung Wetan, Bandung',
-    lat: -6.9062,
-    lng: 107.6186,
-    kecamatan: 'Bandung Wetan',
-    kelurahan: 'Citarum',
-    street: 'Jl. Riau No. 45',
-    cluster: 'Bandung Utara',
-    clusterCode: 'BDG-01',
-    splitterCode: 'ODP-BDG-01',
-    portNumber: 3,
-    currentAttenuation: -18.5,
+    siaNumber: '2025468390',
+    fullName: 'MAP AKTIF ADIPERKASA (SPORTS STATION PS)',
+    address: 'Area ODP rooftop PS Mall, Palembang',
+    lat: -2.97638,
+    lng: 104.74148,
+    kecamatan: 'Ilir Barat I',
+    kelurahan: 'Lorok Pakjo',
+    street: 'Palembang Square Mall Lt. 2',
+    cluster: 'Palembang H. R. Agam',
+    clusterCode: 'PLBHRAGA01',
+    splitterCode: 'ODP-PLB-001',
+    portNumber: 1,
+    currentAttenuation: -25.8,
     status: 'ACTIVE',
+    gponNode: 'PLBHRAGA01',
+    oltSlot: '2@1/7/3.gpon',
+    ontSn: 'rcmginds183',
+    notes: 'ODP rooftop PS Mall',
     updatedAt: new Date().toISOString(),
   },
   {
     id: 'cust-2',
-    siaNumber: 'SIA-2024-002',
-    fullName: 'Siti Aminah',
-    address: 'Jl. Dago No. 112, Dago, Kec. Coblong, Bandung',
-    kecamatan: 'Coblong',
-    kelurahan: 'Dago',
-    street: 'Jl. Dago No. 112',
-    cluster: 'Bandung Utara',
-    clusterCode: 'BDG-01',
-    splitterCode: 'ODP-BDG-01',
-    portNumber: 5,
-    currentAttenuation: -24.8,
+    siaNumber: '2025468388',
+    fullName: 'MAP AKTIF ADIPERKASA (SKECHERS PS)',
+    address: 'Area ODP rooftop PS Mall, Palembang',
+    lat: -2.97638,
+    lng: 104.74148,
+    kecamatan: 'Ilir Barat I',
+    kelurahan: 'Lorok Pakjo',
+    street: 'Palembang Square Mall Lt. 1',
+    cluster: 'Palembang H. R. Agam',
+    clusterCode: 'PLBHRAGA01',
+    splitterCode: 'ODP-PLB-001',
+    portNumber: 3,
+    currentAttenuation: -25.3,
     status: 'ACTIVE',
+    gponNode: 'PLBHRAGA01',
+    oltSlot: '3@1/7/3.gpon',
+    ontSn: 'rcmgd84921',
+    notes: 'ODP rooftop PS Mall',
     updatedAt: new Date().toISOString(),
   },
   {
     id: 'cust-3',
-    siaNumber: 'SIA-2024-003',
-    fullName: 'Ahmad Dahlan',
-    address: 'Jl. Buah Batu No. 78, Malabar, Kec. Lengkong, Bandung',
-    kecamatan: 'Lengkong',
-    kelurahan: 'Malabar',
-    street: 'Jl. Buah Batu No. 78',
-    cluster: 'Bandung Selatan',
-    clusterCode: 'BDG-02',
-    splitterCode: 'ODP-BDG-03',
+    siaNumber: '2023352738',
+    fullName: 'BANK MANDIRI KC PALEMBANG',
+    address: 'Area ODP BASUKI RAHMAT, Palembang',
+    lat: -2.976546,
+    lng: 104.751214,
+    kecamatan: 'Kemuning',
+    kelurahan: 'Pipa Reja',
+    street: 'Jl. Basuki Rahmat No. 12',
+    cluster: 'Palembang Basuki Rahmat',
+    clusterCode: 'PLBBSGGA01',
+    splitterCode: 'ODP-PLB-010',
     portNumber: 2,
-    currentAttenuation: -27.3,
+    currentAttenuation: -21.4,
     status: 'ACTIVE',
+    gponNode: 'PLBBSGGA01',
+    oltSlot: '1@1/1/2.gpon',
+    ontSn: 'ALCLB1234567',
+    notes: null,
     updatedAt: new Date().toISOString(),
   },
   {
     id: 'cust-4',
-    siaNumber: 'SIA-2024-004',
-    fullName: 'PT. Maju Jaya (Kantor Cabang)',
-    address: 'Jl. Soekarno Hatta No. 210, Sukamiskin, Kec. Arcamanik, Bandung',
-    kecamatan: 'Arcamanik',
-    kelurahan: 'Sukamiskin',
-    street: 'Jl. Soekarno Hatta No. 210',
-    cluster: 'Bandung Timur',
-    clusterCode: 'BDG-03',
-    splitterCode: 'ODP-BDG-04',
-    portNumber: 1,
-    currentAttenuation: -19.2,
+    siaNumber: '2024411707',
+    fullName: 'BANK SINARMAS KM12',
+    address: 'Area ODP KM12, Palembang',
+    lat: -2.914267,
+    lng: 104.723914,
+    kecamatan: 'Sukarami',
+    kelurahan: 'Kebun Bunga',
+    street: 'Jl. Kol. H. Burlian KM 12',
+    cluster: 'Palembang Kebun Bunga',
+    clusterCode: 'PLBKBNGR01',
+    splitterCode: 'ODP-PLB-045',
+    portNumber: 4,
+    currentAttenuation: -19.5,
     status: 'ACTIVE',
+    gponNode: 'PLBKBNGR01',
+    oltSlot: '4@1/2/1.gpon',
+    ontSn: 'ZTEGC9876543',
+    notes: null,
     updatedAt: new Date().toISOString(),
   },
   {
     id: 'cust-5',
-    siaNumber: 'SIA-2024-005',
-    fullName: 'IndoTech Solusi',
-    address: 'Jl. Pasteur No. 34, Pasteur, Kec. Sukajadi, Bandung',
-    kecamatan: 'Sukajadi',
-    kelurahan: 'Pasteur',
-    street: 'Jl. Pasteur No. 34',
-    cluster: 'Bandung Barat',
-    clusterCode: 'BDG-04',
-    splitterCode: 'ODP-BDG-05',
-    portNumber: 4,
-    currentAttenuation: -21.4,
+    siaNumber: '2024417021',
+    fullName: 'INDOSAT OOREDOO HUTCHISON',
+    address: 'Area ODP JALAN MUSI RAYA, Palembang',
+    lat: -2.954798,
+    lng: 104.771168,
+    kecamatan: 'Sako',
+    kelurahan: 'Kenten',
+    street: 'Jl. Musi Raya No. 45',
+    cluster: 'Palembang Kenten',
+    clusterCode: 'PLBTKEGR01',
+    splitterCode: 'ODP-PLB-072',
+    portNumber: 1,
+    currentAttenuation: -22.1,
     status: 'ACTIVE',
+    gponNode: 'PLBTKEGR01',
+    oltSlot: '2@1/4/2.gpon',
+    ontSn: 'HWTC00112233',
+    notes: null,
     updatedAt: new Date().toISOString(),
   },
   {
     id: 'cust-6',
-    siaNumber: 'SIA-2024-006',
-    fullName: 'Hotel Grand Prima',
-    address: 'Jl. Baros No. 12, Baros, Kec. Cimahi Tengah, Cimahi',
-    kecamatan: 'Cimahi Tengah',
-    kelurahan: 'Baros',
-    street: 'Jl. Baros No. 12',
-    cluster: 'Cimahi',
-    clusterCode: 'CMH-01',
-    splitterCode: 'ODP-CMH-01',
-    portNumber: 2,
-    currentAttenuation: -26.1,
-    status: 'ACTIVE',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'cust-7',
-    siaNumber: 'SIA-2024-007',
-    fullName: 'Toko Sejahtera',
-    address: 'Jl. Raya Rancaekek No. 89, Rancaekek Kencana, Kec. Rancaekek, Bandung',
-    kecamatan: 'Rancaekek',
-    kelurahan: 'Rancaekek Kencana',
-    street: 'Jl. Raya Rancaekek No. 89',
-    cluster: 'Rancaekek',
-    clusterCode: 'RCK-01',
-    splitterCode: 'ODP-RCK-01',
-    portNumber: 1,
-    currentAttenuation: -19.8,
-    status: 'ACTIVE',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'cust-8',
-    siaNumber: 'SIA-2024-008',
-    fullName: 'Agus Setiawan',
-    address: 'Jl. Cikutra Barat No. 15, Sadangserang, Kec. Coblong, Bandung',
-    kecamatan: 'Coblong',
-    kelurahan: 'Sadangserang',
-    street: 'Jl. Cikutra Barat No. 15',
-    cluster: 'Bandung Utara',
-    clusterCode: 'BDG-01',
-    splitterCode: 'ODP-BDG-02',
-    portNumber: 1,
-    currentAttenuation: -20.0,
+    siaNumber: '2025501000',
+    fullName: 'PT. LINTASARTA OUTLIER JAKARTA',
+    address: 'Area Palembang, Luar Wilayah Sumsel',
+    lat: -6.0886666,
+    lng: 106.7596435,
+    kecamatan: 'Umum',
+    kelurahan: 'Umum',
+    street: 'Jl. Daan Mogot No. 100',
+    cluster: 'Palembang H. R. Agam',
+    clusterCode: 'PLBHRAGA01',
+    splitterCode: null,
+    portNumber: null,
+    currentAttenuation: null,
     status: 'PENDING_INSTALL',
+    gponNode: 'PLBHRAGA01',
+    oltSlot: null,
+    ontSn: null,
+    notes: '[Koordinat Luar Sumsel]',
     updatedAt: new Date().toISOString(),
   },
 ];
@@ -230,11 +269,13 @@ export class CustomerService {
         const whereClause: Record<string, unknown> = {};
 
         if (cluster && cluster !== 'Semua cluster') {
-          const cleanCluster = cluster.replace(/^Bandung\s+/i, '');
+          const cleanCluster = cluster.replace(/^(?:Bandung|Palembang)\s+/i, '').trim();
           whereClause.cluster = {
             OR: [
               { name: { contains: cleanCluster, mode: 'insensitive' } },
               { clusterCode: { contains: cleanCluster, mode: 'insensitive' } },
+              { name: { contains: cluster.trim(), mode: 'insensitive' } },
+              { clusterCode: { contains: cluster.trim(), mode: 'insensitive' } },
             ],
           };
         }
@@ -271,12 +312,16 @@ export class CustomerService {
               kecamatan: parsed.kecamatan,
               kelurahan: parsed.kelurahan,
               street: parsed.street,
-              cluster: c.cluster?.name || 'Bandung Utara',
-              clusterCode: c.cluster?.clusterCode || 'BDG-01',
-              splitterCode: c.splitter?.splitterCode || 'ODP-BDG-01',
-              portNumber: c.portNumber || 1,
-              currentAttenuation: c.currentAttenuation ? Number(c.currentAttenuation) : -18.5,
+              cluster: c.cluster?.name || 'Palembang H. R. Agam',
+              clusterCode: c.cluster?.clusterCode || 'PLBHRAGA01',
+              splitterCode: c.splitter?.splitterCode ?? null,
+              portNumber: c.portNumber ?? null,
+              currentAttenuation: c.currentAttenuation != null ? Number(c.currentAttenuation) : null,
               status: c.status,
+              gponNode: c.gponNode ?? null,
+              oltSlot: c.oltSlot ?? null,
+              ontSn: c.ontSn ?? null,
+              notes: c.notes ?? null,
               updatedAt: c.updatedAt.toISOString(),
             };
           });
@@ -289,7 +334,12 @@ export class CustomerService {
     // Graceful fallback
     let fallback = [...FALLBACK_CUSTOMERS];
     if (cluster && cluster !== 'Semua cluster') {
-      fallback = fallback.filter((c) => c.cluster.includes(cluster.replace('Bandung ', '')));
+      const clean = cluster.replace(/^(?:Bandung|Palembang)\s+/i, '').trim().toLowerCase();
+      fallback = fallback.filter(
+        (c) =>
+          c.cluster.toLowerCase().includes(clean) ||
+          (c.clusterCode && c.clusterCode.toLowerCase().includes(clean)),
+      );
     }
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -333,12 +383,16 @@ export class CustomerService {
               lng: customer.lng ? Number(customer.lng) : undefined,
               cluster: customer.cluster?.name || '-',
               clusterCode: customer.cluster?.clusterCode || '-',
-              splitterCode: customer.splitter?.splitterCode || '-',
-              portNumber: customer.portNumber || 0,
-              currentAttenuation: customer.currentAttenuation
+              splitterCode: customer.splitter?.splitterCode ?? null,
+              portNumber: customer.portNumber ?? null,
+              currentAttenuation: customer.currentAttenuation != null
                 ? Number(customer.currentAttenuation)
-                : -18.5,
+                : null,
               status: customer.status,
+              gponNode: customer.gponNode ?? null,
+              oltSlot: customer.oltSlot ?? null,
+              ontSn: customer.ontSn ?? null,
+              notes: customer.notes ?? null,
               updatedAt: customer.updatedAt.toISOString(),
             },
             histories: customer.attenuations.map((h) => ({
@@ -484,13 +538,17 @@ export class CustomerService {
             fullName: updated.fullName,
             address: updated.address,
             cluster: updated.cluster?.name || 'Cluster',
-            clusterCode: updated.cluster?.clusterCode || 'BDG-01',
-            splitterCode: updated.splitter?.splitterCode || newSplitterCode,
-            portNumber: updated.portNumber || newPortNumber,
-            currentAttenuation: updated.currentAttenuation
+            clusterCode: updated.cluster?.clusterCode || 'PLBHRAGA01',
+            splitterCode: updated.splitter?.splitterCode ?? (newSplitterCode || null),
+            portNumber: updated.portNumber ?? newPortNumber,
+            currentAttenuation: updated.currentAttenuation != null
               ? Number(updated.currentAttenuation)
-              : -18.5,
+              : null,
             status: updated.status,
+            gponNode: updated.gponNode ?? null,
+            oltSlot: updated.oltSlot ?? null,
+            ontSn: updated.ontSn ?? null,
+            notes: updated.notes ?? null,
             updatedAt: updated.updatedAt.toISOString(),
           };
         });
@@ -633,10 +691,14 @@ export class CustomerService {
           street: parsed.street,
           cluster: cluster.name,
           clusterCode: cluster.clusterCode,
-          splitterCode: created.resolvedSplitterCode,
-          portNumber: created.customer.portNumber ?? 0,
-          currentAttenuation: -18.5,
+          splitterCode: created.resolvedSplitterCode === 'Belum dialokasi' ? null : created.resolvedSplitterCode,
+          portNumber: created.customer.portNumber ?? null,
+          currentAttenuation: null,
           status: created.customer.status,
+          gponNode: null,
+          oltSlot: null,
+          ontSn: null,
+          notes: null,
           updatedAt: created.customer.updatedAt.toISOString(),
         };
       } catch (err) {
@@ -668,16 +730,16 @@ export class CustomerService {
       kecamatan: parsed.kecamatan,
       kelurahan: parsed.kelurahan,
       street: parsed.street,
-      cluster: input.clusterCode.includes('Bandung') || input.clusterCode.includes('Cimahi') || input.clusterCode.includes('Rancaekek')
-        ? input.clusterCode
-        : 'Bandung Utara',
-      clusterCode: input.clusterCode.toUpperCase().startsWith('BDG') || input.clusterCode.toUpperCase().startsWith('CL')
-        ? input.clusterCode.toUpperCase()
-        : 'BDG-01',
-      splitterCode: input.splitterCode || 'ODP-BDG-01',
-      portNumber: input.portNumber ?? 0,
-      currentAttenuation: -18.5,
+      cluster: input.clusterCode,
+      clusterCode: input.clusterCode.toUpperCase(),
+      splitterCode: input.splitterCode || null,
+      portNumber: input.portNumber ?? null,
+      currentAttenuation: null,
       status: input.status,
+      gponNode: null,
+      oltSlot: null,
+      ontSn: null,
+      notes: null,
       updatedAt: new Date().toISOString(),
     };
     FALLBACK_CUSTOMERS.unshift(newItem);
@@ -749,12 +811,16 @@ export class CustomerService {
           kecamatan: parsed.kecamatan,
           kelurahan: parsed.kelurahan,
           street: parsed.street,
-          cluster: updated.cluster?.name || 'Bandung Utara',
-          clusterCode: updated.cluster?.clusterCode || 'BDG-01',
-          splitterCode: updated.splitter?.splitterCode || 'Belum dialokasi',
-          portNumber: updated.portNumber ?? 0,
-          currentAttenuation: updated.currentAttenuation ? Number(updated.currentAttenuation) : -18.5,
+          cluster: updated.cluster?.name || 'Palembang',
+          clusterCode: updated.cluster?.clusterCode || 'PLBHRAGA01',
+          splitterCode: updated.splitter?.splitterCode ?? null,
+          portNumber: updated.portNumber ?? null,
+          currentAttenuation: updated.currentAttenuation != null ? Number(updated.currentAttenuation) : null,
           status: updated.status,
+          gponNode: updated.gponNode ?? null,
+          oltSlot: updated.oltSlot ?? null,
+          ontSn: updated.ontSn ?? null,
+          notes: updated.notes ?? null,
           updatedAt: updated.updatedAt.toISOString(),
         };
       } catch (err) {
@@ -818,10 +884,14 @@ export class CustomerService {
       street: parsed.street,
       cluster: params.clusterName,
       clusterCode: params.clusterCode,
-      splitterCode: 'Belum dialokasi',
-      portNumber: 0,
-      currentAttenuation: -20.0,
+      splitterCode: null,
+      portNumber: null,
+      currentAttenuation: null,
       status: 'PENDING_INSTALL',
+      gponNode: null,
+      oltSlot: null,
+      ontSn: null,
+      notes: null,
       updatedAt: new Date().toISOString(),
     };
     FALLBACK_CUSTOMERS.unshift(created);

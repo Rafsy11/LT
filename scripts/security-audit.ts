@@ -105,28 +105,47 @@ async function runSecurityAudit() {
     assert(false, 'Test B: Sliding-Window Rate Limiter', (err as Error).message);
   }
 
+  // Pre-audit DB preparation if database is live
+  try {
+    const { prisma } = await import('@repo/database');
+    await prisma.ticket.updateMany({
+      where: { ticketNumber: 'WO-2025-0842' },
+      data: { status: 'IN_PROGRESS' },
+    });
+    await prisma.attenuationHistory.deleteMany({
+      where: {
+        OR: [
+          { submissionId: { startsWith: 'audit_' } },
+          { submissionId: { startsWith: 'cross_idempotent_' } },
+        ],
+      },
+    });
+  } catch {
+    // Standalone fallback when DB is offline
+  }
+
   // ---------------------------------------------------------------------------
   // TEST C: Technician Anti-IDOR Enforcement
-  // Simulate Technician B (rizky.maulana) attempting to submit ticket assigned to Technician A (andi.pratama)
+  // Simulate Technician B (tech.rizky) attempting to submit ticket assigned to Technician A (tech.andi)
   // ---------------------------------------------------------------------------
   try {
     const fakePayload: SubmitTicketInput = {
       submissionId: `audit_idor_sub_${Date.now()}`,
-      splitterId: 'ODP-BDG-01',
+      splitterId: 'ODP-PLB-034',
       portNumber: 2,
       attenuationDbm: -19.5,
       photoObjectKey: 'proofs/audit_photo.jpg',
-      submittedLat: -6.9148,
-      submittedLng: 107.6099,
+      submittedLat: -2.976383,
+      submittedLng: 104.741487,
       isMockLocation: false,
     };
 
     let idorBlocked = false;
     try {
-      // t-1 / TK-2024-001 is assigned to Andi Pratama
-      await TicketService.submitTicketByTechnician('t-1', fakePayload, {
+      // WO-2025-0842 is assigned to Andi Pratama (tech.andi)
+      await TicketService.submitTicketByTechnician('WO-2025-0842', fakePayload, {
         id: 'unauthorized_tech_id',
-        username: 'rizky.maulana',
+        username: 'tech.rizky',
       });
     } catch (ticketErr: unknown) {
       const msg = (ticketErr as Error).message || '';
@@ -183,26 +202,26 @@ async function runSecurityAudit() {
 
   // ---------------------------------------------------------------------------
   // TEST E: Identical Coordinates GPS Spoofing Detection
-  // Splitter coordinates: -6.914744, 107.60981
+  // Splitter coordinates: -2.976383, 104.741487 (ODP-PLB-034)
   // Submit exact same coordinates
   // ---------------------------------------------------------------------------
   try {
     const identicalCoordsPayload: SubmitTicketInput = {
       submissionId: `audit_gps_sub_${Date.now()}`,
-      splitterId: 'ODP-BDG-01',
+      splitterId: 'ODP-PLB-034',
       portNumber: 1,
       attenuationDbm: -18.5,
       photoObjectKey: 'proofs/gps_test.jpg',
-      submittedLat: -6.914744,
-      submittedLng: 107.60981,
+      submittedLat: -2.976383,
+      submittedLng: 104.741487,
       isMockLocation: false,
     };
 
     const submissionResult = await TicketService.submitTicketByTechnician(
-      't-1',
+      'WO-2025-0842',
       identicalCoordsPayload,
       {
-        username: 'andi.pratama',
+        username: 'tech.andi',
       },
     );
 
@@ -221,42 +240,65 @@ async function runSecurityAudit() {
   // TEST F: Cross-Ticket Idempotency IDOR Check & State Transition Verification
   // ---------------------------------------------------------------------------
   try {
+    // Reset ticket to IN_PROGRESS for clean idempotency test
+    try {
+      const { prisma } = await import('@repo/database');
+      await prisma.ticket.updateMany({
+        where: { ticketNumber: 'WO-2025-0842' },
+        data: { status: 'IN_PROGRESS' },
+      });
+    } catch {
+      // Standalone fallback
+    }
+
     const sharedSubmissionId = `cross_idempotent_test_${Date.now()}`;
     const payloadForTicket1: SubmitTicketInput = {
       submissionId: sharedSubmissionId,
-      splitterId: 'ODP-BDG-01',
+      splitterId: 'ODP-PLB-034',
       portNumber: 2,
       attenuationDbm: -19.2,
       photoObjectKey: 'proofs/cross_test_1.jpg',
-      submittedLat: -6.9148,
-      submittedLng: 107.6099,
+      submittedLat: -2.9764,
+      submittedLng: 104.7415,
       isMockLocation: false,
     };
 
-    // 1. First submission to Ticket 1 (t-1)
-    await TicketService.submitTicketByTechnician('t-1', payloadForTicket1, {
-      id: 'tech_andi',
-      username: 'andi.pratama',
+    // 1. First submission to Ticket 1 (WO-2025-0842)
+    await TicketService.submitTicketByTechnician('WO-2025-0842', payloadForTicket1, {
+      username: 'tech.andi',
+    });
+
+    // Authorize / approve submission to persist attenuation_history record in PostgreSQL
+    let adminUserId = '00000000-0000-4000-8000-000000000001';
+    try {
+      const { prisma } = await import('@repo/database');
+      const dbAdmin = await prisma.user.findFirst({ where: { username: 'superadmin' } });
+      if (dbAdmin) adminUserId = dbAdmin.id;
+    } catch {
+      // Offline fallback
+    }
+
+    await TicketService.approveTicketSubmission('WO-2025-0842', {
+      id: adminUserId,
+      username: 'superadmin',
     });
 
     // 2. Replay same submissionId to same Ticket 1 -> MUST return alreadyProcessed: true
-    const replayRes = await TicketService.submitTicketByTechnician('t-1', payloadForTicket1, {
-      id: 'tech_andi',
-      username: 'andi.pratama',
+    const replayRes = await TicketService.submitTicketByTechnician('WO-2025-0842', payloadForTicket1, {
+      username: 'tech.andi',
     });
     const sameTicketReplayOk = replayRes.alreadyProcessed === true;
 
-    // 3. Replay same submissionId to different Ticket 2 (t-2) -> MUST throw IDOR_VIOLATION
+    // 3. Replay same submissionId to different Ticket 2 (WO-2025-0841) -> MUST throw IDOR_VIOLATION
     let crossTicketIdorBlocked = false;
     try {
       const payloadForTicket2: SubmitTicketInput = {
         ...payloadForTicket1,
-        splitterId: 'ODP-CMH-01',
+        splitterId: 'ODP-PLB-034',
         portNumber: 3,
       };
-      await TicketService.submitTicketByTechnician('t-2', payloadForTicket2, {
-        id: 'tech_andi',
-        username: 'andi.pratama',
+      await TicketService.submitTicketByTechnician('WO-2025-0841', payloadForTicket2, {
+        username: 'tech.andi',
       });
     } catch (crossErr: unknown) {
       const msg = (crossErr as Error).message || '';
@@ -285,6 +327,25 @@ async function runSecurityAudit() {
     if (!r.passed) allPassed = false;
   }
   console.log('================================================');
+
+  try {
+    const { prisma } = await import('@repo/database');
+    await prisma.ticket.updateMany({
+      where: { ticketNumber: 'WO-2025-0842' },
+      data: { status: 'IN_PROGRESS' },
+    });
+    await prisma.attenuationHistory.deleteMany({
+      where: {
+        OR: [
+          { submissionId: { startsWith: 'audit_' } },
+          { submissionId: { startsWith: 'cross_idempotent_' } },
+        ],
+      },
+    });
+    await prisma.$disconnect();
+  } catch {
+    // Ignore cleanup errors
+  }
 
   try {
     await redisManager.close();

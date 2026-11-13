@@ -23,6 +23,23 @@ export class AuthHttpError extends Error {
 }
 
 const CLUSTER_ALIAS_MAP: Record<string, string[]> = {
+  // Palembang GPON Clusters
+  plbhraga01: ['plbhraga01', 'palembang h. r. agam', 'h. r. agam', 'hr agam', 'agam', 'plb-01'],
+  'palembang h. r. agam': ['palembang h. r. agam', 'plbhraga01', 'h. r. agam', 'hr agam', 'agam', 'plb-01'],
+  'h. r. agam': ['h. r. agam', 'plbhraga01', 'palembang h. r. agam', 'hr agam', 'agam'],
+  'hr agam': ['hr agam', 'plbhraga01', 'palembang h. r. agam', 'h. r. agam', 'agam'],
+  agam: ['agam', 'plbhraga01', 'palembang h. r. agam', 'h. r. agam', 'hr agam'],
+  plbbsgga01: ['plbbsgga01', 'palembang basuki rahmat', 'basuki rahmat', 'bsg', 'plb-02'],
+  'palembang basuki rahmat': ['palembang basuki rahmat', 'plbbsgga01', 'basuki rahmat', 'bsg', 'plb-02'],
+  'basuki rahmat': ['basuki rahmat', 'plbbsgga01', 'palembang basuki rahmat', 'bsg', 'plb-02'],
+  plbkbngr01: ['plbkbngr01', 'palembang kebun bunga', 'kebun bunga', 'kbn', 'plb-03'],
+  'palembang kebun bunga': ['palembang kebun bunga', 'plbkbngr01', 'kebun bunga', 'kbn', 'plb-03'],
+  'kebun bunga': ['kebun bunga', 'plbkbngr01', 'palembang kebun bunga', 'kbn', 'plb-03'],
+  plbtkegr01: ['plbtkegr01', 'palembang kenten', 'kenten', 'tke', 'plb-04'],
+  'palembang kenten': ['palembang kenten', 'plbtkegr01', 'kenten', 'tke', 'plb-04'],
+  kenten: ['kenten', 'plbtkegr01', 'palembang kenten', 'tke', 'plb-04'],
+
+  // Legacy Bandung token aliases (backward compatibility)
   'cl-01': ['cl-01', 'bdg-01', 'bandung utara', 'utara'],
   'bdg-01': ['bdg-01', 'cl-01', 'bandung utara', 'utara'],
   'bandung utara': ['bandung utara', 'utara', 'bdg-01', 'cl-01'],
@@ -40,9 +57,10 @@ const CLUSTER_ALIAS_MAP: Record<string, string[]> = {
 function expandClusterTokens(value: string): string[] {
   const clean = value.trim().toLowerCase();
   if (!clean) return [];
-  const aliases = CLUSTER_ALIAS_MAP[clean] || [clean];
-  const short = clean.replace(/^bandung\s+/i, '').trim();
-  return Array.from(new Set([clean, short, ...aliases]));
+  const aliases = CLUSTER_ALIAS_MAP[clean] || [];
+  const short = clean.replace(/^(?:bandung|palembang)\s+/i, '').trim();
+  const shortAliases = CLUSTER_ALIAS_MAP[short] || [];
+  return Array.from(new Set([clean, short, ...aliases, ...shortAliases]));
 }
 
 export function isGlobalScopeActor(actor: UserSessionContext): boolean {

@@ -35,8 +35,14 @@ export class NetworkService {
   ): ClusterListItem[] {
     let filtered = items;
     if (clusterFilter && clusterFilter !== 'Semua cluster') {
-      const needle = clusterFilter.replace('Bandung ', '');
-      filtered = filtered.filter((item) => item.name.includes(needle));
+      const needle = clusterFilter.replace(/^(?:Bandung|Palembang)\s+/i, '').trim().toLowerCase();
+      filtered = filtered.filter(
+        (item) =>
+          item.name.toLowerCase().includes(needle) ||
+          item.clusterCode.toLowerCase().includes(needle) ||
+          item.name.toLowerCase().includes(clusterFilter.trim().toLowerCase()) ||
+          item.clusterCode.toLowerCase().includes(clusterFilter.trim().toLowerCase()),
+      );
     }
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -44,7 +50,8 @@ export class NetworkService {
         (item) =>
           item.name.toLowerCase().includes(q) ||
           item.clusterCode.toLowerCase().includes(q) ||
-          item.splitterCode.toLowerCase().includes(q),
+          item.splitterCode.toLowerCase().includes(q) ||
+          (item.locationName && item.locationName.toLowerCase().includes(q)),
       );
     }
     return filtered;
@@ -137,6 +144,7 @@ export class NetworkService {
                 clusterCode: c.clusterCode,
                 name: c.name,
                 splitterCode: s.splitterCode,
+                locationName: s.name ?? undefined,
                 usedPorts,
                 maxPorts: s.maxPorts,
                 lat: Number(s.lat),
@@ -316,6 +324,8 @@ export class NetworkService {
             data: {
               clusterId: cluster.id,
               splitterCode,
+              name: input.name ?? null,
+              notes: input.notes ?? null,
               lat: input.lat,
               lng: input.lng,
               maxPorts: input.maxPorts,
@@ -333,6 +343,8 @@ export class NetworkService {
               newPayload: {
                 clusterCode: cluster.clusterCode,
                 splitterCode,
+                name: input.name ?? null,
+                notes: input.notes ?? null,
                 maxPorts: input.maxPorts,
               } as Prisma.InputJsonValue,
             },
@@ -346,6 +358,7 @@ export class NetworkService {
           clusterCode: cluster.clusterCode,
           name: cluster.name,
           splitterCode: created.splitterCode,
+          locationName: created.name ?? undefined,
           usedPorts: 0,
           maxPorts: created.maxPorts,
           lat: Number(created.lat),
@@ -381,6 +394,7 @@ export class NetworkService {
       clusterCode: clusterMatch?.clusterCode || input.clusterCode.toUpperCase(),
       name: clusterMatch?.name || input.clusterCode,
       splitterCode,
+      locationName: input.name,
       usedPorts: 0,
       maxPorts: input.maxPorts,
       lat: input.lat,
@@ -429,6 +443,8 @@ export class NetworkService {
           const s = await tx.networkSplitter.update({
             where: { id: existing.id },
             data: {
+              name: input.name !== undefined ? input.name : existing.name,
+              notes: input.notes !== undefined ? input.notes : existing.notes,
               lat: input.lat ?? existing.lat,
               lng: input.lng ?? existing.lng,
               maxPorts: nextMaxPorts,
@@ -444,12 +460,16 @@ export class NetworkService {
               targetEntity: 'network_splitter',
               targetId: existing.id,
               oldPayload: {
+                name: existing.name,
+                notes: existing.notes,
                 lat: Number(existing.lat),
                 lng: Number(existing.lng),
                 maxPorts: existing.maxPorts,
                 isActive: existing.isActive,
               } as Prisma.InputJsonValue,
               newPayload: {
+                name: s.name,
+                notes: s.notes,
                 lat: Number(s.lat),
                 lng: Number(s.lng),
                 maxPorts: s.maxPorts,
@@ -480,6 +500,7 @@ export class NetworkService {
           clusterCode: existing.cluster.clusterCode,
           name: existing.cluster.name,
           splitterCode: updated.splitterCode,
+          locationName: updated.name ?? undefined,
           usedPorts: ports.filter((p) => p.isOccupied).length,
           maxPorts: updated.maxPorts,
           lat: Number(updated.lat),
@@ -502,6 +523,7 @@ export class NetworkService {
       throw new Error(`ODP Splitter "${input.splitterCode}" tidak ditemukan.`);
     }
     const target = MEMORY_CLUSTERS[idx];
+    if (input.name !== undefined) target.locationName = input.name;
     if (input.lat !== undefined) target.lat = input.lat;
     if (input.lng !== undefined) target.lng = input.lng;
     if (input.maxPorts !== undefined && input.maxPorts !== target.maxPorts) {
@@ -565,7 +587,7 @@ export class NetworkService {
     try {
       const needle =
         clusterFilter && clusterFilter !== 'Semua cluster'
-          ? clusterFilter.replace(/^Bandung\s+/i, '').trim()
+          ? clusterFilter.replace(/^(?:Bandung|Palembang)\s+/i, '').trim()
           : '';
 
       const records = await prisma.attenuationHistory.findMany({
@@ -578,6 +600,8 @@ export class NetworkService {
                     OR: [
                       { name: { contains: needle, mode: 'insensitive' } },
                       { clusterCode: { contains: needle, mode: 'insensitive' } },
+                      { name: { contains: clusterFilter.trim(), mode: 'insensitive' } },
+                      { clusterCode: { contains: clusterFilter.trim(), mode: 'insensitive' } },
                     ],
                   },
                 },

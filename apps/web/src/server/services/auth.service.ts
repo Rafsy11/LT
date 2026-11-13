@@ -61,7 +61,7 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
     fullName: 'Aditya Saputra',
     userType: 'SUPER_ADMIN',
     isActive: true,
-    assignedClusters: ['Bandung Utara', 'Bandung Timur', 'Bandung Barat', 'Bandung Selatan'],
+    assignedClusters: ['PLBHRAGA01', 'PLBBSGGA01', 'PLBKBNGR01', 'PLBTKEGR01'],
     role: {
       id: 'role-super-admin',
       name: 'Super Admin',
@@ -76,7 +76,7 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
     fullName: 'Aditya Saputra',
     userType: 'SUPER_ADMIN',
     isActive: true,
-    assignedClusters: ['Bandung Utara', 'Bandung Timur', 'Bandung Barat', 'Bandung Selatan'],
+    assignedClusters: ['PLBHRAGA01', 'PLBBSGGA01', 'PLBKBNGR01', 'PLBTKEGR01'],
     role: {
       id: 'role-super-admin',
       name: 'Super Admin',
@@ -91,7 +91,7 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
     fullName: 'Budi Hartono',
     userType: 'ADMIN',
     isActive: true,
-    assignedClusters: ['Bandung Utara', 'Bandung Timur'],
+    assignedClusters: ['PLBHRAGA01', 'PLBBSGGA01', 'PLBKBNGR01', 'PLBTKEGR01'],
     role: {
       id: 'role-noc-admin',
       name: 'Admin Operasional / NOC',
@@ -114,7 +114,7 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
     vendorCompany: 'PT Mitra Fiber Nusantara',
     userType: 'TECHNICIAN',
     isActive: true,
-    assignedClusters: ['Bandung Utara'],
+    assignedClusters: ['PLBHRAGA01', 'PLBBSGGA01'],
     role: {
       id: 'role-technician',
       name: 'Vendor / Teknisi Lapangan',
@@ -130,7 +130,7 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
     vendorCompany: 'PT Mitra Fiber Nusantara',
     userType: 'TECHNICIAN',
     isActive: true,
-    assignedClusters: ['Bandung Utara'],
+    assignedClusters: ['PLBHRAGA01', 'PLBBSGGA01'],
     role: {
       id: 'role-technician',
       name: 'Vendor / Teknisi Lapangan',
@@ -143,10 +143,10 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
     nik: '882044',
     username: 'tech.rizky',
     fullName: 'Rizky Maulana',
-    vendorCompany: 'PT Sarana Optik Bandung',
+    vendorCompany: 'PT Sarana Optik Palembang',
     userType: 'TECHNICIAN',
     isActive: true,
-    assignedClusters: ['Bandung Timur', 'Cimahi'],
+    assignedClusters: ['PLBKBNGR01', 'PLBTKEGR01'],
     role: {
       id: 'role-technician',
       name: 'Vendor / Teknisi Lapangan',
@@ -159,10 +159,10 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
     nik: '882044',
     username: 'rizky.maulana',
     fullName: 'Rizky Maulana',
-    vendorCompany: 'PT Sarana Optik Bandung',
+    vendorCompany: 'PT Sarana Optik Palembang',
     userType: 'TECHNICIAN',
     isActive: true,
-    assignedClusters: ['Bandung Timur', 'Cimahi'],
+    assignedClusters: ['PLBKBNGR01', 'PLBTKEGR01'],
     role: {
       id: 'role-technician',
       name: 'Vendor / Teknisi Lapangan',
@@ -178,7 +178,7 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
     vendorCompany: 'PT Mitra Fiber Nusantara',
     userType: 'TECHNICIAN',
     isActive: true,
-    assignedClusters: ['Bandung Barat'],
+    assignedClusters: ['PLBHRAGA01', 'PLBKBNGR01'],
     role: {
       id: 'role-technician',
       name: 'Vendor / Teknisi Lapangan',
@@ -194,7 +194,7 @@ const FALLBACK_SEED_USERS: Record<string, FallbackAccount> = {
     vendorCompany: 'CV Jaringan Nusantara',
     userType: 'TECHNICIAN',
     isActive: true,
-    assignedClusters: ['Rancaekek'],
+    assignedClusters: ['PLBBSGGA01', 'PLBTKEGR01'],
     role: {
       id: 'role-technician',
       name: 'Vendor / Teknisi Lapangan',
