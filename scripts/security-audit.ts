@@ -13,6 +13,8 @@ process.env.DATABASE_URL =
   'postgresql://fiberops:fiberops_secure_pass@127.0.0.1:5432/fiberops_db?schema=public';
 process.env.JWT_SECRET =
   process.env.JWT_SECRET || 'fiberops_on_premise_super_secure_jwt_secret_key_32chars';
+// Security audit script explicitly tests service logic standalone even when PostgreSQL is stopped
+process.env.STRICT_LIVE_DATA = 'false';
 
 import { NextRequest } from 'next/server';
 import { middleware } from '../apps/web/src/middleware';
@@ -42,6 +44,9 @@ function assert(condition: boolean, testName: string, details: string) {
 }
 
 async function runSecurityAudit() {
+  // Re-apply after ESM-hoisted imports (env.ts loads root .env during module evaluation)
+  process.env.STRICT_LIVE_DATA = 'false';
+
   console.log('===============================================================');
   console.log('   FIBEROPS ON-PREMISE ENTERPRISE SECURITY AUDIT (PHASE 6)   ');
   console.log('===============================================================\n');

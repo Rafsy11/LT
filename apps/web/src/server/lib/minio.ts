@@ -1,5 +1,6 @@
 import * as Minio from 'minio';
 import { env } from '../../env';
+import { isStrictLiveMode, ServiceUnavailableError } from './live-data';
 
 const minioEndpoint = env.MINIO_ENDPOINT;
 const minioPort = env.MINIO_PORT;
@@ -44,6 +45,54 @@ class MinioStorageManager {
     }
   }
 
+  public async isHealthy(): Promise<boolean> {
+    const scheme = minioUseSSL ? 'https' : 'http';
+    try {
+      const res = await fetch(`${scheme}://${minioEndpoint}:${minioPort}/minio/health/live`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(1500),
+      });
+      if (res.ok) {
+        this.lastFailureAt = 0;
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  public async getBucketUsageStats(): Promise<{ objectCount: number; totalBytes: number } | null> {
+    try {
+      await this.ensureBucket();
+      if (this.isInCooldown()) return null;
+      return await new Promise((resolve) => {
+        let objectCount = 0;
+        let totalBytes = 0;
+        const stream = this.client.listObjectsV2(PROOF_BUCKET_NAME, '', true);
+        const timer = setTimeout(() => {
+          stream.destroy();
+          resolve({ objectCount, totalBytes });
+        }, 2000);
+
+        stream.on('data', (obj) => {
+          objectCount += 1;
+          totalBytes += obj.size || 0;
+        });
+        stream.on('error', () => {
+          clearTimeout(timer);
+          resolve(null);
+        });
+        stream.on('end', () => {
+          clearTimeout(timer);
+          resolve({ objectCount, totalBytes });
+        });
+      });
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Generates a Presigned PUT URL for technician mobile app to directly upload OPM proof photo.
    * Enforces Law 5: Files are stored in MinIO object storage, never in Next.js local storage.
@@ -51,12 +100,18 @@ class MinioStorageManager {
   public async generatePresignedPutUrl(objectKey: string, expirySeconds = 900): Promise<string> {
     await this.ensureBucket();
     if (this.isInCooldown()) {
+      if (isStrictLiveMode()) {
+        throw new ServiceUnavailableError('Layanan MinIO Object Storage sedang tidak dapat dihubungi.');
+      }
       return `http://${minioEndpoint}:${minioPort}/${PROOF_BUCKET_NAME}/${objectKey}?mock_upload=true`;
     }
     try {
       return await this.client.presignedPutObject(PROOF_BUCKET_NAME, objectKey, expirySeconds);
     } catch (err) {
       this.lastFailureAt = Date.now();
+      if (isStrictLiveMode()) {
+        throw new ServiceUnavailableError('Gagal membuat presigned upload URL pada MinIO Storage.');
+      }
       console.warn('[MinIO] Fallback presigned PUT url generation:', (err as Error).message);
       return `http://${minioEndpoint}:${minioPort}/${PROOF_BUCKET_NAME}/${objectKey}?mock_upload=true`;
     }
@@ -72,6 +127,9 @@ class MinioStorageManager {
   ): Promise<{ stored: boolean; objectKey: string }> {
     await this.ensureBucket();
     if (this.isInCooldown()) {
+      if (isStrictLiveMode()) {
+        throw new ServiceUnavailableError('MinIO Storage tidak tersedia untuk menyimpan berkas.');
+      }
       return { stored: false, objectKey };
     }
     try {
@@ -81,6 +139,9 @@ class MinioStorageManager {
       return { stored: true, objectKey };
     } catch (err) {
       this.lastFailureAt = Date.now();
+      if (isStrictLiveMode()) {
+        throw new ServiceUnavailableError('Gagal mengunggah berkas ke MinIO Object Storage.');
+      }
       console.warn('[MinIO] Warning uploading object buffer:', (err as Error).message);
       return { stored: false, objectKey };
     }

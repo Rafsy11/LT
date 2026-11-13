@@ -207,6 +207,7 @@ export const ERROR_CODES = {
   OTP_MAX_ATTEMPTS: 'OTP_MAX_ATTEMPTS',
   OTP_COOLDOWN_ACTIVE: 'OTP_COOLDOWN_ACTIVE',
   TELEGRAM_DELIVERY_FAILED: 'TELEGRAM_DELIVERY_FAILED',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
 } as const;
 
 export const OTP_CONFIG = {
@@ -284,6 +285,8 @@ export const ERROR_MESSAGES_MAP: Record<ErrorCode | string, string> = {
     'Harap tunggu jeda waktu sebelum meminta pengiriman ulang kode OTP.',
   [ERROR_CODES.TELEGRAM_DELIVERY_FAILED]:
     'Belum dapat mengirim kode OTP ke Telegram. Pastikan Anda telah menekan /start pada Bot Telegram NOC.',
+  [ERROR_CODES.SERVICE_UNAVAILABLE]:
+    'Koneksi ke layanan infrastruktur pusat (PostgreSQL/Redis/MinIO) sedang terputus. Periksa status layanan atau Docker on-premise.',
 };
 
 /**

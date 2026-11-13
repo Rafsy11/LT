@@ -56,7 +56,7 @@ export function VendorReportModal({
       ticket.pendingSubmission?.splitterCode ||
       matchingSplitter?.splitterCode ||
       ticket.customer.splitterCode ||
-      'ODP-BDG-01';
+      '';
     setSplitterId(resolvedSplitterId);
 
     const resolvedPort =
@@ -258,7 +258,7 @@ export function VendorReportModal({
                     </option>
                   ))
                 ) : (
-                  <option value={splitterId || 'ODP-BDG-01'}>{splitterId || 'ODP-BDG-01'}</option>
+                  <option value={splitterId}>{splitterId || 'Belum ada data splitter ODP'}</option>
                 )}
               </select>
             </label>
@@ -384,7 +384,7 @@ export function VendorReportModal({
               required
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Contoh: Splicing ulang drop core di ODP-BDG-01 Port 2 selesai, redaman akhir -19.2 dBm normal dan koneksi online."
+              placeholder="Contoh: Splicing ulang drop core di ODP Splitter terpasang selesai, redaman akhir normal dan koneksi online."
             />
           </label>
 

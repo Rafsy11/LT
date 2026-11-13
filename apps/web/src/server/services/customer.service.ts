@@ -1,4 +1,4 @@
-import { prisma, Prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
+import { prisma, Prisma } from '@repo/database';
 import {
   ERROR_CODES,
   type CustomerListItem,
@@ -6,6 +6,11 @@ import {
   type UpdateCustomerInput,
   type UserSessionContext,
 } from '@repo/shared';
+import {
+  isStrictLiveMode,
+  requireLiveDatabase,
+  rethrowIfStrictDatabaseError,
+} from '../lib/live-data';
 
 const DEFAULT_CUSTOMER_LIST_LIMIT = 200;
 
@@ -202,12 +207,12 @@ const FALLBACK_CUSTOMERS: CustomerListItem[] = [
 
 export class CustomerService {
   public static async getCustomerCount(): Promise<number> {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk menghitung pelanggan.')) {
       try {
         const count = await prisma.customer.count();
-        if (count > 0) return count;
+        if (isStrictLiveMode() || count > 0) return count;
       } catch (err) {
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal membaca jumlah pelanggan dari PostgreSQL.');
       }
     }
     return FALLBACK_CUSTOMERS.length;
@@ -220,12 +225,12 @@ export class CustomerService {
     search = '',
     cluster = 'Semua cluster',
   ): Promise<CustomerListItem[]> {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memuat data pelanggan.')) {
       try {
         const whereClause: Record<string, unknown> = {};
 
         if (cluster && cluster !== 'Semua cluster') {
-          const cleanCluster = cluster.replace('Bandung ', '');
+          const cleanCluster = cluster.replace(/^Bandung\s+/i, '');
           whereClause.cluster = {
             OR: [
               { name: { contains: cleanCluster, mode: 'insensitive' } },
@@ -253,7 +258,7 @@ export class CustomerService {
           take: DEFAULT_CUSTOMER_LIST_LIMIT,
         });
 
-        if (customers.length > 0) {
+        if (isStrictLiveMode() || customers.length > 0) {
           return customers.map((c) => {
             const parsed = parseCustomerAddress(c.address);
             return {
@@ -277,8 +282,7 @@ export class CustomerService {
           });
         }
       } catch (err) {
-        markDatabaseUnavailable(err);
-        console.warn('[CustomerService] DB query failed, using fallback:', (err as Error).message);
+        rethrowIfStrictDatabaseError(err, 'Gagal memuat daftar pelanggan dari PostgreSQL.');
       }
     }
 
@@ -303,7 +307,7 @@ export class CustomerService {
    * Retrieves single customer details by SIA number including recent attenuation histories.
    */
   public static async getCustomerBySia(siaNumber: string) {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Database PostgreSQL diperlukan untuk membaca detail pelanggan.')) {
       try {
         const customer = await prisma.customer.findUnique({
           where: { siaNumber },
@@ -327,10 +331,10 @@ export class CustomerService {
               address: customer.address,
               lat: customer.lat ? Number(customer.lat) : undefined,
               lng: customer.lng ? Number(customer.lng) : undefined,
-              cluster: customer.cluster?.name || 'Bandung Utara',
-              clusterCode: customer.cluster?.clusterCode || 'BDG-01',
-              splitterCode: customer.splitter?.splitterCode || 'ODP-BDG-01',
-              portNumber: customer.portNumber || 1,
+              cluster: customer.cluster?.name || '-',
+              clusterCode: customer.cluster?.clusterCode || '-',
+              splitterCode: customer.splitter?.splitterCode || '-',
+              portNumber: customer.portNumber || 0,
               currentAttenuation: customer.currentAttenuation
                 ? Number(customer.currentAttenuation)
                 : -18.5,
@@ -342,7 +346,7 @@ export class CustomerService {
               submissionId: h.submissionId,
               oldAttenuation: h.oldAttenuation ? Number(h.oldAttenuation) : null,
               newAttenuation: Number(h.newAttenuation),
-              splitterCode: customer.splitter?.splitterCode || 'ODP-BDG-01',
+              splitterCode: customer.splitter?.splitterCode || '-',
               portNumber: h.portNumber,
               photoObjectKey: h.photoObjectKey,
               technicianName: h.tech?.fullName || 'Teknisi Lapangan',
@@ -350,12 +354,18 @@ export class CustomerService {
             })),
           };
         }
+        if (isStrictLiveMode()) {
+          const notFound = new Error(
+            `Pelanggan dengan nomor SIA ${siaNumber} tidak ditemukan`,
+          ) as Error & { statusCode?: number };
+          notFound.statusCode = 404;
+          throw notFound;
+        }
       } catch (err) {
-        markDatabaseUnavailable(err);
-        console.warn(
-          '[CustomerService] DB getCustomerBySia failed, using fallback:',
-          (err as Error).message,
-        );
+        if ((err as Error).message.includes('tidak ditemukan')) {
+          throw err;
+        }
+        rethrowIfStrictDatabaseError(err, 'Gagal membaca profil pelanggan dari PostgreSQL.');
       }
     }
 
@@ -391,7 +401,7 @@ export class CustomerService {
     newPortNumber: number,
     actorId = 'superadmin',
   ) {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memutasikan port.')) {
       try {
         return await prisma.$transaction(async (tx) => {
           const customer = await tx.customer.findUnique({
@@ -487,12 +497,12 @@ export class CustomerService {
       } catch (err) {
         if (
           (err as Error).message.includes(ERROR_CODES.PORT_OCCUPIED) ||
-          (err as Error).message.includes('kapasitas')
+          (err as Error).message.includes('kapasitas') ||
+          (err as Error).message.includes('tidak ditemukan')
         ) {
           throw err;
         }
-        markDatabaseUnavailable(err);
-        console.warn('[CustomerService] DB mutate failed:', (err as Error).message);
+        rethrowIfStrictDatabaseError(err, 'Gagal memperbarui port pelanggan di PostgreSQL.');
         throw err;
       }
     }
@@ -529,7 +539,7 @@ export class CustomerService {
   ): Promise<CustomerListItem> {
     const siaNumber = input.siaNumber.toUpperCase();
 
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk membuat data pelanggan baru.')) {
       try {
         const dup = await prisma.customer.findUnique({ where: { siaNumber } });
         if (dup) {
@@ -639,7 +649,7 @@ export class CustomerService {
         ) {
           throw err;
         }
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal menyimpan pelanggan baru ke PostgreSQL.');
       }
     }
 
@@ -681,7 +691,7 @@ export class CustomerService {
     input: UpdateCustomerInput,
     actor: UserSessionContext,
   ): Promise<CustomerListItem> {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memperbarui data pelanggan.')) {
       try {
         const existing = await prisma.customer.findUnique({
           where: { siaNumber: input.siaNumber },
@@ -751,7 +761,7 @@ export class CustomerService {
         if (err instanceof Error && err.message.includes('tidak ditemukan')) {
           throw err;
         }
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal memperbarui data pelanggan di PostgreSQL.');
       }
     }
 

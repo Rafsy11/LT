@@ -1,9 +1,16 @@
-import { streamText, tool } from 'ai';
+import { generateText, stepCountIs, streamText, tool } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { SignJWT, jwtVerify } from 'jose';
 import crypto from 'crypto';
-import { prisma, Prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
+import { prisma, Prisma } from '@repo/database';
 import { redisManager } from '../lib/redis';
+import { ollamaClient } from '../lib/ollama';
+import {
+  isStrictLiveMode,
+  requireLiveDatabase,
+  rethrowIfStrictDatabaseError,
+  ServiceUnavailableError,
+} from '../lib/live-data';
 import {
   getRecentReportsToolSchema,
   GetRecentReportsInput,
@@ -135,7 +142,7 @@ export class AiService {
         execute: async (args: GetRecentReportsInput) => {
           const limit = Math.min(args.limit || 20, 50);
 
-          if (await isDatabaseAvailable()) {
+          if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk membaca laporan.')) {
             try {
               const whereClause: Record<string, unknown> = {};
 
@@ -161,7 +168,7 @@ export class AiService {
                 },
               });
 
-              if (histories.length > 0) {
+              if (isStrictLiveMode() || histories.length > 0) {
                 let filtered = histories;
                 if (args.minAttenuation !== undefined) {
                   filtered = filtered.filter(
@@ -186,8 +193,7 @@ export class AiService {
                 }));
               }
             } catch (err) {
-              markDatabaseUnavailable(err);
-              // In-memory fallback
+              rethrowIfStrictDatabaseError(err, 'Gagal membaca riwayat laporan dari PostgreSQL.');
             }
           }
 
@@ -215,7 +221,7 @@ export class AiService {
           'Mengambil detail informasi pelanggan berdasarkan nomor SIA atau nama, termasuk alokasi port ODP dan 10 riwayat redaman terakhir.',
         inputSchema: getCustomerDetailToolSchema,
         execute: async (args: GetCustomerDetailInput) => {
-          if (await isDatabaseAvailable()) {
+          if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk membaca profil pelanggan.')) {
             try {
               const customer = await prisma.customer.findFirst({
                 where: {
@@ -271,14 +277,22 @@ export class AiService {
                   })),
                 };
               }
+              if (isStrictLiveMode()) {
+                return {
+                  error: `Pelanggan ${args.siaNumber || args.customerName || ''} tidak ditemukan di database.`,
+                };
+              }
             } catch (err) {
-              markDatabaseUnavailable(err);
-              // In-memory fallback
+              rethrowIfStrictDatabaseError(err, 'Gagal membaca detail pelanggan dari PostgreSQL.');
             }
           }
 
+          if (!args.siaNumber && !args.customerName) {
+            return { error: 'Nomor SIA atau nama pelanggan wajib disertakan.' };
+          }
+
           const custDetail = await CustomerService.getCustomerBySia(
-            args.siaNumber || args.customerName || 'SIA-2024-001',
+            args.siaNumber || args.customerName || '',
           ).catch(() => null);
 
           if (!custDetail) {
@@ -299,7 +313,7 @@ export class AiService {
           'Mengambil daftar beban kerja teknisi lapangan, jumlah tiket aktif, dan status operasional.',
         inputSchema: getTechnicianWorkloadToolSchema,
         execute: async (args: GetTechnicianWorkloadInput) => {
-          if (await isDatabaseAvailable()) {
+          if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk membaca beban teknisi.')) {
             try {
               const techs = await prisma.user.findMany({
                 where: {
@@ -313,7 +327,7 @@ export class AiService {
                 },
               });
 
-              if (techs.length > 0) {
+              if (isStrictLiveMode() || techs.length > 0) {
                 let results = techs.map((t) => {
                   const activeCount = t.assignedTickets.length;
                   return {
@@ -337,8 +351,7 @@ export class AiService {
                 return results;
               }
             } catch (err) {
-              markDatabaseUnavailable(err);
-              // In-memory fallback
+              rethrowIfStrictDatabaseError(err, 'Gagal membaca beban teknisi dari PostgreSQL.');
             }
           }
 
@@ -368,7 +381,9 @@ export class AiService {
           'Menyiapkan draf tiket pekerjaan baru (PSB atau MAINTENANCE). Wajib pra-validasi data pelanggan dan teknisi, lalu menghasilkan token konfirmasi untuk persetujuan Admin.',
         inputSchema: prepareCreateTicketToolSchema,
         execute: async (args: PrepareCreateTicketInput) => {
-          const dbOnline = await isDatabaseAvailable();
+          const dbOnline = await requireLiveDatabase(
+            'Koneksi database PostgreSQL diperlukan untuk menyiapkan draf tiket.',
+          );
 
           // 1. Pra-validasi Pelanggan
           const customer = dbOnline
@@ -385,51 +400,52 @@ export class AiService {
                   include: { cluster: true },
                 })
                 .catch((err) => {
-                  markDatabaseUnavailable(err);
+                  rethrowIfStrictDatabaseError(err, 'Gagal memvalidasi pelanggan di PostgreSQL.');
                   return null;
                 })
             : null;
 
           const customerFallback =
             customer ||
-            (await CustomerService.listCustomers(args.siaNumber))[0] ||
-            (args.customerName
+            (!isStrictLiveMode() ? (await CustomerService.listCustomers(args.siaNumber))[0] : null) ||
+            (!isStrictLiveMode() && args.customerName
               ? (await CustomerService.listCustomers(args.customerName))[0]
               : null) ||
-            (await CustomerService.listCustomers(''))[0] ||
             null;
-          if (!customerFallback && args.ticketType === 'MAINTENANCE') {
+          if (!customerFallback) {
             return {
-              error: `Pra-validasi Gagal: Pelanggan dengan nomor SIA ${args.siaNumber} tidak ditemukan untuk tiket perbaikan.`,
+              error: `Pra-validasi Gagal: Pelanggan dengan nomor SIA ${args.siaNumber} tidak ditemukan.`,
             };
           }
 
-          const resolvedCustomerName =
-            args.customerName || customerFallback?.fullName || 'Pelanggan Baru';
-          const clusterName = customerFallback?.cluster
+          const resolvedCustomerName = args.customerName || customerFallback.fullName;
+          const clusterName = customerFallback.cluster
             ? typeof customerFallback.cluster === 'string'
               ? customerFallback.cluster
               : customerFallback.cluster.name
-            : 'Bandung Utara';
+            : '-';
 
           // 2. Pra-validasi Teknisi
-          const techUser =
-            await isDatabaseAvailable()
-              ? await prisma.user
-                  .findFirst({
-                    where: {
-                      OR: [{ username: args.techUsername }, { fullName: args.techUsername }],
-                      userType: 'TECHNICIAN',
-                    },
-                  })
-                  .catch((err) => {
-                    markDatabaseUnavailable(err);
-                    return null;
-                  })
-              : null;
+          const techUser = dbOnline
+            ? await prisma.user
+                .findFirst({
+                  where: {
+                    OR: [{ username: args.techUsername }, { fullName: args.techUsername }],
+                    userType: 'TECHNICIAN',
+                  },
+                })
+                .catch((err) => {
+                  rethrowIfStrictDatabaseError(err, 'Gagal memvalidasi teknisi di PostgreSQL.');
+                  return null;
+                })
+            : null;
 
           const techFallback =
-            techUser || (await TechnicianService.listTechnicians(args.techUsername))[0] || null;
+            techUser ||
+            (!isStrictLiveMode()
+              ? (await TechnicianService.listTechnicians(args.techUsername))[0]
+              : null) ||
+            null;
 
           if (!techFallback || !techFallback.isActive) {
             return {
@@ -485,7 +501,10 @@ export class AiService {
         inputSchema: prepareToggleTechAccountToolSchema,
         execute: async (args: PrepareToggleTechAccountInput) => {
           // 1. Pra-validasi Teknisi & Hierarki
-          const techUser = (await isDatabaseAvailable())
+          const dbOnline = await requireLiveDatabase(
+            'Koneksi database PostgreSQL diperlukan untuk menyiapkan perubahan akun teknisi.',
+          );
+          const techUser = dbOnline
             ? await prisma.user
                 .findFirst({
                   where: {
@@ -495,13 +514,17 @@ export class AiService {
                   include: { role: true },
                 })
                 .catch((err) => {
-                  markDatabaseUnavailable(err);
+                  rethrowIfStrictDatabaseError(err, 'Gagal memvalidasi teknisi di PostgreSQL.');
                   return null;
                 })
             : null;
 
           const techFallback =
-            techUser || (await TechnicianService.listTechnicians(args.techUsername))[0] || null;
+            techUser ||
+            (!isStrictLiveMode()
+              ? (await TechnicianService.listTechnicians(args.techUsername))[0]
+              : null) ||
+            null;
 
           if (!techFallback) {
             return { error: `Pra-validasi Gagal: Teknisi "${args.techUsername}" tidak ditemukan.` };
@@ -561,7 +584,9 @@ export class AiService {
           'Menyiapkan draf pemindahan/mutasi port splitter pelanggan. Wajib pra-validasi ketersediaan port tujuan di database.',
         inputSchema: prepareMutateSplitterPortToolSchema,
         execute: async (args: PrepareMutateSplitterPortInput) => {
-          const dbOnline = await isDatabaseAvailable();
+          const dbOnline = await requireLiveDatabase(
+            'Koneksi database PostgreSQL diperlukan untuk menyiapkan mutasi port ODP.',
+          );
 
           // 1. Pra-validasi Pelanggan
           const customer = dbOnline
@@ -571,15 +596,14 @@ export class AiService {
                   include: { cluster: true },
                 })
                 .catch((err) => {
-                  markDatabaseUnavailable(err);
+                  rethrowIfStrictDatabaseError(err, 'Gagal membaca pelanggan dari PostgreSQL.');
                   return null;
                 })
             : null;
 
           const customerFallback =
             customer ||
-            (await CustomerService.listCustomers(args.siaNumber))[0] ||
-            (await CustomerService.listCustomers(''))[0] ||
+            (!isStrictLiveMode() ? (await CustomerService.listCustomers(args.siaNumber))[0] : null) ||
             null;
           if (!customerFallback) {
             return {
@@ -588,13 +612,13 @@ export class AiService {
           }
 
           // 2. Pra-validasi Splitter ODP Tujuan
-          const splitter = (await isDatabaseAvailable())
+          const splitter = dbOnline
             ? await prisma.networkSplitter
                 .findFirst({
                   where: { splitterCode: args.newSplitterCode },
                 })
                 .catch((err) => {
-                  markDatabaseUnavailable(err);
+                  rethrowIfStrictDatabaseError(err, 'Gagal membaca ODP tujuan dari PostgreSQL.');
                   return null;
                 })
             : null;
@@ -607,7 +631,7 @@ export class AiService {
           }
 
           // 3. Pra-validasi Port Kosong (Anti-Double Booking)
-          if (splitter && (await isDatabaseAvailable())) {
+          if (splitter && dbOnline) {
             const occupied = await prisma.customer
               .findFirst({
                 where: {
@@ -618,7 +642,7 @@ export class AiService {
                 },
               })
               .catch((err) => {
-                markDatabaseUnavailable(err);
+                rethrowIfStrictDatabaseError(err, 'Gagal memvalidasi ketersediaan port ODP.');
                 return null;
               });
 
@@ -697,212 +721,79 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
   }
 
   /**
-   * Process natural language queries with rule-based agentic intent fallback
-   * (Ensures deterministic demonstration even if local Ollama daemon is offline).
+   * Processes natural language operational prompts via local Ollama tool-calling LLM (`generateText`).
+   * Rejects cleanly with HTTP 503 when Ollama is offline in strict mode, eliminating static fake answers.
    */
   public static async processChat(
     prompt: string,
-    adminContext: UserSessionContext = {
-      userId: 'superadmin',
-      username: 'superadmin',
-      fullName: 'Super Administrator',
-      role: 'Super Admin',
-      userType: 'SUPER_ADMIN',
-      hierarchyLevel: 100,
-      assignedClusters: ['CL-01', 'CL-02'],
-    },
+    adminContext: UserSessionContext,
     permissions: string[] = ['*'],
   ): Promise<AiMessage> {
-    const p = prompt.toLowerCase();
+    await requireLiveDatabase(
+      'Koneksi database PostgreSQL diperlukan untuk menjalankan query Asisten AI.',
+    );
     const tools = this.getFilteredTools(adminContext, permissions);
+    const ollamaUp = await ollamaClient.isHealthy();
 
-    // Intent 1: Write Tool - Prepare Create Ticket / Maintenance ("Buat draft tiket")
-    if (
-      p.includes('buat draft') ||
-      p.includes('buat tiket') ||
-      p.includes('maintenance') ||
-      p.includes('pasang baru') ||
-      p.includes('siapkan tiket')
-    ) {
-      if (tools.prepare_create_ticket) {
-        const ticketType = p.includes('pasang baru') ? 'PSB' : 'MAINTENANCE';
-        const prepareCreateTool = tools.prepare_create_ticket as unknown as {
-          execute: (args: {
-            ticketType: string;
-            siaNumber: string;
-            customerName: string;
-            techUsername: string;
-            notes: string;
-          }) => Promise<{ draftCard?: DraftActionCard; error?: string }>;
-        };
-        const res = await prepareCreateTool.execute({
-          ticketType,
-          siaNumber: 'SIA-2024-001',
-          customerName: 'Budi Santoso',
-          techUsername: 'andi.pratama',
-          notes: 'Perbaikan drop redaman kritis terdeteksi oleh sistem AI',
-        });
+    if (ollamaUp) {
+      const ollama = createOpenAI({
+        baseURL: env.OLLAMA_BASE_URL.replace(/\/+$/, '') + '/v1',
+        apiKey: 'ollama',
+      });
+      const model = ollama(env.OLLAMA_MODEL);
 
-        if (res.draftCard) {
-          return {
-            role: 'assistant',
-            content:
-              'Saya telah menganalisis keluhan redaman jaringan dan memvalidasi ketersediaan teknisi. Sesuai prinsip Human-in-the-Loop, silakan tinjau kartu konfirmasi berikut sebelum mengeksekusi ke database.',
-            draftCard: res.draftCard,
-          };
-        } else {
-          return {
-            role: 'assistant',
-            content: res.error || 'Gagal menyiapkan draf tiket.',
-          };
+      const result = await generateText({
+        model,
+        system: `Anda adalah FiberOps AI Assistant yang beroperasi 100% On-Premise untuk mengelola operasional teknisi dan master data jaringan FTTH.
+Wewenang Pengguna: Role ${adminContext.role} (Level ${adminContext.hierarchyLevel}).
+Cluster yang ditugaskan: ${adminContext.assignedClusters.length > 0 ? adminContext.assignedClusters.join(', ') : 'Seluruh Cluster (Super Admin)'}.
+
+ATURAN KEAMANAN & OPERASIONAL MUTLAK:
+1. Gunakan tools baca (get_recent_reports, get_customer_detail, get_technician_workload) untuk mengambil data nyata sebelum menjawab pertanyaan kondisi jaringan.
+2. Anda DILARANG MENGUBAH DATABASE SECARA LANGSUNG. Gunakan prepare_create_ticket, prepare_mutate_splitter_port, atau prepare_toggle_tech_account hanya ketika diminta menyiapkan draf perubahan.
+3. Jangan mengarang nama pelanggan, nomor SIA, nama teknisi, atau kode ODP yang tidak berasal dari hasil tool.
+4. Jawab dalam Bahasa Indonesia secara ringkas, objektif, dan berfokus pada tindakan NOC.`,
+        prompt,
+        tools,
+        stopWhen: stepCountIs(5),
+      });
+
+      let draftCard: DraftActionCard | undefined;
+      for (const step of result.steps) {
+        for (const tr of step.toolResults) {
+          const out = tr.output as { draftCard?: DraftActionCard } | undefined;
+          if (out?.draftCard) {
+            draftCard = out.draftCard;
+          }
         }
       }
-    }
-
-    // Intent 2: Write Tool - Toggle Technician Account
-    if (
-      p.includes('nonaktifkan') ||
-      p.includes('matikan teknisi') ||
-      p.includes('blokir teknisi')
-    ) {
-      if (tools.prepare_toggle_tech_account) {
-        const prepareToggleTool = tools.prepare_toggle_tech_account as unknown as {
-          execute: (args: {
-            techUsername: string;
-            setActive: boolean;
-            reason: string;
-          }) => Promise<{ draftCard?: DraftActionCard; error?: string }>;
-        };
-        const res = await prepareToggleTool.execute({
-          techUsername: 'andi.pratama',
-          setActive: false,
-          reason: 'Instruksi Admin via AI Chat: Penonaktifan sementara akun teknisi',
-        });
-
-        if (res.draftCard) {
-          return {
-            role: 'assistant',
-            content:
-              'Saya telah menyiapkan draf pencabutan sesi dan penonaktifan akun teknisi. Memerlukan konfirmasi Admin untuk dieksekusi:',
-            draftCard: res.draftCard,
-          };
-        } else {
-          return {
-            role: 'assistant',
-            content: res.error || 'Gagal menyiapkan draf status teknisi.',
-          };
+      if (!draftCard) {
+        for (const tr of result.toolResults) {
+          const out = tr.output as { draftCard?: DraftActionCard } | undefined;
+          if (out?.draftCard) {
+            draftCard = out.draftCard;
+          }
         }
       }
-    }
-
-    // Intent 3: Write Tool - Mutate Splitter Port
-    if (
-      p.includes('pindah') ||
-      p.includes('mutasi') ||
-      p.includes('ganti port') ||
-      p.includes('ganti odp')
-    ) {
-      if (tools.prepare_mutate_splitter_port) {
-        const prepareMutateTool = tools.prepare_mutate_splitter_port as unknown as {
-          execute: (args: {
-            siaNumber: string;
-            newSplitterCode: string;
-            newPortNumber: number;
-          }) => Promise<{ draftCard?: DraftActionCard; error?: string }>;
-        };
-        const res = await prepareMutateTool.execute({
-          siaNumber: 'SIA-2024-001',
-          newSplitterCode: 'ODP-BDG-01',
-          newPortNumber: 5,
-        });
-
-        if (res.draftCard) {
-          return {
-            role: 'assistant',
-            content:
-              'Saya telah memverifikasi kapasitas ODP tujuan dan memastikan port kosong. Silakan tinjau draf mutasi berikut:',
-            draftCard: res.draftCard,
-          };
-        } else {
-          return {
-            role: 'assistant',
-            content: res.error || 'Gagal menyiapkan draf mutasi port.',
-          };
-        }
-      }
-    }
-
-    // Intent 4: Read Tool - Analisis Gangguan Redaman ("Analisis gangguan redaman")
-    if (p.includes('analisis') || p.includes('gangguan redaman') || p.includes('redaman')) {
-      const tickets = await TicketService.listTickets();
-      const criticalCount = tickets.filter(
-        (t) => classifyDbm(t.currentAttenuation) === 'Critical',
-      ).length;
-      return {
-        role: 'assistant',
-        content: `Hasil Analisis Gangguan Redaman Optik (FTTH):\n• Terdeteksi ${criticalCount} titik drop redaman kritis (< -25.0 dBm) yang memerlukan tindakan segera.\n• Titik Kritis: SIA-2024-003 (Ahmad Dahlan, -27.3 dBm di ODP-BDG-03 Port 2).\n• Titik Peringatan: SIA-2024-002 (Siti Aminah, -24.8 dBm di ODP-BDG-01 Port 5).\n• Status Jaringan Umum: 80% pelanggan berada pada batas normal (-18.0 s/d -20.0 dBm).\n\nSaran Operasional: Anda dapat mengklik "Buat draft tiket" untuk menugaskan teknisi perbaikan ke ODP-BDG-03.`,
-      };
-    }
-
-    // Intent 5: Read Tool - Cari Teknisi Terdekat ("Cari teknisi terdekat")
-    if (
-      p.includes('teknisi') ||
-      p.includes('cari teknisi') ||
-      p.includes('beban kerja') ||
-      p.includes('workload')
-    ) {
-      if (tools.get_technician_workload) {
-        const workloadTool = tools.get_technician_workload as unknown as {
-          execute: (args: { status: string }) => Promise<
-            Array<{
-              fullName: string;
-              username: string;
-              cluster?: string;
-              activeTicketsCount: number;
-              workloadStatus: string;
-            }>
-          >;
-        };
-        const list = await workloadTool.execute({
-          status: 'ALL',
-        });
-        const summary = list
-          .map(
-            (t) =>
-              `• ${t.fullName} (@${t.username}): Cluster ${t.cluster || 'Bandung'} · ${t.activeTicketsCount} tiket aktif [${t.workloadStatus}]`,
-          )
-          .join('\n');
-        return {
-          role: 'assistant',
-          content: `Data Teknisi Terdekat & Beban Tugas Lapangan:\n${summary}\n\nTeknisi Siap Ditugaskan: Cahyo Wibowo (Status IDLE).`,
-        };
-      }
-    }
-
-    // Intent 6: Read Tool - Ringkasan Gangguan ("Ringkasan gangguan")
-    if (
-      p.includes('ringkasan') ||
-      p.includes('gangguan') ||
-      p.includes('kesehatan') ||
-      p.includes('status')
-    ) {
-      const tickets = await TicketService.listTickets();
-      const criticalCount = tickets.filter(
-        (t) => classifyDbm(t.currentAttenuation) === 'Critical',
-      ).length;
-      const waitingCount = tickets.filter((t) => t.status === 'Menunggu').length;
-      const completedCount = tickets.filter((t) => t.status === 'Selesai').length;
 
       return {
         role: 'assistant',
-        content: `Ringkasan Gangguan & Status Tiket Operasional:\n• Total Work Order: ${tickets.length}\n• Gangguan Redaman Kritis: ${criticalCount}\n• Tiket Menunggu Penugasan: ${waitingCount}\n• Tiket Telah Selesai: ${completedCount}\n• Server: 100% On-Premise Qwen 2.5 7B beroperasi privat.`,
+        content: result.text || 'Permintaan telah diproses menggunakan tools operasional.',
+        ...(draftCard ? { draftCard } : {}),
       };
     }
 
-    // Default Guidance
+    if (isStrictLiveMode()) {
+      throw new ServiceUnavailableError(
+        `Layanan AI On-Premise Ollama (${env.OLLAMA_BASE_URL} · model ${env.OLLAMA_MODEL}) sedang offline. Jalankan daemon Ollama untuk memproses prompt AI secara dinamis.`,
+      );
+    }
+
+    const tickets = await TicketService.listTickets();
+    const criticalList = tickets.filter((t) => classifyDbm(t.currentAttenuation) === 'Critical');
     return {
       role: 'assistant',
-      content: `Saya siap membantu manajemen operasional jaringan Anda. Anda dapat meminta saya untuk:\n1. Menganalisis redaman kritis pelanggan ("Ringkas kesehatan jaringan")\n2. Menyiapkan tiket perbaikan ("Siapkan tiket maintenance untuk Budi Santoso")\n3. Memeriksa beban kerja teknisi lapangan ("Cek beban kerja teknisi")\n4. Menyiapkan mutasi port splitter ("Pindahkan port pelanggan 100245")`,
+      content: `Mode Uji Non-Strict (Ollama offline): Terdeteksi ${tickets.length} tiket aktif dengan ${criticalList.length} redaman kritis di database.`,
     };
   }
 
@@ -949,7 +840,7 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
     }
 
     // 3. Append to activity_logs with action_type: 'AI_ACTION_EXECUTED' (Law 2: APPEND-ONLY)
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk mencatat audit eksekusi AI.')) {
       try {
         await prisma.activityLog.create({
           data: {
@@ -968,9 +859,7 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
           },
         });
       } catch (err) {
-        markDatabaseUnavailable(err);
-        // In-memory audit fallback
-        console.info('[AiService] Audit log recorded via fallback for', verified.actionType);
+        rethrowIfStrictDatabaseError(err, 'Gagal mencatat log eksekusi AI ke PostgreSQL.');
       }
     }
 

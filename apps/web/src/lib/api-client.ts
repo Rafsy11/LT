@@ -1,4 +1,5 @@
 import { ERROR_CODES, ApiResponse, sanitizeUiErrorMessage } from '@repo/shared';
+import { clearServiceUnavailable, reportServiceUnavailable } from '@/lib/api-error';
 
 export interface ApiClientError extends Error {
   code: string;
@@ -127,6 +128,21 @@ class WebApiClient {
         throw err;
       }
 
+      // 5. HTTP 503 Service Unavailable Interceptor (Strict Live Mode Fail-Fast)
+      if (response.status === 503 || errPayload?.code === ERROR_CODES.SERVICE_UNAVAILABLE) {
+        const unavailableMessage =
+          errPayload?.message ||
+          'Layanan database PostgreSQL atau infrastruktur backend sedang tidak tersedia.';
+        const category = endpoint.includes('/admin/ai/') ? 'service' : 'database';
+        reportServiceUnavailable(unavailableMessage, category, endpoint);
+
+        const err: ApiClientError = new Error(unavailableMessage) as ApiClientError;
+        err.code = ERROR_CODES.SERVICE_UNAVAILABLE;
+        err.statusCode = 503;
+        err.details = errPayload?.details;
+        throw err;
+      }
+
       if (!response.ok) {
         const err: ApiClientError = new Error(
           errPayload?.message || `Permintaan gagal dengan kode HTTP ${response.status}`,
@@ -137,6 +153,9 @@ class WebApiClient {
         throw err;
       }
 
+      if (!endpoint.includes('/admin/ai/')) {
+        clearServiceUnavailable('database');
+      }
       return json;
     } catch (err: unknown) {
       if ((err as ApiClientError).statusCode) {

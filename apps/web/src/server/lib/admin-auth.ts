@@ -8,6 +8,7 @@ import {
 } from '@repo/shared';
 import { AuthService } from '../services/auth.service';
 import { RoleService } from '../services/role.service';
+import { ServiceUnavailableError, isStrictLiveMode } from './live-data';
 
 export class AuthHttpError extends Error {
   public readonly status: number;
@@ -91,6 +92,9 @@ export async function resolveAdminActor(request: NextRequest): Promise<UserSessi
     try {
       actor = await AuthService.verifyAccessToken(token);
     } catch (err: unknown) {
+      if (err instanceof ServiceUnavailableError) {
+        throw err;
+      }
       const msg = err instanceof Error ? err.message : '';
       const code = msg.includes(ERROR_CODES.SESSION_REVOKED)
         ? ERROR_CODES.SESSION_REVOKED
@@ -145,15 +149,15 @@ export async function resolveAdminActor(request: NextRequest): Promise<UserSessi
     };
   }
 
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' || isStrictLiveMode()) {
     throw new AuthHttpError(
       401,
       ERROR_CODES.UNAUTHORIZED,
-      'Sesi login admin wajib disertakan pada mode produksi.',
+      'Sesi login admin wajib disertakan.',
     );
   }
 
-  // Local development convenience fallback when no auth cookie/header was supplied
+  // Explicitly opted-out non-strict test harness fallback when STRICT_LIVE_DATA=false
   return {
     userId: '00000000-0000-4000-8000-000000000001',
     username: 'superadmin',
@@ -179,8 +183,11 @@ export async function getActorPermissions(actor: UserSessionContext): Promise<st
     if (matched && Array.isArray(matched.permissions)) {
       return matched.permissions.map(String);
     }
-  } catch {
-    // Fallback to static preset permissions below
+  } catch (err) {
+    if (err instanceof ServiceUnavailableError) {
+      throw err;
+    }
+    // Fallback to static preset permissions below when non-strict
   }
 
   const preset = Object.values(ROLE_PRESETS).find(
@@ -227,6 +234,16 @@ export function handleAdminRouteError(
   defaultMessage: string,
   overrideStatus?: number,
 ): NextResponse {
+  if (error instanceof ServiceUnavailableError) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: { code: error.code, message: error.message },
+      },
+      { status: 503 },
+    );
+  }
+
   if (error instanceof AuthHttpError) {
     return NextResponse.json(
       {
@@ -240,6 +257,7 @@ export function handleAdminRouteError(
   const errObj = error as {
     name?: string;
     code?: string;
+    statusCode?: number;
     message?: string;
     errors?: Array<{ message: string }>;
   };
@@ -259,7 +277,7 @@ export function handleAdminRouteError(
   }
 
   const msg = errObj?.message || defaultMessage;
-  let status = overrideStatus ?? 500;
+  let status = errObj?.statusCode ?? overrideStatus ?? 500;
   let code = errObj?.code || defaultCode;
 
   if (msg.includes(ERROR_CODES.FORBIDDEN)) {

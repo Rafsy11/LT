@@ -15,6 +15,9 @@ export function OverviewView() {
   const {
     cluster,
     setCluster,
+    clusterOptions,
+    topologyClusters,
+    mapLoading,
     query,
     setQuery,
     tickets,
@@ -30,14 +33,12 @@ export function OverviewView() {
     setStatusFilter,
     feedItems,
     canCreateTicket,
-    user,
     filteredTickets,
     activeTicketsCount,
     waitingTicketsCount,
     networkHealthPct,
     fetchTickets,
     handleCreateTicket,
-    handleMarkCompleted,
     exportCsv,
   } = useOverview();
 
@@ -95,12 +96,12 @@ export function OverviewView() {
               aria-label="Pilih cluster"
               className="cluster-select"
             >
-              <option>Semua cluster</option>
-              <option>Bandung Utara</option>
-              <option>Bandung Timur</option>
-              <option>Bandung Barat</option>
-              <option>Cimahi</option>
-              <option>Rancaekek</option>
+              <option value="Semua cluster">Semua cluster</option>
+              {clusterOptions.map((opt) => (
+                <option key={opt.id} value={opt.name}>
+                  {opt.name} ({opt.clusterCode})
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -200,7 +201,12 @@ export function OverviewView() {
 
       {/* Middle Grid: Sebaran Jaringan & Aktivitas Terbaru */}
       <section className="overview-middle-grid" aria-label="Peta Topologi & Telemetri">
-        <OverviewNetworkMap />
+        <OverviewNetworkMap
+          clusters={topologyClusters}
+          clusterOptions={clusterOptions}
+          selectedCluster={cluster}
+          isLoading={mapLoading}
+        />
         <OverviewTelemetryFeed feedItems={feedItems} />
       </section>
 
@@ -227,7 +233,6 @@ export function OverviewView() {
         ticket={selectedTicket}
         onClose={() => setSelectedTicket(null)}
         onTicketUpdated={() => fetchTickets(true)}
-        onMarkCompleted={handleMarkCompleted}
       />
     </main>
   );

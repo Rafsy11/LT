@@ -19,6 +19,7 @@ export function SettingsView() {
     settings,
     telemetry,
     loading,
+    loadError,
     isSaving,
     isBackingUp,
     hasChanges,
@@ -38,8 +39,39 @@ export function SettingsView() {
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
   }, [fetchSettings]);
 
-  if (loading && !telemetry) {
+  if (loading && !settings && !loadError) {
     return <SettingsSkeleton />;
+  }
+
+  if (!settings) {
+    return (
+      <main
+        id="main-content"
+        className="settings-page"
+        style={{ paddingBottom: '48px', maxWidth: '1600px', margin: '0 auto' }}
+      >
+        <section
+          className="panel"
+          role="alert"
+          style={{ padding: '28px 24px', textAlign: 'center', marginTop: '16px' }}
+        >
+          <h1 className="overview-greeting" style={{ fontSize: '20px', marginBottom: '8px' }}>
+            Konfigurasi Sistem Tidak Tersedia
+          </h1>
+          <p className="overview-subtitle" style={{ margin: '0 auto 16px', maxWidth: '520px' }}>
+            {loadError || 'Gagal memuat konfigurasi sistem dari database PostgreSQL.'}
+          </p>
+          <button
+            type="button"
+            className="button primary"
+            onClick={() => void fetchSettings(true)}
+          >
+            <Icon name="refresh" size={14} />
+            <span>Muat Ulang Konfigurasi</span>
+          </button>
+        </section>
+      </main>
+    );
   }
 
   return (

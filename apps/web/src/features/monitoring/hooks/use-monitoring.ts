@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { classifyDbm } from '@repo/shared';
+import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
 import { fetchWithCache, getCachedData } from '@/lib/query-cache';
+import { useToast } from '@/providers';
 
 const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
 
@@ -55,6 +57,7 @@ export function useMonitoring() {
   const [sseState, setSseState] = useState<SseState>('CONNECTING');
   const [reconnectCountdown, setReconnectCountdown] = useState<number>(0);
   const [lastHeartbeat, setLastHeartbeat] = useState<string>('Memulai koneksi...');
+  const { showError } = useToast();
 
   const fetchInitialReports = useCallback(async (force = false) => {
     try {
@@ -65,10 +68,17 @@ export function useMonitoring() {
         TICKETS_CACHE_KEY,
         async () => {
           const res = await fetch(TICKETS_CACHE_KEY);
-          const json = await res.json();
-          if (!res.ok || !json.success || !Array.isArray(json.data)) {
-            throw new Error(json.error?.message || 'Gagal mengambil data tiket awal');
+          const json = await res.json().catch(() => null);
+          if (!res.ok || !json?.success || !Array.isArray(json.data)) {
+            const parsed = notifyApiResponseError(
+              res.status,
+              json,
+              'Gagal mengambil data tiket awal',
+              { category: 'database', source: TICKETS_CACHE_KEY },
+            );
+            throw new Error(parsed.message);
           }
+          clearServiceUnavailable('database');
           return json.data as LiveReportItem[];
         },
         { force },
@@ -79,11 +89,11 @@ export function useMonitoring() {
         setSelectedTicket((prev) => prev ?? pickInitialReport(data));
       }
     } catch (err) {
-      console.error('[Monitoring] Gagal mengambil data tiket awal:', err);
+      showError(err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     let isDisposed = false;

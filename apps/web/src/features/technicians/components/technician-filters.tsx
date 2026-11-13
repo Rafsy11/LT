@@ -1,5 +1,6 @@
 import React from 'react';
 import { SearchInput } from '@/components/ui/search-input';
+import { useClusterOptions } from '@/hooks/use-cluster-options';
 
 export type TechnicianFilterTab = 'all' | 'active_session' | 'busy' | 'revoked' | 'inactive';
 
@@ -30,6 +31,8 @@ export function TechnicianFilters({
   revokedCount,
   disabledCount,
 }: TechnicianFiltersProps) {
+  const { clusters } = useClusterOptions();
+
   return (
     <nav
       className="technician-sub-toolbar"
@@ -52,13 +55,12 @@ export function TechnicianFilters({
           aria-label="Filter Cluster"
           className="technician-cluster-select"
         >
-          <option>Semua cluster</option>
-          <option>Bandung Utara</option>
-          <option>Bandung Timur</option>
-          <option>Bandung Barat</option>
-          <option>Bandung Selatan</option>
-          <option>Cimahi</option>
-          <option>Rancaekek</option>
+          <option value="Semua cluster">Semua cluster</option>
+          {clusters.map((item) => (
+            <option key={item.id} value={item.name}>
+              {item.name} ({item.clusterCode})
+            </option>
+          ))}
         </select>
 
         {/* Segmented Filter Tabs */}

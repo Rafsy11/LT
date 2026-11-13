@@ -6,9 +6,24 @@ import {
   handleAdminRouteError,
 } from '@/server/lib/admin-auth';
 import { ERROR_CODES, PERMISSIONS } from '@repo/shared';
+import { isStrictLiveMode } from '@/server/lib/live-data';
 
 export async function POST(request: NextRequest) {
   try {
+    if (isStrictLiveMode() && process.env.ENABLE_DEMO_SIMULATION !== 'true') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: ERROR_CODES.FORBIDDEN,
+            message:
+              'Simulasi demo dinonaktifkan pada mode data langsung (STRICT_LIVE_DATA). Kiriman laporan hanya berasal dari aplikasi teknisi.',
+          },
+        },
+        { status: 403 },
+      );
+    }
+
     const actor = await requireAdminActor(request, PERMISSIONS.TECH_MANAGE);
     if (!isGlobalScopeActor(actor)) {
       return NextResponse.json(

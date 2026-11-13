@@ -1,12 +1,33 @@
+import bcrypt from 'bcryptjs';
 import { prisma } from './index';
+
+const BCRYPT_SALT_ROUNDS = 10;
+
+async function ensureValidBcryptHash(username: string, fallbackHash: string): Promise<string> {
+  const existing = await prisma.user.findUnique({
+    where: { username },
+    select: { passwordHash: true },
+  });
+  if (
+    existing?.passwordHash &&
+    existing.passwordHash.startsWith('$2') &&
+    !existing.passwordHash.includes('mockSecureHash')
+  ) {
+    return existing.passwordHash;
+  }
+  return fallbackHash;
+}
 
 export async function seedDatabase() {
   console.log('--- Memulai Seeding Master Data FiberOps (On-Premise) ---');
 
-  // 1. ROLES & RBAC MATRIX (Super Admin, Admin NOC, Teknisi)
+  const seedPassword = process.env.SEED_DEFAULT_PASSWORD || 'FiberOps#2026';
+  const defaultPasswordHash = await bcrypt.hash(seedPassword, BCRYPT_SALT_ROUNDS);
+
+  // 1. ROLES & RBAC MATRIX (Selaras dengan ROLE_PRESETS)
   const superAdminRole = await prisma.role.upsert({
     where: { name: 'Super Admin' },
-    update: {},
+    update: { permissions: ['*'], hierarchyLevel: 100 },
     create: {
       name: 'Super Admin',
       permissions: ['*'],
@@ -15,105 +36,134 @@ export async function seedDatabase() {
   });
 
   const adminNocRole = await prisma.role.upsert({
-    where: { name: 'Admin NOC' },
+    where: { name: 'Admin Operasional' },
     update: {},
     create: {
-      name: 'Admin NOC',
+      name: 'Admin Operasional',
       permissions: [
+        'customer:read',
+        'customer:update',
+        'network:read',
+        'network:update',
         'ticket:read',
         'ticket:create',
         'ticket:assign',
-        'network:read',
-        'network:update',
-        'customer:read',
-        'customer:update',
+        'tech:manage',
         'ai:use',
       ],
       hierarchyLevel: 50,
     },
   });
 
+  await prisma.role.upsert({
+    where: { name: 'NOC Monitoring' },
+    update: {},
+    create: {
+      name: 'NOC Monitoring',
+      permissions: ['customer:read', 'network:read', 'ticket:read'],
+      hierarchyLevel: 30,
+    },
+  });
+
+  await prisma.role.upsert({
+    where: { name: 'Customer Support' },
+    update: {},
+    create: {
+      name: 'Customer Support',
+      permissions: ['customer:read', 'ticket:read', 'ticket:create'],
+      hierarchyLevel: 20,
+    },
+  });
+
   const techRole = await prisma.role.upsert({
-    where: { name: 'Teknisi' },
+    where: { name: 'Vendor / Teknisi Lapangan' },
     update: {
       permissions: ['ticket:read', 'ticket:submit'],
     },
     create: {
-      name: 'Teknisi',
+      name: 'Vendor / Teknisi Lapangan',
       permissions: ['ticket:read', 'ticket:submit'],
       hierarchyLevel: 10,
     },
   });
 
-  // 2. USERS (Super Admin, Admin NOC, 2 Teknisi)
+  // 2. USERS (Hash bcrypt valid — tidak memakai placeholder mock)
+  const superAdminHash = await ensureValidBcryptHash('superadmin', defaultPasswordHash);
   const superAdmin = await prisma.user.upsert({
     where: { username: 'superadmin' },
-    update: { nik: '882041' },
+    update: { nik: '882041', passwordHash: superAdminHash, assignedClusters: ['Global Scope'] },
     create: {
       nik: '882041',
       username: 'superadmin',
       fullName: 'Aditya Saputra',
-      passwordHash: '$2b$10$epw1...mockSecureHashForSuperAdmin',
+      passwordHash: superAdminHash,
       roleId: superAdminRole.id,
       userType: 'SUPER_ADMIN',
       isActive: true,
-      assignedClusters: ['CL-01', 'CL-02'],
+      twoFactorEnabled: false,
+      assignedClusters: ['Global Scope'],
     },
   });
 
+  const adminNocHash = await ensureValidBcryptHash('admin.noc', defaultPasswordHash);
   const adminNoc = await prisma.user.upsert({
     where: { username: 'admin.noc' },
-    update: { nik: '882042' },
+    update: { nik: '882042', passwordHash: adminNocHash },
     create: {
       nik: '882042',
       username: 'admin.noc',
       fullName: 'Budi Hartono',
-      passwordHash: '$2b$10$epw1...mockSecureHashForAdminNoc',
+      passwordHash: adminNocHash,
       roleId: adminNocRole.id,
       userType: 'ADMIN',
       isActive: true,
-      assignedClusters: ['CL-01', 'CL-02'],
+      twoFactorEnabled: false,
+      assignedClusters: ['BDG-01', 'BDG-03'],
     },
   });
 
+  const techAndiHash = await ensureValidBcryptHash('tech.andi', defaultPasswordHash);
   const techAndi = await prisma.user.upsert({
     where: { username: 'tech.andi' },
-    update: { nik: '882043', vendorCompany: 'PT Mitra Fiber Nusantara' },
+    update: { nik: '882043', vendorCompany: 'PT Mitra Fiber Nusantara', passwordHash: techAndiHash },
     create: {
       nik: '882043',
       username: 'tech.andi',
       fullName: 'Andi Pratama',
       vendorCompany: 'PT Mitra Fiber Nusantara',
-      passwordHash: '$2b$10$epw1...mockSecureHashForTechAndi',
+      passwordHash: techAndiHash,
       roleId: techRole.id,
       userType: 'TECHNICIAN',
       isActive: true,
-      assignedClusters: ['CL-01'],
+      twoFactorEnabled: false,
+      assignedClusters: ['BDG-01'],
     },
   });
 
+  const techRizkyHash = await ensureValidBcryptHash('tech.rizky', defaultPasswordHash);
   const techRizky = await prisma.user.upsert({
     where: { username: 'tech.rizky' },
-    update: { nik: '882044', vendorCompany: 'PT Sarana Optik Bandung' },
+    update: { nik: '882044', vendorCompany: 'PT Sarana Optik Bandung', passwordHash: techRizkyHash },
     create: {
       nik: '882044',
       username: 'tech.rizky',
       fullName: 'Rizky Maulana',
       vendorCompany: 'PT Sarana Optik Bandung',
-      passwordHash: '$2b$10$epw1...mockSecureHashForTechRizky',
+      passwordHash: techRizkyHash,
       roleId: techRole.id,
       userType: 'TECHNICIAN',
       isActive: true,
-      assignedClusters: ['CL-02'],
+      twoFactorEnabled: false,
+      assignedClusters: ['BDG-03'],
     },
   });
 
-  // 3. 2 CLUSTERS
+  // 3. MASTER CLUSTERS (Single Source of Truth)
   const clusterUtara = await prisma.networkCluster.upsert({
-    where: { clusterCode: 'CL-01' },
-    update: {},
+    where: { clusterCode: 'BDG-01' },
+    update: { name: 'Bandung Utara' },
     create: {
-      clusterCode: 'CL-01',
+      clusterCode: 'BDG-01',
       name: 'Bandung Utara',
       centerLat: -6.885,
       centerLng: 107.615,
@@ -121,11 +171,23 @@ export async function seedDatabase() {
     },
   });
 
-  const clusterTimur = await prisma.networkCluster.upsert({
-    where: { clusterCode: 'CL-02' },
-    update: {},
+  await prisma.networkCluster.upsert({
+    where: { clusterCode: 'BDG-02' },
+    update: { name: 'Bandung Selatan' },
     create: {
-      clusterCode: 'CL-02',
+      clusterCode: 'BDG-02',
+      name: 'Bandung Selatan',
+      centerLat: -6.949,
+      centerLng: 107.611,
+      isActive: true,
+    },
+  });
+
+  const clusterTimur = await prisma.networkCluster.upsert({
+    where: { clusterCode: 'BDG-03' },
+    update: { name: 'Bandung Timur' },
+    create: {
+      clusterCode: 'BDG-03',
       name: 'Bandung Timur',
       centerLat: -6.918,
       centerLng: 107.668,
@@ -133,60 +195,72 @@ export async function seedDatabase() {
     },
   });
 
-  // 4. 4 ODP SPLITTERS (Kapasitas 8 & 16 Port)
+  await prisma.networkCluster.upsert({
+    where: { clusterCode: 'BDG-04' },
+    update: { name: 'Bandung Barat' },
+    create: {
+      clusterCode: 'BDG-04',
+      name: 'Bandung Barat',
+      centerLat: -6.898,
+      centerLng: 107.552,
+      isActive: true,
+    },
+  });
+
+  // 4. ODP SPLITTERS (Kapasitas 8 & 16 Port)
   const odp1 = await prisma.networkSplitter.upsert({
-    where: { splitterCode: 'ODP-CL01-01' },
+    where: { splitterCode: 'ODP-BDG01-01' },
     update: {},
     create: {
       clusterId: clusterUtara.id,
-      splitterCode: 'ODP-CL01-01',
+      splitterCode: 'ODP-BDG01-01',
       lat: -6.886,
       lng: 107.616,
-      maxPorts: 16, // 16 Port
+      maxPorts: 16,
       isActive: true,
     },
   });
 
   const odp2 = await prisma.networkSplitter.upsert({
-    where: { splitterCode: 'ODP-CL01-02' },
+    where: { splitterCode: 'ODP-BDG01-02' },
     update: {},
     create: {
       clusterId: clusterUtara.id,
-      splitterCode: 'ODP-CL01-02',
+      splitterCode: 'ODP-BDG01-02',
       lat: -6.8875,
       lng: 107.6175,
-      maxPorts: 8, // 8 Port
+      maxPorts: 8,
       isActive: true,
     },
   });
 
   const odp3 = await prisma.networkSplitter.upsert({
-    where: { splitterCode: 'ODP-CL02-01' },
+    where: { splitterCode: 'ODP-BDG03-01' },
     update: {},
     create: {
       clusterId: clusterTimur.id,
-      splitterCode: 'ODP-CL02-01',
+      splitterCode: 'ODP-BDG03-01',
       lat: -6.919,
       lng: 107.669,
-      maxPorts: 16, // 16 Port
+      maxPorts: 16,
       isActive: true,
     },
   });
 
   await prisma.networkSplitter.upsert({
-    where: { splitterCode: 'ODP-CL02-02' },
+    where: { splitterCode: 'ODP-BDG03-02' },
     update: {},
     create: {
       clusterId: clusterTimur.id,
-      splitterCode: 'ODP-CL02-02',
+      splitterCode: 'ODP-BDG03-02',
       lat: -6.9205,
       lng: 107.6705,
-      maxPorts: 8, // 8 Port
+      maxPorts: 8,
       isActive: true,
     },
   });
 
-  // 5. SAMPLE SIA CUSTOMERS
+  // 5. CUSTOMERS
   const cust1 = await prisma.customer.upsert({
     where: { siaNumber: '100245' },
     update: {},
@@ -199,7 +273,7 @@ export async function seedDatabase() {
       clusterId: clusterUtara.id,
       splitterId: odp1.id,
       portNumber: 3,
-      currentAttenuation: -26.4, // Critical (> -25 dBm)
+      currentAttenuation: -26.4,
       status: 'ACTIVE',
     },
   });
@@ -216,7 +290,7 @@ export async function seedDatabase() {
       clusterId: clusterTimur.id,
       splitterId: odp3.id,
       portNumber: 1,
-      currentAttenuation: -19.2, // Normal (-15 s/d -22 dBm)
+      currentAttenuation: -19.2,
       status: 'ACTIVE',
     },
   });
@@ -233,7 +307,7 @@ export async function seedDatabase() {
       clusterId: clusterUtara.id,
       splitterId: odp2.id,
       portNumber: 2,
-      currentAttenuation: -23.5, // Warning (-22.1 s/d -25 dBm)
+      currentAttenuation: -23.5,
       status: 'ACTIVE',
     },
   });
@@ -249,24 +323,14 @@ export async function seedDatabase() {
       splitterId: null,
       portNumber: null,
       currentAttenuation: -20.0,
-      status: 'PENDING_INSTALL', // Menunggu instalasi pasang baru
+      status: 'PENDING_INSTALL',
     },
   });
 
   // 6. INITIAL TICKETS (Work Orders)
   await prisma.ticket.upsert({
     where: { ticketNumber: 'WO-2025-0842' },
-    update: {
-      vendorName: 'PT Mitra Fiber Nusantara',
-      complaintSummary: 'Pelanggan melaporkan koneksi putus-nyambung dan redaman drop sejak pagi hari.',
-      customerPhone: '+62 812-2200-1045',
-      serviceAddress: 'Jl. Dago Atas No. 42, Coblong, Bandung',
-      locationPlace: 'Ruko Dago Vista Lt. 2 (Sebelah Apotek)',
-      targetLat: -6.8862,
-      targetLng: 107.6162,
-      dispatchedAt: new Date(Date.now() - 1000 * 60 * 45),
-      startedAt: new Date(Date.now() - 1000 * 60 * 20),
-    },
+    update: {},
     create: {
       ticketNumber: 'WO-2025-0842',
       ticketType: 'MAINTENANCE',
@@ -275,7 +339,8 @@ export async function seedDatabase() {
       createdByAdminId: adminNoc.id,
       status: 'IN_PROGRESS',
       vendorName: 'PT Mitra Fiber Nusantara',
-      complaintSummary: 'Pelanggan melaporkan koneksi putus-nyambung dan redaman drop sejak pagi hari.',
+      complaintSummary:
+        'Pelanggan melaporkan koneksi putus-nyambung dan redaman drop sejak pagi hari.',
       customerPhone: '+62 812-2200-1045',
       serviceAddress: 'Jl. Dago Atas No. 42, Coblong, Bandung',
       locationPlace: 'Ruko Dago Vista Lt. 2 (Sebelah Apotek)',
@@ -284,24 +349,14 @@ export async function seedDatabase() {
       dispatchedAt: new Date(Date.now() - 1000 * 60 * 45),
       startedAt: new Date(Date.now() - 1000 * 60 * 20),
       adminNotes:
-        'Redaman optik drop drastis di bawah -25.0 dBm (-26.40 dBm). Lakukan re-splicing di ODP-CL01-01.',
+        'Redaman optik drop drastis di bawah -25.0 dBm (-26.40 dBm). Lakukan re-splicing di ODP-BDG01-01.',
       assignedAt: new Date(),
     },
   });
 
-  await prisma.ticket.upsert({
+  const ticketCompleted = await prisma.ticket.upsert({
     where: { ticketNumber: 'WO-2025-0841' },
-    update: {
-      vendorName: 'PT Sarana Optik Bandung',
-      complaintSummary: 'Permintaan instalasi baru layanan internet bisnis 50 Mbps.',
-      customerPhone: '+62 813-9900-2211',
-      serviceAddress: 'Jl. Soekarno Hatta No. 210, Arcamanik, Bandung',
-      locationPlace: 'Kantor Cabang Arcamanik Blok B',
-      targetLat: -6.9192,
-      targetLng: 107.6692,
-      dispatchedAt: new Date(Date.now() - 1000 * 60 * 60 * 3),
-      startedAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    },
+    update: {},
     create: {
       ticketNumber: 'WO-2025-0841',
       ticketType: 'PSB',
@@ -318,9 +373,31 @@ export async function seedDatabase() {
       targetLng: 107.6692,
       dispatchedAt: new Date(Date.now() - 1000 * 60 * 60 * 3),
       startedAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
-      adminNotes: 'Aktivasi pelanggan baru paket 50 Mbps. Port 1 ODP-CL02-01.',
+      adminNotes: 'Aktivasi pelanggan baru paket 50 Mbps. Port 1 ODP-BDG03-01.',
       assignedAt: new Date(Date.now() - 1000 * 60 * 60 * 3),
       completedAt: new Date(Date.now() - 1000 * 60 * 15),
+    },
+  });
+
+  // 7. BASELINE ATTENUATION HISTORY (Real DB history for /network)
+  await prisma.attenuationHistory.upsert({
+    where: { submissionId: 'seed-sub-wo-2025-0841' },
+    update: {},
+    create: {
+      submissionId: 'seed-sub-wo-2025-0841',
+      ticketId: ticketCompleted.id,
+      customerId: cust2.id,
+      techId: techRizky.id,
+      oldAttenuation: -21.0,
+      newAttenuation: -19.2,
+      splitterId: odp3.id,
+      portNumber: 1,
+      photoObjectKey: 'seed/wo-2025-0841-opm.jpg',
+      submittedLat: -6.91924,
+      submittedLng: 107.66925,
+      distanceToSplitterM: 28.4,
+      isLocationFlagged: false,
+      clientRecordedAt: new Date(Date.now() - 1000 * 60 * 30),
     },
   });
 

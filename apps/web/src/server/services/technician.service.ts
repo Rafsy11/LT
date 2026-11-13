@@ -1,5 +1,10 @@
-import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
+import { prisma } from '@repo/database';
 import { type TechnicianListItem } from '@repo/shared';
+import {
+  isStrictLiveMode,
+  requireLiveDatabase,
+  rethrowIfStrictDatabaseError,
+} from '../lib/live-data';
 
 export type { TechnicianListItem };
 
@@ -171,18 +176,18 @@ const FALLBACK_TECHS: TechnicianListItem[] = [
 
 export class TechnicianService {
   public static async getOverviewStats(): Promise<{ total: number; active: number }> {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Database PostgreSQL diperlukan untuk statistik teknisi.')) {
       try {
         const techs = await prisma.user.findMany({
           where: { userType: 'TECHNICIAN' },
           select: { isActive: true },
         });
-        if (techs.length > 0) {
+        if (isStrictLiveMode() || techs.length > 0) {
           const active = techs.filter((t) => t.isActive).length;
-          return { total: techs.length, active: active || techs.length };
+          return { total: techs.length, active };
         }
       } catch (err) {
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal membaca statistik teknisi dari PostgreSQL.');
       }
     }
 
@@ -202,7 +207,7 @@ export class TechnicianService {
     search = '',
     cluster = 'Semua cluster',
   ): Promise<TechnicianListItem[]> {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Database PostgreSQL diperlukan untuk memuat daftar teknisi.')) {
       try {
         const techs = await prisma.user.findMany({
           where: { userType: 'TECHNICIAN' },
@@ -215,7 +220,7 @@ export class TechnicianService {
           orderBy: { fullName: 'asc' },
         });
 
-        if (techs.length > 0) {
+        if (isStrictLiveMode() || techs.length > 0) {
           const result: TechnicianListItem[] = techs.map((t) => {
             const activeTicketsCount = t.assignedTickets.filter(
               (ticket) => ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS',
@@ -224,8 +229,7 @@ export class TechnicianService {
               (ticket) => ticket.status === 'COMPLETED',
             ).length;
 
-            const clusterName =
-              t.assignedClusters.length > 0 ? t.assignedClusters[0] : 'Bandung Utara';
+            const clusterName = t.assignedClusters.length > 0 ? t.assignedClusters[0] : '-';
 
             return {
               id: t.id,
@@ -234,7 +238,7 @@ export class TechnicianService {
               fullName: t.fullName,
               vendorCompany: t.vendorCompany || null,
               telegramBound: Boolean(t.telegramChatId),
-              cluster: clusterName.includes('Bandung') ? clusterName : `Bandung ${clusterName}`,
+              cluster: clusterName,
               initials: getInitials(t.fullName),
               isActive: t.isActive,
               activeTicketsCount,
@@ -244,7 +248,9 @@ export class TechnicianService {
 
           let filtered = result;
           if (cluster && cluster !== 'Semua cluster') {
-            filtered = filtered.filter((t) => t.cluster.includes(cluster.replace('Bandung ', '')));
+            filtered = filtered.filter((t) =>
+              t.cluster.toLowerCase().includes(cluster.replace(/^Bandung\s+/i, '').toLowerCase()),
+            );
           }
           if (search.trim()) {
             const q = search.toLowerCase();
@@ -258,11 +264,7 @@ export class TechnicianService {
           return filtered;
         }
       } catch (err) {
-        markDatabaseUnavailable(err);
-        console.warn(
-          '[TechnicianService] DB listTechnicians failed, using fallback:',
-          (err as Error).message,
-        );
+        rethrowIfStrictDatabaseError(err, 'Gagal membaca daftar teknisi dari PostgreSQL.');
       }
     }
 
@@ -292,11 +294,15 @@ export class TechnicianService {
     reason?: string,
     actorId = 'superadmin',
   ) {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Database PostgreSQL diperlukan untuk mengubah status teknisi.')) {
       try {
         const user = await prisma.user.findFirst({
           where: {
-            OR: [{ username }, { fullName: { contains: username, mode: 'insensitive' } }],
+            OR: [
+              { id: username },
+              { username },
+              { fullName: { contains: username, mode: 'insensitive' } },
+            ],
           },
         });
 
@@ -333,7 +339,7 @@ export class TechnicianService {
             id: updated.id,
             username: updated.username,
             fullName: updated.fullName,
-            cluster: updated.assignedClusters[0] || 'Bandung Utara',
+            cluster: updated.assignedClusters[0] || '-',
             initials: getInitials(updated.fullName),
             isActive: updated.isActive,
             activeTicketsCount: 0,
@@ -341,12 +347,18 @@ export class TechnicianService {
             sessionStatus: !nextState ? ('REVOKED' as const) : ('NO_SESSION' as const),
           };
         }
+        if (isStrictLiveMode()) {
+          const notFound = new Error(`Teknisi ${username} tidak ditemukan`) as Error & {
+            statusCode?: number;
+          };
+          notFound.statusCode = 404;
+          throw notFound;
+        }
       } catch (err) {
-        markDatabaseUnavailable(err);
-        console.warn(
-          '[TechnicianService] DB toggle failed, fallback memory:',
-          (err as Error).message,
-        );
+        if ((err as Error).message.includes('tidak ditemukan')) {
+          throw err;
+        }
+        rethrowIfStrictDatabaseError(err, 'Gagal memperbarui status teknisi di PostgreSQL.');
       }
     }
 
@@ -382,7 +394,7 @@ export class TechnicianService {
     reason = 'Admin Force Logout (Sesi Dicabut)',
     actorId = 'usr-admin-01',
   ): Promise<TechnicianListItem> {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Database PostgreSQL diperlukan untuk mencabut sesi teknisi.')) {
       try {
         const user = await prisma.user.findFirst({
           where: {
@@ -424,7 +436,7 @@ export class TechnicianService {
             id: user.id,
             username: user.username,
             fullName: user.fullName,
-            cluster: user.assignedClusters[0] || 'Bandung Utara',
+            cluster: user.assignedClusters[0] || '-',
             initials: getInitials(user.fullName),
             isActive: user.isActive,
             activeTicketsCount: 0,
@@ -433,12 +445,18 @@ export class TechnicianService {
             lastActiveAt: 'Baru saja dicabut oleh Admin',
           };
         }
+        if (isStrictLiveMode()) {
+          const notFound = new Error(`Teknisi ${idOrUsername} tidak ditemukan`) as Error & {
+            statusCode?: number;
+          };
+          notFound.statusCode = 404;
+          throw notFound;
+        }
       } catch (err) {
-        markDatabaseUnavailable(err);
-        console.warn(
-          '[TechnicianService] DB forceLogout failed, fallback memory:',
-          (err as Error).message,
-        );
+        if ((err as Error).message.includes('tidak ditemukan')) {
+          throw err;
+        }
+        rethrowIfStrictDatabaseError(err, 'Gagal mencabut sesi teknisi di PostgreSQL.');
       }
     }
 

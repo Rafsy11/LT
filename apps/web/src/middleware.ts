@@ -197,7 +197,7 @@ export async function middleware(request: NextRequest) {
     const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7).trim() : cookieToken;
 
     if (!token) {
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NODE_ENV === 'production' || process.env.STRICT_LIVE_DATA !== 'false') {
         return NextResponse.json(
           {
             success: false,
@@ -209,7 +209,7 @@ export async function middleware(request: NextRequest) {
           { status: 401 },
         );
       }
-      // Dev mode: strip headers but allow through without auth
+      // Test harness mode (STRICT_LIVE_DATA=false): strip headers but allow through without auth
       const requestHeaders = stripSensitiveHeaders(request.headers);
       return NextResponse.next({ request: { headers: requestHeaders } });
     }
@@ -251,7 +251,7 @@ export async function middleware(request: NextRequest) {
         },
       });
     } catch {
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NODE_ENV === 'production' || process.env.STRICT_LIVE_DATA !== 'false') {
         return NextResponse.json(
           {
             success: false,

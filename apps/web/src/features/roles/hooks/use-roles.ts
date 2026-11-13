@@ -1,10 +1,14 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import type { AdminUserItem } from '@repo/shared';
 import { useAuth, useToast } from '@/providers';
-import { fetchWithCache, getCachedData, setCachedData } from '@/lib/query-cache';
+import { useClusterOptions } from '@/hooks/use-cluster-options';
+import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
+import { fetchWithCache, getCachedData, invalidateQueryCache, setCachedData } from '@/lib/query-cache';
 
 const ROLES_CACHE_KEY = '/api/v1/admin/roles';
+const USERS_CACHE_KEY = '/api/v1/admin/users';
 
 export interface RoleApiItem {
   id: string;
@@ -29,9 +33,39 @@ export interface UserAccessItem {
   username: string;
   role: string;
   cluster: string;
+  assignedClusters: string[];
+  vendorCompany?: string;
   isActive: boolean;
   lastActive: string;
   telegramChatId?: string | null;
+}
+
+function mapAdminUserToAccessItem(item: AdminUserItem): UserAccessItem {
+  const clusterLabel =
+    item.assignedClusters.length === 0 ? 'Global Scope' : item.assignedClusters.join(', ');
+  const formattedLastActive = item.lastActiveAt
+    ? new Date(item.lastActiveAt).toLocaleString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'Belum ada aktivitas';
+
+  return {
+    id: item.id,
+    nik: item.nik || undefined,
+    name: item.fullName,
+    email: item.vendorCompany ? `@${item.username} · ${item.vendorCompany}` : `@${item.username}`,
+    username: item.username,
+    role: item.role,
+    cluster: clusterLabel,
+    assignedClusters: item.assignedClusters,
+    vendorCompany: item.vendorCompany || undefined,
+    isActive: item.isActive,
+    lastActive: formattedLastActive,
+    telegramChatId: item.telegramChatId,
+  };
 }
 
 export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
@@ -101,158 +135,14 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   },
 ];
 
-export const INITIAL_FALLBACK_ROLES: RoleApiItem[] = [
-  {
-    id: 'role-super-admin',
-    name: 'Super Admin',
-    permissions: ['*'],
-    hierarchyLevel: 100,
-    _count: { users: 2 },
-  },
-  {
-    id: 'role-admin-ops',
-    name: 'Admin Operasional',
-    permissions: [
-      'customer:read',
-      'customer:update',
-      'network:read',
-      'network:update',
-      'ticket:read',
-      'ticket:create',
-      'tech:manage',
-      'ai:use',
-    ],
-    hierarchyLevel: 50,
-    _count: { users: 5 },
-  },
-  {
-    id: 'role-noc-mon',
-    name: 'NOC Monitoring',
-    permissions: ['customer:read', 'network:read', 'ticket:read'],
-    hierarchyLevel: 30,
-    _count: { users: 4 },
-  },
-  {
-    id: 'role-cs-support',
-    name: 'Customer Support',
-    permissions: ['customer:read', 'ticket:read', 'ticket:create'],
-    hierarchyLevel: 20,
-    _count: { users: 6 },
-  },
-  {
-    id: 'role-tech-field',
-    name: 'Teknisi Lapangan',
-    permissions: ['ticket:read'],
-    hierarchyLevel: 10,
-    _count: { users: 12 },
-  },
-];
-
-export const INITIAL_USERS: UserAccessItem[] = [
-  {
-    id: 'usr-1',
-    nik: '882040',
-    name: 'Budi Santoso',
-    email: 'budi.santoso@lintasarta.co.id',
-    username: 'superadmin',
-    role: 'Super Admin',
-    cluster: 'Global Scope',
-    isActive: true,
-    lastActive: 'Baru saja',
-    telegramChatId: null,
-  },
-  {
-    id: 'usr-2',
-    nik: '882041',
-    name: 'Aditya Saputra',
-    email: 'aditya.saputra@lintasarta.co.id',
-    username: 'aditya.noc',
-    role: 'Super Admin',
-    cluster: 'Global Scope',
-    isActive: true,
-    lastActive: '10 menit yang lalu',
-    telegramChatId: '7072749677',
-  },
-  {
-    id: 'usr-3',
-    nik: '882042',
-    name: 'Siti Aminah',
-    email: 'siti.aminah@lintasarta.co.id',
-    username: 'siti.ops',
-    role: 'Admin Operasional',
-    cluster: 'Bandung Utara (BDG-01)',
-    isActive: true,
-    lastActive: '25 menit yang lalu',
-    telegramChatId: null,
-  },
-  {
-    id: 'usr-4',
-    nik: '882043',
-    name: 'Ahmad Dahlan',
-    email: 'ahmad.dahlan@lintasarta.co.id',
-    username: 'ahmad.ops',
-    role: 'Admin Operasional',
-    cluster: 'Bandung Selatan (BDG-02)',
-    isActive: true,
-    lastActive: '1 jam yang lalu',
-    telegramChatId: null,
-  },
-  {
-    id: 'usr-5',
-    nik: '882044',
-    name: 'Rizky Ramadhan',
-    email: 'rizky.ramadhan@lintasarta.co.id',
-    username: 'rizky.noc',
-    role: 'NOC Monitoring',
-    cluster: 'Bandung Utara (BDG-01)',
-    isActive: true,
-    lastActive: '3 jam yang lalu',
-    telegramChatId: null,
-  },
-  {
-    id: 'usr-6',
-    nik: '882045',
-    name: 'Maya Putri',
-    email: 'maya.putri@lintasarta.co.id',
-    username: 'maya.cs',
-    role: 'Customer Support',
-    cluster: 'Bandung Utara (BDG-01)',
-    isActive: true,
-    lastActive: '4 jam yang lalu',
-    telegramChatId: null,
-  },
-  {
-    id: 'usr-7',
-    nik: '882046',
-    name: 'Andi Pratama',
-    email: 'andi.pratama@lintasarta.co.id',
-    username: 'andi.tech',
-    role: 'Teknisi Lapangan',
-    cluster: 'Bandung Utara (BDG-01)',
-    isActive: true,
-    lastActive: '5 jam yang lalu',
-    telegramChatId: null,
-  },
-  {
-    id: 'usr-8',
-    nik: '882047',
-    name: 'Bambang Wijaya',
-    email: 'bambang.wijaya@lintasarta.co.id',
-    username: 'bambang.tech',
-    role: 'Teknisi Lapangan',
-    cluster: 'Bandung Selatan (BDG-02)',
-    isActive: false,
-    lastActive: '1 hari yang lalu',
-    telegramChatId: null,
-  },
-];
-
 export function useRoles() {
   const [activeView, setActiveView] = useState<'users' | 'matrix'>('users');
   const [roleList, setRoleList] = useState<RoleApiItem[]>(
-    () => getCachedData<RoleApiItem[]>(ROLES_CACHE_KEY) ?? INITIAL_FALLBACK_ROLES,
+    () => getCachedData<RoleApiItem[]>(ROLES_CACHE_KEY) ?? [],
   );
-  const [userList, setUserList] = useState<UserAccessItem[]>(INITIAL_USERS);
+  const [userList, setUserList] = useState<UserAccessItem[]>(
+    () => getCachedData<UserAccessItem[]>(USERS_CACHE_KEY) ?? [],
+  );
   const [selectedRoleName, setSelectedRoleName] = useState('Admin Operasional');
   const [activePermissions, setActivePermissions] = useState<Set<string>>(new Set());
 
@@ -271,28 +161,58 @@ export function useRoles() {
 
   const { canEditRole, user } = useAuth();
   const { showSuccess, showError } = useToast();
+  const { clusters: clusterOptions } = useClusterOptions();
 
   const fetchRoles = useCallback(
     async (force = false) => {
       try {
-        if (!getCachedData<RoleApiItem[]>(ROLES_CACHE_KEY)) {
+        if (!getCachedData<RoleApiItem[]>(ROLES_CACHE_KEY) || !getCachedData<UserAccessItem[]>(USERS_CACHE_KEY)) {
           setIsFetching(true);
         }
-        const data = await fetchWithCache<RoleApiItem[]>(
-          ROLES_CACHE_KEY,
-          async () => {
-            const res = await fetch(ROLES_CACHE_KEY);
-            const json = await res.json();
-            if (!res.ok || !json.success || !Array.isArray(json.data)) {
-              throw new Error(json.error?.message || 'Gagal memuat daftar peran');
-            }
-            return json.data as RoleApiItem[];
-          },
-          { force },
-        );
-        if (data.length > 0) {
-          setRoleList(data);
-        }
+
+        const [rolesData, usersData] = await Promise.all([
+          fetchWithCache<RoleApiItem[]>(
+            ROLES_CACHE_KEY,
+            async () => {
+              const res = await fetch(ROLES_CACHE_KEY);
+              const json = await res.json().catch(() => null);
+              if (!res.ok || !json?.success || !Array.isArray(json.data)) {
+                const parsed = notifyApiResponseError(
+                  res.status,
+                  json,
+                  'Gagal memuat daftar peran RBAC',
+                  { category: 'database', source: ROLES_CACHE_KEY },
+                );
+                throw new Error(parsed.message);
+              }
+              clearServiceUnavailable('database');
+              return json.data as RoleApiItem[];
+            },
+            { force },
+          ),
+          fetchWithCache<UserAccessItem[]>(
+            USERS_CACHE_KEY,
+            async () => {
+              const res = await fetch(USERS_CACHE_KEY);
+              const json = await res.json().catch(() => null);
+              if (!res.ok || !json?.success || !Array.isArray(json.data)) {
+                const parsed = notifyApiResponseError(
+                  res.status,
+                  json,
+                  'Gagal memuat daftar pengguna dari PostgreSQL',
+                  { category: 'database', source: USERS_CACHE_KEY },
+                );
+                throw new Error(parsed.message);
+              }
+              clearServiceUnavailable('database');
+              return (json.data as AdminUserItem[]).map(mapAdminUserToAccessItem);
+            },
+            { force },
+          ),
+        ]);
+
+        setRoleList(rolesData);
+        setUserList(usersData);
       } catch (err) {
         showError(err);
       } finally {
@@ -303,7 +223,7 @@ export function useRoles() {
   );
 
   useEffect(() => {
-    fetchRoles();
+    void fetchRoles();
   }, [fetchRoles]);
 
   const selectedRole = useMemo(() => {
@@ -358,23 +278,22 @@ export function useRoles() {
       setIsLoading(true);
       const res = await fetch('/api/v1/admin/roles', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': user.id || 'superadmin',
-          'x-username': user.username || 'superadmin',
-          'x-user-role': user.roleName || 'Super Admin',
-          'x-user-type': user.userType || 'SUPER_ADMIN',
-          'x-hierarchy-level': String(user.hierarchyLevel || 100),
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           roleId: selectedRole.id,
           permissions: Array.from(activePermissions),
         }),
       });
 
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || 'Gagal menyimpan perubahan hak akses');
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        const parsed = notifyApiResponseError(
+          res.status,
+          json,
+          'Gagal menyimpan perubahan hak akses',
+          { category: 'database', source: ROLES_CACHE_KEY },
+        );
+        throw new Error(parsed.message);
       }
 
       setRoleList((prev) => {
@@ -395,25 +314,48 @@ export function useRoles() {
     }
   };
 
-  // Toggle user active status
-  const handleToggleUserStatus = (targetUser: UserAccessItem) => {
+  // Toggle user active status via PATCH /api/v1/admin/users/[id]
+  const handleToggleUserStatus = async (targetUser: UserAccessItem) => {
     if (actionInProgress) return;
     setActionInProgress(targetUser.id);
 
     const updatedStatus = !targetUser.isActive;
-    setUserList((prev) =>
-      prev.map((u) => (u.id === targetUser.id ? { ...u, isActive: updatedStatus } : u)),
-    );
+    try {
+      const res = await fetch(`/api/v1/admin/users/${encodeURIComponent(targetUser.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: updatedStatus }),
+      });
 
-    setTimeout(() => {
-      setActionInProgress(null);
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success || !json.data) {
+        const parsed = notifyApiResponseError(
+          res.status,
+          json,
+          'Gagal memperbarui status akun pengguna',
+          { category: 'database', source: USERS_CACHE_KEY },
+        );
+        throw new Error(parsed.message);
+      }
+
+      const mapped = mapAdminUserToAccessItem(json.data as AdminUserItem);
+      setUserList((prev) => {
+        const next = prev.map((u) => (u.id === targetUser.id ? mapped : u));
+        setCachedData(USERS_CACHE_KEY, next);
+        return next;
+      });
+      invalidateQueryCache('/api/v1/admin/technicians');
       showSuccess(
         `Akun ${targetUser.name} berhasil ${updatedStatus ? 'diaktifkan' : 'dinonaktifkan'}.`,
       );
-    }, 300);
+    } catch (err: unknown) {
+      showError(err instanceof Error ? err.message : 'Gagal memperbarui status akun');
+    } finally {
+      setActionInProgress(null);
+    }
   };
 
-  // Reassign user role
+  // Reassign user role via PATCH /api/v1/admin/users/[id]
   const handleReassignUserRole = async () => {
     if (!editingUser || !targetRoleId) return;
 
@@ -422,31 +364,30 @@ export function useRoles() {
 
     try {
       setIsLoading(true);
-      const res = await fetch('/api/v1/admin/roles', {
+      const res = await fetch(`/api/v1/admin/users/${encodeURIComponent(editingUser.id)}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': user.id || 'superadmin',
-          'x-username': user.username || 'superadmin',
-          'x-user-role': user.roleName || 'Super Admin',
-          'x-user-type': user.userType || 'SUPER_ADMIN',
-          'x-hierarchy-level': String(user.hierarchyLevel || 100),
-        },
-        body: JSON.stringify({
-          targetUserId: editingUser.id,
-          newRoleId: chosenRole.id,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roleName: chosenRole.name }),
       });
 
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || 'Gagal mengubah peran pengguna');
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success || !json.data) {
+        const parsed = notifyApiResponseError(
+          res.status,
+          json,
+          'Gagal mengubah peran pengguna',
+          { category: 'database', source: USERS_CACHE_KEY },
+        );
+        throw new Error(parsed.message);
       }
 
-      setUserList((prev) =>
-        prev.map((u) => (u.id === editingUser.id ? { ...u, role: chosenRole.name } : u)),
-      );
-
+      const mapped = mapAdminUserToAccessItem(json.data as AdminUserItem);
+      setUserList((prev) => {
+        const next = prev.map((u) => (u.id === editingUser.id ? mapped : u));
+        setCachedData(USERS_CACHE_KEY, next);
+        return next;
+      });
+      invalidateQueryCache(ROLES_CACHE_KEY, '/api/v1/admin/technicians');
       showSuccess(`Peran ${editingUser.name} berhasil diubah menjadi ${chosenRole.name}.`);
       setEditingUser(null);
     } catch (err: unknown) {
@@ -465,24 +406,36 @@ export function useRoles() {
 
   // Filtered users
   const filteredUsers = useMemo(() => {
+    const selectedClusterOpt = clusterOptions.find(
+      (c) => c.clusterCode === clusterFilter || c.name === clusterFilter,
+    );
+
     return userList.filter((u) => {
+      const q = searchQuery.trim().toLowerCase();
       const matchesSearch =
-        searchQuery.trim() === '' ||
-        (u.nik && u.nik.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.username.toLowerCase().includes(searchQuery.toLowerCase());
+        q === '' ||
+        (u.nik && u.nik.toLowerCase().includes(q)) ||
+        u.name.toLowerCase().includes(q) ||
+        u.username.toLowerCase().includes(q) ||
+        (u.vendorCompany && u.vendorCompany.toLowerCase().includes(q)) ||
+        u.cluster.toLowerCase().includes(q);
 
       const matchesRole = roleFilter === 'Semua Peran' || u.role === roleFilter;
 
       const matchesCluster =
         clusterFilter === 'Semua Wilayah' ||
-        (clusterFilter === 'Global Scope' && u.cluster.includes('Global')) ||
-        u.cluster.includes(clusterFilter);
+        (clusterFilter === 'Global Scope' && u.assignedClusters.length === 0) ||
+        u.assignedClusters.some(
+          (assigned) =>
+            assigned === clusterFilter ||
+            (selectedClusterOpt &&
+              (assigned === selectedClusterOpt.clusterCode ||
+                assigned === selectedClusterOpt.name)),
+        );
 
       return matchesSearch && matchesRole && matchesCluster;
     });
-  }, [userList, searchQuery, roleFilter, clusterFilter]);
+  }, [userList, searchQuery, roleFilter, clusterFilter, clusterOptions]);
 
   // Grouped permissions by category
   const categories = useMemo(() => {
@@ -541,43 +494,91 @@ export function useRoles() {
   const totalRolesCount = roleList.length;
 
   const handleAddUser = useCallback(
-    (newUserData: {
+    async (newUserData: {
       name: string;
       nik: string;
       username: string;
-      email: string;
       role: string;
       cluster: string;
+      vendorCompany?: string;
+      password?: string;
     }) => {
-      const newUser: UserAccessItem = {
-        id: `usr-${Date.now()}`,
-        nik: newUserData.nik.trim(),
-        name: newUserData.name.trim(),
-        username: newUserData.username.trim(),
-        email: newUserData.email.trim(),
-        role: newUserData.role,
-        cluster: newUserData.cluster,
-        isActive: true,
-        lastActive: 'Baru ditambahkan',
-        telegramChatId: null,
-      };
+      const assignedClusters =
+        newUserData.cluster && newUserData.cluster !== 'Global Scope'
+          ? [newUserData.cluster]
+          : [];
 
-      setUserList((prev) => [newUser, ...prev]);
-      showSuccess(`Pengguna baru ${newUser.name} (NIK: ${newUser.nik}) berhasil didaftarkan.`);
+      const res = await fetch('/api/v1/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: newUserData.name.trim(),
+          nik: newUserData.nik.trim(),
+          username: newUserData.username.trim().toLowerCase(),
+          roleName: newUserData.role,
+          vendorCompany: newUserData.vendorCompany?.trim() || undefined,
+          password: newUserData.password?.trim() || undefined,
+          assignedClusters,
+        }),
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success || !json.data) {
+        const parsed = notifyApiResponseError(
+          res.status,
+          json,
+          'Gagal mendaftarkan pengguna baru ke PostgreSQL',
+          { category: 'database', source: USERS_CACHE_KEY },
+        );
+        throw new Error(parsed.message);
+      }
+
+      const mapped = mapAdminUserToAccessItem(json.data as AdminUserItem);
+      setUserList((prev) => {
+        const next = [mapped, ...prev];
+        setCachedData(USERS_CACHE_KEY, next);
+        return next;
+      });
+      invalidateQueryCache(ROLES_CACHE_KEY, '/api/v1/admin/technicians');
+      showSuccess(`Pengguna baru ${mapped.name} (NIK: ${mapped.nik || '-'}) berhasil disimpan ke PostgreSQL.`);
     },
     [showSuccess],
   );
 
   const handleUnlinkTelegram = useCallback(
     async (targetUser: UserAccessItem) => {
-      setUserList((prev) =>
-        prev.map((u) => (u.id === targetUser.id ? { ...u, telegramChatId: null } : u)),
-      );
-      showSuccess(
-        `Ikatan Telegram 2FA untuk ${targetUser.name} (NIK: ${targetUser.nik || '-'}) berhasil dilepas.`,
-      );
+      try {
+        const res = await fetch(`/api/v1/admin/users/${encodeURIComponent(targetUser.id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ unlinkTelegram: true }),
+        });
+
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.success || !json.data) {
+          const parsed = notifyApiResponseError(
+            res.status,
+            json,
+            'Gagal melepas ikatan Telegram 2FA',
+            { category: 'database', source: USERS_CACHE_KEY },
+          );
+          throw new Error(parsed.message);
+        }
+
+        const mapped = mapAdminUserToAccessItem(json.data as AdminUserItem);
+        setUserList((prev) => {
+          const next = prev.map((u) => (u.id === targetUser.id ? mapped : u));
+          setCachedData(USERS_CACHE_KEY, next);
+          return next;
+        });
+        showSuccess(
+          `Ikatan Telegram 2FA untuk ${targetUser.name} (NIK: ${targetUser.nik || '-'}) berhasil dilepas.`,
+        );
+      } catch (err: unknown) {
+        showError(err instanceof Error ? err.message : 'Gagal melepas ikatan Telegram');
+      }
     },
-    [showSuccess],
+    [showError, showSuccess],
   );
 
   return {
@@ -585,6 +586,7 @@ export function useRoles() {
     setActiveView,
     roleList,
     userList,
+    clusterOptions,
     activeUsersCount,
     telegramLinkedCount,
     totalRolesCount,

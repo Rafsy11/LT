@@ -1,6 +1,7 @@
 import React from 'react';
 import { TelemetryStreamSkeletonRows } from '@/components/ui/PageSkeleton';
 import { SearchInput } from '@/components/ui/search-input';
+import { useClusterOptions } from '@/hooks/use-cluster-options';
 import { classifyDbm, dbmTone } from '@repo/shared';
 import type { LiveReportItem } from '../hooks/use-monitoring';
 
@@ -55,6 +56,8 @@ export function TelemetryStreamPanel({
   formatTimestamp,
   lastHeartbeat,
 }: TelemetryStreamPanelProps) {
+  const { clusters } = useClusterOptions();
+
   return (
     <section className="noc-stream-panel" aria-label="Aliran Telemetri Real-Time">
       <h2 className="sr-only">Aliran Telemetri Real-Time</h2>
@@ -77,12 +80,11 @@ export function TelemetryStreamPanel({
               aria-label="Filter Cluster"
             >
               <option value="Semua cluster">Semua Cluster</option>
-              <option value="Bandung Utara">Bandung Utara</option>
-              <option value="Bandung Timur">Bandung Timur</option>
-              <option value="Bandung Barat">Bandung Barat</option>
-              <option value="Bandung Selatan">Bandung Selatan</option>
-              <option value="Cimahi">Cimahi</option>
-              <option value="Rancaekek">Rancaekek</option>
+              {clusters.map((item) => (
+                <option key={item.id} value={item.name}>
+                  {item.name} ({item.clusterCode})
+                </option>
+              ))}
             </select>
 
             <select
@@ -232,8 +234,8 @@ export function TelemetryStreamPanel({
                 {/* Network: Splitter & Port */}
                 <div className="col-network">
                   <div className="col-network-odp">
-                    <span>{report.splitterCode || 'ODP-BDG-01'}</span>
-                    <span className="port-tag">P{report.portNumber || 1}</span>
+                    <span>{report.splitterCode || '—'}</span>
+                    {report.portNumber ? <span className="port-tag">P{report.portNumber}</span> : null}
                   </div>
                   <div className="col-network-cluster">{report.cluster}</div>
                 </div>

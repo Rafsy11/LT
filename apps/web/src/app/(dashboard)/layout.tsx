@@ -5,7 +5,9 @@ import { usePathname } from 'next/navigation';
 import type { DbTicket } from '@repo/shared';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header, type HeaderNotificationItem } from '@/components/layout/Header';
+import { ConnectionBanner } from '@/components/ui/connection-banner';
 import { AiChatWidget } from '@/features/ai';
+import { notifyApiResponseError } from '@/lib/api-error';
 import {
   fetchWithCache,
   getCachedData,
@@ -125,13 +127,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         activeCacheKey,
         async () => {
           const res = await fetch(activeCacheKey);
-          const json = await res.json();
+          const json = await res.json().catch(() => null);
           if (isVendorScope) {
+            if (!res.ok || !json?.success) {
+              const parsed = notifyApiResponseError(
+                res.status,
+                json,
+                'Gagal memuat daftar tiket vendor dari PostgreSQL.',
+                { category: 'database', source: activeCacheKey },
+              );
+              throw new Error(parsed.message);
+            }
             const list = Array.isArray(json?.data?.tickets) ? (json.data.tickets as DbTicket[]) : [];
             return list;
           }
-          if (!res.ok || !json.success || !Array.isArray(json.data)) {
-            throw new Error(json.error?.message || 'Gagal memuat daftar tiket');
+          if (!res.ok || !json?.success || !Array.isArray(json.data)) {
+            const parsed = notifyApiResponseError(
+              res.status,
+              json,
+              'Gagal memuat daftar tiket dari PostgreSQL.',
+              { category: 'database', source: activeCacheKey },
+            );
+            throw new Error(parsed.message);
           }
           return json.data as DbTicket[];
         },
@@ -398,6 +415,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onMarkAllRead={handleMarkAllRead}
           onMarkNotificationRead={handleMarkNotificationRead}
         />
+        <ConnectionBanner />
         {children}
         <footer>
           <span>

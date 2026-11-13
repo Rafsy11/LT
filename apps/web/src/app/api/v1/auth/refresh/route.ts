@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/server/services/auth.service';
+import { ServiceUnavailableError } from '@/server/lib/live-data';
 import { refreshTokenRequestSchema, ERROR_CODES } from '@repo/shared';
 
 export async function POST(request: NextRequest) {
@@ -17,6 +18,19 @@ export async function POST(request: NextRequest) {
       data: result,
     });
   } catch (error: unknown) {
+    if (error instanceof ServiceUnavailableError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message,
+          },
+        },
+        { status: 503 },
+      );
+    }
+
     const err = error as { name?: string; message?: string; errors?: unknown[] };
     const isValidation = err.name === 'ZodError';
     const isReuse = Boolean(err.message?.includes(ERROR_CODES.TOKEN_REUSE_DETECTED));

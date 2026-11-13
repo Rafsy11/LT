@@ -218,3 +218,71 @@ export interface DraftActionCardData {
   actionToken: string;
   payload: Record<string, unknown>;
 }
+
+export interface ClusterOptionItem {
+  id: string;
+  clusterCode: string;
+  name: string;
+  centerLat: number;
+  centerLng: number;
+  isActive: boolean;
+  splittersCount: number;
+}
+
+export interface OdpHistoryEntry {
+  id: string;
+  ticketNumber: string;
+  customerName: string;
+  siaNumber: string;
+  splitterCode: string;
+  portNumber: number;
+  actionType: 'PEMASANGAN' | 'MAINTENANCE' | 'PENARIKAN' | 'AUDIT';
+  oldAttenuation: number | null;
+  newAttenuation: number;
+  technicianName: string;
+  distanceToSplitterM: number | null;
+  isLocationFlagged: boolean;
+  notes?: string;
+  timestamp: string;
+}
+
+export interface NetworkAuditFinding {
+  id: string;
+  severity: 'critical' | 'warning' | 'info';
+  category: 'CAPACITY' | 'ATTENUATION' | 'DOUBLE_BOOKING' | 'GEOFENCE';
+  clusterCode: string;
+  splitterCode: string;
+  title: string;
+  description: string;
+}
+
+export interface NetworkAuditResult {
+  auditedAt: string;
+  totalClusters: number;
+  totalSplitters: number;
+  totalPorts: number;
+  usedPorts: number;
+  warningSplitters: number;
+  criticalAttenuationCount: number;
+  doubleBookedPorts: number;
+  geofenceAnomalies: number;
+  findings: NetworkAuditFinding[];
+}
+
+export interface AdminUserItem {
+  id: string;
+  nik: string | null;
+  username: string;
+  fullName: string;
+  vendorCompany?: string | null;
+  role: string;
+  roleId: string;
+  userType: UserTypeEnum;
+  hierarchyLevel: number;
+  assignedClusters: string[];
+  isActive: boolean;
+  twoFactorEnabled: boolean;
+  telegramChatId: string | null;
+  lastActiveAt: string | null;
+  createdAt: string;
+}

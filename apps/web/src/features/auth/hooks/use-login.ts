@@ -5,23 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ERROR_CODES, UserTypeEnum } from '@repo/shared';
 import { useAuth, useToast } from '@/providers';
 
-export type DemoAccountRole = 'SUPER_ADMIN' | 'ADMIN' | 'TECHNICIAN';
 export type OtpDeliveryStatus = 'IDLE' | 'SENT';
-
-const DEMO_CREDENTIALS: Record<DemoAccountRole, { username: string; password: string }> = {
-  SUPER_ADMIN: {
-    username: 'superadmin',
-    password: 'password123',
-  },
-  ADMIN: {
-    username: 'admin.noc',
-    password: 'password123',
-  },
-  TECHNICIAN: {
-    username: 'tech.andi',
-    password: 'password123',
-  },
-};
 
 export function useLogin() {
   const router = useRouter();
@@ -111,17 +95,6 @@ export function useLogin() {
   const setOtpCode = useCallback((raw: string) => {
     const digitsOnly = raw.replace(/\D/g, '').slice(0, 6);
     setOtpCodeState(digitsOnly);
-  }, []);
-
-  const fillDemoAccount = useCallback((role: DemoAccountRole) => {
-    const account = DEMO_CREDENTIALS[role];
-    setUsernameState(account.username);
-    setPasswordState(account.password);
-    setPreAuthToken(null);
-    setOtpCodeState('');
-    setDeliveryStatus('IDLE');
-    setErrorMessage(null);
-    setErrorCode(null);
   }, []);
 
   const completeWebSession = useCallback(
@@ -276,6 +249,15 @@ export function useLogin() {
         setErrorMessage(
           json?.error?.message ||
             'Akses ditolak: Akun dinonaktifkan atau tidak memiliki izin akses Web NOC.',
+        );
+        return null;
+      }
+
+      if (res.status === 503 || json?.error?.code === ERROR_CODES.SERVICE_UNAVAILABLE) {
+        setErrorCode(ERROR_CODES.SERVICE_UNAVAILABLE);
+        setErrorMessage(
+          json?.error?.message ||
+            'Koneksi database PostgreSQL atau layanan autentikasi sedang tidak tersedia (HTTP 503).',
         );
         return null;
       }
@@ -435,7 +417,6 @@ export function useLogin() {
     errorMessage,
     errorCode,
     rateLimitSeconds,
-    fillDemoAccount,
     requestOtpCode,
     handleSubmit,
   };

@@ -1762,3 +1762,109 @@ main {
     right: -4px;
   }
 }
+
+.connection-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  background: var(--color-critical-bg);
+  border: 1px solid var(--color-critical-border);
+  border-radius: var(--radius-card, 8px);
+  color: var(--color-critical-body);
+}
+
+.connection-banner-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-critical-text);
+}
+
+.connection-banner-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.connection-banner-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-critical-text);
+}
+
+.connection-banner-message {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-critical-body);
+}
+
+.connection-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.connection-banner-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-critical-border);
+  border-radius: var(--radius-control, 6px);
+  background: var(--color-surface-card);
+  color: var(--color-critical-text);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.connection-banner-retry:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.connection-banner-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control, 6px);
+  background: transparent;
+  color: var(--color-critical-text);
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .connection-banner-retry:hover:not(:disabled) {
+    border-color: var(--color-critical-text);
+  }
+
+  .connection-banner-dismiss:hover {
+    background: var(--color-surface-card);
+    border-color: var(--color-critical-border);
+  }
+}
+
+@media (max-width: 767px) {
+  .connection-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .connection-banner-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

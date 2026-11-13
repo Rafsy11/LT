@@ -269,3 +269,29 @@ model ClientErrorLog {
   @@index([createdAt])
   @@map("client_error_logs")
 }
+
+// 11. SYSTEM CONFIGURATION & BACKUP SNAPSHOTS
+model SystemConfig {
+  key       String   @id
+  value     Json
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("system_configs")
+}
+
+model BackupRecord {
+  id             String   @id @default(uuid())
+  filename       String
+  sizeMb         Float    @map("size_mb")
+  target         String
+  sha256Checksum String   @map("sha256_checksum")
+  photosCount    Int      @default(0) @map("photos_count")
+  status         String
+  objectKey      String?  @map("object_key")
+  createdBy      String?  @map("created_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("backup_records")
+}

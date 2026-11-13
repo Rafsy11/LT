@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { DbTicketPendingSubmission, SubmitTicketInput } from '@repo/shared';
+import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
 import { useToast } from '@/providers';
 import {
   fetchWithCache,
@@ -85,10 +86,17 @@ export function useVendorTickets() {
         const res = await fetch(TECH_TICKETS_ENDPOINT, {
           cache: force ? 'no-store' : 'default',
         });
-        const json = await res.json();
-        if (!res.ok || !json.success) {
-          throw new Error(json.error?.message || 'Gagal memuat daftar tugas vendor');
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.success) {
+          const parsed = notifyApiResponseError(
+            res.status,
+            json,
+            'Gagal memuat daftar tugas vendor',
+            { category: 'database', source: TECH_TICKETS_ENDPOINT },
+          );
+          throw new Error(parsed.message);
         }
+        clearServiceUnavailable('database');
 
         const nextTickets = Array.isArray(json.data?.tickets)
           ? (json.data.tickets as VendorTicketDto[])
@@ -114,10 +122,17 @@ export function useVendorTickets() {
       TECH_TICKETS_ENDPOINT,
       async () => {
         const res = await fetch(TECH_TICKETS_ENDPOINT);
-        const json = await res.json();
-        if (!res.ok || !json.success) {
-          throw new Error(json.error?.message || 'Gagal memuat tugas vendor');
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.success) {
+          const parsed = notifyApiResponseError(
+            res.status,
+            json,
+            'Gagal memuat tugas vendor',
+            { category: 'database', source: TECH_TICKETS_ENDPOINT },
+          );
+          throw new Error(parsed.message);
         }
+        clearServiceUnavailable('database');
         if (Array.isArray(json.data?.splitters)) {
           setSplitters(json.data.splitters as VendorSplitterDto[]);
         }
@@ -176,9 +191,15 @@ export function useVendorTickets() {
             checkInLng,
           }),
         });
-        const json = await res.json();
-        if (!res.ok || !json.success) {
-          throw new Error(json.error?.message || 'Gagal memulai pengerjaan di lokasi');
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.success) {
+          const parsed = notifyApiResponseError(
+            res.status,
+            json,
+            'Gagal memulai pengerjaan di lokasi',
+            { category: 'database', source: `/api/v1/tech/tickets/${ticket.id}/start` },
+          );
+          throw new Error(parsed.message);
         }
 
         showSuccess(
@@ -203,9 +224,15 @@ export function useVendorTickets() {
       method: 'POST',
       body: formData,
     });
-    const json = await res.json();
-    if (!res.ok || !json.success || !json.data?.photoObjectKey) {
-      throw new Error(json.error?.message || 'Gagal mengunggah foto OPM');
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.success || !json.data?.photoObjectKey) {
+      const parsed = notifyApiResponseError(
+        res.status,
+        json,
+        'Gagal mengunggah foto OPM',
+        { category: 'service', source: `/api/v1/tech/tickets/${ticketId}/upload` },
+      );
+      throw new Error(parsed.message);
     }
     return String(json.data.photoObjectKey);
   }, []);
@@ -220,9 +247,15 @@ export function useVendorTickets() {
         },
         body: JSON.stringify({ ...payload, channel: 'WEB' }),
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || 'Gagal mengirim laporan ke Pusat Lintasarta');
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        const parsed = notifyApiResponseError(
+          res.status,
+          json,
+          'Gagal mengirim laporan ke Pusat Lintasarta',
+          { category: 'database', source: `/api/v1/tech/tickets/${ticketId}/submit` },
+        );
+        throw new Error(parsed.message);
       }
 
       showSuccess(

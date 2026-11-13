@@ -4,43 +4,29 @@ import React, { useState, useEffect } from 'react';
 import type { CreateCustomerInput } from '@repo/shared';
 import { Icon } from '@/components/ui/Icon';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
+import { useClusterOptions } from '@/hooks/use-cluster-options';
+import { notifyApiResponseError } from '@/lib/api-error';
 import { useToast } from '@/providers';
 
 export interface CustomerFormModalProps {
   isOpen: boolean;
-  clusterOptions: string[];
   onClose: () => void;
   onCreated: () => Promise<void> | void;
 }
 
-const DEFAULT_CLUSTER_CODES: Record<string, string> = {
-  'Bandung Utara': 'BDG-01',
-  'Bandung Tengah': 'BDG-02',
-  'Bandung Selatan': 'BDG-03',
-  'Bandung Timur': 'BDG-04',
-  Cimahi: 'BDG-05',
-};
-
-function inferClusterCode(label: string): string {
-  if (/^[A-Z0-9-]+$/.test(label.trim())) {
-    return label.trim();
-  }
-  return DEFAULT_CLUSTER_CODES[label] || 'BDG-01';
-}
-
 export function CustomerFormModal({
   isOpen,
-  clusterOptions,
   onClose,
   onCreated,
 }: CustomerFormModalProps) {
   const { showSuccess, showError } = useToast();
+  const { clusters: dbClusters } = useClusterOptions();
   const [submitting, setSubmitting] = useState(false);
 
   const [siaNumber, setSiaNumber] = useState('');
   const [fullName, setFullName] = useState('');
   const [address, setAddress] = useState('');
-  const [clusterCode, setClusterCode] = useState('BDG-01');
+  const [clusterCode, setClusterCode] = useState('');
   const [splitterCode, setSplitterCode] = useState('');
   const [portNumber, setPortNumber] = useState('');
   const [status, setStatus] = useState<'PENDING_INSTALL' | 'ACTIVE'>('PENDING_INSTALL');
@@ -50,27 +36,27 @@ export function CustomerFormModal({
     setSiaNumber('');
     setFullName('');
     setAddress('');
-    setClusterCode('BDG-01');
+    setClusterCode('');
     setSplitterCode('');
     setPortNumber('');
     setStatus('PENDING_INSTALL');
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen || clusterCode || dbClusters.length === 0) return;
+    setClusterCode(dbClusters[0].clusterCode);
+  }, [isOpen, clusterCode, dbClusters]);
 
-  const selectableClusterCodes = Array.from(
-    new Set([
-      ...Object.values(DEFAULT_CLUSTER_CODES),
-      ...clusterOptions
-        .filter((c) => c !== 'Semua cluster')
-        .map((c) => inferClusterCode(c)),
-    ]),
-  );
+  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setSubmitting(true);
+      if (!clusterCode.trim()) {
+        throw new Error('Pilih cluster jaringan terlebih dahulu.');
+      }
+
       const parsedPort = portNumber.trim() ? Number.parseInt(portNumber.trim(), 10) : undefined;
       if (parsedPort !== undefined && (Number.isNaN(parsedPort) || parsedPort < 1 || parsedPort > 32)) {
         throw new Error('Nomor port splitter harus antara 1 hingga 32.');
@@ -91,12 +77,18 @@ export function CustomerFormModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const json = (await res.json()) as {
+      const json = (await res.json().catch(() => null)) as {
         success?: boolean;
-        error?: { message?: string };
-      };
-      if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || 'Gagal mendaftarkan pelanggan baru');
+        error?: { code?: string; message?: string };
+      } | null;
+      if (!res.ok || !json?.success) {
+        const parsed = notifyApiResponseError(
+          res.status,
+          json,
+          'Gagal mendaftarkan pelanggan baru',
+          { category: 'database', source: '/api/v1/admin/customers' },
+        );
+        throw new Error(parsed.message);
       }
 
       showSuccess(`Pelanggan ${payload.fullName} (${payload.siaNumber}) berhasil didaftarkan.`);
@@ -189,12 +181,18 @@ export function CustomerFormModal({
                 <select
                   value={clusterCode}
                   onChange={(e) => setClusterCode(e.target.value)}
+                  required
+                  disabled={submitting || dbClusters.length === 0}
                 >
-                  {selectableClusterCodes.map((code) => (
-                    <option key={code} value={code}>
-                      {code}
-                    </option>
-                  ))}
+                  {dbClusters.length === 0 ? (
+                    <option value="">Memuat daftar cluster...</option>
+                  ) : (
+                    dbClusters.map((item) => (
+                      <option key={item.id} value={item.clusterCode}>
+                        {item.clusterCode} — {item.name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </label>
 
@@ -202,7 +200,7 @@ export function CustomerFormModal({
                 <span>Kode ODP (Opsional)</span>
                 <input
                   type="text"
-                  placeholder="ODP-BDG-01"
+                  placeholder="ODP-SPL-01"
                   value={splitterCode}
                   onChange={(e) => setSplitterCode(e.target.value)}
                 />

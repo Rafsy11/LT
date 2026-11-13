@@ -39,8 +39,11 @@ export function NetworkView() {
     setSelectedCustomerForModal,
     historyTypeFilter,
     setHistoryTypeFilter,
+    historyLoading,
     auditRunning,
+    auditResult,
     auditTimestamp,
+    clusterOptions,
     ticketModalOpen,
     setTicketModalOpen,
     ticketModalInitial,
@@ -264,7 +267,9 @@ export function NetworkView() {
                   historyTypeFilter={historyTypeFilter}
                   setHistoryTypeFilter={setHistoryTypeFilter}
                   odpHistoryLogs={odpHistoryLogs}
+                  historyLoading={historyLoading}
                   auditRunning={auditRunning}
+                  auditResult={auditResult}
                   auditTimestamp={auditTimestamp}
                   handleRunAudit={handleRunAudit}
                   showSuccess={showSuccess}
@@ -301,10 +306,14 @@ export function NetworkView() {
       <NetworkEntityModal
         isOpen={entityModalOpen}
         mode={entityModalMode}
-        clusters={clusterGroups.map((g) => ({
-          clusterCode: g.clusterCode,
-          name: g.name,
-        }))}
+        clusters={
+          clusterOptions.length > 0
+            ? clusterOptions.map((c) => ({ clusterCode: c.clusterCode, name: c.name }))
+            : clusterGroups.map((g) => ({
+                clusterCode: g.clusterCode,
+                name: g.name,
+              }))
+        }
         initialSplitter={
           activeSplitter
             ? {

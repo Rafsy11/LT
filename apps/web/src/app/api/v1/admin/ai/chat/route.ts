@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AiService } from '@/server/services/ai.service';
-import { requireAdminActor, handleAdminRouteError } from '@/server/lib/admin-auth';
+import {
+  requireAdminActor,
+  getActorPermissions,
+  handleAdminRouteError,
+} from '@/server/lib/admin-auth';
 import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
 import { ERROR_CODES, PERMISSIONS } from '@repo/shared';
 
@@ -45,7 +49,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await AiService.processChat(prompt, adminContext);
+    const permissions = await getActorPermissions(adminContext);
+    const response = await AiService.processChat(prompt, adminContext, permissions);
 
     return NextResponse.json({
       success: true,

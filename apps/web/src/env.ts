@@ -102,6 +102,12 @@ const envSchema = z.object({
 
   // Public Web URL
   NEXT_PUBLIC_APP_URL: z.string().default('http://localhost:3000'),
+
+  // Strict live database/infrastructure enforcement (disables static mock fallbacks)
+  STRICT_LIVE_DATA: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((val) => val === 'true'),
 });
 
 export type Env = z.infer<typeof envSchema>;

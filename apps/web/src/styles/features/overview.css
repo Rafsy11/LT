@@ -94,8 +94,20 @@
   border-bottom: none;
 }
 
+.map-zoom-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.legend-active-node {
+  font-weight: 700;
+  color: var(--color-primary-dark, #0e5b92);
+  padding-left: 8px;
+  border-left: 1px solid var(--color-border, #dce7f0);
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .map-zoom-btn:hover {
+  .map-zoom-btn:hover:not(:disabled) {
     background: #f1f5f9;
     color: #0e5b92;
   }
@@ -490,6 +502,12 @@ html.dark .map-legend-pills,
 html.dark .legend-item,
 [data-theme='dark'] .legend-item {
   color: #94a3b8 !important;
+}
+
+html.dark .legend-active-node,
+[data-theme='dark'] .legend-active-node {
+  color: #7dd3fc !important;
+  border-left-color: #1e293b !important;
 }
 
 html.dark .feed-stream-item,

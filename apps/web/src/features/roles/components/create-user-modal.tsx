@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
+import { useClusterOptions } from '@/hooks/use-cluster-options';
 import { RoleApiItem } from '../hooks/use-roles';
 
 export interface CreateUserModalProps {
@@ -12,61 +13,76 @@ export interface CreateUserModalProps {
     name: string;
     nik: string;
     username: string;
-    email: string;
     role: string;
     cluster: string;
-  }) => void;
+    vendorCompany?: string;
+    password?: string;
+  }) => Promise<void>;
   roleList: RoleApiItem[];
 }
 
-const CLUSTERS = [
-  'Global Scope',
-  'Bandung Utara (BDG-01)',
-  'Bandung Selatan (BDG-02)',
-  'Bandung Timur (BDG-03)',
-  'Bandung Barat (BDG-04)',
-];
-
 export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateUserModalProps) {
+  const { clusters } = useClusterOptions();
   const [name, setName] = useState('');
   const [nik, setNik] = useState('');
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState(roleList[1]?.name || 'Admin Operasional');
-  const [cluster, setCluster] = useState(CLUSTERS[0]);
+  const [vendorCompany, setVendorCompany] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState(roleList[1]?.name || roleList[0]?.name || 'Admin Operasional');
+  const [cluster, setCluster] = useState('Global Scope');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (roleList.length > 0 && !roleList.some((r) => r.name === role)) {
+      setRole(roleList[1]?.name || roleList[0].name);
+    }
+  }, [role, roleList]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setError('Nama lengkap wajib diisi');
       return;
     }
-    if (!nik.trim()) {
-      setError('Nomor Induk Karyawan (NIK) wajib diisi');
+    if (nik.trim().length < 3) {
+      setError('Nomor Induk Karyawan (NIK) minimal 3 karakter');
       return;
     }
-    if (!username.trim()) {
-      setError('Username wajib diisi');
+    if (!/^[a-z0-9._-]{3,50}$/.test(username.trim().toLowerCase())) {
+      setError('Username minimal 3 karakter (huruf kecil, angka, titik, _ atau -)');
       return;
     }
-    if (!email.trim() || !email.includes('@')) {
-      setError('Email perusahaan tidak valid');
+    if (password.trim() && password.trim().length < 8) {
+      setError('Kata sandi awal minimal 8 karakter (atau kosongkan untuk default sistem)');
       return;
     }
 
     setError(null);
-    onSubmit({
-      name: name.trim(),
-      nik: nik.trim(),
-      username: username.trim().toLowerCase(),
-      email: email.trim().toLowerCase(),
-      role,
-      cluster,
-    });
-    onClose();
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        name: name.trim(),
+        nik: nik.trim(),
+        username: username.trim().toLowerCase(),
+        role,
+        cluster,
+        vendorCompany: vendorCompany.trim() || undefined,
+        password: password.trim() || undefined,
+      });
+      setName('');
+      setNik('');
+      setUsername('');
+      setVendorCompany('');
+      setPassword('');
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Gagal menyimpan akun pengguna baru.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -196,30 +212,56 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
               </div>
             </div>
 
-            <div>
-              <label
-                htmlFor="add-user-email"
-                style={{ display: 'block', fontSize: '12px', fontWeight: 600, margin: '0 0 4px' }}
-              >
-                Email Korporat:
-              </label>
-              <input
-                id="add-user-email"
-                type="email"
-                required
-                placeholder="budi.hartono@lintasarta.co.id"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={{
-                  width: '100%',
-                  marginTop: 0,
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-border-subtle)',
-                  fontSize: '12.5px',
-                  boxSizing: 'border-box',
-                }}
-              />
+            <div className="modal-two-col-grid">
+              <div>
+                <label
+                  htmlFor="add-user-vendor"
+                  style={{ display: 'block', fontSize: '12px', fontWeight: 600, margin: '0 0 4px' }}
+                >
+                  Perusahaan Vendor (Opsional):
+                </label>
+                <input
+                  id="add-user-vendor"
+                  type="text"
+                  placeholder="Contoh: PT Mitra Fiber"
+                  value={vendorCompany}
+                  onChange={(e) => setVendorCompany(e.target.value)}
+                  style={{
+                    width: '100%',
+                    marginTop: 0,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border-subtle)',
+                    fontSize: '12.5px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="add-user-password"
+                  style={{ display: 'block', fontSize: '12px', fontWeight: 600, margin: '0 0 4px' }}
+                >
+                  Kata Sandi Awal (Opsional):
+                </label>
+                <input
+                  id="add-user-password"
+                  type="password"
+                  placeholder="Min. 8 karakter"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{
+                    width: '100%',
+                    marginTop: 0,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border-subtle)',
+                    fontSize: '12.5px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
             </div>
 
             <div className="modal-two-col-grid">
@@ -273,9 +315,10 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                     boxSizing: 'border-box',
                   }}
                 >
-                  {CLUSTERS.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
+                  <option value="Global Scope">Global Scope</option>
+                  {clusters.map((c) => (
+                    <option key={c.id} value={c.clusterCode}>
+                      {c.name} ({c.clusterCode})
                     </option>
                   ))}
                 </select>
@@ -318,6 +361,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
             </button>
             <button
               type="submit"
+              disabled={isSubmitting}
               className="button primary ui-btn-solid-primary"
               style={{
                 padding: '8px 18px',
@@ -325,10 +369,10 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                 fontSize: '12.5px',
                 fontWeight: 600,
                 border: 'none',
-                cursor: 'pointer',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
               }}
             >
-              Simpan Pengguna
+              {isSubmitting ? 'Menyimpan...' : 'Simpan Pengguna'}
             </button>
           </footer>
         </form>

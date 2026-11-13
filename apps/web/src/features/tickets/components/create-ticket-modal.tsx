@@ -7,6 +7,8 @@ import type {
   TechnicianListItem,
 } from '@repo/shared';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
+import { useClusterOptions } from '@/hooks/use-cluster-options';
+import { notifyApiResponseError } from '@/lib/api-error';
 import { useToast, useAuth } from '@/providers';
 import '@/styles/components/ticket-modal.css';
 
@@ -35,6 +37,7 @@ export function CreateTicketModal({
   const submittingRef = useRef(false);
   const { showSuccess, showError } = useToast();
   const { canCreateTicket } = useAuth();
+  const { clusters: clusterOptions } = useClusterOptions();
 
   const [customerMode, setCustomerMode] = useState<'EXISTING' | 'NEW'>('EXISTING');
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
@@ -45,7 +48,7 @@ export function CreateTicketModal({
   const [siaNumber, setSiaNumber] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [ticketType, setTicketType] = useState<'PSB' | 'MAINTENANCE'>('MAINTENANCE');
-  const [clusterCode, setClusterCode] = useState('Bandung Utara');
+  const [clusterCode, setClusterCode] = useState('');
   const [complaintSummary, setComplaintSummary] = useState('');
   const [locationPlace, setLocationPlace] = useState('');
   const [serviceAddress, setServiceAddress] = useState('');
@@ -64,7 +67,7 @@ export function CreateTicketModal({
     setSiaNumber(initialValues?.siaNumber || '');
     setCustomerPhone(initialValues?.customerPhone || '');
     setTicketType(initialValues?.ticketType || (initialValues?.siaNumber ? 'MAINTENANCE' : 'PSB'));
-    setClusterCode(initialValues?.clusterCode || 'Bandung Utara');
+    setClusterCode(initialValues?.clusterCode || '');
     setComplaintSummary(initialValues?.complaintSummary || '');
     setLocationPlace(initialValues?.locationPlace || '');
     setServiceAddress(initialValues?.serviceAddress || '');
@@ -82,10 +85,32 @@ export function CreateTicketModal({
 
     Promise.all([
       fetch('/api/v1/admin/customers')
-        .then((r) => r.json())
+        .then(async (r) => {
+          const json = await r.json().catch(() => null);
+          if (!r.ok) {
+            notifyApiResponseError(
+              r.status,
+              json,
+              'Gagal memuat daftar pelanggan.',
+              { category: 'database', source: '/api/v1/admin/customers' },
+            );
+          }
+          return json;
+        })
         .catch(() => null),
       fetch('/api/v1/admin/technicians')
-        .then((r) => r.json())
+        .then(async (r) => {
+          const json = await r.json().catch(() => null);
+          if (!r.ok) {
+            notifyApiResponseError(
+              r.status,
+              json,
+              'Gagal memuat daftar teknisi.',
+              { category: 'database', source: '/api/v1/admin/technicians' },
+            );
+          }
+          return json;
+        })
         .catch(() => null),
     ]).then(([custJson, techJson]) => {
       if (!active) return;
@@ -102,7 +127,7 @@ export function CreateTicketModal({
             setLookupMatchedSia(match.siaNumber);
             setCustomerMode('EXISTING');
             setCustomerName((prev) => prev || match.fullName);
-            setClusterCode(match.cluster || initialValues.clusterCode || 'Bandung Utara');
+            setClusterCode(match.cluster || initialValues.clusterCode || '');
             setServiceAddress((prev) => prev || match.address || '');
             if (match.lat !== null && match.lat !== undefined) {
               setTargetLat((prev) => prev || String(match.lat));
@@ -139,12 +164,17 @@ export function CreateTicketModal({
     };
   }, [isOpen, initialValues]);
 
+  useEffect(() => {
+    if (!isOpen || clusterCode || clusterOptions.length === 0) return;
+    setClusterCode(clusterOptions[0].name);
+  }, [isOpen, clusterCode, clusterOptions]);
+
   if (!isOpen) return null;
 
   const applyCustomerRecord = (cust: CustomerListItem) => {
     setSiaNumber(cust.siaNumber);
     setCustomerName(cust.fullName);
-    setClusterCode(cust.cluster || 'Bandung Utara');
+    setClusterCode(cust.cluster || clusterOptions[0]?.name || '');
     setServiceAddress(cust.address || '');
     setLocationPlace(cust.fullName);
     setTargetLat(cust.lat !== null && cust.lat !== undefined ? String(cust.lat) : '');
@@ -392,14 +422,25 @@ export function CreateTicketModal({
                 name="clusterCode"
                 value={clusterCode}
                 onChange={(e) => setClusterCode(e.target.value)}
+                required
                 disabled={!canCreateTicket || submitting}
               >
-                <option value="Bandung Utara">Bandung Utara (CL-01)</option>
-                <option value="Bandung Timur">Bandung Timur (CL-02)</option>
-                <option value="Bandung Barat">Bandung Barat (CL-03)</option>
-                <option value="Bandung Selatan">Bandung Selatan (CL-04)</option>
-                <option value="Cimahi">Cimahi (CMH-01)</option>
-                <option value="Rancaekek">Rancaekek (RCK-01)</option>
+                {clusterOptions.length === 0 ? (
+                  <option value={clusterCode}>
+                    {clusterCode || 'Memuat daftar cluster...'}
+                  </option>
+                ) : (
+                  <>
+                    {clusterCode && !clusterOptions.some((c) => c.name === clusterCode) && (
+                      <option value={clusterCode}>{clusterCode}</option>
+                    )}
+                    {clusterOptions.map((item) => (
+                      <option key={item.id} value={item.name}>
+                        {item.name} ({item.clusterCode})
+                      </option>
+                    ))}
+                  </>
+                )}
               </select>
             </label>
           </div>

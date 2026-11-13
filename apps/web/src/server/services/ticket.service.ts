@@ -1,5 +1,10 @@
-import { prisma, Prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
+import { prisma, Prisma } from '@repo/database';
 import { redisManager } from '../lib/redis';
+import {
+  isStrictLiveMode,
+  requireLiveDatabase,
+  rethrowIfStrictDatabaseError,
+} from '../lib/live-data';
 import {
   CreateTicketInput,
   DispatchTicketInput,
@@ -400,7 +405,7 @@ export class TicketService {
     params: Partial<TicketQuery> = {},
     userContext?: UserSessionContext,
   ): Promise<DbTicket[]> {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memuat tiket.')) {
       try {
         // Build Prisma where clause with cluster scoping (Law 4)
         const whereClause: Record<string, unknown> = {};
@@ -465,7 +470,7 @@ export class TicketService {
           skip: params.offset || 0,
         });
 
-        if (tickets.length > 0) {
+        if (isStrictLiveMode() || tickets.length > 0) {
           let mapped = tickets.map(mapDbTicketToDto);
           if (params.query) {
             const q = params.query.toLowerCase();
@@ -484,8 +489,7 @@ export class TicketService {
           return mapped;
         }
       } catch (err) {
-        markDatabaseUnavailable(err);
-        // In-memory fallback if database connection fails
+        rethrowIfStrictDatabaseError(err, 'Gagal membaca daftar tiket dari PostgreSQL.');
       }
     }
 
@@ -535,7 +539,7 @@ export class TicketService {
    * Retrieves single ticket by internal ID or ticketNumber.
    */
   public static async getTicketById(id: string): Promise<DbTicket> {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memuat detail tiket.')) {
       try {
         const ticket = await prisma.ticket.findFirst({
           where: {
@@ -555,8 +559,18 @@ export class TicketService {
         if (ticket) {
           return mapDbTicketToDto(ticket);
         }
+        if (isStrictLiveMode()) {
+          const notFound = new Error(`Tiket dengan ID ${id} tidak ditemukan`) as Error & {
+            statusCode?: number;
+          };
+          notFound.statusCode = 404;
+          throw notFound;
+        }
       } catch (err) {
-        markDatabaseUnavailable(err);
+        if ((err as Error).message.includes('tidak ditemukan')) {
+          throw err;
+        }
+        rethrowIfStrictDatabaseError(err, 'Gagal membaca detail tiket dari PostgreSQL.');
       }
     }
 
@@ -640,7 +654,7 @@ export class TicketService {
       createdAt: dispatchedIso,
     };
 
-    if (!matchedCust) {
+    if (!matchedCust && !isStrictLiveMode()) {
       CustomerService.ensureFallbackCustomer({
         siaNumber: input.siaNumber,
         fullName: input.customerName,
@@ -652,11 +666,13 @@ export class TicketService {
       });
     }
 
-    FALLBACK_TICKETS.unshift(newTicket);
+    if (!isStrictLiveMode()) {
+      FALLBACK_TICKETS.unshift(newTicket);
+    }
 
     let techTelegramChatId = techProfile.telegramChatId || null;
 
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk membuat tiket baru.')) {
       try {
         const created = await prisma.$transaction(async (tx) => {
           let dbCustomer = await tx.customer.findFirst({
@@ -765,7 +781,8 @@ export class TicketService {
           newTicket.id = created.id;
         }
       } catch (err) {
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal menyimpan tiket baru ke PostgreSQL.');
+        throw err;
       }
     }
 
@@ -821,9 +838,11 @@ export class TicketService {
       : null;
 
     let techTelegramChatId = techProfile?.telegramChatId || null;
-    const fallback = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
+    const fallback = !isStrictLiveMode()
+      ? FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId)
+      : undefined;
 
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk menugaskan tiket.')) {
       try {
         const updated = await prisma.$transaction(async (tx) => {
           const existing = await tx.ticket.findFirst({
@@ -916,10 +935,10 @@ export class TicketService {
           return dto;
         }
       } catch (err) {
-        if ((err as Error).message.includes(ERROR_CODES.TICKET_ALREADY_CLOSED)) {
+        if (err instanceof Error && err.message.includes(ERROR_CODES.TICKET_ALREADY_CLOSED)) {
           throw err;
         }
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal memperbarui dispatch tiket di PostgreSQL.');
       }
     }
 
@@ -961,7 +980,7 @@ export class TicketService {
     let resultDto: DbTicket | null = null;
     const now = new Date();
 
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memulai pengerjaan tiket.')) {
       try {
         const dbTicket = await prisma.ticket.findFirst({
           where: { OR: [{ id: ticketId }, { ticketNumber: ticketId }] },
@@ -1032,7 +1051,7 @@ export class TicketService {
         ) {
           throw err;
         }
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal memulai status tiket di PostgreSQL.');
       }
     }
 
@@ -1104,7 +1123,9 @@ export class TicketService {
     input: SubmitTicketInput,
     techContext?: { id?: string; username?: string },
   ) {
-    const dbAvailable = await isDatabaseAvailable();
+    const dbAvailable = await requireLiveDatabase(
+      'Koneksi database PostgreSQL diperlukan untuk mengirim laporan hasil lapangan.',
+    );
     let preliminaryTicket: {
       id: string;
       ticketNumber: string;
@@ -1138,25 +1159,27 @@ export class TicketService {
         if (errMsg.includes(ERROR_CODES.IDOR_VIOLATION)) {
           throw err;
         }
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal memverifikasi kepemilikan tiket di PostgreSQL.');
       }
     }
 
-    // In-memory fallback IDOR verification
-    const fallbackTicketCheck = FALLBACK_TICKETS.find(
-      (t) => t.id === ticketId || t.ticketNumber === ticketId,
-    );
-    if (fallbackTicketCheck && techContext?.username && fallbackTicketCheck.assignedTech) {
-      if (
-        !matchesTechIdentity(
-          fallbackTicketCheck.assignedTech,
-          fallbackTicketCheck.assignedTechUsername,
-          techContext.username,
-        )
-      ) {
-        throw new Error(
-          `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${fallbackTicketCheck.ticketNumber}.`,
-        );
+    // In-memory fallback IDOR verification (only when non-strict / offline mode)
+    if (!dbAvailable && !isStrictLiveMode()) {
+      const fallbackTicketCheck = FALLBACK_TICKETS.find(
+        (t) => t.id === ticketId || t.ticketNumber === ticketId,
+      );
+      if (fallbackTicketCheck && techContext?.username && fallbackTicketCheck.assignedTech) {
+        if (
+          !matchesTechIdentity(
+            fallbackTicketCheck.assignedTech,
+            fallbackTicketCheck.assignedTechUsername,
+            techContext.username,
+          )
+        ) {
+          throw new Error(
+            `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${fallbackTicketCheck.ticketNumber}.`,
+          );
+        }
       }
     }
 
@@ -1164,7 +1187,7 @@ export class TicketService {
     // 2. IDEMPOTENCY CHECK (Rule 2: Before Ticket Status Check with Cross-Ticket Guard)
     // ------------------------------------------------------------------
     let checkedDbIdempotency = false;
-    if (await isDatabaseAvailable()) {
+    if (dbAvailable) {
       try {
         const existingHistory = await prisma.attenuationHistory.findUnique({
           where: { submissionId: input.submissionId },
@@ -1207,7 +1230,7 @@ export class TicketService {
         if (dbErrMsg.includes(ERROR_CODES.IDOR_VIOLATION)) {
           throw dbErr;
         }
-        markDatabaseUnavailable(dbErr);
+        rethrowIfStrictDatabaseError(dbErr, 'Gagal memeriksa idempotency laporan di PostgreSQL.');
       }
     }
 
@@ -1245,7 +1268,7 @@ export class TicketService {
     // ------------------------------------------------------------------
     // 3. TICKET LIFECYCLE STATUS (Rule 3: Reject new submissions on closed tickets)
     // ------------------------------------------------------------------
-    if (await isDatabaseAvailable()) {
+    if (dbAvailable) {
       try {
         const statusCheckTicket = await prisma.ticket.findFirst({
           where: {
@@ -1269,7 +1292,7 @@ export class TicketService {
         ) {
           throw err;
         }
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal memverifikasi status siklus tiket di PostgreSQL.');
       }
     }
 
@@ -1291,7 +1314,7 @@ export class TicketService {
     let splitterCode = input.splitterId;
     let splitterResolvedFromDb = false;
 
-    if (await isDatabaseAvailable()) {
+    if (dbAvailable) {
       try {
         const targetSplitter = await prisma.networkSplitter.findFirst({
           where: {
@@ -1319,12 +1342,15 @@ export class TicketService {
           }
         }
       } catch (err) {
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal memverifikasi data ODP splitter di PostgreSQL.');
       }
     }
 
     if (!splitterResolvedFromDb) {
-      // In-memory fallback for splitter coordinates (Bandung default)
+      if (isStrictLiveMode()) {
+        throw new Error(`ODP Splitter ${input.splitterId} tidak ditemukan`);
+      }
+      // In-memory fallback for splitter coordinates (non-strict/test mode only)
       const fallbackSplitterLat = -6.914744;
       const fallbackSplitterLng = 107.60981;
       distanceMeters = calculateHaversineDistance(
@@ -1370,9 +1396,9 @@ export class TicketService {
       techFullName: fallbackTechProfile?.fullName || techContext?.username || 'Vendor Lapangan',
     };
 
-    let completedTicketResult: unknown = null;
+    let completedTicketResult: Parameters<typeof mapDbTicketToDto>[0] | null = null;
 
-    if (await isDatabaseAvailable()) {
+    if (dbAvailable) {
       try {
         completedTicketResult = await prisma.$transaction(async (tx) => {
           // 1. Fetch Ticket
@@ -1518,16 +1544,18 @@ export class TicketService {
           errMsg.includes('kapasitas ODP') ||
           errMsg.includes(ERROR_CODES.MOCK_LOCATION_DETECTED) ||
           errMsg.includes(ERROR_CODES.TICKET_ALREADY_CLOSED) ||
-          errMsg.includes(ERROR_CODES.IDOR_VIOLATION)
+          errMsg.includes(ERROR_CODES.IDOR_VIOLATION) ||
+          errMsg.includes('tidak ditemukan')
         ) {
           throw dbErr;
         }
-        markDatabaseUnavailable(dbErr);
-        console.warn('[TicketService] DB transaction failed, syncing in-memory store:', errMsg);
+        rethrowIfStrictDatabaseError(dbErr, 'Gagal menyimpan hasil submit teknisi ke PostgreSQL.');
       }
     }
 
-    const ticket = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
+    const ticket = !isStrictLiveMode()
+      ? FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId)
+      : undefined;
     if (ticket) {
       if (ticket.status === 'Selesai' || ticket.status === 'Dibatalkan') {
         throw new Error(
@@ -1553,16 +1581,23 @@ export class TicketService {
     // ------------------------------------------------------------------
     // f. REDIS PUB/SUB & SSE BROADCAST
     // ------------------------------------------------------------------
-    const customerName = ticket ? ticket.customerName : 'Pelanggan Lapangan';
-    const siaNumber = ticket ? ticket.siaNumber : 'SIA-000';
-    const clusterName = ticket ? ticket.cluster : 'Cluster Bandung';
-    const techName = ticket ? ticket.assignedTech : techContext?.username || 'Teknisi Lapangan';
+    const completedDto = completedTicketResult ? mapDbTicketToDto(completedTicketResult) : null;
+    const customerName = completedDto?.customerName || ticket?.customerName || 'Pelanggan Lapangan';
+    const siaNumber = completedDto?.siaNumber || ticket?.siaNumber || 'SIA-000';
+    const clusterName = completedDto?.cluster || ticket?.cluster || 'Cluster Terdaftar';
+    const techName =
+      completedDto?.assignedTech ||
+      ticket?.assignedTech ||
+      pendingSubmission.techFullName ||
+      'Teknisi Lapangan';
     const ticketTypeStr: 'Pasang baru' | 'Maintenance' =
-      ticket && ticket.ticketType === 'Maintenance' ? 'Maintenance' : 'Pasang baru';
+      (completedDto?.ticketType || ticket?.ticketType) === 'Maintenance'
+        ? 'Maintenance'
+        : 'Pasang baru';
 
     const liveItem: ActivityFeedItem = {
-      id: ticket?.id || ticketId,
-      ticketNumber: ticket?.ticketNumber || ticketId,
+      id: completedDto?.id || ticket?.id || ticketId,
+      ticketNumber: completedDto?.ticketNumber || ticket?.ticketNumber || ticketId,
       title: 'Laporan teknisi menunggu verifikasi Super Admin',
       customerName,
       siaNumber,
@@ -1608,12 +1643,14 @@ export class TicketService {
     const adminUser = adminContext?.username || 'superadmin';
     const adminId = adminContext?.id || 'admin-001';
 
-    let ticket = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
+    let ticket = !isStrictLiveMode()
+      ? FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId)
+      : undefined;
     let techTelegramChatId: string | null = null;
     let resolvedDto: DbTicket | null = null;
 
     // Resolve authoritative DB ticket & pendingPayload if PostgreSQL is online
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk menyetujui laporan tiket.')) {
       try {
         const dbTicket = await prisma.ticket.findFirst({
           where: { OR: [{ id: ticketId }, { ticketNumber: ticketId }] },
@@ -1739,8 +1776,7 @@ export class TicketService {
         if (errMsg.includes(ERROR_CODES.PORT_OCCUPIED)) {
           throw err;
         }
-        markDatabaseUnavailable(err);
-        console.warn('[TicketService] DB approval transaction failed or skipped:', errMsg);
+        rethrowIfStrictDatabaseError(err, 'Gagal memproses persetujuan tiket di PostgreSQL.');
       }
     }
 
@@ -1775,12 +1811,14 @@ export class TicketService {
       techTelegramChatId = techAcc?.telegramChatId || null;
     }
 
-    CustomerService.updateCustomerFromApproval(finalTicket.siaNumber, {
-      status: 'ACTIVE',
-      splitterCode: finalTicket.splitterCode,
-      portNumber: finalTicket.portNumber,
-      currentAttenuation: finalTicket.currentAttenuation,
-    });
+    if (!isStrictLiveMode()) {
+      CustomerService.updateCustomerFromApproval(finalTicket.siaNumber, {
+        status: 'ACTIVE',
+        splitterCode: finalTicket.splitterCode,
+        portNumber: finalTicket.portNumber,
+        currentAttenuation: finalTicket.currentAttenuation,
+      });
+    }
 
     const liveItem: ActivityFeedItem = {
       id: finalTicket.id,
@@ -1824,11 +1862,13 @@ export class TicketService {
     const adminUser = adminContext?.username || 'superadmin';
     const adminId = adminContext?.id || 'admin-001';
 
-    const ticket = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
+    const ticket = !isStrictLiveMode()
+      ? FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId)
+      : undefined;
     let resolvedDto: DbTicket | null = null;
     let techTelegramChatId: string | null = null;
 
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk menolak laporan tiket.')) {
       try {
         const dbTicket = await prisma.ticket.findFirst({
           where: { OR: [{ id: ticketId }, { ticketNumber: ticketId }] },
@@ -1868,7 +1908,7 @@ export class TicketService {
           resolvedDto = mapDbTicketToDto(updatedDbTicket);
         }
       } catch (err) {
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal mencatat penolakan tiket ke PostgreSQL.');
       }
     }
 
@@ -1931,6 +1971,9 @@ export class TicketService {
   }
 
   public static async markTicketCompletedDemo(ticketNumber: string) {
+    if (isStrictLiveMode() && process.env.ENABLE_DEMO_SIMULATION !== 'true') {
+      throw new Error('Simulasi demo dinonaktifkan pada mode data langsung (STRICT_LIVE_DATA).');
+    }
     const ticket = FALLBACK_TICKETS.find((t) => t.ticketNumber === ticketNumber);
     if (!ticket) throw new Error('Tiket tidak ditemukan');
     ticket.status = 'Selesai';
@@ -1942,6 +1985,9 @@ export class TicketService {
    * Simulates an incoming field submission from a mobile technician to test Super Admin approval.
    */
   public static async simulateTechnicianSubmission(ticketId?: string) {
+    if (isStrictLiveMode() && process.env.ENABLE_DEMO_SIMULATION !== 'true') {
+      throw new Error('Simulasi demo dinonaktifkan pada mode data langsung (STRICT_LIVE_DATA).');
+    }
     let target = ticketId
       ? FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId)
       : FALLBACK_TICKETS.find((t) => t.status === 'Dalam proses' || t.status === 'Menunggu');

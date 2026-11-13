@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
+import { prisma } from '@repo/database';
 import { ERROR_CODES, UserTypeEnum } from '@repo/shared';
 
 export type SubmissionChannel = 'WEB' | 'MOBILE' | 'TELEGRAM';
 import { AuthService } from '@/server/services/auth.service';
 import { redisManager } from '@/server/lib/redis';
+import {
+  requireLiveDatabase,
+  rethrowIfStrictDatabaseError,
+  ServiceUnavailableError,
+} from '@/server/lib/live-data';
 
 const TECH_USERNAME_ALIASES: Record<string, string> = {
   'tech.andi': 'andi.pratama',
@@ -98,7 +103,7 @@ export async function resolveTechActor(request: NextRequest): Promise<TechActorC
   const canonicalUsername = normalizeTechUsernameAlias(username);
   let fullName: string | undefined;
 
-  if (await isDatabaseAvailable()) {
+  if (await requireLiveDatabase('Database PostgreSQL tidak tersedia untuk autentikasi teknisi.')) {
     try {
       const dbUser = userId
         ? await prisma.user.findUnique({
@@ -116,7 +121,7 @@ export async function resolveTechActor(request: NextRequest): Promise<TechActorC
         userType = dbUser.userType as UserTypeEnum;
       }
     } catch (err) {
-      markDatabaseUnavailable(err);
+      rethrowIfStrictDatabaseError(err, 'Gagal memverifikasi akun teknisi di database.');
     }
   }
 
@@ -149,6 +154,19 @@ export function handleTechRouteError(
   fallbackMessage: string,
   defaultStatus = 400,
 ): NextResponse {
+  if (error instanceof ServiceUnavailableError) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+        },
+      },
+      { status: 503 },
+    );
+  }
+
   if (error instanceof TechHttpError) {
     return NextResponse.json(
       {

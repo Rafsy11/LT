@@ -156,7 +156,6 @@ export function CustomersView() {
       {/* Create Customer Modal */}
       <CustomerFormModal
         isOpen={formModalOpen}
-        clusterOptions={availableClusters}
         onClose={() => setFormModalOpen(false)}
         onCreated={() => {
           void fetchCustomers(true);

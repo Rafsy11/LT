@@ -38,9 +38,6 @@ export interface NetworkEntityModalProps {
   onUpdateSplitter: (data: UpdateSplitterInput) => Promise<void>;
 }
 
-const BANDUNG_DEFAULT_LAT = -6.9175;
-const BANDUNG_DEFAULT_LNG = 107.6191;
-
 export function NetworkEntityModal({
   isOpen,
   mode,
@@ -57,15 +54,15 @@ export function NetworkEntityModal({
   // Cluster fields
   const [clusterCode, setClusterCode] = useState('');
   const [clusterName, setClusterName] = useState('');
-  const [centerLat, setCenterLat] = useState(String(BANDUNG_DEFAULT_LAT));
-  const [centerLng, setCenterLng] = useState(String(BANDUNG_DEFAULT_LNG));
+  const [centerLat, setCenterLat] = useState('');
+  const [centerLng, setCenterLng] = useState('');
 
   // Splitter fields
   const [selectedClusterCode, setSelectedClusterCode] = useState('');
   const [splitterCode, setSplitterCode] = useState('');
   const [maxPorts, setMaxPorts] = useState<8 | 16 | 32>(16);
-  const [lat, setLat] = useState(String(BANDUNG_DEFAULT_LAT));
-  const [lng, setLng] = useState(String(BANDUNG_DEFAULT_LNG));
+  const [lat, setLat] = useState('');
+  const [lng, setLng] = useState('');
   const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
@@ -73,16 +70,16 @@ export function NetworkEntityModal({
     if (mode === 'CREATE_CLUSTER') {
       setClusterCode('');
       setClusterName('');
-      setCenterLat(String(BANDUNG_DEFAULT_LAT));
-      setCenterLng(String(BANDUNG_DEFAULT_LNG));
+      setCenterLat('');
+      setCenterLng('');
     } else if (mode === 'CREATE_SPLITTER') {
       setSelectedClusterCode(
-        initialSplitter?.clusterCode || clusters[0]?.clusterCode || 'BDG-01',
+        initialSplitter?.clusterCode || clusters[0]?.clusterCode || '',
       );
       setSplitterCode('');
       setMaxPorts(16);
-      setLat(String(initialSplitter?.lat ?? BANDUNG_DEFAULT_LAT));
-      setLng(String(initialSplitter?.lng ?? BANDUNG_DEFAULT_LNG));
+      setLat(initialSplitter?.lat !== undefined ? String(initialSplitter.lat) : '');
+      setLng(initialSplitter?.lng !== undefined ? String(initialSplitter.lng) : '');
     } else if (mode === 'EDIT_SPLITTER' && initialSplitter) {
       setSelectedClusterCode(initialSplitter.clusterCode);
       setSplitterCode(initialSplitter.splitterCode);
@@ -216,6 +213,7 @@ export function NetworkEntityModal({
                     <input
                       type="number"
                       step="0.000001"
+                      placeholder="-6.917500"
                       required
                       value={centerLat}
                       onChange={(e) => setCenterLat(e.target.value)}
@@ -226,6 +224,7 @@ export function NetworkEntityModal({
                     <input
                       type="number"
                       step="0.000001"
+                      placeholder="107.619100"
                       required
                       value={centerLng}
                       onChange={(e) => setCenterLng(e.target.value)}
@@ -294,6 +293,7 @@ export function NetworkEntityModal({
                     <input
                       type="number"
                       step="0.000001"
+                      placeholder="-6.917500"
                       required
                       value={lat}
                       onChange={(e) => setLat(e.target.value)}
@@ -305,6 +305,7 @@ export function NetworkEntityModal({
                     <input
                       type="number"
                       step="0.000001"
+                      placeholder="107.619100"
                       required
                       value={lng}
                       onChange={(e) => setLng(e.target.value)}

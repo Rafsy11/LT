@@ -6,7 +6,7 @@ export interface OverviewStatsProps {
   activeTicketsCount: number;
   waitingTicketsCount: number;
   techStats: { total: number; active: number } | null;
-  networkHealthPct: number;
+  networkHealthPct: number | null;
 }
 
 export function OverviewStats({
@@ -27,7 +27,7 @@ export function OverviewStats({
             </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Pelanggan aktif</span>
-              <div className="stat-card-value">{customerCount ?? 428}</div>
+              <div className="stat-card-value">{customerCount ?? '—'}</div>
             </div>
           </div>
           <div className="stat-card-footer">
@@ -65,12 +65,12 @@ export function OverviewStats({
             </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Teknisi di lapangan</span>
-              <div className="stat-card-value">{techStats ? techStats.active : 6}</div>
+              <div className="stat-card-value">{techStats ? techStats.active : '—'}</div>
             </div>
           </div>
           <div className="stat-card-footer">
             <span className="caption">
-              dari {techStats ? techStats.total : 8} teknisi terdaftar
+              {techStats ? `dari ${techStats.total} teknisi terdaftar` : 'Menghitung teknisi terdaftar'}
             </span>
           </div>
         </div>
@@ -86,7 +86,9 @@ export function OverviewStats({
               </span>
               <div className="stat-card-text">
                 <span className="stat-card-label">Kesehatan jaringan</span>
-                <div className="stat-card-value">{networkHealthPct}%</div>
+                <div className="stat-card-value">
+                  {networkHealthPct !== null ? `${networkHealthPct}%` : '—'}
+                </div>
               </div>
             </div>
           </div>

@@ -17,6 +17,7 @@ export function RolesView() {
     setActiveView,
     roleList,
     userList,
+    clusterOptions,
     activeUsersCount,
     telegramLinkedCount,
     totalRolesCount,
@@ -134,6 +135,8 @@ export function RolesView() {
             setRoleFilter={setRoleFilter}
             clusterFilter={clusterFilter}
             setClusterFilter={setClusterFilter}
+            roleList={roleList}
+            clusterOptions={clusterOptions}
             filteredUsers={filteredUsers}
             totalUsersCount={userList.length}
             currentUsername={user.username}

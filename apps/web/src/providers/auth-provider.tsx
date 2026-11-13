@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { PERMISSIONS, ROLE_PRESETS, UserTypeEnum } from '@repo/shared';
+import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
 
 const AUTH_STORAGE_KEY = 'fiberops_auth_user';
 
@@ -17,8 +18,21 @@ export interface AuthUser {
   assignedClusters: string[];
 }
 
+const UNAUTHENTICATED_USER: AuthUser = {
+  id: '',
+  username: '',
+  fullName: 'Memuat Sesi...',
+  userType: 'ADMIN',
+  roleName: 'Memverifikasi...',
+  hierarchyLevel: 99,
+  permissions: [],
+  assignedClusters: [],
+};
+
 interface AuthContextType {
   user: AuthUser;
+  isAuthLoading: boolean;
+  isAuthenticated: boolean;
   currentPresetKey: string;
   setRolePreset: (presetKey: string) => void;
   loginUser: (
@@ -42,32 +56,112 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [presetKey, setPresetKey] = useState<string>('SUPER_ADMIN');
+  const [presetKey, setPresetKey] = useState<string>('ADMIN');
   const [sessionUser, setSessionUser] = useState<AuthUser | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
 
   useEffect(() => {
+    let active = true;
+
     try {
       const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as AuthUser;
         if (parsed && parsed.username && parsed.userType) {
           setSessionUser(parsed);
+          setPresetKey(parsed.userType);
         }
       }
     } catch {
       // Ignore storage read errors
     }
+
+    const hydrateLiveSession = async () => {
+      try {
+        const res = await fetch('/api/v1/auth/me', { cache: 'no-store' });
+        const json = await res.json().catch(() => null);
+        if (!active) return;
+
+        if (res.status === 503) {
+          notifyApiResponseError(
+            res.status,
+            json,
+            'Koneksi database PostgreSQL terputus saat memverifikasi sesi operator.',
+            { category: 'database', source: '/api/v1/auth/me' },
+          );
+          return;
+        }
+
+        if (res.status === 401 || res.status === 403) {
+          setSessionUser(null);
+          try {
+            window.localStorage.removeItem(AUTH_STORAGE_KEY);
+            window.localStorage.removeItem('fiberops_access_token');
+          } catch {
+            // Ignore storage errors
+          }
+
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            const currentPath = window.location.pathname;
+            window.location.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
+          }
+          return;
+        }
+
+        if (res.ok && json?.success && json.data?.user) {
+          const liveUser = json.data.user as {
+            id: string;
+            username: string;
+            fullName: string;
+            userType: UserTypeEnum;
+            role?: string;
+            roleName?: string;
+            hierarchyLevel: number;
+            permissions?: string[];
+            assignedClusters?: string[];
+          };
+
+          const hydrated: AuthUser = {
+            id: liveUser.id,
+            username: liveUser.username,
+            fullName: liveUser.fullName,
+            userType: liveUser.userType,
+            roleName: liveUser.roleName || liveUser.role || 'Operator NOC',
+            hierarchyLevel: liveUser.hierarchyLevel ?? 2,
+            permissions: Array.isArray(liveUser.permissions) ? liveUser.permissions : [],
+            assignedClusters: Array.isArray(liveUser.assignedClusters)
+              ? liveUser.assignedClusters
+              : [],
+          };
+
+          setSessionUser(hydrated);
+          setPresetKey(hydrated.userType);
+          clearServiceUnavailable('database');
+
+          try {
+            window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(hydrated));
+          } catch {
+            // Ignore storage write errors
+          }
+        }
+      } catch {
+        // Network failure during silent mount hydration
+      } finally {
+        if (active) {
+          setIsAuthLoading(false);
+        }
+      }
+    };
+
+    void hydrateLiveSession();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleSetRolePreset = useCallback((nextKey: string) => {
-    setSessionUser(null);
     setPresetKey(nextKey);
-    try {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    } catch {
-      // Ignore storage errors
-    }
   }, []);
 
   const loginUser = useCallback(
@@ -96,13 +190,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           authenticatedUser.permissions && authenticatedUser.permissions.length > 0
             ? authenticatedUser.permissions
             : fallbackPreset.permissions,
-        assignedClusters:
-          authenticatedUser.assignedClusters && authenticatedUser.assignedClusters.length > 0
-            ? authenticatedUser.assignedClusters
-            : ['Bandung Utara', 'Bandung Timur'],
+        assignedClusters: Array.isArray(authenticatedUser.assignedClusters)
+          ? authenticatedUser.assignedClusters
+          : [],
       };
 
       setSessionUser(resolvedUser);
+      setIsAuthLoading(false);
       setPresetKey(
         authenticatedUser.userType === 'SUPER_ADMIN'
           ? 'SUPER_ADMIN'
@@ -141,23 +235,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const user = useMemo<AuthUser>(() => {
-    if (sessionUser) {
-      return sessionUser;
-    }
-    const preset = ROLE_PRESETS[presetKey] || ROLE_PRESETS.SUPER_ADMIN;
-    return {
-      id: 'usr-active-session',
-      username: preset.userType === 'TECHNICIAN' ? 'andi.pratama' : 'aditya.saputra',
-      fullName: preset.userType === 'TECHNICIAN' ? 'Andi Pratama' : 'Aditya Saputra',
-      userType: preset.userType,
-      roleName: preset.name,
-      hierarchyLevel: preset.hierarchyLevel,
-      permissions: preset.permissions,
-      assignedClusters: ['Bandung Utara', 'Bandung Timur', 'Bandung Barat', 'Bandung Selatan'],
-    };
-  }, [sessionUser, presetKey]);
+    return sessionUser || UNAUTHENTICATED_USER;
+  }, [sessionUser]);
 
   const hasPermission = (permissionCode: string): boolean => {
+    if (!sessionUser) return false;
     if (user.permissions.includes(PERMISSIONS.ALL)) return true;
     return user.permissions.includes(permissionCode);
   };
@@ -171,6 +253,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        isAuthLoading,
+        isAuthenticated: Boolean(sessionUser?.id),
         currentPresetKey: presetKey,
         setRolePreset: handleSetRolePreset,
         loginUser,

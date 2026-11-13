@@ -2,12 +2,17 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { classifyDbm, type CustomerListItem } from '@repo/shared';
+import { useClusterOptions } from '@/hooks/use-cluster-options';
+import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
+import { useToast } from '@/providers';
 import type { CustomerStatusTab } from '../components/customer-filters';
 import { fetchWithCache, getCachedData } from '@/lib/query-cache';
 
 const CUSTOMERS_CACHE_KEY = '/api/v1/admin/customers';
 
 export function useCustomers() {
+  const { showError } = useToast();
+  const { clusters: clusterOptions } = useClusterOptions();
   const [search, setSearch] = useState('');
   const [cluster, setCluster] = useState('Semua cluster');
   const [statusTab, setStatusTab] = useState<CustomerStatusTab>('all');
@@ -34,21 +39,28 @@ export function useCustomers() {
         CUSTOMERS_CACHE_KEY,
         async () => {
           const res = await fetch(CUSTOMERS_CACHE_KEY);
-          const json = await res.json();
-          if (!res.ok || !json.success || !Array.isArray(json.data)) {
-            throw new Error(json.error?.message || 'Gagal mengambil data pelanggan');
+          const json = await res.json().catch(() => null);
+          if (!res.ok || !json?.success || !Array.isArray(json.data)) {
+            const parsed = notifyApiResponseError(
+              res.status,
+              json,
+              'Gagal mengambil data pelanggan',
+              { category: 'database', source: CUSTOMERS_CACHE_KEY },
+            );
+            throw new Error(parsed.message);
           }
+          clearServiceUnavailable('database');
           return json.data as CustomerListItem[];
         },
         { force },
       );
       setCustomers(data);
     } catch (err) {
-      console.error('[useCustomers] Gagal mengambil data pelanggan:', err);
+      showError(err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     fetchCustomers();
@@ -56,20 +68,15 @@ export function useCustomers() {
 
   // Distinct Options for Cluster Navigation Tabs
   const availableClusters = useMemo(() => {
-    const defaultList = [
-      'Bandung Utara',
-      'Bandung Selatan',
-      'Bandung Timur',
-      'Bandung Barat',
-      'Cimahi',
-      'Rancaekek',
-    ];
-    const set = new Set<string>(defaultList);
+    const set = new Set<string>();
+    clusterOptions.forEach((item) => {
+      if (item.name) set.add(item.name);
+    });
     customers.forEach((c) => {
       if (c.cluster) set.add(c.cluster);
     });
     return Array.from(set);
-  }, [customers]);
+  }, [clusterOptions, customers]);
 
   const clusterCounts = useMemo(() => {
     const map: Record<string, number> = { 'Semua cluster': customers.length };

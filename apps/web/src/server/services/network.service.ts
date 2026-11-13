@@ -1,7 +1,11 @@
-import { prisma, Prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
+import { prisma, Prisma } from '@repo/database';
 import {
   FALLBACK_CLUSTERS,
   type ClusterListItem,
+  type ClusterOptionItem,
+  type OdpHistoryEntry,
+  type NetworkAuditFinding,
+  type NetworkAuditResult,
   type SplitterPortState,
   type SplitterPortActivity,
   type CreateClusterInput,
@@ -9,6 +13,11 @@ import {
   type UpdateSplitterInput,
   type UserSessionContext,
 } from '@repo/shared';
+import {
+  isStrictLiveMode,
+  requireLiveDatabase,
+  rethrowIfStrictDatabaseError,
+} from '../lib/live-data';
 
 export { FALLBACK_CLUSTERS };
 export type { ClusterListItem, SplitterPortState, SplitterPortActivity };
@@ -64,7 +73,7 @@ export class NetworkService {
     search = '',
     clusterFilter = 'Semua cluster',
   ): Promise<ClusterListItem[]> {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memuat data cluster & ODP.')) {
       try {
         const clusters = await prisma.networkCluster.findMany({
           include: {
@@ -86,7 +95,7 @@ export class NetworkService {
           orderBy: { clusterCode: 'asc' },
         });
 
-        if (clusters.length > 0) {
+        if (isStrictLiveMode() || clusters.length > 0) {
           const result: ClusterListItem[] = [];
 
           for (const c of clusters) {
@@ -140,16 +149,61 @@ export class NetworkService {
           return this.filterClusters(result, search, clusterFilter);
         }
       } catch (err) {
-        markDatabaseUnavailable(err);
-        console.warn(
-          '[NetworkService] DB listClusters failed, using fallback:',
-          (err as Error).message,
-        );
+        rethrowIfStrictDatabaseError(err, 'Gagal membaca data cluster jaringan dari PostgreSQL.');
       }
     }
 
-    // Graceful fallback
+    // Graceful fallback (non-strict test mode only)
     return this.filterClusters([...MEMORY_CLUSTERS], search, clusterFilter);
+  }
+
+  /**
+   * Lists all active cluster wilayah options for dynamic dropdowns across the dashboard.
+   */
+  public static async listClusterOptions(): Promise<ClusterOptionItem[]> {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memuat daftar cluster.')) {
+      try {
+        const rows = await prisma.networkCluster.findMany({
+          where: { isActive: true },
+          include: {
+            _count: {
+              select: { splitters: true },
+            },
+          },
+          orderBy: { clusterCode: 'asc' },
+        });
+        return rows.map((c) => ({
+          id: c.id,
+          clusterCode: c.clusterCode,
+          name: c.name,
+          centerLat: Number(c.centerLat),
+          centerLng: Number(c.centerLng),
+          isActive: c.isActive,
+          splittersCount: c._count.splitters,
+        }));
+      } catch (err) {
+        rethrowIfStrictDatabaseError(err, 'Gagal mengambil daftar wilayah cluster dari PostgreSQL.');
+      }
+    }
+
+    const dedup = new Map<string, ClusterOptionItem>();
+    for (const s of MEMORY_CLUSTERS) {
+      const existing = dedup.get(s.clusterCode);
+      if (existing) {
+        existing.splittersCount += 1;
+      } else {
+        dedup.set(s.clusterCode, {
+          id: s.clusterCode,
+          clusterCode: s.clusterCode,
+          name: s.name,
+          centerLat: s.lat,
+          centerLng: s.lng,
+          isActive: true,
+          splittersCount: 1,
+        });
+      }
+    }
+    return Array.from(dedup.values());
   }
 
   /**
@@ -161,7 +215,7 @@ export class NetworkService {
   ): Promise<{ id: string; clusterCode: string; name: string }> {
     const code = input.clusterCode.toUpperCase();
 
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk membuat cluster baru.')) {
       try {
         const existing = await prisma.networkCluster.findUnique({ where: { clusterCode: code } });
         if (existing) {
@@ -203,7 +257,7 @@ export class NetworkService {
         if (err instanceof Error && err.message.includes('sudah terdaftar')) {
           throw err;
         }
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal menyimpan cluster baru ke PostgreSQL.');
       }
     }
 
@@ -238,7 +292,7 @@ export class NetworkService {
   ): Promise<ClusterListItem> {
     const splitterCode = input.splitterCode.toUpperCase();
 
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk membuat ODP splitter.')) {
       try {
         const dup = await prisma.networkSplitter.findUnique({ where: { splitterCode } });
         if (dup) {
@@ -308,7 +362,7 @@ export class NetworkService {
         ) {
           throw err;
         }
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal menyimpan ODP splitter ke PostgreSQL.');
       }
     }
 
@@ -347,7 +401,7 @@ export class NetworkService {
     input: UpdateSplitterInput,
     actor: UserSessionContext,
   ): Promise<ClusterListItem> {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memperbarui ODP splitter.')) {
       try {
         const existing = await prisma.networkSplitter.findUnique({
           where: { splitterCode: input.splitterCode },
@@ -439,7 +493,7 @@ export class NetworkService {
         ) {
           throw err;
         }
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal memperbarui konfigurasi splitter di PostgreSQL.');
       }
     }
 
@@ -492,5 +546,247 @@ export class NetworkService {
   public static async getNetworkStats() {
     const list = await this.listClusters();
     return this.computeStatsFromClusters(list);
+  }
+
+  /**
+   * Retrieves ODP / optical attenuation history logs from PostgreSQL attenuation_history & tickets.
+   */
+  public static async getOdpHistoryLogs(
+    clusterFilter = 'Semua cluster',
+    splitterCode?: string,
+  ): Promise<OdpHistoryEntry[]> {
+    const dbReady = await requireLiveDatabase(
+      'Database PostgreSQL diperlukan untuk membaca log histori ODP.',
+    );
+    if (!dbReady) {
+      return [];
+    }
+
+    try {
+      const needle =
+        clusterFilter && clusterFilter !== 'Semua cluster'
+          ? clusterFilter.replace(/^Bandung\s+/i, '').trim()
+          : '';
+
+      const records = await prisma.attenuationHistory.findMany({
+        where: {
+          ...(splitterCode ? { splitter: { splitterCode } } : {}),
+          ...(needle
+            ? {
+                customer: {
+                  cluster: {
+                    OR: [
+                      { name: { contains: needle, mode: 'insensitive' } },
+                      { clusterCode: { contains: needle, mode: 'insensitive' } },
+                    ],
+                  },
+                },
+              }
+            : {}),
+        },
+        include: {
+          customer: true,
+          splitter: true,
+          tech: { select: { id: true, fullName: true, username: true } },
+          ticket: {
+            include: {
+              assignedTech: { select: { id: true, fullName: true, username: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+
+      return records.map((r) => {
+        const mappedAction: OdpHistoryEntry['actionType'] =
+          r.ticket?.ticketType === 'PSB' ? 'PEMASANGAN' : 'MAINTENANCE';
+        const pendingMeta =
+          r.ticket?.pendingPayload && typeof r.ticket.pendingPayload === 'object'
+            ? (r.ticket.pendingPayload as { technicianNotes?: string })
+            : null;
+
+        return {
+          id: r.id,
+          ticketNumber: r.ticket?.ticketNumber || 'MANUAL-LOG',
+          customerName: r.customer.fullName,
+          siaNumber: r.customer.siaNumber,
+          splitterCode: r.splitter.splitterCode || '-',
+          portNumber: r.portNumber || r.customer.portNumber || 0,
+          actionType: mappedAction,
+          oldAttenuation: r.oldAttenuation !== null ? Number(r.oldAttenuation) : null,
+          newAttenuation: Number(r.newAttenuation),
+          technicianName: r.tech?.fullName || r.ticket?.assignedTech?.fullName || 'Tim NOC',
+          distanceToSplitterM:
+            r.distanceToSplitterM !== null ? Number(r.distanceToSplitterM) : null,
+          isLocationFlagged: Boolean(r.isLocationFlagged),
+          notes:
+            pendingMeta?.technicianNotes ||
+            r.ticket?.complaintSummary ||
+            r.ticket?.adminNotes ||
+            undefined,
+          timestamp: r.createdAt.toISOString(),
+        };
+      });
+    } catch (err) {
+      rethrowIfStrictDatabaseError(err, 'Gagal membaca histori ODP dari PostgreSQL.');
+      throw err;
+    }
+  }
+
+  /**
+   * Audits physical network splitters, port collisions, optical attenuation alerts, and geofence flags.
+   */
+  public static async runNetworkAudit(actor: UserSessionContext): Promise<NetworkAuditResult> {
+    await requireLiveDatabase('Database PostgreSQL diperlukan untuk menjalankan audit jaringan.');
+
+    try {
+      const [clusters, splitters, activeCustomers, flaggedHistories] = await Promise.all([
+        prisma.networkCluster.findMany({ where: { isActive: true } }),
+        prisma.networkSplitter.findMany({
+          include: {
+            cluster: true,
+            customers: {
+              where: { status: 'ACTIVE' },
+              select: {
+                id: true,
+                siaNumber: true,
+                fullName: true,
+                portNumber: true,
+                currentAttenuation: true,
+              },
+            },
+          },
+        }),
+        prisma.customer.findMany({
+          where: { status: 'ACTIVE' },
+          include: { cluster: true, splitter: true },
+        }),
+        prisma.attenuationHistory.findMany({
+          where: { isLocationFlagged: true },
+          include: {
+            ticket: true,
+            customer: { include: { cluster: true } },
+            splitter: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 25,
+        }),
+      ]);
+
+      const findings: NetworkAuditFinding[] = [];
+      let totalPorts = 0;
+      let usedPorts = 0;
+      let warningSplitters = 0;
+      let doubleBookedPorts = 0;
+
+      for (const s of splitters) {
+        totalPorts += s.maxPorts;
+        usedPorts += s.customers.length;
+        const utilPct = s.maxPorts > 0 ? Math.round((s.customers.length / s.maxPorts) * 100) : 0;
+
+        if (utilPct >= 85) {
+          warningSplitters += 1;
+          findings.push({
+            id: `cap-${s.id}`,
+            severity: utilPct >= 100 ? 'critical' : 'warning',
+            category: 'CAPACITY',
+            clusterCode: s.cluster.clusterCode,
+            splitterCode: s.splitterCode,
+            title: `Kapasitas ${s.splitterCode} ${utilPct}% terisi (${s.customers.length}/${s.maxPorts} port)`,
+            description:
+              utilPct >= 100
+                ? 'ODP penuh. Segera tambah splitter sekunder atau ekspansi trunk.'
+                : 'Kapasitas port tersisa sedikit, siapkan ekspansi split.',
+          });
+        }
+
+        const portGroups = new Map<number, typeof s.customers>();
+        for (const c of s.customers) {
+          if (!c.portNumber) continue;
+          const group = portGroups.get(c.portNumber) || [];
+          group.push(c);
+          portGroups.set(c.portNumber, group);
+        }
+        for (const [portNo, list] of portGroups.entries()) {
+          if (list.length > 1) {
+            doubleBookedPorts += 1;
+            findings.push({
+              id: `dup-${s.id}-${portNo}`,
+              severity: 'critical',
+              category: 'DOUBLE_BOOKING',
+              clusterCode: s.cluster.clusterCode,
+              splitterCode: s.splitterCode,
+              title: `Konflik Port #${portNo} di ${s.splitterCode}`,
+              description: `Terdeteksi ${list.length} pelanggan aktif pada port yang sama: ${list.map((c) => c.siaNumber).join(', ')}.`,
+            });
+          }
+        }
+      }
+
+      let criticalAttenuationCount = 0;
+      for (const c of activeCustomers) {
+        const dbm = Number(c.currentAttenuation);
+        if (dbm <= -24) {
+          const isCritical = dbm <= -25;
+          if (isCritical) criticalAttenuationCount += 1;
+          findings.push({
+            id: `att-${c.id}`,
+            severity: isCritical ? 'critical' : 'warning',
+            category: 'ATTENUATION',
+            clusterCode: c.cluster.clusterCode,
+            splitterCode: c.splitter?.splitterCode || '-',
+            title: `Redaman ${isCritical ? 'Kritis' : 'Peringatan'} ${dbm.toFixed(1)} dBm · ${c.siaNumber}`,
+            description: `Pelanggan ${c.fullName} (Port #${c.portNumber || '-'}) melewati ambang batas optik.`,
+          });
+        }
+      }
+
+      for (const h of flaggedHistories) {
+        findings.push({
+          id: `geo-${h.id}`,
+          severity: 'warning',
+          category: 'GEOFENCE',
+          clusterCode: h.customer.cluster.clusterCode,
+          splitterCode: h.splitter.splitterCode || '-',
+          title: `Anomali GPS Tiket ${h.ticket?.ticketNumber || h.ticketId}`,
+          description: `Jarak submit ${h.distanceToSplitterM !== null ? Number(h.distanceToSplitterM) : '?'} m dari koordinat ODP terdaftar.`,
+        });
+      }
+
+      const result: NetworkAuditResult = {
+        auditedAt: new Date().toISOString(),
+        totalClusters: clusters.length,
+        totalSplitters: splitters.length,
+        totalPorts,
+        usedPorts,
+        warningSplitters,
+        criticalAttenuationCount,
+        doubleBookedPorts,
+        geofenceAnomalies: flaggedHistories.length,
+        findings,
+      };
+
+      await prisma.activityLog.create({
+        data: {
+          actorUserId: actor.userId,
+          actorRole: actor.role,
+          actionType: 'NETWORK_AUDIT_RUN',
+          targetEntity: 'network',
+          targetId: 'global_audit',
+          newPayload: {
+            totalSplitters: result.totalSplitters,
+            findingsCount: findings.length,
+            criticalAttenuationCount,
+            doubleBookedPorts,
+          } as Prisma.InputJsonValue,
+        },
+      });
+
+      return result;
+    } catch (err) {
+      rethrowIfStrictDatabaseError(err, 'Gagal menjalankan audit jaringan di PostgreSQL.');
+      throw err;
+    }
   }
 }

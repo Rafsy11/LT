@@ -2,7 +2,14 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth, useToast } from '@/providers';
-import type { DbTicket } from '@repo/shared';
+import { useClusterOptions } from '@/hooks/use-cluster-options';
+import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
+import {
+  PERMISSIONS,
+  type ClusterListItem,
+  type DbTicket,
+  type NetworkStats,
+} from '@repo/shared';
 import {
   fetchWithCache,
   getCachedData,
@@ -12,6 +19,7 @@ import {
 
 const OVERVIEW_CACHE_KEY = '/api/v1/admin/overview';
 const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
+const CLUSTERS_MAP_CACHE_KEY = '/api/v1/admin/clusters';
 
 interface OverviewPayload {
   tickets: DbTicket[];
@@ -20,6 +28,11 @@ interface OverviewPayload {
     technicianTotal: number;
     technicianActive: number;
   };
+}
+
+interface TopologyPayload {
+  clusters: ClusterListItem[];
+  stats: NetworkStats;
 }
 
 export interface OverviewFeedItem {
@@ -64,9 +77,17 @@ export function useOverview() {
   });
   const [currentDateTime, setCurrentDateTime] = useState({ date: '', time: '' });
   const [statusFilter, setStatusFilter] = useState('Semua');
+  const [topologyClusters, setTopologyClusters] = useState<ClusterListItem[]>(
+    () => getCachedData<TopologyPayload>(CLUSTERS_MAP_CACHE_KEY)?.clusters ?? [],
+  );
+  const [mapLoading, setMapLoading] = useState<boolean>(
+    () => !getCachedData<TopologyPayload>(CLUSTERS_MAP_CACHE_KEY),
+  );
 
-  const { canCreateTicket, user } = useAuth();
+  const { canCreateTicket, hasPermission, user } = useAuth();
   const { showError } = useToast();
+  const { clusters: clusterOptions } = useClusterOptions();
+  const canReadNetwork = hasPermission(PERMISSIONS.NETWORK_READ);
 
   const feedItems = useMemo<OverviewFeedItem[]>(() => {
     const sorted = [...tickets].sort((a, b) => {
@@ -146,10 +167,17 @@ export function useOverview() {
           OVERVIEW_CACHE_KEY,
           async () => {
             const res = await fetch(OVERVIEW_CACHE_KEY);
-            const json = await res.json();
-            if (!res.ok || !json.success || !json.data) {
-              throw new Error(json.error?.message || 'Gagal memuat ringkasan operasional');
+            const json = await res.json().catch(() => null);
+            if (!res.ok || !json?.success || !json.data) {
+              const parsed = notifyApiResponseError(
+                res.status,
+                json,
+                'Gagal memuat ringkasan operasional',
+                { category: 'database', source: OVERVIEW_CACHE_KEY },
+              );
+              throw new Error(parsed.message);
             }
+            clearServiceUnavailable('database');
             return json.data as OverviewPayload;
           },
           { force },
@@ -171,8 +199,49 @@ export function useOverview() {
     [showError],
   );
 
+  const fetchTopologyClusters = useCallback(
+    async (force = false) => {
+      if (!canReadNetwork) {
+        setMapLoading(false);
+        return;
+      }
+      try {
+        if (!getCachedData<TopologyPayload>(CLUSTERS_MAP_CACHE_KEY)) {
+          setMapLoading(true);
+        }
+        const payload = await fetchWithCache<TopologyPayload>(
+          CLUSTERS_MAP_CACHE_KEY,
+          async () => {
+            const res = await fetch(CLUSTERS_MAP_CACHE_KEY);
+            const json = await res.json().catch(() => null);
+            if (!res.ok || !json?.success || !json.data) {
+              const parsed = notifyApiResponseError(
+                res.status,
+                json,
+                'Gagal memuat data topologi jaringan',
+                { category: 'database', source: CLUSTERS_MAP_CACHE_KEY },
+              );
+              throw new Error(parsed.message);
+            }
+            clearServiceUnavailable('database');
+            return json.data as TopologyPayload;
+          },
+          { force },
+        );
+
+        setTopologyClusters(Array.isArray(payload.clusters) ? payload.clusters : []);
+      } catch {
+        // Outage or permission state handled via ConnectionBanner / ClusterOption fallback
+      } finally {
+        setMapLoading(false);
+      }
+    },
+    [canReadNetwork],
+  );
+
   useEffect(() => {
-    fetchOverview();
+    void fetchOverview();
+    void fetchTopologyClusters();
 
     const updateClock = () => {
       const now = new Date();
@@ -190,7 +259,7 @@ export function useOverview() {
     const interval = setInterval(updateClock, 60000);
 
     return () => clearInterval(interval);
-  }, [fetchOverview]);
+  }, [fetchOverview, fetchTopologyClusters]);
 
   const handleCreateTicket = async (data: import('@repo/shared').CreateTicketInput) => {
     const res = await fetch(TICKETS_CACHE_KEY, {
@@ -198,22 +267,32 @@ export function useOverview() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    const json = await res.json();
-    if (!json.success) {
-      throw json.error;
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.success) {
+      const parsed = notifyApiResponseError(
+        res.status,
+        json,
+        'Gagal membuat tiket baru',
+        { category: 'database', source: TICKETS_CACHE_KEY },
+      );
+      throw json?.error || new Error(parsed.message);
     }
     invalidateQueryCache(OVERVIEW_CACHE_KEY, TICKETS_CACHE_KEY);
     await fetchOverview(true);
   };
 
-  const handleMarkCompleted = async (ticketNumber: string) => {
-    setTickets((prev) =>
-      prev.map((t) => (t.ticketNumber === ticketNumber ? { ...t, status: 'Selesai' } : t)),
-    );
-  };
+  const refreshAllOverview = useCallback(
+    async (force = false) => {
+      await Promise.all([fetchOverview(force), fetchTopologyClusters(force)]);
+    },
+    [fetchOverview, fetchTopologyClusters],
+  );
 
   const filteredTickets = tickets.filter((t) => {
-    const matchesCluster = cluster === 'Semua cluster' || t.cluster === cluster;
+    const matchesCluster =
+      cluster === 'Semua cluster' ||
+      t.cluster === cluster ||
+      t.clusterCode === cluster;
     const matchesStatus =
       statusFilter === 'Semua' ||
       (statusFilter === 'Menunggu' &&
@@ -269,12 +348,15 @@ export function useOverview() {
       t.currentAttenuation >= -22 &&
       t.currentAttenuation <= -15,
   ).length;
-  const networkHealthPct =
-    tickets.length > 0 ? Math.round((normalAttenuationCount / tickets.length) * 100) : 98;
+  const networkHealthPct: number | null =
+    tickets.length > 0 ? Math.round((normalAttenuationCount / tickets.length) * 100) : null;
 
   return {
     cluster,
     setCluster,
+    clusterOptions,
+    topologyClusters,
+    mapLoading,
     query,
     setQuery,
     tickets,
@@ -295,9 +377,8 @@ export function useOverview() {
     activeTicketsCount,
     waitingTicketsCount,
     networkHealthPct,
-    fetchTickets: fetchOverview,
+    fetchTickets: refreshAllOverview,
     handleCreateTicket,
-    handleMarkCompleted,
     exportCsv,
   };
 }

@@ -7,7 +7,5 @@ export { RoleReassignModal } from './components/role-reassign-modal';
 export {
   useRoles,
   PERMISSION_DEFINITIONS,
-  INITIAL_FALLBACK_ROLES,
-  INITIAL_USERS,
 } from './hooks/use-roles';
 export type { RoleApiItem, PermissionDefinition, UserAccessItem } from './hooks/use-roles';

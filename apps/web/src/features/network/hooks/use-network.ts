@@ -7,12 +7,16 @@ import type {
   NetworkStats,
   CustomerListItem,
   CreateTicketInput,
+  OdpHistoryEntry,
+  NetworkAuditResult,
 } from '@repo/shared';
-import { FALLBACK_CLUSTERS } from '@repo/shared';
 import { useToast, useAuth } from '@/providers';
+import { useClusterOptions } from '@/hooks/use-cluster-options';
+import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
 import { fetchWithCache, getCachedData, invalidateQueryCache } from '@/lib/query-cache';
 
 const CLUSTERS_CACHE_KEY = '/api/v1/admin/clusters';
+const CLUSTER_OPTIONS_CACHE_KEY = '/api/v1/admin/clusters/options';
 const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
 const OVERVIEW_CACHE_KEY = '/api/v1/admin/overview';
 
@@ -55,17 +59,14 @@ export function useNetwork() {
   const [search, setSearch] = useState('');
   const [clusterFilter, setClusterFilter] = useState('Semua cluster');
   const [portStatusFilter, setPortStatusFilter] = useState('Semua');
-  const [activeSplitterCode, setActiveSplitterCode] = useState<string>('ODP-BDG-05');
-  const [expandedClusters, setExpandedClusters] = useState<Record<string, boolean>>({
-    'BDG-01': true,
-    'BDG-02': true,
-    'BDG-03': true,
-    'BDG-04': true,
-  });
+  const [activeSplitterCode, setActiveSplitterCode] = useState<string>('');
+  const [expandedClusters, setExpandedClusters] = useState<Record<string, boolean>>({});
   const [networkData, setNetworkData] = useState<ClusterListItem[]>(
-    () => getCachedData<ClusterListItem[]>(CLUSTERS_CACHE_KEY) ?? FALLBACK_CLUSTERS,
+    () => getCachedData<ClusterListItem[]>(CLUSTERS_CACHE_KEY) ?? [],
   );
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(
+    () => !getCachedData<ClusterListItem[]>(CLUSTERS_CACHE_KEY),
+  );
   const [selectedPort, setSelectedPort] = useState<SelectedPortContext | null>(null);
   const [portFilter, setPortFilter] = useState<'ALL' | 'OCCUPIED' | 'AVAILABLE'>('ALL');
   const [activeTab, setActiveTab] = useState<'ports' | 'inspeksi' | 'riwayat' | 'audit'>('ports');
@@ -76,40 +77,55 @@ export function useNetwork() {
   const [historyTypeFilter, setHistoryTypeFilter] = useState<
     'ALL' | 'MAINTENANCE' | 'PEMASANGAN' | 'PENARIKAN'
   >('ALL');
+  const [odpHistoryLogs, setOdpHistoryLogs] = useState<OdpHistoryLogItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [auditRunning, setAuditRunning] = useState(false);
-  const [auditTimestamp, setAuditTimestamp] = useState<string>('22:00:15 WIB');
+  const [auditResult, setAuditResult] = useState<NetworkAuditResult | null>(null);
+  const [auditTimestamp, setAuditTimestamp] = useState<string>('Belum diaudit');
   const [ticketModalOpen, setTicketModalOpen] = useState(false);
   const [ticketModalInitial, setTicketModalInitial] = useState<Partial<CreateTicketInput>>({});
 
-  const { showSuccess } = useToast();
+  const { showSuccess, showError } = useToast();
   const { canCreateTicket } = useAuth();
+  const { clusters: clusterOptions } = useClusterOptions();
 
-  const fetchClusters = useCallback(async (force = false) => {
-    try {
-      const data = await fetchWithCache<ClusterListItem[]>(
-        CLUSTERS_CACHE_KEY,
-        async () => {
-          const res = await fetch(CLUSTERS_CACHE_KEY);
-          const json = await res.json();
-          if (!res.ok || !json.success || !json.data?.clusters) {
-            throw new Error(json.error?.message || 'Gagal mengambil data cluster');
-          }
-          return json.data.clusters as ClusterListItem[];
-        },
-        { force },
-      );
-      if (data.length > 0) {
+  const fetchClusters = useCallback(
+    async (force = false) => {
+      try {
+        if (!getCachedData<ClusterListItem[]>(CLUSTERS_CACHE_KEY)) {
+          setLoading(true);
+        }
+        const data = await fetchWithCache<ClusterListItem[]>(
+          CLUSTERS_CACHE_KEY,
+          async () => {
+            const res = await fetch(CLUSTERS_CACHE_KEY);
+            const json = await res.json().catch(() => null);
+            if (!res.ok || !json?.success || !json.data?.clusters) {
+              const parsed = notifyApiResponseError(
+                res.status,
+                json,
+                'Gagal mengambil data cluster jaringan dari PostgreSQL',
+                { category: 'database', source: CLUSTERS_CACHE_KEY },
+              );
+              throw new Error(parsed.message);
+            }
+            clearServiceUnavailable('database');
+            return json.data.clusters as ClusterListItem[];
+          },
+          { force },
+        );
         setNetworkData(data);
+      } catch (err) {
+        showError(err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.warn('[NetworkPage] Gunakan data cluster inventaris lokal:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [showError],
+  );
 
   useEffect(() => {
-    fetchClusters();
+    void fetchClusters();
   }, [fetchClusters]);
 
   const handleCreateTicketSubmit = async (data: CreateTicketInput) => {
@@ -278,95 +294,129 @@ export function useNetwork() {
     };
   }, []);
 
-  const odpHistoryLogs: OdpHistoryLogItem[] = useMemo(() => {
-    return [
-      {
-        portNumber: 1,
-        type: 'MAINTENANCE',
-        date: '18 Okt 2026 · 14:20 WIB',
-        technician: 'Andi Pratama',
-        ticketNumber: 'TKT-2026-081',
-        customerName: 'Pelanggan BT-1',
-        attenuationDelta: '-19.3 dBm → -18.8 dBm (+0.5 dBm)',
-        notes: 'Optimasi sambungan kabel drop core dan pembersihan ferrule adaptor SC/UPC.',
-      },
-      {
-        portNumber: 2,
-        type: 'PEMASANGAN',
-        date: '17 Okt 2026 · 09:15 WIB',
-        technician: 'Budi Santoso',
-        ticketNumber: 'PSB-2026-112',
-        customerName: 'Pelanggan BT-2',
-        attenuationDelta: 'Redaman Awal: -19.1 dBm',
-        notes: 'Instalasi modem ONT ZTE F670L dan drop wire 65 meter selesai tervalidasi.',
-      },
-      {
-        portNumber: 3,
-        type: 'MAINTENANCE',
-        date: '16 Okt 2026 · 11:30 WIB',
-        technician: 'Andi Pratama',
-        ticketNumber: 'TKT-2026-083',
-        customerName: 'Pelanggan BT-3',
-        attenuationDelta: '-19.9 dBm → -19.4 dBm (+0.5 dBm)',
-        notes: 'Penggantian adaptor SC/UPC port 3 yang longgar pada baki splitter.',
-      },
-      {
-        portNumber: 4,
-        type: 'PEMASANGAN',
-        date: '15 Okt 2026 · 16:45 WIB',
-        technician: 'Budi Santoso',
-        ticketNumber: 'PSB-2026-114',
-        customerName: 'Pelanggan BT-4',
-        attenuationDelta: 'Redaman Awal: -19.7 dBm',
-        notes: 'Penarikan kabel drop core 85 meter dan aktivasi port baru.',
-      },
-      {
-        portNumber: 5,
-        type: 'MAINTENANCE',
-        date: '14 Okt 2026 · 10:10 WIB',
-        technician: 'Andi Pratama',
-        ticketNumber: 'TKT-2026-085',
-        customerName: 'Pelanggan BT-5',
-        attenuationDelta: '-20.5 dBm → -20.0 dBm (+0.5 dBm)',
-        notes: 'Pengecekan redaman berkala dan pembersihan adapter ferrule.',
-      },
-      {
-        portNumber: 6,
-        type: 'PEMASANGAN',
-        date: '13 Okt 2026 · 15:20 WIB',
-        technician: 'Budi Santoso',
-        ticketNumber: 'PSB-2026-116',
-        customerName: 'Pelanggan BT-6',
-        attenuationDelta: 'Redaman Awal: -20.3 dBm',
-        notes: 'Instalasi modem ONT dan penarikan kabel drop core.',
-      },
-      {
-        portNumber: 11,
-        type: 'PENARIKAN',
-        date: '05 Okt 2026 · 13:00 WIB',
-        technician: 'Dedi Kurniawan',
-        ticketNumber: 'DIS-2026-025',
-        customerName: 'Eks Pelanggan BT-11',
-        attenuationDelta: 'Port Dikembalikan ke Siap PSB',
-        notes: 'Terminasi kontrak pelanggan relokasi. Patch cord dilepas dari ODP, port bebas.',
-      },
-    ];
-  }, []);
+  const activeSplitterClusterCode = activeSplitter?.clusterCode || '';
+  const activeSplitterKey = activeSplitter?.splitterCode || '';
 
-  const handleRunAudit = () => {
+  useEffect(() => {
+    if (!activeSplitterKey) {
+      setOdpHistoryLogs([]);
+      return;
+    }
+
+    let cancelled = false;
+    const loadHistory = async () => {
+      try {
+        setHistoryLoading(true);
+        const query = new URLSearchParams({
+          cluster: activeSplitterClusterCode,
+          splitter: activeSplitterKey,
+        });
+        const res = await fetch(`/api/v1/admin/clusters/history?${query.toString()}`);
+        const json = await res.json().catch(() => null);
+        if (cancelled) return;
+
+        if (!res.ok || !json?.success || !Array.isArray(json.data)) {
+          notifyApiResponseError(
+            res.status,
+            json,
+            'Gagal memuat riwayat ODP dari PostgreSQL',
+            { category: 'database', source: '/api/v1/admin/clusters/history' },
+          );
+          setOdpHistoryLogs([]);
+          return;
+        }
+
+        const mapped: OdpHistoryLogItem[] = (json.data as OdpHistoryEntry[]).map((entry) => {
+          const mappedType: OdpHistoryLogItem['type'] =
+            entry.actionType === 'PENARIKAN'
+              ? 'PENARIKAN'
+              : entry.actionType === 'MAINTENANCE'
+                ? 'MAINTENANCE'
+                : 'PEMASANGAN';
+          const delta =
+            entry.oldAttenuation !== null
+              ? `${entry.oldAttenuation.toFixed(1)} dBm → ${entry.newAttenuation.toFixed(1)} dBm`
+              : `Redaman: ${entry.newAttenuation.toFixed(1)} dBm`;
+
+          const formattedDate = new Date(entry.timestamp).toLocaleString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+
+          return {
+            portNumber: entry.portNumber,
+            type: mappedType,
+            date: `${formattedDate} WIB`,
+            technician: entry.technicianName,
+            ticketNumber: entry.ticketNumber,
+            customerName: entry.customerName,
+            attenuationDelta: delta,
+            notes: entry.notes || 'Pengukuran redaman optik tercatat atomik di PostgreSQL.',
+          };
+        });
+
+        setOdpHistoryLogs(mapped);
+      } catch {
+        if (!cancelled) {
+          setOdpHistoryLogs([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setHistoryLoading(false);
+        }
+      }
+    };
+
+    void loadHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSplitterClusterCode, activeSplitterKey]);
+
+  const handleRunAudit = useCallback(async () => {
+    if (auditRunning) return;
     setAuditRunning(true);
-    setTimeout(() => {
-      setAuditRunning(false);
+    try {
+      const res = await fetch('/api/v1/admin/clusters/audit', { method: 'POST' });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success || !json.data) {
+        const parsed = notifyApiResponseError(
+          res.status,
+          json,
+          'Gagal menjalankan audit integritas jaringan di PostgreSQL',
+          { category: 'database', source: '/api/v1/admin/clusters/audit' },
+        );
+        throw new Error(parsed.message);
+      }
+
+      const result = json.data as NetworkAuditResult;
+      setAuditResult(result);
       setAuditTimestamp(
-        new Date().toLocaleTimeString('id-ID', {
+        new Date(result.auditedAt).toLocaleTimeString('id-ID', {
           hour: '2-digit',
           minute: '2-digit',
           second: '2-digit',
         }) + ' WIB',
       );
-      showSuccess('Audit integritas database berhasil: 0 anomali port ditemukan.');
-    }, 600);
-  };
+
+      if (result.findings.length === 0) {
+        showSuccess(
+          `Audit selesai: ${result.totalSplitters} ODP tervalidasi sehat (${result.usedPorts}/${result.totalPorts} port terisi, 0 collision).`,
+        );
+      } else {
+        showSuccess(
+          `Audit selesai: ditemukan ${result.findings.length} temuan kapasitas/redaman/geofence dari ${result.totalSplitters} ODP.`,
+        );
+      }
+    } catch (err) {
+      showError(err);
+    } finally {
+      setAuditRunning(false);
+    }
+  }, [auditRunning, showError, showSuccess]);
 
   const handleCreateCluster = async (
     payload: import('@repo/shared').CreateClusterInput,
@@ -376,13 +426,20 @@ export function useNetwork() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...payload, entityType: 'CLUSTER' }),
     });
-    const json = (await res.json()) as {
+    const json = (await res.json().catch(() => null)) as {
       success?: boolean;
       error?: { message?: string };
-    };
-    if (!res.ok || !json.success) {
-      throw new Error(json.error?.message || 'Gagal menambahkan wilayah cluster');
+    } | null;
+    if (!res.ok || !json?.success) {
+      const parsed = notifyApiResponseError(
+        res.status,
+        json,
+        'Gagal menambahkan wilayah cluster',
+        { category: 'database', source: CLUSTERS_CACHE_KEY },
+      );
+      throw new Error(parsed.message);
     }
+    invalidateQueryCache(CLUSTERS_CACHE_KEY, CLUSTER_OPTIONS_CACHE_KEY);
     showSuccess(`Cluster ${payload.name} (${payload.clusterCode}) berhasil ditambahkan.`);
     await fetchClusters(true);
   };
@@ -395,13 +452,20 @@ export function useNetwork() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...payload, entityType: 'SPLITTER' }),
     });
-    const json = (await res.json()) as {
+    const json = (await res.json().catch(() => null)) as {
       success?: boolean;
       error?: { message?: string };
-    };
-    if (!res.ok || !json.success) {
-      throw new Error(json.error?.message || 'Gagal menambahkan ODP splitter');
+    } | null;
+    if (!res.ok || !json?.success) {
+      const parsed = notifyApiResponseError(
+        res.status,
+        json,
+        'Gagal menambahkan ODP splitter',
+        { category: 'database', source: CLUSTERS_CACHE_KEY },
+      );
+      throw new Error(parsed.message);
     }
+    invalidateQueryCache(CLUSTERS_CACHE_KEY, CLUSTER_OPTIONS_CACHE_KEY);
     showSuccess(`ODP ${payload.splitterCode} (${payload.maxPorts} port) berhasil ditambahkan.`);
     setActiveSplitterCode(payload.splitterCode);
     await fetchClusters(true);
@@ -415,13 +479,20 @@ export function useNetwork() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const json = (await res.json()) as {
+    const json = (await res.json().catch(() => null)) as {
       success?: boolean;
       error?: { message?: string };
-    };
-    if (!res.ok || !json.success) {
-      throw new Error(json.error?.message || 'Gagal memperbarui ODP splitter');
+    } | null;
+    if (!res.ok || !json?.success) {
+      const parsed = notifyApiResponseError(
+        res.status,
+        json,
+        'Gagal memperbarui ODP splitter',
+        { category: 'database', source: CLUSTERS_CACHE_KEY },
+      );
+      throw new Error(parsed.message);
     }
+    invalidateQueryCache(CLUSTERS_CACHE_KEY, CLUSTER_OPTIONS_CACHE_KEY);
     showSuccess(`Data ODP ${payload.splitterCode} berhasil diperbarui.`);
     await fetchClusters(true);
   };
@@ -451,8 +522,11 @@ export function useNetwork() {
     setSelectedCustomerForModal,
     historyTypeFilter,
     setHistoryTypeFilter,
+    historyLoading,
     auditRunning,
+    auditResult,
     auditTimestamp,
+    clusterOptions,
     ticketModalOpen,
     setTicketModalOpen,
     ticketModalInitial,

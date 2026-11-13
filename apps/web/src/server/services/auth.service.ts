@@ -3,6 +3,12 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 import { env } from '../../env';
+import {
+  isStrictLiveMode,
+  requireLiveDatabase,
+  rethrowIfStrictDatabaseError,
+  ServiceUnavailableError,
+} from '../lib/live-data';
 import { redisManager } from '../lib/redis';
 import {
   createOtpChallenge,
@@ -278,7 +284,7 @@ export class AuthService {
       const userId = payload.sub as string;
       const deviceId = payload.deviceId as string | undefined;
 
-      if (await isDatabaseAvailable()) {
+      if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk verifikasi sesi.')) {
         try {
           // Check user existence and active status in DB
           const user = await prisma.user.findUnique({
@@ -329,7 +335,10 @@ export class AuthService {
           ) {
             throw dbErr;
           }
-          markDatabaseUnavailable(dbErr);
+          rethrowIfStrictDatabaseError(
+            dbErr,
+            'Koneksi database PostgreSQL terputus saat memverifikasi sesi.',
+          );
         }
       }
 
@@ -340,7 +349,7 @@ export class AuthService {
         }
       }
 
-      // Offline fallback resolution using verified JWT claims & fallback seed users
+      // Offline fallback resolution using verified JWT claims & fallback seed users (non-strict test mode only)
       const payloadUsername = typeof payload.username === 'string' ? payload.username.toLowerCase() : '';
       const fallbackUser =
         (payloadUsername ? FALLBACK_SEED_USERS[payloadUsername] : undefined) ||
@@ -371,7 +380,10 @@ export class AuthService {
           : [],
         deviceId,
       };
-    } catch {
+    } catch (err) {
+      if (err instanceof ServiceUnavailableError) {
+        throw err;
+      }
       throw new Error(ERROR_CODES.UNAUTHORIZED);
     }
   }
@@ -419,13 +431,13 @@ export class AuthService {
   }
 
   /**
-   * Resolves a web operator or vendor account by username from PostgreSQL or fallback seed accounts.
+   * Resolves a web operator or vendor account by username from PostgreSQL or fallback seed accounts (non-strict test mode only).
    */
   public static async resolveAccountByUsername(username: string): Promise<FallbackAccount | null> {
     const normalizedUsername = username.trim().toLowerCase();
     let dbUser: FallbackAccount | null = null;
 
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Database PostgreSQL tidak dapat dijangkau saat login.')) {
       try {
         const found = await prisma.user.findUnique({
           where: { username: normalizedUsername },
@@ -435,7 +447,10 @@ export class AuthService {
           dbUser = this.mapDbUserToAccount(found);
         }
       } catch (err) {
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal menghubungi database PostgreSQL.');
+      }
+      if (isStrictLiveMode()) {
+        return dbUser;
       }
     }
 
@@ -443,11 +458,11 @@ export class AuthService {
   }
 
   /**
-   * Resolves an account by NIK from PostgreSQL or fallback seed accounts.
+   * Resolves an account by NIK from PostgreSQL or fallback seed accounts (non-strict test mode only).
    */
   public static async resolveAccountByNik(nik: string): Promise<FallbackAccount | null> {
     const cleanNik = nik.trim().toUpperCase();
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Database PostgreSQL tidak dapat dijangkau.')) {
       try {
         const found = await prisma.user.findFirst({
           where: { nik: cleanNik },
@@ -457,7 +472,10 @@ export class AuthService {
           return this.mapDbUserToAccount(found);
         }
       } catch (err) {
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal menghubungi database PostgreSQL.');
+      }
+      if (isStrictLiveMode()) {
+        return null;
       }
     }
 
@@ -478,7 +496,7 @@ export class AuthService {
     const cleanId = String(chatId).trim();
     if (!cleanId) return null;
 
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Database PostgreSQL tidak dapat dijangkau.')) {
       try {
         const found = await prisma.user.findFirst({
           where: {
@@ -494,7 +512,10 @@ export class AuthService {
           return this.mapDbUserToAccount(found);
         }
       } catch (err) {
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal menghubungi database PostgreSQL.');
+      }
+      if (isStrictLiveMode()) {
+        return null;
       }
     }
 
@@ -516,14 +537,14 @@ export class AuthService {
       return { success: false, user: null };
     }
 
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Database PostgreSQL tidak dapat dijangkau.')) {
       try {
         await prisma.user.update({
           where: { id: user.id },
           data: { telegramChatId: params.chatId },
         });
       } catch (err) {
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal menyimpan ikatan Telegram ke database.');
       }
     }
 
@@ -543,14 +564,14 @@ export class AuthService {
    * Unlinks a Telegram Chat ID from a user account (e.g. lost device reset).
    */
   public static async unlinkTelegramChatId(userId: string): Promise<boolean> {
-    if (await isDatabaseAvailable()) {
+    if (await requireLiveDatabase('Database PostgreSQL tidak dapat dijangkau.')) {
       try {
         await prisma.user.update({
           where: { id: userId },
           data: { telegramChatId: null },
         });
       } catch (err) {
-        markDatabaseUnavailable(err);
+        rethrowIfStrictDatabaseError(err, 'Gagal memutuskan tautan Telegram dari database.');
       }
     }
 
@@ -635,7 +656,9 @@ export class AuthService {
     const match = user.passwordHash
       ? await this.comparePassword(plainPassword, user.passwordHash).catch(() => false)
       : false;
-    const isSeedDefaultPassword = plainPassword === 'password123' || plainPassword === 'admin123';
+    const allowMockPassword = !isStrictLiveMode() && process.env.NODE_ENV === 'test';
+    const isSeedDefaultPassword =
+      allowMockPassword && (plainPassword === 'password123' || plainPassword === 'admin123');
     const isValid = match || isSeedDefaultPassword;
 
     if (!isValid) {
@@ -888,7 +911,7 @@ export class AuthService {
     appVersion?: string,
   ) {
     if (!(await isDatabaseAvailable())) {
-      throw new Error('Database tidak tersedia untuk autentikasi perangkat mobile');
+      throw new ServiceUnavailableError('Database PostgreSQL tidak tersedia untuk autentikasi perangkat mobile');
     }
 
     try {
@@ -903,7 +926,7 @@ export class AuthService {
 
       const match = await this.comparePassword(plainPassword, user.passwordHash).catch(() => false);
       const isValid =
-        match || (process.env.NODE_ENV !== 'production' && plainPassword === 'password123');
+        match || (!isStrictLiveMode() && process.env.NODE_ENV === 'test' && plainPassword === 'password123');
 
       if (!isValid) {
         throw new Error('Kredensial tidak valid');
@@ -1022,7 +1045,9 @@ export class AuthService {
       }
 
       if (!(await isDatabaseAvailable())) {
-        throw new Error(ERROR_CODES.UNAUTHORIZED);
+        throw new ServiceUnavailableError(
+          'Database PostgreSQL tidak tersedia untuk refresh sesi mobile',
+        );
       }
 
       let session;
@@ -1032,7 +1057,7 @@ export class AuthService {
           include: { user: { include: { role: true } } },
         });
       } catch (dbErr) {
-        markDatabaseUnavailable(dbErr);
+        rethrowIfStrictDatabaseError(dbErr, 'Koneksi database PostgreSQL terputus saat refresh sesi.');
         throw dbErr;
       }
 
@@ -1087,6 +1112,9 @@ export class AuthService {
         refreshToken: newRefreshToken,
       };
     } catch (err: unknown) {
+      if (err instanceof ServiceUnavailableError) {
+        throw err;
+      }
       const errMsg = (err as Error).message || '';
       if (errMsg.includes(ERROR_CODES.TOKEN_REUSE_DETECTED)) {
         throw err;

@@ -43,3 +43,37 @@ export const updateRolePermissionsSchema = z.object({
 });
 
 export type UpdateRolePermissionsInput = z.infer<typeof updateRolePermissionsSchema>;
+
+export const createUserSchema = z.object({
+  fullName: z.string().trim().min(2, 'Nama lengkap minimal 2 karakter').max(100),
+  nik: z.string().trim().min(3, 'NIK wajib diisi').max(32),
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3, 'Username minimal 3 karakter')
+    .max(50)
+    .regex(/^[a-z0-9._-]+$/, 'Username hanya boleh huruf kecil, angka, titik, garis bawah, atau tanda hubung'),
+  password: z.string().min(8, 'Kata sandi minimal 8 karakter').optional(),
+  roleName: z.string().trim().min(2, 'Role wajib dipilih'),
+  vendorCompany: z.string().trim().max(120).optional().nullable(),
+  assignedClusters: z.array(z.string().trim().min(1)).default([]),
+  telegramChatId: z.string().trim().max(64).optional().nullable(),
+  twoFactorEnabled: z.boolean().optional(),
+});
+
+export type CreateUserInput = z.infer<typeof createUserSchema>;
+
+export const updateUserSchema = z.object({
+  fullName: z.string().trim().min(2).max(100).optional(),
+  roleName: z.string().trim().min(2).optional(),
+  vendorCompany: z.string().trim().max(120).optional().nullable(),
+  assignedClusters: z.array(z.string().trim().min(1)).optional(),
+  isActive: z.boolean().optional(),
+  unlinkTelegram: z.boolean().optional(),
+  telegramChatId: z.string().trim().max(64).optional().nullable(),
+  twoFactorEnabled: z.boolean().optional(),
+  password: z.string().min(8).optional(),
+});
+
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;

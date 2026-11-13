@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { DraftActionCardData, sanitizeUiErrorMessage } from '@repo/shared';
+import { notifyApiResponseError } from '@/lib/api-error';
 import { useToast } from '@/providers';
 
 export interface ChatMessage {
@@ -85,9 +86,9 @@ export function useAiAssistant() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: textToSend }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => null);
 
-      if (json.success) {
+      if (res.ok && json?.success && json.data) {
         setMessages((prev) => [
           ...prev,
           {
@@ -98,7 +99,13 @@ export function useAiAssistant() {
           },
         ]);
       } else {
-        const sanitized = sanitizeUiErrorMessage(json.error);
+        const parsed = notifyApiResponseError(
+          res.status,
+          json,
+          'Asisten AI sedang tidak tersedia.',
+          { category: 'service', source: '/api/v1/admin/ai/chat' },
+        );
+        const sanitized = sanitizeUiErrorMessage(json?.error || { code: parsed.code, message: parsed.message });
         setMessages((prev) => [
           ...prev,
           {
@@ -107,7 +114,7 @@ export function useAiAssistant() {
             timestamp: formatTime(),
           },
         ]);
-        showError(json.error);
+        showError(json?.error || new Error(parsed.message));
       }
     } catch (e: unknown) {
       const sanitized = sanitizeUiErrorMessage(e);

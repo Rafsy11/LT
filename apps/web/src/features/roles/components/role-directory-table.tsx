@@ -1,10 +1,11 @@
 'use client';
 
 import React from 'react';
+import type { ClusterOptionItem } from '@repo/shared';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
 import { SearchInput } from '@/components/ui/search-input';
-import { UserAccessItem } from '../hooks/use-roles';
+import { RoleApiItem, UserAccessItem } from '../hooks/use-roles';
 
 export interface RoleDirectoryTableProps {
   searchQuery: string;
@@ -13,6 +14,8 @@ export interface RoleDirectoryTableProps {
   setRoleFilter: (r: string) => void;
   clusterFilter: string;
   setClusterFilter: (c: string) => void;
+  roleList: RoleApiItem[];
+  clusterOptions: ClusterOptionItem[];
   filteredUsers: UserAccessItem[];
   totalUsersCount: number;
   currentUsername?: string;
@@ -47,15 +50,15 @@ export function RoleDirectoryTable({
   setRoleFilter,
   clusterFilter,
   setClusterFilter,
+  roleList,
+  clusterOptions,
   filteredUsers,
   totalUsersCount,
   currentUsername,
   actionInProgress,
   onToggleUserStatus,
-  onInspectRolePermissions,
   onEditUserRole,
   onOpenTelegramGuide,
-  getRoleBadgeStyle,
 }: RoleDirectoryTableProps) {
   return (
     <section aria-label="Direktori Pengguna & Hak Akses">
@@ -73,7 +76,7 @@ export function RoleDirectoryTable({
         <SearchInput
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Cari nama, NIK, username, email..."
+          placeholder="Cari nama, NIK, username, atau vendor..."
           ariaLabel="Cari pengguna"
           className="table-search-box roles-search-box"
         />
@@ -85,12 +88,12 @@ export function RoleDirectoryTable({
           aria-label="Filter Peran"
           className="role-filter-select"
         >
-          <option>Semua Peran</option>
-          <option>Super Admin</option>
-          <option>Admin Operasional</option>
-          <option>NOC Monitoring</option>
-          <option>Customer Support</option>
-          <option>Teknisi Lapangan</option>
+          <option value="Semua Peran">Semua Peran</option>
+          {roleList.map((r) => (
+            <option key={r.id || r.name} value={r.name}>
+              {r.name}
+            </option>
+          ))}
         </select>
 
         {/* Filter by Wilayah */}
@@ -100,10 +103,13 @@ export function RoleDirectoryTable({
           aria-label="Filter Wilayah"
           className="role-filter-select"
         >
-          <option>Semua Wilayah</option>
-          <option>Global Scope</option>
-          <option>Bandung Utara</option>
-          <option>Bandung Selatan</option>
+          <option value="Semua Wilayah">Semua Wilayah</option>
+          <option value="Global Scope">Global Scope</option>
+          {clusterOptions.map((c) => (
+            <option key={c.id} value={c.clusterCode}>
+              {c.name} ({c.clusterCode})
+            </option>
+          ))}
         </select>
       </header>
 

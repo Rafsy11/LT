@@ -54,7 +54,6 @@ export interface TicketDetailModalProps {
   ticket: TicketModalData | null;
   onClose: () => void;
   onTicketUpdated?: () => void;
-  onMarkCompleted?: (ticketNumber: string) => void;
 }
 
 export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDetailModalProps) {
@@ -635,8 +634,10 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                     ODP &amp; Port Splitter Diajukan
                   </span>
                   <div className="ticket-pending-value">
-                    {pendingData?.splitterCode || ticket.splitterCode || 'ODP-BDG-03'} · Port{' '}
-                    {pendingData?.portNumber || ticket.portNumber || 2}
+                    {pendingData?.splitterCode || ticket.splitterCode || '—'} ·{' '}
+                    {pendingData?.portNumber || ticket.portNumber
+                      ? `Port ${pendingData?.portNumber || ticket.portNumber}`
+                      : 'Port —'}
                   </div>
                 </div>
 

@@ -304,13 +304,13 @@ export function SplitterPortGrid({
                                         setSelectedCustomerForModal({
                                           id: port.siaNumber || `CUST-${port.portNumber}`,
                                           fullName: port.customerName || 'Pelanggan',
-                                          siaNumber: port.siaNumber || 'SIA-2024-BT01',
+                                          siaNumber: port.siaNumber || '—',
                                           address: `Area ${activeSplitter.name}`,
                                           cluster: activeSplitter.name,
                                           clusterCode: activeSplitter.clusterCode,
                                           splitterCode: activeSplitter.splitterCode,
                                           portNumber: port.portNumber,
-                                          currentAttenuation: port.attenuation ?? -18.8,
+                                          currentAttenuation: port.attenuation ?? 0,
                                           status: 'ACTIVE',
                                           updatedAt: new Date().toISOString(),
                                         });
