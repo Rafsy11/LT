@@ -17,6 +17,7 @@ type NodeStatus = 'normal' | 'warning' | 'critical';
 interface ProjectedNode {
   id: string;
   label: string;
+  locationName?: string;
   clusterName: string;
   clusterCode: string;
   usedPorts: number;
@@ -42,6 +43,15 @@ const MAP_PAD_Y = 56;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.4;
+
+const SUMSEL_BOUNDS = {
+  MIN_LAT: -4.0,
+  MAX_LAT: -2.0,
+  MIN_LNG: 103.5,
+  MAX_LNG: 106.0,
+};
+const MIN_LAT_SPAN = 0.06;
+const MIN_LNG_SPAN = 0.08;
 
 function resolveNodeStatus(item: ClusterListItem): NodeStatus {
   const ports = Array.isArray(item.ports) ? item.ports : [];
@@ -87,6 +97,7 @@ export function OverviewNetworkMap({
     const rawPoints: Array<{
       id: string;
       label: string;
+      locationName?: string;
       clusterName: string;
       clusterCode: string;
       usedPorts: number;
@@ -101,6 +112,7 @@ export function OverviewNetworkMap({
             .map((s) => ({
               id: s.id,
               label: s.splitterCode,
+              locationName: s.locationName,
               clusterName: s.name,
               clusterCode: s.clusterCode,
               usedPorts: s.usedPorts,
@@ -118,6 +130,7 @@ export function OverviewNetworkMap({
             .map((opt) => ({
               id: opt.id,
               label: `${opt.clusterCode} (${opt.splittersCount} ODP)`,
+              locationName: undefined,
               clusterName: opt.name,
               clusterCode: opt.clusterCode,
               usedPorts: 0,
@@ -127,7 +140,15 @@ export function OverviewNetworkMap({
               status: 'normal' as NodeStatus,
             }));
 
-    if (rawPoints.length === 0) {
+    const filteredPoints = rawPoints.filter(
+      (p) =>
+        p.lat >= SUMSEL_BOUNDS.MIN_LAT &&
+        p.lat <= SUMSEL_BOUNDS.MAX_LAT &&
+        p.lng >= SUMSEL_BOUNDS.MIN_LNG &&
+        p.lng <= SUMSEL_BOUNDS.MAX_LNG,
+    );
+
+    if (filteredPoints.length === 0) {
       return {
         nodes: [] as ProjectedNode[],
         clusterZones: [] as ProjectedClusterLabel[],
@@ -135,21 +156,21 @@ export function OverviewNetworkMap({
       };
     }
 
-    const lats = rawPoints.map((p) => p.lat);
-    const lngs = rawPoints.map((p) => p.lng);
+    const lats = filteredPoints.map((p) => p.lat);
+    const lngs = filteredPoints.map((p) => p.lng);
     const minLat = Math.min(...lats);
     const maxLat = Math.max(...lats);
     const minLng = Math.min(...lngs);
     const maxLng = Math.max(...lngs);
-    const latSpan = maxLat - minLat;
-    const lngSpan = maxLng - minLng;
+    const latSpan = Math.max(MIN_LAT_SPAN, maxLat - minLat);
+    const lngSpan = Math.max(MIN_LNG_SPAN, maxLng - minLng);
 
     const innerW = SVG_WIDTH - MAP_PAD_X * 2;
     const innerH = SVG_HEIGHT - MAP_PAD_Y * 2;
 
     const coordCounts = new Map<string, number>();
 
-    const projectedNodes: ProjectedNode[] = rawPoints.map((pt) => {
+    const projectedNodes: ProjectedNode[] = filteredPoints.map((pt) => {
       const coordKey = `${pt.lat.toFixed(4)}:${pt.lng.toFixed(4)}`;
       const dupIndex = coordCounts.get(coordKey) ?? 0;
       coordCounts.set(coordKey, dupIndex + 1);
@@ -171,6 +192,7 @@ export function OverviewNetworkMap({
       return {
         id: pt.id,
         label: pt.label,
+        locationName: pt.locationName,
         clusterName: pt.clusterName,
         clusterCode: pt.clusterCode,
         usedPorts: pt.usedPorts,
@@ -388,19 +410,19 @@ export function OverviewNetworkMap({
                     onMouseLeave={() => setHoveredNodeId((prev) => (prev === node.id ? null : prev))}
                     style={{ cursor: 'pointer' }}
                   >
-                    <title>{`${node.label} (${node.clusterName})${portSummary}`}</title>
+                    <title>{`${node.label}${node.locationName ? ` · ${node.locationName}` : ''} (${node.clusterName})${portSummary}`}</title>
                     <circle
                       className="map-node-halo"
                       cx={node.x}
                       cy={node.y}
-                      r={isHovered ? 14 : isCrit ? 11 : 8.5}
+                      r={isHovered ? 11 : isCrit ? 8.5 : 6.5}
                       fill={halo}
                     />
                     <circle
                       className="map-node-dot"
                       cx={node.x}
                       cy={node.y}
-                      r={isHovered ? 5.5 : 4.2}
+                      r={isHovered ? 4.8 : 3.4}
                       fill={fillDot}
                       stroke="#ffffff"
                       strokeWidth="1.5"

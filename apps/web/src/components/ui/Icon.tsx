@@ -27,6 +27,7 @@ const icons: Record<string, string> = {
   plus: 'M12 5v14 M5 12h14',
   clock: 'M12 8v4l3 2 M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20',
   check: 'm5 12 4 4L19 6',
+  upload: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12',
   download: 'M12 3v12 m-5-5 5 5 5-5 M4 16v5h16v-5',
   pin: 'M12 22s7-7 7-13a7 7 0 0 0-14 0c0 6 7 13 7 13 M12 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
   shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',

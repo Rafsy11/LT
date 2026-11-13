@@ -84,7 +84,7 @@ export function useCustomers() {
       const match = availableClusters.find(
         (cl) =>
           c.cluster.toLowerCase().trim() === cl.toLowerCase().trim() ||
-          c.cluster.toLowerCase().includes(cl.toLowerCase().replace('bandung ', '').trim()),
+          c.cluster.toLowerCase().includes(cl.toLowerCase().trim()),
       );
       if (match) {
         map[match] = (map[match] || 0) + 1;
@@ -153,14 +153,14 @@ export function useCustomers() {
       const matchesCluster =
         cluster === 'Semua cluster' ||
         c.cluster.toLowerCase().trim() === cluster.toLowerCase().trim() ||
-        c.cluster.toLowerCase().includes(cluster.toLowerCase().replace('bandung ', '').trim());
+        c.cluster.toLowerCase().includes(cluster.toLowerCase().trim());
 
       const matchesSearch =
         search === '' ||
         c.fullName.toLowerCase().includes(search.toLowerCase()) ||
         c.siaNumber.toLowerCase().includes(search.toLowerCase()) ||
         c.address.toLowerCase().includes(search.toLowerCase()) ||
-        c.splitterCode.toLowerCase().includes(search.toLowerCase()) ||
+        Boolean(c.splitterCode && c.splitterCode.toLowerCase().includes(search.toLowerCase())) ||
         c.cluster.toLowerCase().includes(search.toLowerCase()) ||
         Boolean(c.kecamatan && c.kecamatan.toLowerCase().includes(search.toLowerCase())) ||
         Boolean(c.kelurahan && c.kelurahan.toLowerCase().includes(search.toLowerCase())) ||
@@ -197,7 +197,10 @@ export function useCustomers() {
     [clusterScoped],
   );
   const criticalCount = useMemo(
-    () => clusterScoped.filter((c) => classifyDbm(c.currentAttenuation) === 'Critical').length,
+    () =>
+      clusterScoped.filter(
+        (c) => c.currentAttenuation != null && classifyDbm(c.currentAttenuation) === 'Critical',
+      ).length,
     [clusterScoped],
   );
   const isolatedCount = useMemo(
@@ -213,7 +216,9 @@ export function useCustomers() {
       case 'PENDING_INSTALL':
         return clusterScoped.filter((c) => c.status === 'PENDING_INSTALL');
       case 'critical':
-        return clusterScoped.filter((c) => classifyDbm(c.currentAttenuation) === 'Critical');
+        return clusterScoped.filter(
+          (c) => c.currentAttenuation != null && classifyDbm(c.currentAttenuation) === 'Critical',
+        );
       case 'ISOLATED':
         return clusterScoped.filter((c) => c.status === 'ISOLATED');
       case 'all':

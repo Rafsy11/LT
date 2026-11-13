@@ -452,7 +452,7 @@ export function CreateTicketModal({
               required
               value={serviceAddress}
               onChange={(e) => setServiceAddress(e.target.value)}
-              placeholder="Contoh: Jl. Riau No. 45, Kec. Bandung Wetan, Bandung"
+              placeholder="Contoh: Jl. Sudirman No. 88, Kec. Ilir Timur I, Palembang"
               disabled={!canCreateTicket || submitting}
             />
           </label>
@@ -466,7 +466,7 @@ export function CreateTicketModal({
                 step="any"
                 value={targetLat}
                 onChange={(e) => setTargetLat(e.target.value)}
-                placeholder="-6.906200"
+                placeholder="-2.982000"
                 disabled={!canCreateTicket || submitting}
               />
             </label>
@@ -479,7 +479,7 @@ export function CreateTicketModal({
                 step="any"
                 value={targetLng}
                 onChange={(e) => setTargetLng(e.target.value)}
-                placeholder="107.618600"
+                placeholder="104.754000"
                 disabled={!canCreateTicket || submitting}
               />
               {hasValidCoords && (

@@ -13,6 +13,7 @@ import { ClusterSelector } from './cluster-selector';
 import { SplitterPortGrid } from './splitter-port-grid';
 import { PortDetailPanel } from './port-detail-panel';
 import { NetworkEntityModal, type NetworkEntityModalMode } from './network-entity-modal';
+import { DatekImportModal } from './datek-import-modal';
 import '@/styles/features/network.css';
 
 export function NetworkView() {
@@ -21,6 +22,7 @@ export function NetworkView() {
   const [entityModalOpen, setEntityModalOpen] = useState(false);
   const [entityModalMode, setEntityModalMode] =
     useState<NetworkEntityModalMode>('CREATE_SPLITTER');
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const {
     search,
@@ -109,6 +111,14 @@ export function NetworkView() {
               >
                 <Icon name="plus" size={14} />
                 <span>Tambah ODP</span>
+              </button>
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setImportModalOpen(true)}
+              >
+                <Icon name="upload" size={14} />
+                <span>Import Datek</span>
               </button>
             </div>
           </div>
@@ -331,6 +341,15 @@ export function NetworkView() {
         onCreateCluster={handleCreateCluster}
         onCreateSplitter={handleCreateSplitter}
         onUpdateSplitter={handleUpdateSplitter}
+      />
+
+      {/* Palembang Datek Excel/CSV Import Modal */}
+      <DatekImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onSuccess={() => {
+          void fetchClusters(true);
+        }}
       />
     </main>
   );

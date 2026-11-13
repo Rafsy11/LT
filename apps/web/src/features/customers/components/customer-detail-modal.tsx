@@ -63,8 +63,6 @@ export function CustomerDetailModal({
 
   if (!customer) return null;
 
-  const tone = dbmTone(customer.currentAttenuation);
-
   return (
     <ModalOverlay onClose={onClose} labelledBy="customer-detail-title">
       <article
@@ -169,9 +167,9 @@ export function CustomerDetailModal({
               <div
                 style={{ marginTop: '4px', fontSize: '12px', fontWeight: 600 }}
               >
-                {customer.splitterCode}{' '}
+                {customer.splitterCode || 'Belum dipetakan'}{' '}
                 <span style={{ fontFamily: 'var(--font-mono, monospace)' }}>
-                  Port #{customer.portNumber}
+                  {customer.portNumber != null ? `Port #${customer.portNumber}` : 'Tanpa port'}
                 </span>
               </div>
             </div>
@@ -195,12 +193,148 @@ export function CustomerDetailModal({
                   fontWeight: 700,
                 }}
               >
-                {customer.currentAttenuation.toFixed(1)} dBm{' '}
+                {customer.currentAttenuation != null
+                  ? `${customer.currentAttenuation.toFixed(1)} dBm `
+                  : 'Belum diukur '}
                 <span style={{ fontSize: '10.5px', fontWeight: 500, color: 'var(--color-text-muted)' }}>
                   ({classifyDbm(customer.currentAttenuation)})
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* GPON Datek Technical Specifications */}
+          <div className="modal-sub-card gpon-datek-card">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '8px',
+                fontWeight: 600,
+              }}
+            >
+              <Icon name="network" size={13} />
+              <span>Spesifikasi Teknis GPON &amp; Perangkat</span>
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span
+                  style={{
+                    fontSize: '10.5px',
+                    color: 'var(--color-text-muted)',
+                    fontWeight: 500,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.4px',
+                  }}
+                >
+                  Node Akses GPON
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                  }}
+                >
+                  {customer.gponNode || '—'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span
+                  style={{
+                    fontSize: '10.5px',
+                    color: 'var(--color-text-muted)',
+                    fontWeight: 500,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.4px',
+                  }}
+                >
+                  Slot OLT
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                  }}
+                >
+                  {customer.oltSlot || '—'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span
+                  style={{
+                    fontSize: '10.5px',
+                    color: 'var(--color-text-muted)',
+                    fontWeight: 500,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.4px',
+                  }}
+                >
+                  SN Modem ONT
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                  }}
+                >
+                  {customer.ontSn || '—'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span
+                  style={{
+                    fontSize: '10.5px',
+                    color: 'var(--color-text-muted)',
+                    fontWeight: 500,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.4px',
+                  }}
+                >
+                  Splitter Induk
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                  }}
+                >
+                  {customer.splitterCode
+                    ? `${customer.splitterCode} (P#${customer.portNumber ?? '-'})`
+                    : 'Belum dipetakan'}
+                </span>
+              </div>
+            </div>
+            {customer.notes && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  paddingTop: '8px',
+                  borderTop: '1px solid var(--color-border, #dce7f0)',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: 'var(--color-text-muted)',
+                  }}
+                >
+                  Catatan Integrasi:{' '}
+                </span>
+                <span style={{ fontSize: '11.5px' }}>{customer.notes}</span>
+              </div>
+            )}
           </div>
 
           {/* Alamat & Catatan Lokasi */}

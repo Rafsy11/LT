@@ -155,7 +155,7 @@ export function SplitterPortGrid({
 
                       {/* Redaman (dBm) */}
                       <td>
-                        {isOccupied && port.attenuation !== undefined ? (
+                        {isOccupied && port.attenuation != null ? (
                           <span className="redaman-value-clean">
                             <span>{port.attenuation.toFixed(1)} dBm</span>
                             <SignalStrengthBars status={attMeta.status} />

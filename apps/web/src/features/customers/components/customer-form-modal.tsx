@@ -169,7 +169,7 @@ export function CustomerFormModal({
               <input
                 type="text"
                 required
-                placeholder="Jl. Dago Pakar Raya No. 18, Bandung"
+                placeholder="Jl. Angkatan 45 No. 12, Kec. Ilir Barat I, Palembang"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
               />
@@ -200,7 +200,7 @@ export function CustomerFormModal({
                 <span>Kode ODP (Opsional)</span>
                 <input
                   type="text"
-                  placeholder="ODP-SPL-01"
+                  placeholder="ODP-PLB-001"
                   value={splitterCode}
                   onChange={(e) => setSplitterCode(e.target.value)}
                 />

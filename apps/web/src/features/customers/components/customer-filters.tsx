@@ -82,8 +82,7 @@ export function CustomerFilters({
           const isAct =
             cluster === cName ||
             (cluster !== 'Semua cluster' &&
-              cluster.toLowerCase().replace('bandung ', '').trim() ===
-                cName.toLowerCase().replace('bandung ', '').trim());
+              cluster.toLowerCase().trim() === cName.toLowerCase().trim());
           return (
             <button
               key={cName}

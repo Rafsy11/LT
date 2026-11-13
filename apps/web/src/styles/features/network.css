@@ -1720,3 +1720,767 @@ html.dark .tree-chevron-icon,
     max-width: 100% !important;
   }
 }
+
+/* ==========================================================================
+   Datek Master GPON & ODP Import Modal Styles (Milestone 4)
+   ========================================================================== */
+
+.datek-import-modal-container {
+  max-width: 640px !important;
+  width: 100%;
+  border: 1px solid #dce7f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.datek-import-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #dce7f0;
+}
+
+.datek-import-body {
+  padding: 18px 20px;
+  max-height: calc(85vh - 140px);
+  overflow-y: auto;
+}
+
+.datek-import-footer {
+  padding: 12px 20px;
+  border-top: 1px solid #dce7f0;
+  background: #f8fafc;
+}
+
+.datek-footer-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 12px;
+}
+
+.datek-footer-row.is-right {
+  justify-content: flex-end;
+}
+
+.datek-footer-row.is-between {
+  justify-content: space-between;
+}
+
+/* Dropzone */
+.datek-dropzone {
+  border: 2px dashed #93c5fd;
+  border-radius: 6px;
+  padding: 32px 20px;
+  text-align: center;
+  background: #f0f7ff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  outline: none;
+}
+
+.datek-dropzone:hover,
+.datek-dropzone.is-dragging {
+  border-color: #2563eb;
+  background: #e0f2fe;
+}
+
+.datek-dropzone:focus-visible {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.datek-dropzone-icon {
+  color: #0284c7;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.datek-dropzone-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.datek-dropzone-label {
+  font-size: 13.5px;
+  color: #0f172a;
+}
+
+.datek-dropzone-hint {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.datek-dropzone-tags {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.datek-tag-chip {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  background: #ffffff;
+  border: 1px solid #bae6fd;
+  color: #0369a1;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Info Guide */
+.datek-info-guide {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-top: 16px;
+}
+
+.datek-guide-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0369a1;
+  margin-bottom: 4px;
+}
+
+.datek-guide-text {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #475569;
+  margin: 0;
+}
+
+.datek-guide-text code {
+  font-family: var(--font-mono, monospace);
+  background: #e2e8f0;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+/* Loading & Spinner */
+.datek-loading-state {
+  padding: 48px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.datek-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #0284c7;
+  border-radius: 50%;
+  animation: datek-spin 0.8s linear infinite;
+}
+
+@keyframes datek-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.datek-loading-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.datek-loading-subtitle {
+  font-size: 12px;
+  color: #64748b;
+  max-width: 460px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Preview Meta Bar */
+.datek-file-meta-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  border: 1px solid #e2e8f0;
+}
+
+.datek-file-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.datek-file-size {
+  font-size: 11px;
+  color: #64748b;
+  font-family: var(--font-mono, monospace);
+}
+
+.datek-badge-preview {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid #bfdbfe;
+}
+
+/* 4-Card Summary Grid */
+.datek-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 639px) {
+  .datek-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.datek-summary-card {
+  background: #ffffff;
+  border: 1px solid #dce7f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.datek-card-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.datek-card-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.datek-card-desc {
+  font-size: 10.5px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+/* Anomalies Deck */
+.datek-anomalies-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.datek-anomaly-panel {
+  border: 1px solid #dce7f0;
+  border-radius: 6px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.datek-anomaly-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.datek-anomaly-header:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.datek-anomaly-summary-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.datek-anomaly-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.datek-anomaly-indicator.is-info {
+  background: #0284c7;
+}
+
+.datek-anomaly-indicator.is-success {
+  background: #16a34a;
+}
+
+.datek-anomaly-indicator.is-warning {
+  background: #d97706;
+}
+
+.datek-anomaly-indicator.is-neutral {
+  background: #64748b;
+}
+
+.datek-anomaly-titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.datek-anomaly-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.datek-anomaly-desc {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.datek-chip-status {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.datek-chip-status.is-info {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.datek-chip-status.is-success {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.datek-chip-status.is-warning {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.datek-chip-status.is-neutral {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.datek-anomaly-detail-table-wrap {
+  border-top: 1px solid #e2e8f0;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.datek-anomaly-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.datek-anomaly-table th {
+  background: #f8fafc;
+  padding: 6px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.datek-anomaly-table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+/* Success State */
+.datek-success-state {
+  text-align: center;
+  padding: 24px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.datek-success-icon-wrap {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.datek-success-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.datek-success-subtitle {
+  font-size: 12px;
+  color: #475569;
+  margin-bottom: 20px;
+  max-width: 460px;
+  line-height: 1.5;
+}
+
+.datek-success-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+
+@media (max-width: 639px) {
+  .datek-success-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.datek-success-card {
+  background: #f8fafc;
+  border: 1px solid #dce7f0;
+  border-radius: 6px;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.datek-success-label {
+  font-size: 11px;
+  color: #64748b;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.datek-success-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  display: block;
+}
+
+.datek-success-sub {
+  font-size: 10.5px;
+  color: #94a3b8;
+}
+
+/* Alert Box */
+.datek-alert-box {
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+}
+
+.datek-alert-box.is-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.datek-alert-icon {
+  flex-shrink: 0;
+  color: #dc2626;
+  margin-top: 1px;
+}
+
+.datek-alert-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.datek-alert-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.datek-alert-text {
+  font-size: 11.5px;
+  margin: 0;
+  color: #b91c1c;
+}
+
+/* ==========================================================================
+   Dark Mode Overrides for Datek Import Modal
+   ========================================================================== */
+
+html.dark .datek-import-modal-container,
+[data-theme='dark'] .datek-import-modal-container {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+html.dark .datek-import-header,
+[data-theme='dark'] .datek-import-header {
+  border-bottom-color: #1e293b !important;
+}
+
+html.dark .datek-import-footer,
+[data-theme='dark'] .datek-import-footer {
+  border-top-color: #1e293b !important;
+  background: #020617 !important;
+}
+
+html.dark .datek-dropzone,
+[data-theme='dark'] .datek-dropzone {
+  border-color: #1e3a8a !important;
+  background: #0b1528 !important;
+}
+
+html.dark .datek-dropzone:hover,
+html.dark .datek-dropzone.is-dragging,
+[data-theme='dark'] .datek-dropzone:hover,
+[data-theme='dark'] .datek-dropzone.is-dragging {
+  border-color: #3b82f6 !important;
+  background: #111e38 !important;
+}
+
+html.dark .datek-dropzone-label,
+[data-theme='dark'] .datek-dropzone-label {
+  color: #f8fafc !important;
+}
+
+html.dark .datek-dropzone-hint,
+[data-theme='dark'] .datek-dropzone-hint {
+  color: #94a3b8 !important;
+}
+
+html.dark .datek-tag-chip,
+[data-theme='dark'] .datek-tag-chip {
+  background: #1e293b !important;
+  border-color: #0369a1 !important;
+  color: #38bdf8 !important;
+}
+
+html.dark .datek-info-guide,
+[data-theme='dark'] .datek-info-guide {
+  background: #0b132b !important;
+  border-color: #1e293b !important;
+}
+
+html.dark .datek-guide-title,
+[data-theme='dark'] .datek-guide-title {
+  color: #38bdf8 !important;
+}
+
+html.dark .datek-guide-text,
+[data-theme='dark'] .datek-guide-text {
+  color: #94a3b8 !important;
+}
+
+html.dark .datek-guide-text code,
+[data-theme='dark'] .datek-guide-text code {
+  background: #1e293b !important;
+  color: #38bdf8 !important;
+}
+
+html.dark .datek-loading-title,
+[data-theme='dark'] .datek-loading-title {
+  color: #f8fafc !important;
+}
+
+html.dark .datek-loading-subtitle,
+[data-theme='dark'] .datek-loading-subtitle {
+  color: #94a3b8 !important;
+}
+
+html.dark .datek-file-meta-bar,
+[data-theme='dark'] .datek-file-meta-bar {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+html.dark .datek-file-name,
+[data-theme='dark'] .datek-file-name {
+  color: #f8fafc !important;
+}
+
+html.dark .datek-file-size,
+[data-theme='dark'] .datek-file-size {
+  color: #94a3b8 !important;
+}
+
+html.dark .datek-badge-preview,
+[data-theme='dark'] .datek-badge-preview {
+  background: #1e3a8a !important;
+  color: #93c5fd !important;
+  border-color: #2563eb !important;
+}
+
+html.dark .datek-summary-card,
+[data-theme='dark'] .datek-summary-card {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+html.dark .datek-card-label,
+[data-theme='dark'] .datek-card-label {
+  color: #94a3b8 !important;
+}
+
+html.dark .datek-card-value,
+[data-theme='dark'] .datek-card-value {
+  color: #f8fafc !important;
+}
+
+html.dark .datek-card-desc,
+[data-theme='dark'] .datek-card-desc {
+  color: #64748b !important;
+}
+
+html.dark .datek-anomaly-panel,
+[data-theme='dark'] .datek-anomaly-panel {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+html.dark .datek-anomaly-title,
+[data-theme='dark'] .datek-anomaly-title {
+  color: #f8fafc !important;
+}
+
+html.dark .datek-anomaly-desc,
+[data-theme='dark'] .datek-anomaly-desc {
+  color: #94a3b8 !important;
+}
+
+html.dark .datek-chip-status.is-info,
+[data-theme='dark'] .datek-chip-status.is-info {
+  background: #0c4a6e !important;
+  color: #7dd3fc !important;
+  border-color: #0284c7 !important;
+}
+
+html.dark .datek-chip-status.is-success,
+[data-theme='dark'] .datek-chip-status.is-success {
+  background: #064e3b !important;
+  color: #86efac !important;
+  border-color: #16a34a !important;
+}
+
+html.dark .datek-chip-status.is-warning,
+[data-theme='dark'] .datek-chip-status.is-warning {
+  background: #78350f !important;
+  color: #fde68a !important;
+  border-color: #d97706 !important;
+}
+
+html.dark .datek-chip-status.is-neutral,
+[data-theme='dark'] .datek-chip-status.is-neutral {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+  border-color: #334155 !important;
+}
+
+html.dark .datek-anomaly-detail-table-wrap,
+[data-theme='dark'] .datek-anomaly-detail-table-wrap {
+  border-color: #1e293b !important;
+}
+
+html.dark .datek-anomaly-table th,
+[data-theme='dark'] .datek-anomaly-table th {
+  background: #020617 !important;
+  border-bottom-color: #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+html.dark .datek-anomaly-table td,
+[data-theme='dark'] .datek-anomaly-table td {
+  border-bottom-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .datek-success-icon-wrap,
+[data-theme='dark'] .datek-success-icon-wrap {
+  background: #064e3b !important;
+  color: #4ade80 !important;
+}
+
+html.dark .datek-success-title,
+[data-theme='dark'] .datek-success-title {
+  color: #f8fafc !important;
+}
+
+html.dark .datek-success-subtitle,
+[data-theme='dark'] .datek-success-subtitle {
+  color: #94a3b8 !important;
+}
+
+html.dark .datek-success-card,
+[data-theme='dark'] .datek-success-card {
+  background: #0b132b !important;
+  border-color: #1e293b !important;
+}
+
+html.dark .datek-success-label,
+[data-theme='dark'] .datek-success-label {
+  color: #94a3b8 !important;
+}
+
+html.dark .datek-success-val,
+[data-theme='dark'] .datek-success-val {
+  color: #f8fafc !important;
+}
+
+html.dark .datek-success-sub,
+[data-theme='dark'] .datek-success-sub {
+  color: #64748b !important;
+}
+
+html.dark .datek-alert-box.is-error,
+[data-theme='dark'] .datek-alert-box.is-error {
+  background: #450a0a !important;
+  border-color: #7f1d1d !important;
+  color: #fca5a5 !important;
+}
+
+html.dark .datek-alert-title,
+[data-theme='dark'] .datek-alert-title {
+  color: #fca5a5 !important;
+}
+
+html.dark .datek-alert-text,
+[data-theme='dark'] .datek-alert-text {
+  color: #fecaca !important;
+}
+

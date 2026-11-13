@@ -53,7 +53,7 @@ export function PortDetailPanel({
           port.isOccupied ? 'Terisi' : 'Siap PSB',
           `"${port.customerName || '-'}"`,
           port.siaNumber || '-',
-          port.attenuation !== undefined ? port.attenuation.toFixed(1) : '-',
+          port.attenuation != null ? port.attenuation.toFixed(1) : '-',
           `"${port.lastActivity?.date || '-'}"`,
           `"${port.lastActivity?.technician || '-'}"`,
           `"${(port.lastActivity?.notes || '-').replace(/"/g, '""')}"`,
@@ -223,7 +223,7 @@ export function PortDetailPanel({
                     </td>
 
                     <td>
-                      {isOccupied && port.attenuation !== undefined ? (
+                      {isOccupied && port.attenuation != null ? (
                         <span className="redaman-value-clean">
                           <span>{port.attenuation.toFixed(1)} dBm</span>
                           <SignalStrengthBars status={attMeta.status} />

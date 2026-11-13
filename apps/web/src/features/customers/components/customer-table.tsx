@@ -101,9 +101,9 @@ export function CustomerTable({ customers, onSelectCustomer, loading }: Customer
               </td>
 
               <td>
-                <div className="customer-splitter-name">{c.splitterCode}</div>
+                <div className="customer-splitter-name">{c.splitterCode || 'Belum dipetakan'}</div>
                 <div className="customer-port-name">
-                  Port #{c.portNumber}
+                  {c.portNumber != null ? `Port #${c.portNumber}` : 'Tanpa port'}
                 </div>
               </td>
 
@@ -134,23 +134,31 @@ export function CustomerTable({ customers, onSelectCustomer, loading }: Customer
 
               <td>
                 <div className="customer-dbm-row">
-                  <span>{c.currentAttenuation.toFixed(1)} dBm</span>
+                  <span>
+                    {c.currentAttenuation != null
+                      ? `${c.currentAttenuation.toFixed(1)} dBm`
+                      : 'Belum diukur'}
+                  </span>
                   <SignalStrengthBars
                     status={
-                      c.currentAttenuation >= -22.0 && c.currentAttenuation <= -15.0
-                        ? 'normal'
-                        : c.currentAttenuation < -22.0 && c.currentAttenuation >= -25.0
-                          ? 'warning'
-                          : 'critical'
+                      c.currentAttenuation == null
+                        ? 'neutral'
+                        : c.currentAttenuation >= -22.0 && c.currentAttenuation <= -15.0
+                          ? 'normal'
+                          : c.currentAttenuation < -22.0 && c.currentAttenuation >= -25.0
+                            ? 'warning'
+                            : 'critical'
                     }
                   />
                 </div>
                 <span className="customer-dbm-label">
-                  {c.currentAttenuation >= -22.0 && c.currentAttenuation <= -15.0
-                    ? 'Normal'
-                    : c.currentAttenuation < -22.0 && c.currentAttenuation >= -25.0
-                      ? 'Waspada'
-                      : 'Kritis'}
+                  {c.currentAttenuation == null
+                    ? 'Belum diukur'
+                    : c.currentAttenuation >= -22.0 && c.currentAttenuation <= -15.0
+                      ? 'Normal'
+                      : c.currentAttenuation < -22.0 && c.currentAttenuation >= -25.0
+                        ? 'Waspada'
+                        : 'Kritis'}
                 </span>
               </td>
 

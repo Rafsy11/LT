@@ -171,7 +171,7 @@ export function NetworkEntityModal({
                 {title}
               </h2>
               <p className="modal-subheading">
-                Master data topologi FTTH Bandung Raya
+                Master data topologi FTTH Palembang
               </p>
             </div>
           </div>
@@ -190,7 +190,7 @@ export function NetworkEntityModal({
                     <input
                       type="text"
                       required
-                      placeholder="BDG-06"
+                      placeholder="PLBHRAGA01"
                       value={clusterCode}
                       onChange={(e) => setClusterCode(e.target.value)}
                     />
@@ -200,7 +200,7 @@ export function NetworkEntityModal({
                     <input
                       type="text"
                       required
-                      placeholder="Bandung Barat"
+                      placeholder="Palembang Olahraga"
                       value={clusterName}
                       onChange={(e) => setClusterName(e.target.value)}
                     />
@@ -213,7 +213,7 @@ export function NetworkEntityModal({
                     <input
                       type="number"
                       step="0.000001"
-                      placeholder="-6.917500"
+                      placeholder="-2.980000"
                       required
                       value={centerLat}
                       onChange={(e) => setCenterLat(e.target.value)}
@@ -224,7 +224,7 @@ export function NetworkEntityModal({
                     <input
                       type="number"
                       step="0.000001"
-                      placeholder="107.619100"
+                      placeholder="104.750000"
                       required
                       value={centerLng}
                       onChange={(e) => setCenterLng(e.target.value)}
@@ -255,7 +255,7 @@ export function NetworkEntityModal({
                       <input
                         type="text"
                         required
-                        placeholder="BDG-01"
+                        placeholder="PLBHRAGA01"
                         value={selectedClusterCode}
                         onChange={(e) => setSelectedClusterCode(e.target.value)}
                       />
@@ -267,7 +267,7 @@ export function NetworkEntityModal({
                     <input
                       type="text"
                       required
-                      placeholder="ODP-BDG-09"
+                      placeholder="ODP-PLB-001"
                       value={splitterCode}
                       disabled={mode === 'EDIT_SPLITTER'}
                       onChange={(e) => setSplitterCode(e.target.value)}
@@ -293,7 +293,7 @@ export function NetworkEntityModal({
                     <input
                       type="number"
                       step="0.000001"
-                      placeholder="-6.917500"
+                      placeholder="-2.980000"
                       required
                       value={lat}
                       onChange={(e) => setLat(e.target.value)}
@@ -305,7 +305,7 @@ export function NetworkEntityModal({
                     <input
                       type="number"
                       step="0.000001"
-                      placeholder="107.619100"
+                      placeholder="104.750000"
                       required
                       value={lng}
                       onChange={(e) => setLng(e.target.value)}
