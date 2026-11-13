@@ -120,6 +120,8 @@ model NetworkSplitter {
   clusterId    String               @map("cluster_id")
   cluster      NetworkCluster       @relation(fields: [clusterId], references: [id])
   splitterCode String               @unique @map("splitter_code")
+  name         String?
+  notes        String?
   lat          Decimal              @db.Decimal(10, 7)
   lng          Decimal              @db.Decimal(10, 7)
   maxPorts     Int                  @default(16) @map("max_ports") // 8 or 16 ports
@@ -150,6 +152,10 @@ model Customer {
   portNumber         Int?                 @map("port_number")
   currentAttenuation Decimal?             @map("current_attenuation") @db.Decimal(6, 2)
   status             CustomerStatus       @default(PENDING_INSTALL)
+  gponNode           String?              @map("gpon_node")
+  oltSlot            String?              @map("olt_slot")
+  ontSn              String?              @map("ont_sn")
+  notes              String?
   createdAt          DateTime             @default(now()) @map("created_at")
   updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at")
 
@@ -158,6 +164,7 @@ model Customer {
 
   @@index([siaNumber])
   @@index([clusterId])
+  @@index([splitterId])
   @@index([splitterId, portNumber])
   @@index([status])
   @@map("customers")

@@ -1,5 +1,25 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import net from 'node:net';
 import { PrismaClient } from '@prisma/client';
+
+if (!process.env.DATABASE_URL) {
+  const envCandidates = [
+    path.resolve(process.cwd(), '.env'),
+    path.resolve(process.cwd(), '../../.env'),
+    path.resolve(__dirname, '../../../.env'),
+    path.resolve(__dirname, '../../.env'),
+    path.resolve(__dirname, '../.env'),
+  ];
+  for (const candidate of envCandidates) {
+    if (fs.existsSync(candidate) && typeof process.loadEnvFile === 'function') {
+      try {
+        process.loadEnvFile(candidate);
+        if (process.env.DATABASE_URL) break;
+      } catch {}
+    }
+  }
+}
 
 const DB_TCP_PROBE_TIMEOUT_MS = 250;
 const DB_CACHE_TTL_ONLINE_MS = 5_000;
@@ -148,4 +168,5 @@ export function resetDatabaseHealthCache(): void {
   globalThis.prismaHealthCache = undefined;
 }
 
+export * from './importers/palembang-datek';
 export * from '@prisma/client';
