@@ -56,7 +56,7 @@ export interface ActivityFeedItem {
   technicianName: string;
   techInitials: string;
   attenuationDbm: number;
-  status: 'Normal' | 'Warning' | 'Critical';
+  status: 'Normal' | 'Warning' | 'Critical' | 'Neutral';
   type: 'Pasang baru' | 'Maintenance' | 'Tiket ditugaskan';
   timestamp: string;
   isUnread?: boolean;
@@ -87,6 +87,7 @@ export interface ClusterListItem {
   clusterCode: string;
   name: string;
   splitterCode: string;
+  locationName?: string;
   usedPorts: number;
   maxPorts: number;
   lat: number;
@@ -114,10 +115,14 @@ export interface CustomerListItem {
   street?: string;
   cluster: string;
   clusterCode: string;
-  splitterCode: string;
-  portNumber: number;
-  currentAttenuation: number;
+  splitterCode?: string | null;
+  portNumber?: number | null;
+  currentAttenuation?: number | null;
   status: string;
+  gponNode?: string | null;
+  oltSlot?: string | null;
+  ontSn?: string | null;
+  notes?: string | null;
   updatedAt: string;
 }
 

@@ -12,7 +12,10 @@ export const ATTENUATION_THRESHOLDS = {
   CRITICAL_ABOVE: -10.0, // Optik terbakar/overpower
 } as const;
 
-export function classifyDbm(value: number | string): DbmStatus {
+export function classifyDbm(
+  value: number | string | null | undefined,
+): DbmStatus | 'Neutral' {
+  if (value === null || value === undefined || value === '') return 'Neutral';
   const v = typeof value === 'number' ? value : Number(value);
   if (isNaN(v)) return 'Warning';
   if (v < ATTENUATION_THRESHOLDS.CRITICAL_BELOW || v > ATTENUATION_THRESHOLDS.CRITICAL_ABOVE) {
@@ -24,7 +27,9 @@ export function classifyDbm(value: number | string): DbmStatus {
   return 'Warning';
 }
 
-export const dbmTone = (value: number | string): 'green' | 'orange' | 'red' => {
+export const dbmTone = (
+  value: number | string | null | undefined,
+): 'green' | 'orange' | 'red' | 'gray' => {
   const status = classifyDbm(value);
   switch (status) {
     case 'Normal':
@@ -33,6 +38,8 @@ export const dbmTone = (value: number | string): 'green' | 'orange' | 'red' => {
       return 'orange';
     case 'Critical':
       return 'red';
+    case 'Neutral':
+      return 'gray';
   }
 };
 

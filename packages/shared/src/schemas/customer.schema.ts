@@ -4,7 +4,7 @@ export const customerQuerySchema = z.object({
   cluster: z.string().optional(),
   status: z.enum(['PENDING_INSTALL', 'ACTIVE', 'ISOLATED', 'DISMANTLED', 'ALL']).optional(),
   search: z.string().optional(),
-  limit: z.coerce.number().min(1).max(100).default(50),
+  limit: z.coerce.number().min(1).max(1000).default(50),
   offset: z.coerce.number().min(0).default(0),
 });
 
@@ -29,6 +29,10 @@ export const customerDetailResponseSchema = z.object({
   portNumber: z.number().int().nullable(),
   currentAttenuation: z.number().nullable(),
   status: z.enum(['PENDING_INSTALL', 'ACTIVE', 'ISOLATED', 'DISMANTLED']),
+  gponNode: z.string().nullable().optional(),
+  oltSlot: z.string().nullable().optional(),
+  ontSn: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
   updatedAt: z.string(),
 });
 

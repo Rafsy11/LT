@@ -15,6 +15,8 @@ export const splitterSchema = z.object({
   id: z.string().uuid(),
   clusterId: z.string().uuid(),
   splitterCode: z.string().min(2),
+  name: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
   lat: z.number(),
   lng: z.number(),
   maxPorts: z.number().int().min(4).max(64),
@@ -49,6 +51,8 @@ export type CreateClusterInput = z.infer<typeof createClusterSchema>;
 export const createSplitterSchema = z.object({
   clusterCode: z.string().trim().min(2, 'Cluster wajib dipilih'),
   splitterCode: z.string().trim().min(3, 'Kode ODP minimal 3 karakter').max(32),
+  name: z.string().trim().max(255).optional(),
+  notes: z.string().max(1000).optional(),
   lat: z.coerce.number().min(-90).max(90),
   lng: z.coerce.number().min(-180).max(180),
   maxPorts: z.coerce.number().int().refine((v) => v === 8 || v === 16 || v === 32, {
@@ -60,6 +64,8 @@ export type CreateSplitterInput = z.infer<typeof createSplitterSchema>;
 
 export const updateSplitterSchema = z.object({
   splitterCode: z.string().trim().min(3).max(32),
+  name: z.string().trim().max(255).optional(),
+  notes: z.string().max(1000).optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
   maxPorts: z.coerce
