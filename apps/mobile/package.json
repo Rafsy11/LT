@@ -3,6 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "start": "expo start",
+    "start:lan": "expo start --lan",
+    "start:tunnel": "expo start --tunnel",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build:apk": "eas build -p android --profile preview --local",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit"
   },

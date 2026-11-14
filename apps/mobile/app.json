@@ -3,6 +3,12 @@
     "name": "FiberOps Technician",
     "slug": "fiberops-technician",
     "version": "1.0.0",
+    "scheme": "fiberops",
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://ftth-ops.lintasarta.co.id/api/v1/ota/manifest",
+      "enabled": true
+    },
     "jsEngine": "hermes",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",

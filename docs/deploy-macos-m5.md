@@ -284,3 +284,107 @@ bash docker/scripts/backup.sh
   Ubah `WEB_HTTP_PORT=8081` pada file `.env` dan jalankan `docker compose -f docker/docker-compose.yml up -d`.
 - **Kendala Koneksi Ollama (`host.docker.internal`)**:
   Pastikan Ollama pada host dijalankan dengan `OLLAMA_HOST=0.0.0.0:11434`. Jika menggunakan firewall macOS, izinkan incoming connection untuk binary `ollama`.
+
+---
+
+## 8. Panduan Deployment Aplikasi Mobile Teknisi & Distribusi APK
+
+Bagian ini mendokumentasikan prosedur deployment aplikasi mobile lapangan (`apps/mobile`), eksekusi development server (LAN & Tunnel), konfigurasi dynamic server URL pada perangkat teknisi, build APK internal mandiri, dan integrasi endpoint distribusi Next.js.
+
+### 8.1 Panduan Eksekusi Mobile Development Server (LAN & Tunnel)
+
+Aplikasi mobile teknisi dikonfigurasi menggunakan Expo Metro bundler dalam arsitektur monorepo Turborepo. Terdapat dua mode eksekusi server pengembangan yang dapat dipilih sesuai topologi jaringan:
+
+1. **Mode Local Area Network (LAN Wi-Fi)**:
+   Gunakan mode ini ketika laptop development macOS M5 dan perangkat Android fisik teknisi terhubung pada jaringan Wi-Fi atau hotspot lokal yang sama.
+   ```bash
+   # Jalankan server Expo dengan IP LAN lokal
+   pnpm --filter @repo/mobile run start:lan
+   ```
+   Expo CLI akan menampilkan QR code terminal. Scan QR code menggunakan aplikasi Expo Go pada perangkat Android atau pasang URL bundle ke build development client.
+
+2. **Mode Cloud Tunnel (Expo Tunnel via ngrok/localtunnel)**:
+   Gunakan mode ini ketika perangkat teknisi berada di luar jangkauan Wi-Fi lokal (misalnya menggunakan paket data seluler 4G/5G di lapangan) tanpa memerlukan port-forwarding router:
+   ```bash
+   # Jalankan server Expo melalui secure tunnel
+   pnpm --filter @repo/mobile run start:tunnel
+   ```
+
+3. **Mode Pengembangan Standar & Platform Lainnya**:
+   ```bash
+   pnpm --filter @repo/mobile run start      # Expo interactive CLI
+   pnpm --filter @repo/mobile run android    # Luncurkan langsung ke Android emulator/device
+   pnpm --filter @repo/mobile run web        # Preview antarmuka teknisi di browser desktop
+   ```
+
+### 8.2 Prosedur Konfigurasi Dynamic Server URL pada Perangkat Mobile Teknisi
+
+Aplikasi mobile teknisi mendukung konfigurasi dinamis endpoint server API saat login, memungkinkan transisi seamless antara lingkungan staging lokal, server on-premise kantor cabang, dan domain produksi publik:
+
+1. **Akses Menu Pengaturan Koneksi Server**:
+   Pada layar login mobile (`LoginScreen`), ketuk ikon gear atau tombol "Server Config" pada bagian bawah layar untuk membuka modal konfigurasi URL.
+2. **Input Alamat Server Target**:
+   - **Lingkungan macOS M5 Host (LAN)**: `http://192.168.1.X:8080` (ganti `192.168.1.X` dengan IP lokal Wi-Fi MacBook M5).
+   - **Lingkungan Nginx On-Premise Produksi**: `https://ftth-ops.lintasarta.co.id`.
+3. **Uji Validasi Konektivitas (Health Check)**:
+   Aplikasi secara otomatis mengirimkan request `GET /api/v1/health` ke endpoint target untuk memastikan:
+   - Server web Next.js aktif dan dapat dijangkau.
+   - Database dan redis berstatus sehat.
+   - Versi aplikasi mobile kompatibel dengan `minRequiredVersion` server.
+4. **Penyimpanan Terenkripsi**:
+   Setelah health check berhasil, URL server disimpan secara persisten dan aman pada SecureStore lokal perangkat untuk request-request berikutnya.
+
+### 8.3 Prosedur Build Internal APK Standalone via EAS CLI
+
+Untuk mendistribusikan aplikasi secara mandiri kepada teknisi lapangan tanpa ketergantungan Google Play Store, gunakan profil build internal APK yang telah dikonfigurasi pada `apps/mobile/eas.json`:
+
+1. **Persiapan EAS CLI**:
+   Pastikan EAS CLI terpasang dan login ke akun Expo organisasi:
+   ```bash
+   npm install -g eas-cli
+   eas login
+   ```
+
+2. **Eksekusi Build APK Lokal (Tanpa Cloud Queue)**:
+   Jalankan build APK secara lokal pada mesin macOS M5:
+   ```bash
+   # Build profil preview internal APK secara lokal
+   pnpm --filter @repo/mobile run build:apk
+   ```
+   Perintah ini setara dengan:
+   ```bash
+   eas build -p android --profile preview --local
+   ```
+   Hasil kompilasi akan menghasilkan binary APK mandiri (bukan Android App Bundle `.aab`) yang siap dipasang langsung pada perangkat Android teknisi.
+
+3. **Build APK Produksi**:
+   ```bash
+   eas build -p android --profile production --local
+   ```
+
+### 8.4 Distribusi APK dan Verifikasi Manifest OTA Update
+
+1. **Penempatan Binary APK pada Server Web**:
+   Setelah file APK berhasil dikompilasi, salin binary ke direktori publik server web Next.js:
+   ```bash
+   mkdir -p apps/web/public/downloads
+   cp apps/mobile/build/*.apk apps/web/public/downloads/mobile-latest.apk
+   ```
+
+2. **Endpoint Distribusi Mandiri (`/download/mobile-latest.apk`)**:
+   Server web menyediakan endpoint cerdas di `apps/web/src/app/download/mobile-latest.apk/route.ts`:
+   - **Jika binary APK tersedia di disk**: Menyajikan file secara langsung dengan streaming header `Content-Type: application/vnd.android.package-archive` dan `Content-Disposition: attachment; filename="mobile-latest.apk"`.
+   - **Jika binary APK belum dikompilasi**: Mengembalikan HTTP 200 (tidak pernah 404) berisi panduan build terstruktur berformat JSON yang memuat spesifikasi versi, target package, dan panduan perintah CLI.
+
+3. **Uji Verifikasi Endpoint Unduhan**:
+   ```bash
+   # Verifikasi respons endpoint unduhan APK
+   curl -i http://localhost:8080/download/mobile-latest.apk
+   ```
+
+4. **Verifikasi Manifest OTA Updates**:
+   Periksa kecocokan runtime version aplikasi mobile dengan manifest OTA server:
+   ```bash
+   curl -s http://localhost:8080/api/v1/ota/manifest | jq .
+   ```
+   Pastikan `runtimeVersion` bernilai `"1.0.0"` sesuai konfigurasi pada `apps/mobile/app.json`.

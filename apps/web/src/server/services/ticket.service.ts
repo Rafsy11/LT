@@ -207,6 +207,65 @@ const FALLBACK_TICKETS: DbTicket[] = [
     distanceToSplitterM: 142,
     isLocationFlagged: true,
   },
+  {
+    id: 'wo-2025-0842',
+    ticketNumber: 'WO-2025-0842',
+    customerName: 'PT Sriwijaya Mandiri',
+    siaNumber: 'SLA-100245-0842',
+    ticketType: 'Perbaikan',
+    cluster: 'Palembang Kota',
+    clusterCode: 'PLB-01',
+    assignedTech: 'Andi Pratama',
+    assignedTechUsername: 'tech.andi',
+    vendorName: 'PT Mitra Fiber Nusantara',
+    techInitials: 'AP',
+    status: 'Dalam proses',
+    priority: 'High',
+    currentAttenuation: -19.5,
+    complaintSummary: 'Perbaikan redaman fiber optik ODP-PLB-034.',
+    customerPhone: '+62 811-7890-1234',
+    serviceAddress: 'Jl. Jend. Sudirman No. 45, Palembang',
+    locationPlace: 'Gedung Sriwijaya Lt. 2',
+    targetLat: -2.976383,
+    targetLng: 104.741487,
+    dispatchedAt: new Date(Date.now() - 3600000).toISOString(),
+    startedAt: new Date(Date.now() - 1800000).toISOString(),
+    createdAt: new Date().toISOString(),
+    splitterCode: 'ODP-PLB-034',
+    portNumber: 2,
+    distanceToSplitterM: 0,
+    isLocationFlagged: false,
+  },
+  {
+    id: 'wo-2025-0841',
+    ticketNumber: 'WO-2025-0841',
+    customerName: 'CV Musi Digital',
+    siaNumber: 'SLA-100244-0841',
+    ticketType: 'Perbaikan',
+    cluster: 'Palembang Kota',
+    clusterCode: 'PLB-01',
+    assignedTech: 'Rizky Maulana',
+    assignedTechUsername: 'tech.rizky',
+    vendorName: 'PT Sarana Optik Palembang',
+    techInitials: 'RM',
+    status: 'Selesai',
+    priority: 'Normal',
+    currentAttenuation: -18.2,
+    complaintSummary: 'Penyambungan core fiber selesai.',
+    customerPhone: '+62 812-7100-2233',
+    serviceAddress: 'Jl. R. Sukamto No. 88, Palembang',
+    locationPlace: 'Ruko PTC Mall Blok B-12',
+    targetLat: -2.9612,
+    targetLng: 104.7645,
+    dispatchedAt: new Date(Date.now() - 7200000).toISOString(),
+    startedAt: new Date(Date.now() - 5400000).toISOString(),
+    completedAt: new Date(Date.now() - 1800000).toISOString(),
+    createdAt: new Date(Date.now() - 7200000).toISOString(),
+    splitterCode: 'ODP-PLB-034',
+    portNumber: 3,
+    distanceToSplitterM: 12,
+    isLocationFlagged: false,
+  },
 ];
 
 export interface InMemorySubmissionRecord {
@@ -1351,8 +1410,18 @@ export class TicketService {
         throw new Error(`ODP Splitter ${input.splitterId} tidak ditemukan`);
       }
       // In-memory fallback for splitter coordinates (non-strict/test mode only)
-      const fallbackSplitterLat = -6.914744;
-      const fallbackSplitterLng = 107.60981;
+      let fallbackSplitterLat = -6.914744;
+      let fallbackSplitterLng = 107.60981;
+      const fallbackTargetTicket = !isStrictLiveMode()
+        ? FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId)
+        : undefined;
+      if (
+        input.splitterId === 'ODP-PLB-034' ||
+        fallbackTargetTicket?.splitterCode === 'ODP-PLB-034'
+      ) {
+        fallbackSplitterLat = -2.976383;
+        fallbackSplitterLng = 104.741487;
+      }
       distanceMeters = calculateHaversineDistance(
         input.submittedLat,
         input.submittedLng,
