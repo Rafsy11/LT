@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { ApiClient } from '../api/client';
 import { acquireVerifiedLocation, LocationGuardResult } from '../security/locationGuard';
 import {
@@ -505,7 +505,7 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
           {state.dispatchLocation.serviceAddress}
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
           <a
             href={mapsUrl}
             target="_blank"
@@ -527,9 +527,54 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
               boxSizing: 'border-box',
             }}
           >
-            Navigasi ke Titik ODP ({targetLat.toFixed(4)}, {targetLng.toFixed(4)})
+            Navigasi ke ODP ({targetLat.toFixed(4)}, {targetLng.toFixed(4)})
           </a>
+
+          {state.dispatchLocation.customerPhone && (
+            <a
+              href={`tel:${state.dispatchLocation.customerPhone}`}
+              style={{
+                minHeight: '44px',
+                padding: '8px 12px',
+                background: theme.bg,
+                color: theme.textPrimary,
+                border: `1px solid ${theme.border}`,
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 600,
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxSizing: 'border-box',
+              }}
+            >
+              Hubungi ({state.dispatchLocation.customerPhone})
+            </a>
+          )}
         </div>
+
+        {state.ticket.status === 'OPEN' && (
+          <button
+            type="button"
+            onClick={() => void actions.startExecution()}
+            style={{
+              width: '100%',
+              minHeight: '44px',
+              marginTop: '10px',
+              padding: '8px 12px',
+              background: theme.badgeBg,
+              color: theme.textPrimary,
+              border: `1px solid ${theme.border}`,
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Check-In Mulai Eksekusi Lapangan (Ubah ke IN_PROGRESS)
+          </button>
+        )}
       </div>
 
       {/* Maintenance Read-Only Panel */}
@@ -665,18 +710,58 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
             border: `1px solid ${theme.border}`,
             borderRadius: '6px',
             fontSize: '12px',
-            marginBottom: '12px',
+            fontWeight: 600,
+            marginBottom: '8px',
           }}
         >
           {state.splitters.map((odp) => (
             <option key={odp.id} value={odp.id}>
-              {odp.splitterCode} - {odp.clusterName} (Tersedia: {odp.availablePorts.length}/{odp.maxPorts})
+              {odp.splitterCode} [Sisa {odp.availablePorts.length}/{odp.maxPorts} Port] - {odp.clusterName.replace(/^Palembang\s+/i, '')}
             </option>
           ))}
         </select>
 
-        <div style={{ fontSize: '12px', fontWeight: 600, color: theme.textSecondary, marginBottom: '6px' }}>
-          Pilih Nomor Port Splitter (Aktif: Port {activePort}):
+        {state.selectedSplitter && (
+          <div
+            style={{
+              padding: '8px 10px',
+              background: theme.bg,
+              border: `1px solid ${theme.border}`,
+              borderRadius: '6px',
+              fontSize: '11px',
+              color: theme.textSecondary,
+              marginBottom: '12px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '6px',
+            }}
+          >
+            <span>
+              Cluster: <strong style={{ color: theme.textPrimary }}>{state.selectedSplitter.clusterName}</strong>
+            </span>
+            <span style={{ fontFamily: theme.typography.fontFamily.mono }}>
+              Kapasitas: <strong style={{ color: theme.textPrimary }}>{state.selectedSplitter.availablePorts.length} kosong / {state.selectedSplitter.maxPorts} port</strong>
+            </span>
+          </div>
+        )}
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '6px',
+            marginBottom: '8px',
+          }}
+        >
+          <span style={{ fontSize: '12px', fontWeight: 600, color: theme.textSecondary }}>
+            Pilih Port (Aktif: Port {activePort}):
+          </span>
+          <span style={{ fontSize: '11px', color: theme.textSecondary }}>
+            [Biru] Dipilih | [Kosong] Tersedia | [(Isi)] Terpakai
+          </span>
         </div>
         <div
           style={{
@@ -712,7 +797,7 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
                       ? '#FEE2E2'
                       : theme.bg,
                   color: isSelected
-                    ? '#FFFFFF'
+                    ? theme.primaryText
                     : isOccupiedByOther
                       ? '#991B1B'
                       : theme.textPrimary,
@@ -766,27 +851,53 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
           </span>
         </div>
 
-        <input
-          type="text"
-          inputMode="decimal"
-          value={state.attenuationInput}
-          onChange={(e) => actions.setAttenuationInput(e.target.value)}
-          placeholder="-18.5"
-          style={{
-            width: '100%',
-            minHeight: '44px',
-            padding: '10px 12px',
-            fontSize: '15px',
-            fontWeight: 700,
-            fontFamily: theme.typography.fontFamily.mono,
-            background: theme.bg,
-            color: theme.textPrimary,
-            border: `1px solid ${theme.border}`,
-            borderRadius: '6px',
-            boxSizing: 'border-box',
-            marginBottom: '8px',
-          }}
-        />
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              const trimmed = state.attenuationInput.trim();
+              if (!trimmed.startsWith('-')) {
+                actions.setAttenuationInput(`-${trimmed.replace(/^\+/, '')}`);
+              }
+            }}
+            style={{
+              minHeight: '44px',
+              padding: '0 14px',
+              background: theme.badgeBg,
+              color: theme.textPrimary,
+              border: `1px solid ${theme.border}`,
+              borderRadius: '6px',
+              fontFamily: theme.typography.fontFamily.mono,
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            (-) Minus
+          </button>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={state.attenuationInput}
+            onChange={(e) => actions.setAttenuationInput(e.target.value)}
+            placeholder="-18.5"
+            style={{
+              flex: 1,
+              width: '100%',
+              minHeight: '44px',
+              padding: '10px 12px',
+              fontSize: '15px',
+              fontWeight: 700,
+              fontFamily: theme.typography.fontFamily.mono,
+              background: theme.bg,
+              color: theme.textPrimary,
+              border: `1px solid ${theme.border}`,
+              borderRadius: '6px',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
           {['-16.5', '-18.5', '-21.0', '-24.5'].map((preset) => (
@@ -917,7 +1028,7 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
             minHeight: '44px',
             padding: '12px 16px',
             background: state.isMockBlocked ? '#DC2626' : theme.primary,
-            color: '#FFFFFF',
+            color: state.isMockBlocked ? '#FFFFFF' : theme.primaryText,
             border: 'none',
             borderRadius: '6px',
             fontSize: '14px',

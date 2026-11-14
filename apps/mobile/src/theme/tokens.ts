@@ -7,6 +7,7 @@ export interface ThemePalette {
   badgeBg: string;
   border: string;
   primary: string;
+  primaryText: string;
 }
 
 export const LIGHT_THEME: ThemePalette = {
@@ -18,6 +19,7 @@ export const LIGHT_THEME: ThemePalette = {
   badgeBg: '#F1F5F9',
   border: '#CBD5E1',
   primary: '#0284C7',
+  primaryText: '#FFFFFF',
 };
 
 export const DARK_THEME: ThemePalette = {
@@ -29,6 +31,7 @@ export const DARK_THEME: ThemePalette = {
   badgeBg: '#1E293B',
   border: '#334155',
   primary: '#38BDF8',
+  primaryText: '#0B0F19',
 };
 
 export const OUTDOOR_SUNLIGHT_THEME: ThemePalette = {
@@ -40,6 +43,7 @@ export const OUTDOOR_SUNLIGHT_THEME: ThemePalette = {
   badgeBg: '#FFFFFF',
   border: '#000000',
   primary: '#0047AB',
+  primaryText: '#FFFFFF',
 };
 
 export const OUTDOOR_THEME = OUTDOOR_SUNLIGHT_THEME;

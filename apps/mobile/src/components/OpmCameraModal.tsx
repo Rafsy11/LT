@@ -166,6 +166,7 @@ export function OpmCameraModalView({
         alignItems: 'center',
         padding: '16px',
         zIndex: 1000,
+        fontFamily: theme.typography.fontFamily.sans,
       }}
     >
       <div
@@ -178,6 +179,7 @@ export function OpmCameraModalView({
           borderRadius: '8px',
           padding: '20px',
           boxSizing: 'border-box',
+          fontFamily: theme.typography.fontFamily.sans,
         }}
       >
         <div
@@ -282,7 +284,7 @@ export function OpmCameraModalView({
               minHeight: '44px',
               padding: '10px 16px',
               background: theme.primary,
-              color: '#FFFFFF',
+              color: theme.primaryText,
               border: 'none',
               borderRadius: '6px',
               fontSize: '13px',

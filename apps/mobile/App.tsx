@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ApiClient, UpgradeRequiredDetails, MobileSessionTokens } from './src/api/client';
 import { offlineQueue } from './src/sync/offlineQueue';
 import { LoginScreen, SERVER_URL_STORAGE_KEY } from './src/screens/LoginScreen';
@@ -33,8 +33,6 @@ export type AppScreen = 'LOGIN' | 'TICKET_LIST' | 'TICKET_SUBMIT';
 
 export type ThemeMode = 'light' | 'dark' | 'outdoorSunlight';
 
-const THEME_STORAGE_KEY = '@fiberops_active_theme_v1';
-
 export default function App() {
   const [securityState, setSecurityState] = useState<AppSecurityState>('CHECKING_INTEGRITY');
   const [integrityReport, setIntegrityReport] = useState<DeviceIntegrityReport | null>(null);
@@ -49,6 +47,23 @@ export default function App() {
   const [themeMode, setThemeMode] = useState<ThemeMode>('light');
 
   const theme = getThemeTokens(themeMode);
+
+  // Automatic OS / System Color Scheme synchronization (no manual theme selector clutter)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      setThemeMode(mediaQuery.matches ? 'dark' : 'light');
+
+      const listener = (e: MediaQueryListEvent) => {
+        setThemeMode(e.matches ? 'dark' : 'light');
+      };
+      if (typeof mediaQuery.addEventListener === 'function') {
+        mediaQuery.addEventListener('change', listener);
+        return () => mediaQuery.removeEventListener('change', listener);
+      }
+    }
+    return undefined;
+  }, []);
 
   // Initialize singleton mobile API client with security interceptors
   const apiClient = useMemo(() => {
@@ -73,23 +88,11 @@ export default function App() {
     });
   }, []);
 
-  // 1. Startup Initialization: load theme, server URL, verify integrity, attempt silent auth restore
+  // 1. Startup Initialization: load server URL, verify integrity, attempt silent auth restore
   useEffect(() => {
     let isMounted = true;
 
     async function initializeApp() {
-      try {
-        const savedTheme = await persistentStorage.getItem(THEME_STORAGE_KEY);
-        if (
-          isMounted &&
-          (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'outdoorSunlight')
-        ) {
-          setThemeMode(savedTheme);
-        }
-      } catch {
-        // Fallback to default light theme
-      }
-
       try {
         const savedUrl = await persistentStorage.getItem(SERVER_URL_STORAGE_KEY);
         if (savedUrl && isMounted) {
@@ -142,11 +145,6 @@ export default function App() {
   useEffect(() => {
     offlineQueue.configure({ apiClient });
   }, [apiClient]);
-
-  const handleThemeChange = (nextTheme: ThemeMode) => {
-    setThemeMode(nextTheme);
-    void persistentStorage.setItem(THEME_STORAGE_KEY, nextTheme);
-  };
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -279,59 +277,36 @@ export default function App() {
         fontFamily: theme.typography.fontFamily.sans,
       }}
     >
-      {/* Top Field Utility Bar: Theme Switcher (Light / Dark / Outdoor Sunlight) + Logout */}
-      <header
-        style={{
-          maxWidth: '520px',
-          margin: '0 auto',
-          padding: '10px 16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '8px',
-          borderBottom: `1px solid ${theme.border}`,
-          background: theme.surface,
-        }}
-      >
-        <div style={{ display: 'flex', gap: '6px' }}>
-          {(
-            [
-              { id: 'light', label: 'Terang' },
-              { id: 'dark', label: 'Gelap' },
-              { id: 'outdoorSunlight', label: 'Outdoor' },
-            ] as const
-          ).map((mode) => {
-            const active = themeMode === mode.id;
-            return (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => handleThemeChange(mode.id)}
-                style={{
-                  minHeight: '44px',
-                  padding: '6px 10px',
-                  background: active ? theme.primary : theme.bg,
-                  color: active ? '#FFFFFF' : theme.textPrimary,
-                  border: `1px solid ${active ? theme.primary : theme.border}`,
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                {mode.label}
-              </button>
-            );
-          })}
-        </div>
+      {/* Clean Authenticated Header Bar (Only shown after Login, zero theme switcher clutter) */}
+      {currentUser && currentScreen !== 'LOGIN' && (
+        <header
+          style={{
+            maxWidth: '520px',
+            margin: '0 auto',
+            padding: '10px 16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '8px',
+            borderBottom: `1px solid ${theme.border}`,
+            background: theme.surface,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: theme.textPrimary }}>
+              FiberOps Mobile
+            </div>
+            <div style={{ fontSize: '11px', color: theme.textSecondary }}>
+              {currentUser.fullName} ({currentUser.role})
+            </div>
+          </div>
 
-        {currentUser && currentScreen !== 'LOGIN' && (
           <button
             type="button"
             onClick={handleLogout}
             style={{
               minHeight: '44px',
-              padding: '6px 12px',
+              padding: '6px 14px',
               fontSize: '12px',
               fontWeight: 600,
               color: '#dc2626',
@@ -343,8 +318,8 @@ export default function App() {
           >
             Keluar
           </button>
-        )}
-      </header>
+        </header>
+      )}
 
       {toastMessage && (
         <div

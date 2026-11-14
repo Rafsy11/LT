@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PALEMBANG_ODP_LIST } from '@repo/shared';
 import { ApiClient } from '../api/client';
 import { offlineQueue, OfflineTicketSubmission } from '../sync/offlineQueue';
@@ -410,7 +410,7 @@ export function TicketListView(props: TicketListScreenProps) {
                   minHeight: '44px',
                   padding: '8px 10px',
                   background: isActive ? theme.primary : theme.bg,
-                  color: isActive ? '#FFFFFF' : theme.textPrimary,
+                  color: isActive ? theme.primaryText : theme.textPrimary,
                   border: `1px solid ${isActive ? theme.primary : theme.border}`,
                   borderRadius: '6px',
                   fontSize: '12px',
@@ -583,6 +583,7 @@ export function TicketListView(props: TicketListScreenProps) {
                     lineHeight: 1.5,
                   }}
                 >
+                  {ticket.locationPlace ? `${ticket.locationPlace} - ` : ''}
                   {ticket.serviceAddress || ticket.customer.address}
                 </div>
 
@@ -602,11 +603,11 @@ export function TicketListView(props: TicketListScreenProps) {
                   </div>
                 )}
 
-                {/* Action Row: Maps Route & Execute/Submit */}
+                {/* Action Row: Maps Route, Call Customer & Execute/Submit */}
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
+                    gridTemplateColumns: ticket.customerPhone ? '1fr 1fr 1.2fr' : '1fr 1fr',
                     gap: '8px',
                     marginTop: '12px',
                   }}
@@ -617,7 +618,7 @@ export function TicketListView(props: TicketListScreenProps) {
                     rel="noopener noreferrer"
                     style={{
                       minHeight: '44px',
-                      padding: '10px 12px',
+                      padding: '10px 8px',
                       background: theme.bg,
                       color: theme.textPrimary,
                       border: `1px solid ${theme.border}`,
@@ -629,19 +630,44 @@ export function TicketListView(props: TicketListScreenProps) {
                       alignItems: 'center',
                       justifyContent: 'center',
                       boxSizing: 'border-box',
+                      textAlign: 'center',
                     }}
                   >
-                    Rute Peta ODP
+                    Rute Peta
                   </a>
+
+                  {ticket.customerPhone && (
+                    <a
+                      href={`tel:${ticket.customerPhone}`}
+                      style={{
+                        minHeight: '44px',
+                        padding: '10px 8px',
+                        background: theme.bg,
+                        color: theme.textPrimary,
+                        border: `1px solid ${theme.border}`,
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxSizing: 'border-box',
+                        textAlign: 'center',
+                      }}
+                    >
+                      Hubungi
+                    </a>
+                  )}
 
                   <button
                     type="button"
                     onClick={() => actions.selectTicket(ticket)}
                     style={{
                       minHeight: '44px',
-                      padding: '10px 12px',
+                      padding: '10px 10px',
                       background: theme.primary,
-                      color: '#FFFFFF',
+                      color: theme.primaryText,
                       border: 'none',
                       borderRadius: '6px',
                       fontSize: '12px',
