@@ -103,6 +103,19 @@ export interface NetworkStats {
   availableCapacity: number;
 }
 
+export interface SplitterItem {
+  id: string;
+  splitterCode: string;
+  name: string;
+  clusterName: string;
+  clusterCode: string;
+  lat: number;
+  lng: number;
+  maxPorts: number;
+  occupiedPorts: number[];
+  availablePorts: number[];
+}
+
 export interface CustomerListItem {
   id: string;
   siaNumber: string;

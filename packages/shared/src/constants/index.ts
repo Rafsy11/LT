@@ -1,4 +1,5 @@
 export * from './network.constant';
+export * from './palembang-odp.constant';
 
 export type DbmStatus = 'Normal' | 'Warning' | 'Critical';
 
