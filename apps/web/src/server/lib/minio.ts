@@ -2,28 +2,75 @@ import * as Minio from 'minio';
 import { env } from '../../env';
 import { isStrictLiveMode, ServiceUnavailableError } from './live-data';
 
-const minioEndpoint = env.MINIO_ENDPOINT;
+/**
+ * Normalizes MinIO endpoint by stripping protocol prefixes (http://, https://, including duplicates),
+ * trailing slashes, and any port suffix so Minio.Client receives a clean hostname/IP.
+ */
+export function normalizeMinioEndpoint(rawEndpoint: string): string {
+  let cleaned = (rawEndpoint || '').trim();
+  while (/^https?:\/\//i.test(cleaned)) {
+    cleaned = cleaned.replace(/^https?:\/\//i, '');
+  }
+  cleaned = cleaned.replace(/\/+$/, '');
+  if (cleaned.includes(':')) {
+    cleaned = cleaned.split(':')[0] || '';
+  }
+  return cleaned || 'localhost';
+}
+
+const rawMinioEndpoint = env.MINIO_ENDPOINT;
+const minioEndpoint = normalizeMinioEndpoint(rawMinioEndpoint);
 const minioPort = env.MINIO_PORT;
 const minioUseSSL = env.MINIO_USE_SSL;
 const minioAccessKey = env.MINIO_ACCESS_KEY;
 const minioSecretKey = env.MINIO_SECRET_KEY;
 export const PROOF_BUCKET_NAME = env.MINIO_BUCKET;
+const minioPublicUrl = env.MINIO_PUBLIC_URL?.replace(/\/+$/, '');
 
 const MINIO_FAILURE_COOLDOWN_MS = 15_000;
 
 class MinioStorageManager {
   private client: Minio.Client;
+  private presignedClient: Minio.Client;
+  private publicBaseUrl: string;
   private bucketChecked = false;
   private lastFailureAt = 0;
 
   constructor() {
     this.client = new Minio.Client({
-      endPoint: minioEndpoint.replace(/^https?:\/\//, ''),
+      endPoint: minioEndpoint,
       port: minioPort,
       useSSL: minioUseSSL,
       accessKey: minioAccessKey,
       secretKey: minioSecretKey,
+      region: 'us-east-1',
     });
+
+    if (minioPublicUrl) {
+      try {
+        const parsed = new URL(minioPublicUrl);
+        const publicPort = parsed.port
+          ? parseInt(parsed.port, 10)
+          : parsed.protocol === 'https:'
+            ? 443
+            : 80;
+        this.presignedClient = new Minio.Client({
+          endPoint: parsed.hostname,
+          port: publicPort,
+          useSSL: parsed.protocol === 'https:',
+          accessKey: minioAccessKey,
+          secretKey: minioSecretKey,
+          region: 'us-east-1',
+        });
+        this.publicBaseUrl = minioPublicUrl;
+      } catch {
+        this.presignedClient = this.client;
+        this.publicBaseUrl = `${minioUseSSL ? 'https' : 'http'}://${minioEndpoint}:${minioPort}`;
+      }
+    } else {
+      this.presignedClient = this.client;
+      this.publicBaseUrl = `${minioUseSSL ? 'https' : 'http'}://${minioEndpoint}:${minioPort}`;
+    }
   }
 
   private isInCooldown(): boolean {
@@ -103,17 +150,17 @@ class MinioStorageManager {
       if (isStrictLiveMode()) {
         throw new ServiceUnavailableError('Layanan MinIO Object Storage sedang tidak dapat dihubungi.');
       }
-      return `http://${minioEndpoint}:${minioPort}/${PROOF_BUCKET_NAME}/${objectKey}?mock_upload=true`;
+      return `${this.publicBaseUrl}/${PROOF_BUCKET_NAME}/${objectKey}?mock_upload=true`;
     }
     try {
-      return await this.client.presignedPutObject(PROOF_BUCKET_NAME, objectKey, expirySeconds);
+      return await this.presignedClient.presignedPutObject(PROOF_BUCKET_NAME, objectKey, expirySeconds);
     } catch (err) {
       this.lastFailureAt = Date.now();
       if (isStrictLiveMode()) {
         throw new ServiceUnavailableError('Gagal membuat presigned upload URL pada MinIO Storage.');
       }
       console.warn('[MinIO] Fallback presigned PUT url generation:', (err as Error).message);
-      return `http://${minioEndpoint}:${minioPort}/${PROOF_BUCKET_NAME}/${objectKey}?mock_upload=true`;
+      return `${this.publicBaseUrl}/${PROOF_BUCKET_NAME}/${objectKey}?mock_upload=true`;
     }
   }
 
@@ -153,14 +200,14 @@ class MinioStorageManager {
   public async generatePresignedGetUrl(objectKey: string, expirySeconds = 3600): Promise<string> {
     await this.ensureBucket();
     if (this.isInCooldown()) {
-      return `http://${minioEndpoint}:${minioPort}/${PROOF_BUCKET_NAME}/${objectKey}`;
+      return `${this.publicBaseUrl}/${PROOF_BUCKET_NAME}/${objectKey}`;
     }
     try {
-      return await this.client.presignedGetObject(PROOF_BUCKET_NAME, objectKey, expirySeconds);
+      return await this.presignedClient.presignedGetObject(PROOF_BUCKET_NAME, objectKey, expirySeconds);
     } catch (err) {
       this.lastFailureAt = Date.now();
       console.warn('[MinIO] Fallback presigned GET url generation:', (err as Error).message);
-      return `http://${minioEndpoint}:${minioPort}/${PROOF_BUCKET_NAME}/${objectKey}`;
+      return `${this.publicBaseUrl}/${PROOF_BUCKET_NAME}/${objectKey}`;
     }
   }
 }

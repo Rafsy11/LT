@@ -19,7 +19,7 @@ class OllamaClient {
   private model: string;
 
   constructor() {
-    this.baseUrl = env.OLLAMA_BASE_URL.replace(/\/+$/, '');
+    this.baseUrl = env.OLLAMA_BASE_URL.replace(/\/+$/, '').replace(/\/api$/, '');
     this.model = env.OLLAMA_MODEL;
   }
 

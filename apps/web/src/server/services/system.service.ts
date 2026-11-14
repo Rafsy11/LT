@@ -33,9 +33,9 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsInput = {
   blockMockLocation: true,
   minAppVersion: '1.0.0',
   aiInferenceMode: 'GPU_ACCELERATED',
-  selectedAiModel: env.OLLAMA_MODEL || 'qwen2.5:14b-instruct',
+  selectedAiModel: env.OLLAMA_MODEL || 'qwen2.5:7b',
   maxConcurrentAiQueries: 1,
-  aiMemoryLimitGb: 16,
+  aiMemoryLimitGb: 8,
   cronSchedule: '0 2 * * *',
   compressionEncrypted: true,
   secondaryBackupTarget: 'EXTERNAL_NAS',
@@ -65,7 +65,7 @@ async function probeOllamaRuntime(): Promise<{
   activeModel?: string;
   vramUsedGb?: number;
 }> {
-  const baseUrl = env.OLLAMA_BASE_URL.replace(/\/+$/, '');
+  const baseUrl = env.OLLAMA_BASE_URL.replace(/\/+$/, '').replace(/\/api$/, '');
   const healthy = await ollamaClient.isHealthy();
   if (!healthy) {
     return { healthy: false };
@@ -95,11 +95,12 @@ async function probeOllamaRuntime(): Promise<{
 }
 
 async function probeNginxGateway(): Promise<'HEALTHY' | 'WARNING'> {
-  if (process.env.NODE_ENV !== 'production') {
+  const nginxHealthUrl = env.NGINX_HEALTH_URL || process.env.NGINX_HEALTH_URL || 'http://127.0.0.1/api/v1/health';
+  if (process.env.NODE_ENV !== 'production' && !process.env.NGINX_HEALTH_URL) {
     return 'WARNING';
   }
   try {
-    const res = await fetch('http://127.0.0.1/api/v1/health', {
+    const res = await fetch(nginxHealthUrl, {
       method: 'GET',
       signal: AbortSignal.timeout(1000),
     });

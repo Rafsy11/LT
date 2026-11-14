@@ -80,10 +80,15 @@ const envSchema = z.object({
     ? z.string().min(1, 'MINIO_SECRET_KEY is required in production')
     : z.string().default('fiberops_minio_secret_pass'),
   MINIO_BUCKET: z.string().default('fiberops-proofs'),
+  MINIO_PUBLIC_URL: z.string().optional(),
 
   // Ollama
-  OLLAMA_BASE_URL: z.string().default('http://localhost:11434'),
+  OLLAMA_BASE_URL: z
+    .string()
+    .default('http://localhost:11434')
+    .transform((val) => val.replace(/\/+$/, '').replace(/\/api$/, '')),
   OLLAMA_MODEL: z.string().default('qwen2.5:7b'),
+  NGINX_HEALTH_URL: z.string().default('http://127.0.0.1/api/v1/health'),
 
   // Security & Authentication
   JWT_SECRET: isProductionRuntime

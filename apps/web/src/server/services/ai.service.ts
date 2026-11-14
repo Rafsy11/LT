@@ -696,7 +696,7 @@ export class AiService {
     permissions: string[] = ['*'],
   ) {
     const ollama = createOpenAI({
-      baseURL: env.OLLAMA_BASE_URL.replace(/\/+$/, '') + '/v1',
+      baseURL: env.OLLAMA_BASE_URL.replace(/\/+$/, '').replace(/\/api$/, '') + '/v1',
       apiKey: 'ollama',
     });
 
@@ -737,7 +737,7 @@ ATURAN KEAMANAN MUTLAK & ANTI-INDIRECT PROMPT INJECTION:
 
     if (ollamaUp) {
       const ollama = createOpenAI({
-        baseURL: env.OLLAMA_BASE_URL.replace(/\/+$/, '') + '/v1',
+        baseURL: env.OLLAMA_BASE_URL.replace(/\/+$/, '').replace(/\/api$/, '') + '/v1',
         apiKey: 'ollama',
       });
       const model = ollama(env.OLLAMA_MODEL);
