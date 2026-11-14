@@ -47,6 +47,14 @@ export class ApiClient {
     return this.tokens;
   }
 
+  public setBaseUrl(url: string): void {
+    this.baseUrl = (url || 'http://localhost:3000').replace(/\/+$/, '');
+  }
+
+  public getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
   public isLocked(): boolean {
     return this.isAppLocked;
   }
@@ -57,6 +65,123 @@ export class ApiClient {
 
   public onSessionRevoked(callback: SessionRevokedCallback): void {
     this.onSessionRevokedListener = callback;
+  }
+
+  /**
+   * Performs a health check against the server /api/v1/health endpoint with a 5s timeout.
+   */
+  public async checkHealth(customUrl?: string): Promise<{ ok: boolean; message: string; details?: unknown }> {
+    const targetBase = (customUrl || this.baseUrl).replace(/\/+$/, '');
+    const healthUrl = `${targetBase}/api/v1/health`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    try {
+      const res = await fetch(healthUrl, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          'X-Device-ID': this.deviceId,
+          'X-App-Version': this.appVersion,
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const data = (await res.json().catch(() => ({}))) as Record<string, any>;
+
+      if (res.ok && (data.status === 'ok' || data.success === true || res.status === 200)) {
+        const systemName = data.system || 'FiberOps On-Premise';
+        return {
+          ok: true,
+          message: `Terhubung: ${systemName}`,
+          details: data,
+        };
+      }
+
+      return {
+        ok: false,
+        message: data.message || `Server merespons status ${res.status}`,
+        details: data,
+      };
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      const isTimeout = err?.name === 'AbortError';
+      return {
+        ok: false,
+        message: isTimeout ? 'Koneksi timeout (5s) ke server' : (err?.message || 'Gagal terhubung ke server'),
+        details: err,
+      };
+    }
+  }
+
+  /**
+   * Uploads multipart form data omitting the Content-Type header so the boundary is auto-generated.
+   */
+  public async uploadMultipart<T = unknown>(
+    endpoint: string,
+    formData: FormData,
+    customHeaders: Record<string, string> = {},
+  ): Promise<ApiResponse<T>> {
+    if (this.isAppLocked) {
+      throw new Error(
+        `${ERROR_CODES.UPGRADE_REQUIRED}: Aplikasi terkunci karena versi sudah usang. Harap perbarui aplikasi terlebih dahulu.`,
+      );
+    }
+
+    const url = endpoint.startsWith('http')
+      ? endpoint
+      : `${this.baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+
+    const headers: Record<string, string> = {
+      'X-Device-ID': this.deviceId,
+      'X-App-Version': this.appVersion,
+      ...customHeaders,
+    };
+
+    if (this.tokens?.accessToken) {
+      headers['Authorization'] = `Bearer ${this.tokens.accessToken}`;
+    }
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (response.status === 426) {
+        this.isAppLocked = true;
+        const errorJson = (await response.json().catch(() => ({}))) as Record<string, any>;
+        const upgradeDetails: UpgradeRequiredDetails = {
+          minVersion: (errorJson.meta?.minVersion as string) || '1.0.0',
+          currentVersion: this.appVersion,
+          downloadUrl: (errorJson.meta?.downloadUrl as string) || undefined,
+          message: errorJson.error?.message || 'Versi aplikasi mobile Anda sudah usang.',
+        };
+        if (this.onUpgradeRequiredListener) {
+          this.onUpgradeRequiredListener(upgradeDetails);
+        }
+        return {
+          success: false,
+          error: {
+            code: ERROR_CODES.UPGRADE_REQUIRED,
+            message: upgradeDetails.message,
+            details: upgradeDetails,
+          },
+        };
+      }
+
+      return (await response.json()) as ApiResponse<T>;
+    } catch (err) {
+      return {
+        success: false,
+        error: {
+          code: ERROR_CODES.INTERNAL_ERROR,
+          message: (err as Error).message || 'Gagal mengunggah berkas multipart',
+        },
+      };
+    }
   }
 
   /**

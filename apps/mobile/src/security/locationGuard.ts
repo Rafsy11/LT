@@ -92,19 +92,20 @@ export async function acquireVerifiedLocation(
 
   const { latitude, longitude, accuracy } = locationData.coords;
   let distanceMeters: number | undefined;
-  let isFlagged = false;
+  let isFlagged = latitude === 0 && longitude === 0;
 
   // 2. Geofence Distance Calculation to target Splitter
   if (targetSplitterCoords) {
-    distanceMeters = Math.round(
-      calculateHaversineDistance(
-        latitude,
-        longitude,
-        targetSplitterCoords.latitude,
-        targetSplitterCoords.longitude,
-      ),
+    const rawDistance = calculateHaversineDistance(
+      latitude,
+      longitude,
+      targetSplitterCoords.latitude,
+      targetSplitterCoords.longitude,
     );
-    isFlagged = distanceMeters > MAX_GEOFENCE_RADIUS_METERS;
+    distanceMeters = Math.round(rawDistance);
+    isFlagged =
+      distanceMeters > MAX_GEOFENCE_RADIUS_METERS ||
+      (latitude === 0 && longitude === 0);
   }
 
   return {
@@ -116,4 +117,35 @@ export async function acquireVerifiedLocation(
     isLocationFlagged: isFlagged,
     clientRecordedAt: recordedAt,
   };
+}
+
+export function validateCoordinates(coords?: Partial<GpsCoordinates> | null): { valid: boolean; error?: string } {
+  if (!coords || typeof coords.latitude !== 'number' || typeof coords.longitude !== 'number' || isNaN(coords.latitude) || isNaN(coords.longitude)) {
+    return { valid: false, error: 'Koordinat GPS tidak lengkap atau tidak valid.' };
+  }
+  if (coords.latitude === 0 && coords.longitude === 0) {
+    return { valid: false, error: 'Koordinat (0, 0) tidak valid (Null Island).' };
+  }
+  if (coords.latitude < -90 || coords.latitude > 90) {
+    return { valid: false, error: 'Latitude di luar batas [-90, 90].' };
+  }
+  if (coords.longitude < -180 || coords.longitude > 180) {
+    return { valid: false, error: 'Longitude di luar batas [-180, 180].' };
+  }
+  return { valid: true };
+}
+
+export function isValidLat(lat: number): boolean {
+  return typeof lat === 'number' && !isNaN(lat) && lat >= -90 && lat <= 90;
+}
+
+export function isValidLon(lon: number): boolean {
+  return typeof lon === 'number' && !isNaN(lon) && lon >= -180 && lon <= 180;
+}
+
+export function validateCoordinateInput(coords?: Partial<GpsCoordinates> | null): boolean {
+  if (!coords || typeof coords.latitude !== 'number' || typeof coords.longitude !== 'number') {
+    return false;
+  }
+  return !isNaN(coords.latitude) && !isNaN(coords.longitude);
 }

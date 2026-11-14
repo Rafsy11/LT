@@ -1,6 +1,7 @@
 import { SubmitTicketInput, ApiResponse } from '@repo/shared';
 import { uploadToPresignedPutUrl } from '../camera/opmCamera';
 import { encryptOfflinePayload, decryptOfflinePayload } from '../security/deviceIntegrity';
+import { PersistentStorageAdapter, persistentStorage } from '../storage/persistentStorage';
 
 export interface OfflineTicketSubmission {
   id: string;
@@ -47,7 +48,7 @@ export interface StorageAdapter {
   removeItem: (key: string) => Promise<void> | void;
 }
 
-class InMemoryStorageAdapter implements StorageAdapter {
+export class InMemoryStorageAdapter implements StorageAdapter {
   private store = new Map<string, string>();
 
   getItem(key: string): string | null {
@@ -73,7 +74,7 @@ export class OfflineQueueManager {
   private onSyncProgressListener?: QueueSyncProgressCallback;
 
   constructor(storage?: StorageAdapter) {
-    this.storage = storage || new InMemoryStorageAdapter();
+    this.storage = storage || persistentStorage;
   }
 
   public configure(config: {
@@ -270,9 +271,11 @@ export class OfflineQueueManager {
         }
       }
 
-      const remainingQueue = queue.filter(
-        (item) => !successfullyProcessedIds.has(item.submissionId),
-      );
+      const currentQueue = await this.getQueue();
+      const failedMap = new Map(queue.map((q) => [q.submissionId, q]));
+      const remainingQueue = currentQueue
+        .filter((item) => !successfullyProcessedIds.has(item.submissionId))
+        .map((item) => failedMap.get(item.submissionId) || item);
       await this.saveQueue(remainingQueue);
     } finally {
       this.isProcessing = false;
