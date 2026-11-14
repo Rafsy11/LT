@@ -8,7 +8,12 @@
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test:security": "tsx --tsconfig tsconfig.json ../../scripts/security-audit.ts"
+    "test:security": "tsx --tsconfig tsconfig.json ../../scripts/security-audit.ts",
+    "test:e2e": "tsx --tsconfig tsconfig.json --test \"../../tests/e2e/**/*.test.ts\"",
+    "test:e2e:tier1": "tsx --tsconfig tsconfig.json --test \"../../tests/e2e/tier1-feature-coverage/**/*.test.ts\"",
+    "test:e2e:tier2": "tsx --tsconfig tsconfig.json --test \"../../tests/e2e/tier2-boundary-corner/**/*.test.ts\"",
+    "test:e2e:tier3": "tsx --tsconfig tsconfig.json --test \"../../tests/e2e/tier3-cross-feature/**/*.test.ts\"",
+    "test:e2e:tier4": "tsx --tsconfig tsconfig.json --test \"../../tests/e2e/tier4-workload-scenarios/**/*.test.ts\""
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.93",
