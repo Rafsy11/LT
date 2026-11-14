@@ -3,17 +3,23 @@ services:
     image: nginx:alpine
     container_name: fiberops-nginx
     ports:
-      - "80:80"
-      - "443:443"
+      - "${WEB_HTTP_PORT:-8080}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - nextjs-web
+      nextjs-web:
+        condition: service_healthy
     restart: always
     deploy:
       resources:
         limits:
-          memory: 256M
+          cpus: '1.0'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nextjs-web:
     build:
@@ -26,20 +32,43 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://fiberops:fiberops_secure_pass@postgres:5432/fiberops_db?schema=public
       - REDIS_URL=redis://redis:6379
-      - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=fiberops_minio_admin
-      - MINIO_SECRET_KEY=fiberops_minio_secret_pass
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434/api}
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_USE_SSL=false
+      - MINIO_BUCKET=fiberops-proofs
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-fiberops_minio_admin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-fiberops_minio_secret_pass}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:${WEB_HTTP_PORT:-8080}}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:7b}
+      - JWT_SECRET=${JWT_SECRET:-fiberops_on_premise_super_secure_jwt_secret_key_32chars}
+      - HMAC_ACTION_SECRET=${HMAC_ACTION_SECRET:-fiberops_action_secret_token_default_32_chars}
+      - NGINX_HEALTH_URL=${NGINX_HEALTH_URL:-http://nginx/api/v1/health}
+      - STRICT_LIVE_DATA=${STRICT_LIVE_DATA:-true}
     depends_on:
-      - postgres
-      - redis
-      - minio
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
     deploy:
       resources:
         limits:
-          cpus: '4.0'
+          cpus: '3.0'
           memory: 2048M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   postgres:
     image: postgres:16-alpine
@@ -53,11 +82,22 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fiberops -d fiberops_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     deploy:
       resources:
         limits:
-          cpus: '4.0'
-          memory: 2048M
+          cpus: '2.0'
+          memory: 1536M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:7-alpine
@@ -67,10 +107,22 @@ services:
     volumes:
       - redis_data:/data
     restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     deploy:
       resources:
         limits:
-          memory: 512M
+          cpus: '1.0'
+          memory: 384M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   minio:
     image: minio/minio:latest
@@ -79,13 +131,28 @@ services:
     environment:
       - MINIO_ROOT_USER=fiberops_minio_admin
       - MINIO_ROOT_PASSWORD=fiberops_minio_secret_pass
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     deploy:
       resources:
         limits:
-          memory: 1536M
+          cpus: '1.5'
+          memory: 1024M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ollama:
     profiles:
@@ -107,6 +174,11 @@ services:
           memory: 8192M
         reservations:
           memory: 4096M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   postgres_data:
