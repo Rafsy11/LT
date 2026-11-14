@@ -1,12 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ApiClient, MobileSessionTokens } from '../api/client';
 import { CURRENT_MOBILE_APP_VERSION, UserProfile } from '@repo/shared';
+import { persistentStorage } from '../storage/persistentStorage';
+import { getThemeTokens } from '../theme/tokens';
+
+export const SERVER_URL_STORAGE_KEY = '@fiberops_server_url_v1';
 
 export interface LoginScreenProps {
   apiClient: ApiClient;
   onLoginSuccess: (user: UserProfile, tokens: MobileSessionTokens) => void;
   defaultDeviceId?: string;
   sessionRevokedReason?: string | null;
+  themeMode?: 'light' | 'dark' | 'outdoorSunlight';
 }
 
 export function LoginScreen({
@@ -14,13 +19,55 @@ export function LoginScreen({
   onLoginSuccess,
   defaultDeviceId = 'DEVICE-TECH-SM-A54',
   sessionRevokedReason = null,
+  themeMode = 'light',
 }: LoginScreenProps) {
   const [username, setUsername] = useState('andi.pratama');
   const [password, setPassword] = useState('');
-  const [deviceId, setDeviceId] = useState(defaultDeviceId);
-  const [deviceModel, setDeviceModel] = useState('Samsung Galaxy A54 5G');
+  const [deviceId] = useState(defaultDeviceId);
+  const [deviceModel] = useState('Samsung Galaxy A54 5G');
+  const [serverUrl, setServerUrl] = useState(apiClient.getBaseUrl() || 'http://localhost:3000');
+  const [healthStatus, setHealthStatus] = useState<'IDLE' | 'TESTING' | 'SUCCESS' | 'ERROR'>('IDLE');
+  const [healthMessage, setHealthMessage] = useState<string>('Belum diuji');
+  const [showServerConfig, setShowServerConfig] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const theme = getThemeTokens(themeMode);
+
+  useEffect(() => {
+    let isMounted = true;
+    persistentStorage.getItem(SERVER_URL_STORAGE_KEY).then((saved) => {
+      if (saved && isMounted) {
+        setServerUrl(saved);
+        apiClient.setBaseUrl(saved);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [apiClient]);
+
+  const handleTestConnection = async () => {
+    try {
+      setHealthStatus('TESTING');
+      setHealthMessage('Menguji koneksi...');
+      const cleanUrl = serverUrl.trim();
+      const res = await apiClient.checkHealth(cleanUrl);
+      if (res.ok) {
+        setHealthStatus('SUCCESS');
+        setHealthMessage(res.message);
+        apiClient.setBaseUrl(cleanUrl);
+        await persistentStorage.setItem(SERVER_URL_STORAGE_KEY, cleanUrl);
+      } else {
+        setHealthStatus('ERROR');
+        setHealthMessage(res.message);
+      }
+    } catch (err: unknown) {
+      setHealthStatus('ERROR');
+      const errObj = err as Error;
+      setHealthMessage(errObj?.message || 'Gagal terhubung ke server');
+    }
+  };
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -32,6 +79,10 @@ export function LoginScreen({
     try {
       setIsLoading(true);
       setErrorMessage(null);
+
+      const cleanUrl = serverUrl.trim();
+      apiClient.setBaseUrl(cleanUrl);
+      await persistentStorage.setItem(SERVER_URL_STORAGE_KEY, cleanUrl);
 
       const res = await apiClient.request<{
         accessToken: string;
@@ -74,32 +125,50 @@ export function LoginScreen({
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '100vh',
-        padding: '24px',
-        background: '#f8fafc',
-        fontFamily: 'Inter, system-ui, sans-serif',
+        minHeight: 'calc(100vh - 60px)',
+        padding: '20px 16px',
+        background: theme.bg,
+        color: theme.textPrimary,
+        fontFamily: theme.typography.fontFamily.sans,
       }}
     >
       <div
         style={{
           width: '100%',
-          maxWidth: '380px',
-          background: '#ffffff',
+          maxWidth: '420px',
+          background: theme.surface,
           borderRadius: '8px',
-          border: '1px solid #dce7f0',
-          padding: '28px',
-          boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)',
+          border: `1px solid ${theme.border}`,
+          padding: '24px',
+          boxSizing: 'border-box',
         }}
       >
-        <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px' }}>
+        <div
+          style={{
+            display: 'inline-block',
+            padding: '4px 8px',
+            background: theme.badgeBg,
+            border: `1px solid ${theme.border}`,
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontWeight: 700,
+            color: theme.primary,
+            marginBottom: '10px',
+          }}
+        >
+          LINTASARTA FIELD OPS v{CURRENT_MOBILE_APP_VERSION}
+        </div>
+
+        <h1 style={{ fontSize: '20px', fontWeight: 700, color: theme.textPrimary, margin: '0 0 6px' }}>
           FiberOps Mobile
         </h1>
-        <p style={{ fontSize: '13px', color: '#475569', margin: '0 0 20px' }}>
-          Portal otentikasi teknisi lapangan ISP Lintasarta
+        <p style={{ fontSize: '13px', color: theme.textSecondary, margin: '0 0 16px', lineHeight: 1.5 }}>
+          Portal otentikasi teknisi lapangan FTTH Regional Palembang
         </p>
 
         {sessionRevokedReason && (
           <div
+            role="alert"
             style={{
               padding: '10px 12px',
               background: '#fef2f2',
@@ -116,6 +185,7 @@ export function LoginScreen({
 
         {errorMessage && (
           <div
+            role="alert"
             style={{
               padding: '10px 12px',
               background: '#fef2f2',
@@ -130,6 +200,133 @@ export function LoginScreen({
           </div>
         )}
 
+        {/* Dynamic Server Configuration Accordion */}
+        <div
+          style={{
+            marginBottom: '18px',
+            border: `1px solid ${theme.border}`,
+            borderRadius: '6px',
+            background: theme.bg,
+            overflow: 'hidden',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setShowServerConfig(!showServerConfig)}
+            style={{
+              width: '100%',
+              minHeight: '44px',
+              padding: '10px 14px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: theme.badgeBg,
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: theme.textPrimary,
+            }}
+          >
+            <span>Pengaturan Server Backend</span>
+            <span style={{ fontSize: '11px', color: theme.textSecondary }}>
+              {showServerConfig ? 'Tutup ▲' : 'Ubah ▼'}
+            </span>
+          </button>
+
+          {showServerConfig && (
+            <div style={{ padding: '12px 14px', borderTop: `1px solid ${theme.border}` }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: theme.textSecondary,
+                  marginBottom: '4px',
+                }}
+              >
+                URL Endpoint Server (MacBook Air M5 / Cloud / LAN)
+              </label>
+              <input
+                type="text"
+                value={serverUrl}
+                onChange={(e) => setServerUrl(e.target.value)}
+                placeholder="http://192.168.1.100:8080"
+                style={{
+                  width: '100%',
+                  minHeight: '44px',
+                  padding: '10px 12px',
+                  fontSize: '12px',
+                  background: theme.bg,
+                  color: theme.textPrimary,
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: '6px',
+                  boxSizing: 'border-box',
+                  marginBottom: '10px',
+                  fontFamily: theme.typography.fontFamily.mono,
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleTestConnection}
+                disabled={healthStatus === 'TESTING'}
+                style={{
+                  width: '100%',
+                  minHeight: '44px',
+                  padding: '10px 14px',
+                  background: theme.primary,
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: healthStatus === 'TESTING' ? 'not-allowed' : 'pointer',
+                  opacity: healthStatus === 'TESTING' ? 0.7 : 1,
+                  marginBottom: '10px',
+                }}
+              >
+                {healthStatus === 'TESTING' ? 'Menguji Koneksi...' : 'Uji Koneksi Server'}
+              </button>
+
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  background:
+                    healthStatus === 'SUCCESS'
+                      ? '#f0fdf4'
+                      : healthStatus === 'ERROR'
+                        ? '#fef2f2'
+                        : healthStatus === 'TESTING'
+                          ? '#eff6ff'
+                          : theme.badgeBg,
+                  color:
+                    healthStatus === 'SUCCESS'
+                      ? '#16a34a'
+                      : healthStatus === 'ERROR'
+                        ? '#dc2626'
+                        : healthStatus === 'TESTING'
+                          ? '#1d4ed8'
+                          : theme.textSecondary,
+                  border: `1px solid ${
+                    healthStatus === 'SUCCESS'
+                      ? '#bbf7d0'
+                      : healthStatus === 'ERROR'
+                        ? '#fecaca'
+                        : healthStatus === 'TESTING'
+                          ? '#bfdbfe'
+                          : theme.border
+                  }`,
+                }}
+              >
+                Status: {healthMessage}
+              </div>
+            </div>
+          )}
+        </div>
+
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '14px' }}>
             <label
@@ -137,7 +334,7 @@ export function LoginScreen({
                 display: 'block',
                 fontSize: '12px',
                 fontWeight: 600,
-                color: '#334155',
+                color: theme.textPrimary,
                 marginBottom: '4px',
               }}
             >
@@ -150,9 +347,12 @@ export function LoginScreen({
               disabled={isLoading}
               style={{
                 width: '100%',
-                padding: '9px 12px',
+                minHeight: '44px',
+                padding: '10px 12px',
                 fontSize: '13px',
-                border: '1px solid #cbd5e1',
+                background: theme.bg,
+                color: theme.textPrimary,
+                border: `1px solid ${theme.border}`,
                 borderRadius: '6px',
                 boxSizing: 'border-box',
               }}
@@ -165,7 +365,7 @@ export function LoginScreen({
                 display: 'block',
                 fontSize: '12px',
                 fontWeight: 600,
-                color: '#334155',
+                color: theme.textPrimary,
                 marginBottom: '4px',
               }}
             >
@@ -178,9 +378,12 @@ export function LoginScreen({
               disabled={isLoading}
               style={{
                 width: '100%',
-                padding: '9px 12px',
+                minHeight: '44px',
+                padding: '10px 12px',
                 fontSize: '13px',
-                border: '1px solid #cbd5e1',
+                background: theme.bg,
+                color: theme.textPrimary,
+                border: `1px solid ${theme.border}`,
                 borderRadius: '6px',
                 boxSizing: 'border-box',
               }}
@@ -192,8 +395,9 @@ export function LoginScreen({
             disabled={isLoading}
             style={{
               width: '100%',
+              minHeight: '44px',
               padding: '10px 16px',
-              background: '#0e5b92',
+              background: theme.primary,
               color: '#ffffff',
               fontSize: '13.5px',
               fontWeight: 600,
@@ -207,8 +411,8 @@ export function LoginScreen({
           </button>
         </form>
 
-        <div style={{ marginTop: '16px', fontSize: '11px', color: '#94a3b8', textAlign: 'center' }}>
-          Perangkat: {deviceId} ({deviceModel})
+        <div style={{ marginTop: '16px', fontSize: '11px', color: theme.textSecondary, textAlign: 'center' }}>
+          Perangkat Terikat: {deviceId} ({deviceModel})
         </div>
       </div>
     </div>

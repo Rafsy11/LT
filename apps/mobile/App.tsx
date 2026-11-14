@@ -1,15 +1,26 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ApiClient, UpgradeRequiredDetails } from './src/api/client';
+import { ApiClient, UpgradeRequiredDetails, MobileSessionTokens } from './src/api/client';
 import { offlineQueue } from './src/sync/offlineQueue';
-import { LoginScreen } from './src/screens/LoginScreen';
-import { TicketListScreen, MobileTicketItem, SplitterItem } from './src/screens/TicketListScreen';
-import { TicketSubmitScreen } from './src/screens/TicketSubmitScreen';
+import { LoginScreen, SERVER_URL_STORAGE_KEY } from './src/screens/LoginScreen';
+import {
+  TicketListView,
+  MobileTicketItem,
+  SplitterItem,
+} from './src/screens/TicketListScreen';
+import { TicketSubmitView } from './src/screens/TicketSubmitScreen';
 import {
   checkDeviceIntegrity,
   DeviceIntegrityReport,
   removeSecureToken,
 } from './src/security/deviceIntegrity';
-import { CURRENT_MOBILE_APP_VERSION, UserProfile } from '@repo/shared';
+import {
+  persistentStorage,
+  getEncryptedItem,
+  setEncryptedItem,
+  removeEncryptedItem,
+} from './src/storage/persistentStorage';
+import { getThemeTokens } from './src/theme/tokens';
+import { CURRENT_MOBILE_APP_VERSION, UserProfile, PALEMBANG_ODP_LIST } from '@repo/shared';
 
 export type AppSecurityState =
   | 'CHECKING_INTEGRITY'
@@ -20,6 +31,10 @@ export type AppSecurityState =
 
 export type AppScreen = 'LOGIN' | 'TICKET_LIST' | 'TICKET_SUBMIT';
 
+export type ThemeMode = 'light' | 'dark' | 'outdoorSunlight';
+
+const THEME_STORAGE_KEY = '@fiberops_active_theme_v1';
+
 export default function App() {
   const [securityState, setSecurityState] = useState<AppSecurityState>('CHECKING_INTEGRITY');
   const [integrityReport, setIntegrityReport] = useState<DeviceIntegrityReport | null>(null);
@@ -29,8 +44,11 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('LOGIN');
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<MobileTicketItem | null>(null);
-  const [availableSplitters, setAvailableSplitters] = useState<SplitterItem[]>([]);
+  const [availableSplitters, setAvailableSplitters] = useState<SplitterItem[]>(PALEMBANG_ODP_LIST);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [themeMode, setThemeMode] = useState<ThemeMode>('light');
+
+  const theme = getThemeTokens(themeMode);
 
   // Initialize singleton mobile API client with security interceptors
   const apiClient = useMemo(() => {
@@ -44,6 +62,8 @@ export default function App() {
       },
       onSessionRevoked: (reason) => {
         void removeSecureToken('auth_tokens');
+        void removeEncryptedItem('auth_tokens');
+        void removeEncryptedItem('user_profile');
         setCurrentUser(null);
         setSelectedTicket(null);
         setSessionRevokedReason(reason);
@@ -53,11 +73,32 @@ export default function App() {
     });
   }, []);
 
-  // 1. Startup Device Integrity Check (CHECKING_INTEGRITY -> DEVICE_COMPROMISED_LOCK)
+  // 1. Startup Initialization: load theme, server URL, verify integrity, attempt silent auth restore
   useEffect(() => {
     let isMounted = true;
 
-    async function verifyDevice() {
+    async function initializeApp() {
+      try {
+        const savedTheme = await persistentStorage.getItem(THEME_STORAGE_KEY);
+        if (
+          isMounted &&
+          (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'outdoorSunlight')
+        ) {
+          setThemeMode(savedTheme);
+        }
+      } catch {
+        // Fallback to default light theme
+      }
+
+      try {
+        const savedUrl = await persistentStorage.getItem(SERVER_URL_STORAGE_KEY);
+        if (savedUrl && isMounted) {
+          apiClient.setBaseUrl(savedUrl);
+        }
+      } catch (err) {
+        console.warn('[App] Failed loading server URL from storage:', err);
+      }
+
       try {
         const report = await checkDeviceIntegrity();
         if (!isMounted) return;
@@ -65,28 +106,61 @@ export default function App() {
         setIntegrityReport(report);
         if (!report.isSecure) {
           setSecurityState('DEVICE_COMPROMISED_LOCK');
-        } else {
-          setSecurityState('READY');
+          return;
         }
       } catch {
-        if (isMounted) setSecurityState('READY');
+        // Continue if integrity check fails outside native container
+      }
+
+      try {
+        const savedTokens = await getEncryptedItem<MobileSessionTokens>('auth_tokens');
+        const savedUser = await getEncryptedItem<UserProfile>('user_profile');
+
+        if (savedTokens?.accessToken && isMounted) {
+          apiClient.setTokens(savedTokens);
+          if (savedUser) {
+            setCurrentUser(savedUser);
+            setCurrentScreen('TICKET_LIST');
+          }
+        }
+      } catch (err) {
+        console.warn('[App] Silent auth restore failed:', err);
+      }
+
+      if (isMounted) {
+        setSecurityState('READY');
       }
     }
 
-    void verifyDevice();
+    void initializeApp();
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [apiClient]);
 
   // 2. Wire offline queue with apiClient
   useEffect(() => {
     offlineQueue.configure({ apiClient });
   }, [apiClient]);
 
+  const handleThemeChange = (nextTheme: ThemeMode) => {
+    setThemeMode(nextTheme);
+    void persistentStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  };
+
   const showToast = (message: string) => {
     setToastMessage(message);
     setTimeout(() => setToastMessage(null), 5000);
+  };
+
+  const handleLogout = () => {
+    void removeSecureToken('auth_tokens');
+    void removeEncryptedItem('auth_tokens');
+    void removeEncryptedItem('user_profile');
+    apiClient.setTokens(null);
+    setCurrentUser(null);
+    setSelectedTicket(null);
+    setCurrentScreen('LOGIN');
   };
 
   // State 1: Device Integrity Violation Screen
@@ -95,7 +169,7 @@ export default function App() {
       <div
         style={{
           padding: '24px',
-          fontFamily: 'sans-serif',
+          fontFamily: theme.typography.fontFamily.sans,
           maxWidth: '480px',
           margin: '40px auto',
           textAlign: 'center',
@@ -135,7 +209,7 @@ export default function App() {
       <div
         style={{
           padding: '24px',
-          fontFamily: 'sans-serif',
+          fontFamily: theme.typography.fontFamily.sans,
           maxWidth: '480px',
           margin: '40px auto',
           textAlign: 'center',
@@ -153,10 +227,11 @@ export default function App() {
         </p>
         <a
           href={
-            upgradeLock.downloadUrl || 'https://internal.fiberops.net/download/mobile-latest.apk'
+            upgradeLock.downloadUrl || `${apiClient.getBaseUrl()}/download/mobile-latest.apk`
           }
           style={{
             display: 'inline-block',
+            minHeight: '44px',
             marginTop: '16px',
             padding: '10px 20px',
             background: '#0e5b92',
@@ -179,9 +254,11 @@ export default function App() {
       <div
         style={{
           padding: '60px 24px',
-          fontFamily: 'sans-serif',
+          fontFamily: theme.typography.fontFamily.sans,
           textAlign: 'center',
-          color: '#64748b',
+          color: theme.textSecondary,
+          background: theme.bg,
+          minHeight: '100vh',
         }}
       >
         <p style={{ fontSize: '14px', fontWeight: 500 }}>
@@ -193,9 +270,85 @@ export default function App() {
 
   // State 4: Navigation State Router (READY & SESSION_REVOKED_LOCK banner)
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', position: 'relative' }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: theme.bg,
+        color: theme.textPrimary,
+        position: 'relative',
+        fontFamily: theme.typography.fontFamily.sans,
+      }}
+    >
+      {/* Top Field Utility Bar: Theme Switcher (Light / Dark / Outdoor Sunlight) + Logout */}
+      <header
+        style={{
+          maxWidth: '520px',
+          margin: '0 auto',
+          padding: '10px 16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '8px',
+          borderBottom: `1px solid ${theme.border}`,
+          background: theme.surface,
+        }}
+      >
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {(
+            [
+              { id: 'light', label: 'Terang' },
+              { id: 'dark', label: 'Gelap' },
+              { id: 'outdoorSunlight', label: 'Outdoor' },
+            ] as const
+          ).map((mode) => {
+            const active = themeMode === mode.id;
+            return (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => handleThemeChange(mode.id)}
+                style={{
+                  minHeight: '44px',
+                  padding: '6px 10px',
+                  background: active ? theme.primary : theme.bg,
+                  color: active ? '#FFFFFF' : theme.textPrimary,
+                  border: `1px solid ${active ? theme.primary : theme.border}`,
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {mode.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {currentUser && currentScreen !== 'LOGIN' && (
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={{
+              minHeight: '44px',
+              padding: '6px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#dc2626',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '6px',
+              cursor: 'pointer',
+            }}
+          >
+            Keluar
+          </button>
+        )}
+      </header>
+
       {toastMessage && (
         <div
+          role="status"
           style={{
             position: 'fixed',
             top: '16px',
@@ -220,11 +373,14 @@ export default function App() {
           apiClient={apiClient}
           defaultDeviceId="DEVICE-TECH-SM-A54"
           sessionRevokedReason={sessionRevokedReason}
+          themeMode={themeMode}
           onLoginSuccess={(user, tokens) => {
             setCurrentUser(user);
             setSessionRevokedReason(null);
             setSecurityState('READY');
             apiClient.setTokens(tokens);
+            void setEncryptedItem('auth_tokens', tokens);
+            void setEncryptedItem('user_profile', user);
             setCurrentScreen('TICKET_LIST');
             showToast(`Selamat bertugas, ${user.fullName}!`);
           }}
@@ -232,88 +388,37 @@ export default function App() {
       )}
 
       {currentScreen === 'TICKET_LIST' && (
-        <div
-          style={{ padding: '24px', maxWidth: '480px', margin: '0 auto', fontFamily: 'sans-serif' }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '20px',
-            }}
-          >
-            <div>
-              <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                Daftar Tiket Lapangan
-              </h2>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>
-                Teknisi: {currentUser?.fullName}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                void removeSecureToken('auth_tokens');
-                apiClient.setTokens(null);
-                setCurrentUser(null);
-                setCurrentScreen('LOGIN');
-              }}
-              style={{
-                padding: '6px 12px',
-                fontSize: '12px',
-                color: '#dc2626',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-            >
-              Keluar
-            </button>
-          </div>
-          <div
-            style={{
-              padding: '24px',
-              textAlign: 'center',
-              background: '#fff',
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0',
-              color: '#64748b',
-              fontSize: '13px',
-            }}
-          >
-            Memuat antrean tiket penugasan teknisi...
-          </div>
-        </div>
+        <TicketListView
+          apiClient={apiClient}
+          technicianName={currentUser?.fullName}
+          themeMode={themeMode}
+          onSelectTicket={(ticket, splitters) => {
+            setSelectedTicket(ticket);
+            if (splitters && splitters.length > 0) {
+              setAvailableSplitters(splitters);
+            }
+            setCurrentScreen('TICKET_SUBMIT');
+          }}
+          onLogout={handleLogout}
+        />
       )}
 
       {currentScreen === 'TICKET_SUBMIT' && selectedTicket && (
-        <div
-          style={{ padding: '24px', maxWidth: '480px', margin: '0 auto', fontFamily: 'sans-serif' }}
-        >
-          <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>
-            Form Validasi Tiket {selectedTicket.ticketNumber}
-          </h2>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedTicket(null);
-              setCurrentScreen('TICKET_LIST');
-            }}
-            style={{
-              padding: '6px 12px',
-              fontSize: '12px',
-              color: '#475569',
-              background: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            ← Kembali ke Daftar Tiket
-          </button>
-        </div>
+        <TicketSubmitView
+          ticket={selectedTicket}
+          splitters={availableSplitters}
+          apiClient={apiClient}
+          themeMode={themeMode}
+          onSubmitSuccess={(res) => {
+            showToast(res.message);
+            setSelectedTicket(null);
+            setCurrentScreen('TICKET_LIST');
+          }}
+          onCancel={() => {
+            setSelectedTicket(null);
+            setCurrentScreen('TICKET_LIST');
+          }}
+        />
       )}
     </div>
   );
