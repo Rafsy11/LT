@@ -1,4 +1,9 @@
-import { ERROR_CODES, ApiResponse, sanitizeUiErrorMessage } from '@repo/shared';
+import {
+  ERROR_CODES,
+  STANDARD_ERROR_MESSAGES,
+  ApiResponse,
+  sanitizeUiErrorMessage,
+} from '@repo/shared';
 import { clearServiceUnavailable, reportServiceUnavailable } from '@/lib/api-error';
 
 export interface ApiClientError extends Error {
@@ -51,7 +56,7 @@ class WebApiClient {
           success: false,
           error: {
             code: response.ok ? 'SUCCESS' : ERROR_CODES.INTERNAL_ERROR,
-            message: response.ok ? 'OK' : `Server mengembalikan status HTTP ${response.status}`,
+            message: response.ok ? 'OK' : STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
           },
         };
       }
@@ -65,6 +70,8 @@ class WebApiClient {
           // Clear any client stored session
           try {
             localStorage.removeItem('fiberops_user');
+            localStorage.removeItem('fiberops_auth_user');
+            localStorage.removeItem('fiberops_access_token');
             sessionStorage.clear();
             document.cookie = 'fiberops_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
           } catch {
@@ -77,9 +84,11 @@ class WebApiClient {
           }
         }
 
-        const err: ApiClientError = new Error(
-          errPayload?.message || 'Sesi otentikasi telah berakhir. Silakan login kembali.',
-        ) as ApiClientError;
+        const sanitized401 = sanitizeUiErrorMessage({
+          code: errPayload?.code || ERROR_CODES.UNAUTHORIZED,
+          message: errPayload?.message,
+        });
+        const err: ApiClientError = new Error(sanitized401.message) as ApiClientError;
         err.code = errPayload?.code || ERROR_CODES.UNAUTHORIZED;
         err.statusCode = 401;
         throw err;
@@ -87,7 +96,10 @@ class WebApiClient {
 
       // 2. HTTP 403 Forbidden Interceptor (Anti-Information Leakage)
       if (response.status === 403) {
-        const sanitized = sanitizeUiErrorMessage(errPayload || 'Akses ditolak');
+        const sanitized = sanitizeUiErrorMessage({
+          code: errPayload?.code || ERROR_CODES.FORBIDDEN,
+          message: errPayload?.message,
+        });
         const err: ApiClientError = new Error(sanitized.message) as ApiClientError;
         err.code = errPayload?.code || ERROR_CODES.FORBIDDEN;
         err.statusCode = 403;
@@ -105,10 +117,13 @@ class WebApiClient {
           }
         }
 
-        const err: ApiClientError = new Error(
-          errPayload?.message ||
+        const sanitized409 = sanitizeUiErrorMessage({
+          code: errPayload?.code,
+          message:
+            errPayload?.message ||
             'Konflik mutasi: Data telah berubah di server. Halaman telah diperbarui.',
-        ) as ApiClientError;
+        });
+        const err: ApiClientError = new Error(sanitized409.message) as ApiClientError;
         err.code = errPayload?.code || 'CONFLICT';
         err.statusCode = 409;
         err.details = errPayload?.details;
@@ -119,7 +134,10 @@ class WebApiClient {
       if (response.status === 429) {
         const cooldownMsg = retryAfterSeconds
           ? `Terlalu banyak permintaan. Silakan tunggu ${retryAfterSeconds} detik sebelum mencoba lagi.`
-          : errPayload?.message || 'Terlalu banyak permintaan. Silakan tunggu beberapa saat.';
+          : sanitizeUiErrorMessage({
+              code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
+              message: errPayload?.message,
+            }).message;
 
         const err: ApiClientError = new Error(cooldownMsg) as ApiClientError;
         err.code = ERROR_CODES.RATE_LIMIT_EXCEEDED;
@@ -130,13 +148,13 @@ class WebApiClient {
 
       // 5. HTTP 503 Service Unavailable Interceptor (Strict Live Mode Fail-Fast)
       if (response.status === 503 || errPayload?.code === ERROR_CODES.SERVICE_UNAVAILABLE) {
-        const unavailableMessage =
-          errPayload?.message ||
-          'Layanan database PostgreSQL atau infrastruktur backend sedang tidak tersedia.';
+        const sanitizedUnavailable = sanitizeUiErrorMessage({
+          code: ERROR_CODES.SERVICE_UNAVAILABLE,
+        });
         const category = endpoint.includes('/admin/ai/') ? 'service' : 'database';
-        reportServiceUnavailable(unavailableMessage, category, endpoint);
+        reportServiceUnavailable(sanitizedUnavailable.message, category, endpoint);
 
-        const err: ApiClientError = new Error(unavailableMessage) as ApiClientError;
+        const err: ApiClientError = new Error(sanitizedUnavailable.message) as ApiClientError;
         err.code = ERROR_CODES.SERVICE_UNAVAILABLE;
         err.statusCode = 503;
         err.details = errPayload?.details;
@@ -144,10 +162,19 @@ class WebApiClient {
       }
 
       if (!response.ok) {
-        const err: ApiClientError = new Error(
-          errPayload?.message || `Permintaan gagal dengan kode HTTP ${response.status}`,
-        ) as ApiClientError;
-        err.code = errPayload?.code || 'HTTP_ERROR';
+        const isServerError = response.status >= 500;
+        const sanitized = sanitizeUiErrorMessage(
+          isServerError
+            ? { code: ERROR_CODES.INTERNAL_ERROR }
+            : {
+                code: errPayload?.code,
+                message: errPayload?.message || STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
+              },
+        );
+        const err: ApiClientError = new Error(sanitized.message) as ApiClientError;
+        err.code = isServerError
+          ? ERROR_CODES.INTERNAL_ERROR
+          : errPayload?.code || sanitized.code || 'HTTP_ERROR';
         err.statusCode = response.status;
         err.details = errPayload?.details;
         throw err;
@@ -162,9 +189,16 @@ class WebApiClient {
         throw err;
       }
 
-      const networkErr: ApiClientError = new Error(
-        (err as Error).message || 'Koneksi jaringan terputus atau server tidak merespons.',
-      ) as ApiClientError;
+      const method = (fetchOptions.method || 'GET').toUpperCase();
+      const safeNet = sanitizeUiErrorMessage(err);
+      const networkMsg =
+        safeNet.code === ERROR_CODES.INTERNAL_ERROR &&
+        safeNet.message === STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR
+          ? method === 'GET'
+            ? STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED
+            : STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR
+          : safeNet.message;
+      const networkErr: ApiClientError = new Error(networkMsg) as ApiClientError;
       networkErr.code = 'NETWORK_ERROR';
       networkErr.statusCode = 0;
       throw networkErr;

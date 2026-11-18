@@ -1,5 +1,6 @@
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { EmptyState } from '@/components/ui/EmptyState';
 import type {
   ClusterListItem,
   CreateTicketInput,
@@ -131,7 +132,7 @@ export function PortDetailPanel({
               <span>Rata-rata Redaman Port</span>
             </header>
             <div className="inspection-chassis-val ui-text-ok">
-              {avgAttenuation !== null ? `${avgAttenuation.toFixed(1)} dBm` : '—'}
+              {avgAttenuation !== null ? `${avgAttenuation.toFixed(1)} dBm` : '-'}
             </div>
             <div className="inspection-chassis-sub">
               {measuredPorts.length > 0
@@ -251,7 +252,7 @@ export function PortDetailPanel({
                     <td>
                       <div style={{ fontSize: '11.5px' }}>
                         <div style={{ fontWeight: 600 }}>
-                          {port.lastActivity?.date || '—'}
+                          {port.lastActivity?.date || '-'}
                         </div>
                         <div style={{ color: 'var(--color-text-muted)', fontSize: '10.5px' }}>
                           {port.lastActivity?.technician || 'Belum tercatat'}
@@ -355,14 +356,17 @@ export function PortDetailPanel({
             );
             if (visibleLogs.length === 0) {
               return (
-                <div className="empty-state-card" style={{ padding: '24px' }}>
-                  <p style={{ margin: 0, fontSize: '12.5px', fontWeight: 600 }}>
-                    Belum ada riwayat aktivitas untuk ODP {activeSplitter.splitterCode}.
-                  </p>
-                  <p style={{ margin: '4px 0 0', fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-                    Riwayat otomatis tercatat setiap kali teknisi menyelesaikan pengukuran OPM atau mutasi port.
-                  </p>
-                </div>
+                <EmptyState
+                  icon="clock"
+                  title={`Belum ada riwayat aktivitas untuk ODP ${activeSplitter.splitterCode}`}
+                  description="Riwayat otomatis tercatat setiap kali teknisi menyelesaikan pengukuran OPM atau mutasi port."
+                  actionLabel={historyTypeFilter !== 'ALL' ? 'Tampilkan Semua Log' : undefined}
+                  actionIcon="refresh"
+                  onAction={
+                    historyTypeFilter !== 'ALL' ? () => setHistoryTypeFilter('ALL') : undefined
+                  }
+                  size="compact"
+                />
               );
             }
 

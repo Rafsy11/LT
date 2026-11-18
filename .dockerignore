@@ -26,7 +26,7 @@ backups/
 *.sql.gz
 *.tar.gz
 
-apps/mobile/
+# apps/mobile/
 *.apk
 *.aab
 

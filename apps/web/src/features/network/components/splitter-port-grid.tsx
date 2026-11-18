@@ -1,5 +1,6 @@
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { EmptyState } from '@/components/ui/EmptyState';
 import type {
   ClusterListItem,
   SplitterPortState,
@@ -85,8 +86,16 @@ export function SplitterPortGrid({
           <tbody>
             {activeSplitterFilteredPorts.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                  Tidak ada port yang cocok dengan filter status yang dipilih.
+                <td colSpan={8} style={{ padding: '16px' }}>
+                  <EmptyState
+                    icon="network"
+                    title="Tidak ada port pada kategori ini"
+                    description="Tidak ada port splitter yang sesuai dengan status alokasi yang Anda pilih."
+                    actionLabel={portFilter !== 'ALL' ? 'Tampilkan Semua Port' : undefined}
+                    actionIcon="refresh"
+                    onAction={portFilter !== 'ALL' ? () => setPortFilter('ALL') : undefined}
+                    size="compact"
+                  />
                 </td>
               </tr>
             ) : (
@@ -304,7 +313,7 @@ export function SplitterPortGrid({
                                         setSelectedCustomerForModal({
                                           id: port.siaNumber || `CUST-${port.portNumber}`,
                                           fullName: port.customerName || 'Pelanggan',
-                                          siaNumber: port.siaNumber || '—',
+                                          siaNumber: port.siaNumber || '-',
                                           address: `Area ${activeSplitter.name}`,
                                           cluster: activeSplitter.name,
                                           clusterCode: activeSplitter.clusterCode,

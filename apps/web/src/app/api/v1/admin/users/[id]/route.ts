@@ -24,7 +24,6 @@ export async function PATCH(
       error,
       'USER_UPDATE_ERROR',
       'Gagal memperbarui data pengguna',
-      400,
     );
   }
 }

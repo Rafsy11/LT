@@ -19,43 +19,30 @@ export function SettingsHeader({
   onSave,
 }: SettingsHeaderProps) {
   return (
-    <header className="overview-header" style={{ marginBottom: '22px' }}>
+    <header className="overview-header settings-page-header">
       <div className="overview-header-copy">
-        <div className="eyebrow">
-          KONSOL ON-PREMISE · DOCKER COMPOSE ORCHESTRATION
+        <div className="eyebrow settings-header-eyebrow">
+          KONSOL ON-PREMISE · DOCKER COMPOSE
         </div>
-        <h1 className="overview-greeting">Pengaturan Sistem &amp; Infrastruktur</h1>
-        <p className="overview-subtitle">
-          Manajemen sumber daya server lokal, isolasi kontainer Docker, parameter geofencing
-          lapangan, dan pemulihan bencana 3-2-1.
+        <h1 className="overview-greeting settings-header-title">Pengaturan Sistem &amp; Infrastruktur</h1>
+        <p className="overview-subtitle settings-header-subtitle">
+          Manajemen sumber daya server lokal, kontainer Docker, geofencing lapangan, dan pemulihan 3-2-1.
         </p>
       </div>
 
       <nav
-        className="overview-toolbar"
+        className="overview-toolbar settings-header-toolbar"
         aria-label="Aksi kontrol pengaturan"
-        style={{ display: 'flex', gap: '8px', alignItems: 'center' }}
       >
-        <div
-          className="overview-status-pill"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            borderRadius: '6px',
-            fontSize: '11.5px',
-            fontWeight: 500,
-          }}
-        >
+        <div className="overview-status-pill settings-status-pill-mobile">
           <span className="status-dot status-dot--ok" />
-          <span>Docker: 6 Layanan Normal</span>
+          <span>Docker: 6 Normal</span>
         </div>
 
         <div className="settings-role-badge">
           <Icon name="shield" size={13} />
           <span>
-            {isSuperAdmin ? 'Super Admin (Level 100)' : `${roleName || 'Operator'} (Read-Only)`}
+            {isSuperAdmin ? 'Super Admin' : `${roleName || 'Operator'}`}
           </span>
         </div>
 
@@ -64,14 +51,14 @@ export function SettingsHeader({
           type="button"
           onClick={onSave}
           disabled={!isSuperAdmin || isSaving || !hasChanges}
-          className={`settings-header-save-btn ${!isSuperAdmin || !hasChanges ? 'disabled' : ''}`}
+          className={`settings-header-save-btn ${!isSuperAdmin || !hasChanges ? 'disabled' : ''} ${hasChanges ? 'has-changes' : ''}`}
         >
           {isSaving ? (
             <Icon name="refresh" size={13} className="spin" />
           ) : (
             <Icon name="check" size={13} />
           )}
-          <span>{isSaving ? 'Menyimpan...' : hasChanges ? 'Simpan Perubahan' : 'Tersimpan'}</span>
+          <span>{isSaving ? 'Menyimpan...' : hasChanges ? 'Simpan' : 'Tersimpan'}</span>
         </button>
       </nav>
     </header>

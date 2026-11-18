@@ -23,20 +23,7 @@ export function AiMessageList({
   messagesEndRef,
 }: AiMessageListProps) {
   return (
-    <section
-      aria-label="Riwayat Percakapan AI"
-      style={{
-        width: '100%',
-        maxWidth: '920px',
-        margin: '0 auto',
-        flex: 1,
-        overflowY: 'auto',
-        padding: '12px 0 28px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '18px',
-      }}
-    >
+    <section aria-label="Riwayat Percakapan AI" className="ai-message-list-section">
       {/* Subtle conversation toolbar */}
       <header className="ai-chat-toolbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -57,19 +44,7 @@ export function AiMessageList({
         </button>
       </header>
 
-      <ol
-        role="log"
-        aria-live="polite"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '18px',
-          listStyle: 'none',
-          margin: 0,
-          padding: 0,
-          width: '100%',
-        }}
-      >
+      <ol role="log" aria-live="polite" className="ai-messages-ol">
         {messages.map((m, i) => (
           <li
             key={i}

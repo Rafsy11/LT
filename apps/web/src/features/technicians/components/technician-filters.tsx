@@ -48,7 +48,7 @@ export function TechnicianFilters({
       />
 
       {/* Right: Cluster Dropdown beside Segmented Filter Tabs */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+      <div className="technician-filter-controls">
         <select
           value={cluster}
           onChange={(e) => setCluster(e.target.value)}

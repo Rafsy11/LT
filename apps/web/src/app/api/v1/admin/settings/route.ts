@@ -37,7 +37,6 @@ export async function PUT(request: NextRequest) {
       error,
       'SETTINGS_UPDATE_ERROR',
       'Gagal memperbarui konfigurasi sistem',
-      400,
     );
   }
 }

@@ -53,6 +53,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       message: `Akun teknisi ${updated.fullName} berhasil ${updated.isActive ? 'diaktifkan' : 'dinonaktifkan (sesi dicabut)'}`,
     });
   } catch (error: unknown) {
-    return handleAdminRouteError(error, 'TECH_TOGGLE_ERROR', 'Gagal mengubah status teknisi', 400);
+    return handleAdminRouteError(error, 'TECH_TOGGLE_ERROR', 'Gagal mengubah status teknisi');
   }
 }

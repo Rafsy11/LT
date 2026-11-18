@@ -58,7 +58,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       error,
       'REJECTION_ERROR',
       'Gagal menolak laporan tiket',
-      400,
     );
   }
 }

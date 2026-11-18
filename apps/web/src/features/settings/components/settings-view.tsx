@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { SafeErrorState } from '@/components/ui/SafeErrorState';
 import { SettingsSkeleton } from '@/components/ui/PageSkeleton';
 import { useSettings } from '../hooks/use-settings';
 import { SettingsHeader } from './settings-header';
@@ -45,31 +46,16 @@ export function SettingsView() {
 
   if (!settings) {
     return (
-      <main
-        id="main-content"
-        className="settings-page"
-        style={{ paddingBottom: '48px', maxWidth: '1600px', margin: '0 auto' }}
-      >
-        <section
-          className="panel"
-          role="alert"
-          style={{ padding: '28px 24px', textAlign: 'center', marginTop: '16px' }}
-        >
-          <h1 className="overview-greeting" style={{ fontSize: '20px', marginBottom: '8px' }}>
-            Konfigurasi Sistem Tidak Tersedia
-          </h1>
-          <p className="overview-subtitle" style={{ margin: '0 auto 16px', maxWidth: '520px' }}>
-            {loadError || 'Gagal memuat konfigurasi sistem dari database PostgreSQL.'}
-          </p>
-          <button
-            type="button"
-            className="button primary"
-            onClick={() => void fetchSettings(true)}
-          >
-            <Icon name="refresh" size={14} />
-            <span>Muat Ulang Konfigurasi</span>
-          </button>
-        </section>
+      <main id="main-content" className="settings-page">
+        <SafeErrorState
+          error={loadError}
+          title="Konfigurasi Sistem Tidak Tersedia"
+          description="Konfigurasi sistem sementara tidak dapat dimuat dari server operasional. Silakan muat ulang beberapa saat lagi."
+          onRetry={() => void fetchSettings(true)}
+          retryLabel="Muat Ulang Konfigurasi"
+          homeHref="/"
+          variant="panel"
+        />
       </main>
     );
   }
@@ -78,7 +64,6 @@ export function SettingsView() {
     <main
       id="main-content"
       className="settings-page"
-      style={{ paddingBottom: '48px', maxWidth: '1600px', margin: '0 auto' }}
     >
       {/* Overview Command Header */}
       <SettingsHeader
@@ -133,21 +118,13 @@ export function SettingsView() {
           />
         )}
 
-        {/* Integrated Clean Section Footer */}
+        {/* Integrated Clean Section Footer / Mobile Sticky Action Bar */}
         <footer
-          className="settings-save-footer"
-          style={{
-            marginTop: '24px',
-            padding: '12px 18px',
-            borderRadius: '8px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
+          className={`settings-save-footer ${hasChanges ? 'has-unsaved-changes' : ''}`}
         >
-          <div style={{ fontSize: '12px' }}>
+          <div className="settings-footer-copy">
             {hasChanges ? (
-              <span className="settings-footer-alert" style={{ fontWeight: 600 }}>
+              <span className="settings-footer-alert">
                 ● Terdapat perubahan konfigurasi yang belum disimpan.
               </span>
             ) : (
@@ -157,16 +134,12 @@ export function SettingsView() {
             )}
           </div>
 
-          <div role="group" aria-label="Aksi simpan konfigurasi" style={{ display: 'flex', gap: '8px' }}>
+          <div role="group" aria-label="Aksi simpan konfigurasi" className="settings-footer-actions">
             <button
               type="button"
               onClick={() => window.location.reload()}
               disabled={loading || isSaving || !hasChanges}
               className="settings-reset-btn"
-              style={{
-                cursor: !hasChanges ? 'not-allowed' : 'pointer',
-                opacity: !hasChanges ? 0.6 : 1,
-              }}
             >
               Reset
             </button>
@@ -175,12 +148,6 @@ export function SettingsView() {
               type="submit"
               disabled={!isSuperAdmin || isSaving || !hasChanges}
               className="settings-submit-btn"
-              style={{
-                cursor: !isSuperAdmin || !hasChanges ? 'not-allowed' : 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
             >
               {isSaving && <Icon name="refresh" size={13} className="spin" />}
               <span>{isSaving ? 'Menyimpan...' : 'Simpan Konfigurasi'}</span>

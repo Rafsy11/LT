@@ -105,13 +105,13 @@ export function TelemetryInspectorHud({
             <div className="hud-spec-item">
               <div className="hud-spec-key">Splitter ODP Fisik</div>
               <div className="hud-spec-val">
-                <code>{activeReport.splitterCode || '—'}</code>
+                <code>{activeReport.splitterCode || '-'}</code>
               </div>
             </div>
             <div className="hud-spec-item">
               <div className="hud-spec-key">Alokasi Port</div>
               <div className="hud-spec-val">
-                {activeReport.portNumber ? `Port ${activeReport.portNumber}` : '—'}
+                {activeReport.portNumber ? `Port ${activeReport.portNumber}` : '-'}
               </div>
             </div>
           </div>

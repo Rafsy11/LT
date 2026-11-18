@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/server/services/auth.service';
+import { sanitizeAndLogServerError } from '@/server/lib/api-error-sanitizer';
 import { loginRequestSchema, ERROR_CODES } from '@repo/shared';
 import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
 
@@ -61,30 +62,9 @@ export async function POST(request: NextRequest) {
       data: result,
     });
   } catch (error: unknown) {
-    const err = error as Error & {
-      name?: string;
-      code?: string;
-      statusCode?: number;
-      errors?: Array<{ message: string }>;
-    };
-    const isValidation = err.name === 'ZodError';
-    const statusCode = isValidation ? 400 : err.statusCode || 401;
-    const errorCode = isValidation
-      ? ERROR_CODES.VALIDATION_ERROR
-      : err.code || (statusCode === 403 ? ERROR_CODES.FORBIDDEN : ERROR_CODES.UNAUTHORIZED);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: errorCode,
-          message: isValidation
-            ? err.errors?.[0]?.message || 'Format kredensial tidak valid.'
-            : err.message || 'Kombinasi username atau kata sandi tidak valid.',
-          details: err.errors,
-        },
-      },
-      { status: statusCode },
-    );
+    return sanitizeAndLogServerError(error, {
+      route: 'POST /api/v1/auth/login',
+      defaultCode: ERROR_CODES.INVALID_CREDENTIALS,
+    });
   }
 }

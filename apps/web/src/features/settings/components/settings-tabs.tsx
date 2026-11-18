@@ -9,11 +9,11 @@ export interface SettingsTabsProps {
   onTabChange: (tab: SettingsTab) => void;
 }
 
-const TABS: { key: SettingsTab; label: string; icon: string }[] = [
-  { key: 'infrastruktur', label: 'Infrastruktur & Komputasi AI', icon: 'activity' },
-  { key: 'geofencing', label: 'Validasi Lapangan & Geofencing', icon: 'pin' },
-  { key: 'backup', label: 'Disaster Recovery & Backup 3-2-1', icon: 'download' },
-  { key: 'jaringan', label: 'Akses Jaringan & Distribusi APK', icon: 'network' },
+const TABS: { key: SettingsTab; label: string; shortLabel: string; icon: string }[] = [
+  { key: 'infrastruktur', label: 'Infrastruktur & Komputasi AI', shortLabel: 'Infrastruktur & AI', icon: 'activity' },
+  { key: 'geofencing', label: 'Validasi Lapangan & Geofencing', shortLabel: 'Geofencing & GPS', icon: 'pin' },
+  { key: 'backup', label: 'Disaster Recovery & Backup 3-2-1', shortLabel: 'Backup 3-2-1', icon: 'download' },
+  { key: 'jaringan', label: 'Akses Jaringan & Distribusi APK', shortLabel: 'Jaringan & APK', icon: 'network' },
 ];
 
 export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
@@ -35,7 +35,8 @@ export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
             className={`settings-tab-btn ${active ? 'active' : ''}`}
           >
             <Icon name={t.icon} size={15} />
-            <span>{t.label}</span>
+            <span className="settings-tab-label-full">{t.label}</span>
+            <span className="settings-tab-label-short">{t.shortLabel}</span>
           </button>
         );
       })}

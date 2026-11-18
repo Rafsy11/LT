@@ -323,22 +323,243 @@
 
 .overview-stats-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  margin-bottom: 20px !important;
 }
 
 @media (min-width: 640px) {
   .overview-stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+    margin-bottom: 20px !important;
   }
 }
 
 @media (min-width: 1024px) {
   .overview-stats-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+    margin-bottom: 24px !important;
+  }
+}
+
+/* Overview Stats Bento Cards */
+.overview-stats-grid .stat-card {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e2edf5;
+  border-radius: 16px !important;
+  padding: 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  min-height: 128px;
+  box-shadow: 0 1px 3px rgba(27, 92, 162, 0.04);
+  transition: transform var(--duration-fast, 150ms) ease, box-shadow var(--duration-fast, 150ms) ease;
+}
+
+.overview-stats-grid .stat-card-inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  gap: 8px;
+}
+
+.overview-stats-grid .stat-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stat-card-icon-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(14, 91, 146, 0.06);
+}
+
+.stat-card-icon-glyph.text-cyan {
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.08);
+}
+
+.stat-card-icon-glyph.text-indigo {
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.stat-card-icon-glyph.text-sky {
+  color: #0ea5e9;
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.stat-card-icon-glyph.text-emerald {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.overview-stats-grid .stat-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.overview-stats-grid .stat-card-label {
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  color: #64748b !important;
+  line-height: 1.3 !important;
+}
+
+.overview-stats-grid .stat-card-value {
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.025em !important;
+  line-height: 1.1 !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.overview-stats-grid .stat-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.stat-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.stat-trend.positive {
+  color: #16a34a;
+}
+
+.stat-trend.neutral {
+  color: #ef4444;
+}
+
+.stat-trend.warning {
+  color: #f59e0b;
+}
+
+.trend-arrow {
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Dark Mode Overrides for Bento Cards */
+html.dark .overview-stats-grid .stat-card,
+[data-theme='dark'] .overview-stats-grid .stat-card {
+  background: #0b1329 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
+}
+
+html.dark .overview-stats-grid .stat-card:hover,
+[data-theme='dark'] .overview-stats-grid .stat-card:hover {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  transform: translateY(-1px);
+}
+
+html.dark .stat-card-icon-glyph.text-cyan,
+[data-theme='dark'] .stat-card-icon-glyph.text-cyan {
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.12) !important;
+}
+
+html.dark .stat-card-icon-glyph.text-indigo,
+[data-theme='dark'] .stat-card-icon-glyph.text-indigo {
+  color: #818cf8 !important;
+  background: rgba(129, 140, 248, 0.12) !important;
+}
+
+html.dark .stat-card-icon-glyph.text-sky,
+[data-theme='dark'] .stat-card-icon-glyph.text-sky {
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.12) !important;
+}
+
+html.dark .stat-card-icon-glyph.text-emerald,
+[data-theme='dark'] .stat-card-icon-glyph.text-emerald {
+  color: #34d399 !important;
+  background: rgba(52, 211, 153, 0.12) !important;
+}
+
+html.dark .overview-stats-grid .stat-card-label,
+[data-theme='dark'] .overview-stats-grid .stat-card-label {
+  color: #94a3b8 !important;
+}
+
+html.dark .overview-stats-grid .stat-card-value,
+[data-theme='dark'] .overview-stats-grid .stat-card-value {
+  color: #ffffff !important;
+}
+
+html.dark .stat-trend.positive,
+[data-theme='dark'] .stat-trend.positive {
+  color: #22c55e !important;
+}
+
+html.dark .stat-trend.neutral,
+[data-theme='dark'] .stat-trend.neutral {
+  color: #f87171 !important;
+}
+
+html.dark .stat-trend.warning,
+[data-theme='dark'] .stat-trend.warning {
+  color: #fbbf24 !important;
+}
+
+/* Mobile responsive specifics for bento grid */
+@media (max-width: 767px) {
+  .overview-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin-bottom: 18px !important;
+  }
+
+  .overview-stats-grid .stat-card {
+    border-radius: 14px !important;
+    padding: 14px 12px !important;
+    min-height: 120px !important;
+  }
+
+  .overview-stats-grid .stat-card-label {
+    font-size: 11.5px !important;
+  }
+
+  .overview-stats-grid .stat-card-value {
+    font-size: 22px !important;
+  }
+
+  .desktop-caption {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .desktop-caption {
+    display: inline-block !important;
+    font-size: 11.5px !important;
+    color: #64748b !important;
+    margin-left: 2px !important;
+  }
+
+  html.dark .desktop-caption,
+  [data-theme='dark'] .desktop-caption {
+    color: #94a3b8 !important;
   }
 }
 
@@ -562,10 +783,559 @@ html.dark .feed-stream-icon.success,
     max-width: 100vw !important;
     min-width: 0 !important;
     overflow-x: clip !important;
+    padding: 16px 14px 48px !important;
+  }
+
+  /* Overview Header: Stack vertically with clean rhythm */
+  .overview-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    margin-bottom: 20px !important;
+    width: 100% !important;
+  }
+
+  .overview-header-left {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  /* Date & Time: 2-line vertical typography */
+  .overview-datetime-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .overview-date-title {
+    font-size: 21px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+    line-height: 1.25 !important;
+    display: block !important;
+  }
+
+  .overview-time-title {
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    color: #64748b !important;
+    letter-spacing: -0.01em !important;
+    display: block !important;
+    font-family: inherit !important;
+  }
+
+  /* Cluster selector: Full-width modern squircle */
+  .overview-header-left .select-wrapper,
+  .overview-cluster-select-wrap {
+    width: 100% !important;
+    min-width: 100% !important;
+    display: flex !important;
+  }
+
+  .overview-cluster-select-wrap .cluster-select,
+  .overview-header-left .cluster-select {
+    width: 100% !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    border-radius: 12px !important;
+    padding: 0 40px 0 16px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    background-position: right 14px center !important;
+  }
+
+  /* Action Accordion & Trigger: Full-width button with subtle glow */
+  .overview-header-right {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    margin: 0 !important;
+  }
+
+  .overview-action-accordion {
+    width: 100% !important;
+  }
+
+  .overview-action-trigger {
+    width: 100% !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    border-radius: 12px !important;
+    justify-content: center !important;
+    font-size: 14.5px !important;
+    font-weight: 600 !important;
+    gap: 8px !important;
+    background: #0066ff !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 4px 14px rgba(0, 102, 255, 0.3) !important;
+    transition: all var(--duration-fast, 150ms) ease !important;
+  }
+
+  .overview-action-trigger:active {
+    transform: scale(0.98) !important;
+  }
+
+  .overview-action-dropdown {
+    width: 100% !important;
+    left: 0 !important;
+    right: 0 !important;
+    border-radius: 12px !important;
+    top: calc(100% + 6px) !important;
   }
 
   .map-zoom-btn {
     width: 44px;
     height: 44px;
   }
+
+  /* Mobile GIS Quick-Action Card (Sebaran Jaringan) */
+  .overview-map-panel {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .desktop-map-inner {
+    display: none !important;
+  }
+
+  .mobile-gis-card {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 14px !important;
+    background: #ffffff !important;
+    border: 1px solid #e2edf5 !important;
+    border-radius: 16px !important;
+    padding: 14px 16px !important;
+    text-decoration: none !important;
+    box-shadow: 0 1px 3px rgba(27, 92, 162, 0.04) !important;
+    transition: transform var(--duration-fast, 150ms) ease, border-color var(--duration-fast, 150ms) ease, box-shadow var(--duration-fast, 150ms) ease !important;
+    cursor: pointer !important;
+  }
+
+  .mobile-gis-card:active {
+    transform: scale(0.985) !important;
+  }
+
+  .mobile-gis-card-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+
+  .mobile-gis-icon-wrap {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 12px !important;
+    display: grid !important;
+    place-items: center !important;
+    flex-shrink: 0 !important;
+    background: rgba(14, 91, 146, 0.08) !important;
+    color: #0e5b92 !important;
+  }
+
+  .mobile-gis-text {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    min-width: 0 !important;
+  }
+
+  .mobile-gis-title {
+    font-size: 14.5px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    line-height: 1.25 !important;
+  }
+
+  .mobile-gis-subtitle {
+    font-size: 11.5px !important;
+    font-weight: 400 !important;
+    color: #64748b !important;
+    line-height: 1.35 !important;
+  }
+
+  .mobile-gis-card-right {
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .mobile-gis-action-btn {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    display: grid !important;
+    place-items: center !important;
+    background: rgba(14, 91, 146, 0.08) !important;
+    color: #0e5b92 !important;
+    transition: background var(--duration-fast, 150ms) ease !important;
+  }
+}
+
+/* Mobile GIS Card base hidden on desktop */
+.mobile-gis-card {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .desktop-map-inner {
+    display: block !important;
+  }
+}
+
+/* Dark Mode Overrides for Mobile GIS Card */
+html.dark .mobile-gis-card,
+[data-theme='dark'] .mobile-gis-card {
+  background: #0b1329 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
+}
+
+html.dark .mobile-gis-card:hover,
+[data-theme='dark'] .mobile-gis-card:hover {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+html.dark .mobile-gis-icon-wrap,
+[data-theme='dark'] .mobile-gis-icon-wrap {
+  background: rgba(56, 189, 248, 0.12) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.2) !important;
+}
+
+html.dark .mobile-gis-title,
+[data-theme='dark'] .mobile-gis-title {
+  color: #ffffff !important;
+}
+
+html.dark .mobile-gis-subtitle,
+[data-theme='dark'] .mobile-gis-subtitle {
+  color: #94a3b8 !important;
+}
+
+html.dark .mobile-gis-action-btn,
+[data-theme='dark'] .mobile-gis-action-btn {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+html.dark .overview-date-title,
+[data-theme='dark'] .overview-date-title {
+  color: #ffffff !important;
+}
+
+html.dark .overview-time-title,
+[data-theme='dark'] .overview-time-title {
+  color: #94a3b8 !important;
+}
+
+html.dark .overview-cluster-select-wrap .cluster-select,
+[data-theme='dark'] .overview-cluster-select-wrap .cluster-select {
+  background-color: #0b1329 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.dark .overview-action-trigger,
+[data-theme='dark'] .overview-action-trigger {
+  background: #0066ff !important;
+  box-shadow: 0 4px 16px rgba(0, 102, 255, 0.35) !important;
+}
+
+/* ==========================================================================
+   Mobile Ticket Card Feed (Fase 1: OverviewTicketQueue Modernization)
+   Transforms rigid 9-column desktop table into touch-friendly cards
+   ========================================================================== */
+
+.mobile-ticket-cards {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .desktop-table-scroll {
+    display: none !important;
+  }
+
+  .table-header-controls {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .table-search-filter-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .table-search-filter-row .table-search-box {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+
+  .table-search-filter-row .button-filter {
+    flex-shrink: 0 !important;
+    height: 42px !important;
+    padding: 0 14px !important;
+    border-radius: 10px !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+  }
+
+  .mobile-ticket-cards {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 0 16px 16px !important;
+  }
+
+  .mobile-ticket-card {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    background: #ffffff !important;
+    border: 1px solid #e2edf5 !important;
+    border-radius: 14px !important;
+    padding: 14px !important;
+    box-shadow: 0 1px 3px rgba(27, 92, 162, 0.04) !important;
+    cursor: pointer !important;
+    transition: transform var(--duration-fast, 150ms) ease, border-color var(--duration-fast, 150ms) ease !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  .mobile-ticket-card:active {
+    transform: scale(0.985) !important;
+  }
+
+  .mobile-ticket-card-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+  }
+
+  .mobile-ticket-title-group {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    flex-wrap: wrap !important;
+  }
+
+  .mobile-ticket-id {
+    font-family: var(--font-mono, monospace) !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    color: #0e5b92 !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  .mobile-ticket-type-chip {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+    background: #f1f5f9 !important;
+    padding: 2px 7px !important;
+    border-radius: 5px !important;
+    line-height: 1.2 !important;
+  }
+
+  .mobile-ticket-card-body {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 3px !important;
+  }
+
+  .mobile-ticket-customer-name {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    line-height: 1.3 !important;
+    word-break: break-word !important;
+  }
+
+  .mobile-ticket-meta-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    font-size: 11.5px !important;
+    color: #64748b !important;
+    flex-wrap: wrap !important;
+  }
+
+  .mobile-ticket-sia-badge {
+    color: #64748b !important;
+    font-family: var(--font-mono, monospace) !important;
+  }
+
+  .mobile-ticket-meta-dot {
+    color: #cbd5e1 !important;
+  }
+
+  .mobile-ticket-cluster-badge {
+    color: #64748b !important;
+  }
+
+  .mobile-ticket-card-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    padding-top: 8px !important;
+    border-top: 1px solid #f1f5f9 !important;
+  }
+
+  .mobile-ticket-tech-info {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+
+  .mobile-ticket-tech-name {
+    font-size: 11.5px !important;
+    font-weight: 500 !important;
+    color: #334155 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .mobile-ticket-badges-group {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .mobile-ticket-dbm-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    font-family: var(--font-mono, monospace) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #16a34a !important;
+    background: rgba(22, 163, 74, 0.08) !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+  }
+
+  .mobile-ticket-dbm-pill.warning {
+    color: #d97706 !important;
+    background: rgba(217, 119, 6, 0.08) !important;
+  }
+
+  .mobile-ticket-dbm-pill.critical {
+    color: #dc2626 !important;
+    background: rgba(220, 38, 38, 0.08) !important;
+  }
+
+  .mobile-ticket-chevron-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #94a3b8 !important;
+    margin-left: 2px !important;
+  }
+
+  .mobile-ticket-empty {
+    padding: 32px 16px !important;
+    text-align: center !important;
+    color: #64748b !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .mobile-ticket-empty p {
+    font-size: 13px !important;
+    margin: 0 !important;
+  }
+
+  .mobile-ticket-skeleton {
+    padding: 16px !important;
+    pointer-events: none !important;
+  }
+
+  .mobile-ticket-skel-bar {
+    background: rgba(148, 163, 184, 0.15) !important;
+    animation: pulse 1.8s ease-in-out infinite !important;
+  }
+}
+
+/* Dark Mode Overrides for Mobile Ticket Card */
+html.dark .mobile-ticket-card,
+[data-theme='dark'] .mobile-ticket-card {
+  background: #0b1329 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.dark .mobile-ticket-card:active,
+[data-theme='dark'] .mobile-ticket-card:active {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+html.dark .mobile-ticket-id,
+[data-theme='dark'] .mobile-ticket-id {
+  color: #38bdf8 !important;
+}
+
+html.dark .mobile-ticket-type-chip,
+[data-theme='dark'] .mobile-ticket-type-chip {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #cbd5e1 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark .mobile-ticket-customer-name,
+[data-theme='dark'] .mobile-ticket-customer-name {
+  color: #ffffff !important;
+}
+
+html.dark .mobile-ticket-meta-row,
+[data-theme='dark'] .mobile-ticket-meta-row {
+  color: #94a3b8 !important;
+}
+
+html.dark .mobile-ticket-card-footer,
+[data-theme='dark'] .mobile-ticket-card-footer {
+  border-top-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+html.dark .mobile-ticket-tech-name,
+[data-theme='dark'] .mobile-ticket-tech-name {
+  color: #cbd5e1 !important;
+}
+
+html.dark .mobile-ticket-empty,
+[data-theme='dark'] .mobile-ticket-empty {
+  color: #94a3b8 !important;
+}
+
+html.dark .mobile-ticket-skel-bar,
+[data-theme='dark'] .mobile-ticket-skel-bar {
+  background: rgba(255, 255, 255, 0.06) !important;
 }

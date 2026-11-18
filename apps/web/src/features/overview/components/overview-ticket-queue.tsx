@@ -1,6 +1,7 @@
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { OverviewTableSkeletonRows } from '@/components/ui/PageSkeleton';
 import { SearchInput } from '@/components/ui/search-input';
 import type { DbTicket } from '@repo/shared';
@@ -28,6 +29,12 @@ export function OverviewTicketQueue({
   loading,
   onSelectTicket,
 }: OverviewTicketQueueProps) {
+  const hasActiveFilter = statusFilter !== 'Semua' || query.trim() !== '';
+  const handleResetFilter = () => {
+    setStatusFilter('Semua');
+    setQuery('');
+  };
+
   return (
     <section className="panel overview-table-panel" aria-label="Daftar Tiket dan Work Order">
       <div className="panel-inner">
@@ -57,24 +64,27 @@ export function OverviewTicketQueue({
               ))}
             </nav>
 
-            {/* Search Box */}
-            <SearchInput
-              value={query}
-              onChange={setQuery}
-              placeholder="Cari tiket atau pelanggan..."
-              ariaLabel="Cari tiket atau pelanggan"
-              className="table-search-box"
-            />
+            {/* Search Box & Filter Button Row */}
+            <div className="table-search-filter-row">
+              <SearchInput
+                value={query}
+                onChange={setQuery}
+                placeholder="Cari tiket atau pelanggan..."
+                ariaLabel="Cari tiket atau pelanggan"
+                className="table-search-box"
+              />
 
-            {/* Filter Button */}
-            <button className="button-filter" type="button" aria-label="Buka filter lanjutan">
-              <Icon name="filter" size={14} />
-              <span>Filter &gt;</span>
-            </button>
+              {/* Filter Button */}
+              <button className="button-filter" type="button" aria-label="Buka filter lanjutan">
+                <Icon name="filter" size={14} />
+                <span>Filter &gt;</span>
+              </button>
+            </div>
           </div>
         </header>
 
-        <div className="table-scroll" tabIndex={0} role="region" aria-label="Tabel Antrean Tiket">
+        {/* Desktop Data Table */}
+        <div className="table-scroll desktop-table-scroll" tabIndex={0} role="region" aria-label="Tabel Antrean Tiket">
           <table className="lintasarta-table">
             <thead>
               <tr>
@@ -94,8 +104,20 @@ export function OverviewTicketQueue({
                 <OverviewTableSkeletonRows count={OVERVIEW_SKELETON_ROW_COUNT} />
               ) : filteredTickets.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '36px', color: 'var(--color-text-muted)' }}>
-                    Tidak ada tiket yang sesuai dengan filter atau kata kunci pencarian.
+                  <td colSpan={9} style={{ padding: '16px' }}>
+                    <EmptyState
+                      icon="ticket"
+                      title={hasActiveFilter ? 'Tidak ada tiket yang cocok' : 'Belum ada antrean tiket'}
+                      description={
+                        hasActiveFilter
+                          ? 'Tidak ditemukan tiket dengan status atau kata kunci pencarian tersebut. Reset filter untuk melihat seluruh daftar.'
+                          : 'Saat ini belum ada tiket work order yang terdaftar pada sistem.'
+                      }
+                      actionLabel={hasActiveFilter ? 'Reset Filter' : undefined}
+                      actionIcon="refresh"
+                      onAction={hasActiveFilter ? handleResetFilter : undefined}
+                      size="compact"
+                    />
                   </td>
                 </tr>
               ) : (
@@ -196,6 +218,138 @@ export function OverviewTicketQueue({
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Ticket Card List (App-Native Mobile NOC Feed) */}
+        <div className="mobile-ticket-cards" role="feed" aria-label="Daftar Kartu Tiket Mobile">
+          {loading && filteredTickets.length === 0 ? (
+            Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="mobile-ticket-card mobile-ticket-skeleton" aria-hidden="true">
+                <div className="mobile-ticket-skel-bar" style={{ width: '45%', height: '14px', borderRadius: '4px', marginBottom: '10px' }} />
+                <div className="mobile-ticket-skel-bar" style={{ width: '75%', height: '18px', borderRadius: '4px', marginBottom: '8px' }} />
+                <div className="mobile-ticket-skel-bar" style={{ width: '55%', height: '12px', borderRadius: '4px', marginBottom: '14px' }} />
+                <div className="mobile-ticket-skel-bar" style={{ width: '90%', height: '16px', borderRadius: '4px' }} />
+              </div>
+            ))
+          ) : filteredTickets.length === 0 ? (
+            <EmptyState
+              icon="ticket"
+              title={hasActiveFilter ? 'Tidak ada tiket yang cocok' : 'Belum ada antrean tiket'}
+              description={
+                hasActiveFilter
+                  ? 'Tidak ditemukan tiket dengan status atau kata kunci pencarian tersebut. Reset filter untuk melihat seluruh daftar.'
+                  : 'Saat ini belum ada tiket work order yang terdaftar pada sistem.'
+              }
+              actionLabel={hasActiveFilter ? 'Reset Filter' : undefined}
+              actionIcon="refresh"
+              onAction={hasActiveFilter ? handleResetFilter : undefined}
+              size="compact"
+            />
+          ) : (
+            filteredTickets.map((r) => {
+              const priorityMap: Record<string, string> = {
+                High: 'Tinggi',
+                Normal: 'Normal',
+                Low: 'Rendah',
+                Critical: 'Kritis',
+                high: 'Tinggi',
+                normal: 'Normal',
+                low: 'Rendah',
+                critical: 'Kritis',
+              };
+              const priorityVal = r.priority || 'Normal';
+              const localizedPriority = priorityMap[priorityVal] || priorityVal;
+              const isHighPriority =
+                priorityVal.toLowerCase() === 'high' || priorityVal.toLowerCase() === 'critical';
+
+              return (
+                <article
+                  key={r.id}
+                  className="mobile-ticket-card"
+                  onClick={() => onSelectTicket(r)}
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelectTicket(r);
+                    }
+                  }}
+                  aria-label={`Rincian tiket ${r.ticketNumber} untuk ${r.customerName || 'Pelanggan'}`}
+                >
+                  <div className="mobile-ticket-card-header">
+                    <div className="mobile-ticket-title-group">
+                      <span className="mobile-ticket-id">{r.ticketNumber}</span>
+                      <span className="mobile-ticket-type-chip">{r.ticketType}</span>
+                    </div>
+                    <span
+                      className={`status-pill ${
+                        r.status === 'Selesai'
+                          ? 'done'
+                          : r.status === 'Dalam proses' || r.status === 'Menunggu verifikasi'
+                            ? 'progress'
+                            : 'waiting'
+                      }`}
+                    >
+                      {r.status}
+                    </span>
+                  </div>
+
+                  <div className="mobile-ticket-card-body">
+                    <h3 className="mobile-ticket-customer-name">{r.customerName || 'Pelanggan'}</h3>
+                    <div className="mobile-ticket-meta-row">
+                      <span className="mobile-ticket-sia-badge">SIA {r.siaNumber || '-'}</span>
+                      <span className="mobile-ticket-meta-dot" aria-hidden="true">·</span>
+                      <span className="mobile-ticket-cluster-badge">{r.cluster || '-'}</span>
+                    </div>
+                  </div>
+
+                  <div className="mobile-ticket-card-footer">
+                    <div className="mobile-ticket-tech-info">
+                      <DefaultAvatar name={r.assignedTech || 'Belum ditugaskan'} size={22} />
+                      <span className="mobile-ticket-tech-name">
+                        {r.assignedTech || 'Belum ditugaskan'}
+                      </span>
+                    </div>
+
+                    <div className="mobile-ticket-badges-group">
+                      {typeof r.currentAttenuation === 'number' && (
+                        <span
+                          className={`mobile-ticket-dbm-pill ${
+                            r.currentAttenuation < -25
+                              ? 'critical'
+                              : r.currentAttenuation < -22
+                                ? 'warning'
+                                : 'normal'
+                          }`}
+                        >
+                          <i className="status-dot" aria-hidden="true" />
+                          {r.currentAttenuation} dBm
+                        </span>
+                      )}
+                      <span className={`priority-pill ${isHighPriority ? 'high' : 'normal'}`}>
+                        {localizedPriority}
+                      </span>
+                      <span className="mobile-ticket-chevron-icon" aria-hidden="true">
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M9 18l6-6-6-6" />
+                        </svg>
+                      </span>
+                    </div>
+                  </div>
+                </article>
+              );
+            })
+          )}
         </div>
       </div>
     </section>

@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error: unknown) {
-    return handleAdminRouteError(error, 'USER_CREATE_ERROR', 'Gagal membuat akun pengguna', 400);
+    return handleAdminRouteError(error, 'USER_CREATE_ERROR', 'Gagal membuat akun pengguna');
   }
 }
 

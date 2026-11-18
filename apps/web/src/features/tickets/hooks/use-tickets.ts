@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { CreateTicketInput, DbTicket } from '@repo/shared';
+import { STANDARD_ERROR_MESSAGES } from '@repo/shared';
 import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
 import { useAuth, useToast } from '@/providers';
 import { fetchWithCache, getCachedData, invalidateQueryCache } from '@/lib/query-cache';
@@ -22,6 +23,7 @@ export function useTickets() {
   const [loading, setLoading] = useState<boolean>(
     () => !getCachedData<TicketItem[]>(TICKETS_CACHE_KEY),
   );
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null);
   const [simulating, setSimulating] = useState(false);
@@ -32,6 +34,7 @@ export function useTickets() {
   const fetchTickets = useCallback(
     async (force = false) => {
       try {
+        setLoadError(null);
         if (!getCachedData<TicketItem[]>(TICKETS_CACHE_KEY)) {
           setLoading(true);
         }
@@ -56,6 +59,9 @@ export function useTickets() {
         );
         setTickets(data);
       } catch (err) {
+        setLoadError(
+          err instanceof Error ? err.message : STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
+        );
         showError(err);
       } finally {
         setLoading(false);
@@ -166,6 +172,7 @@ export function useTickets() {
     setTypeFilter,
     tickets,
     loading,
+    loadError,
     modalOpen,
     setModalOpen,
     selectedTicket,

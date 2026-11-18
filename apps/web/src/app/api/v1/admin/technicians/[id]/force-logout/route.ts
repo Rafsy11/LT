@@ -58,7 +58,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       error,
       'FORCE_LOGOUT_ERROR',
       'Gagal mencabut sesi perangkat teknisi',
-      400,
     );
   }
 }

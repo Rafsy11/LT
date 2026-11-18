@@ -1,6 +1,13 @@
 import React from 'react';
-import type { TechnicianListItem } from '@repo/shared';
+import {
+  type TechnicianListItem,
+  STANDARD_ERROR_MESSAGES,
+  STANDARD_ACTION_LABELS,
+  STANDARD_EMPTY_STATES,
+} from '@repo/shared';
 import { TechnicianCard } from './technician-card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SafeErrorState } from '@/components/ui/SafeErrorState';
 import { TechnicianCardSkeleton } from '@/components/ui/PageSkeleton';
 
 interface TechnicianGridProps {
@@ -11,6 +18,10 @@ interface TechnicianGridProps {
   onForceLogout: (usernameOrId: string) => void;
   onToggleAccount: (usernameOrId: string) => void;
   loading?: boolean;
+  loadError?: string | null;
+  onRetry?: () => void;
+  hasActiveFilters?: boolean;
+  onResetFilters?: () => void;
 }
 
 const TECHNICIAN_SKELETON_COUNT = 6;
@@ -23,6 +34,10 @@ export function TechnicianGrid({
   onForceLogout,
   onToggleAccount,
   loading,
+  loadError,
+  onRetry,
+  hasActiveFilters = false,
+  onResetFilters,
 }: TechnicianGridProps) {
   if (loading) {
     return (
@@ -38,11 +53,37 @@ export function TechnicianGrid({
     );
   }
 
+  if (loadError && technicians.length === 0) {
+    return (
+      <SafeErrorState
+        error={loadError}
+        title="Gagal Memuat Data Teknisi"
+        description={STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED}
+        onRetry={onRetry}
+        retryLabel={STANDARD_ACTION_LABELS.RELOAD_DATA}
+        variant="panel"
+      />
+    );
+  }
+
   if (technicians.length === 0) {
     return (
-      <div className="technicians-empty-state">
-        Tidak ada teknisi yang sesuai dengan filter pencarian ini.
-      </div>
+      <EmptyState
+        icon={hasActiveFilters ? 'search' : 'wrench'}
+        title={
+          hasActiveFilters
+            ? STANDARD_EMPTY_STATES.TECHNICIANS.FILTER_TITLE
+            : STANDARD_EMPTY_STATES.TECHNICIANS.EMPTY_TITLE
+        }
+        description={
+          hasActiveFilters
+            ? STANDARD_EMPTY_STATES.TECHNICIANS.FILTER_DESC
+            : STANDARD_EMPTY_STATES.TECHNICIANS.EMPTY_DESC
+        }
+        actionLabel={hasActiveFilters ? STANDARD_ACTION_LABELS.RESET_FILTER : undefined}
+        actionIcon="refresh"
+        onAction={hasActiveFilters ? onResetFilters : undefined}
+      />
     );
   }
 

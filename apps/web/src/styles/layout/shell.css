@@ -393,37 +393,42 @@ main > *,
 .header-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
 }
 
 .header-page-title {
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 700;
   color: #0e5b92;
+  letter-spacing: -0.015em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 140px;
+  max-width: 160px;
 }
 
 .header-hamburger-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 10px;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  background: rgba(14, 91, 146, 0.08);
+  border: 1px solid rgba(14, 91, 146, 0.16);
+  border-radius: 10px;
   color: #0e5b92;
   cursor: pointer;
   flex-shrink: 0;
+  transition: all var(--duration-fast, 150ms) cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .header-hamburger-btn:hover {
-    background: rgba(255, 255, 255, 0.4);
+    background: rgba(14, 91, 146, 0.15);
+    transform: translateY(-1px);
   }
 }
 
@@ -1218,7 +1223,10 @@ main {
 
 @media (max-width: 768px) {
   main {
-    padding: 16px 16px 40px !important;
+    padding: 16px 16px calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  footer {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 
@@ -1338,6 +1346,21 @@ html.dark .header-user-name,
 [data-theme='dark'] .header-page-title,
 [data-theme='dark'] .header-user-name {
   color: #f1f5f9 !important;
+}
+
+html.dark .header-hamburger-btn,
+[data-theme='dark'] .header-hamburger-btn {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #f1f5f9 !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html.dark .header-hamburger-btn:hover,
+  [data-theme='dark'] .header-hamburger-btn:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.18) !important;
+  }
 }
 
 html.dark .header-action-btn,
@@ -1866,5 +1889,131 @@ main {
   .connection-banner-actions {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  .app-footer.hide-on-mobile {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   Mobile Bottom Navigation Bar (FiberOps NOC - Stage 4)
+   Matches Lintasarta Dark Dashboard Trio specification
+   ========================================================================== */
+
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mobile-bottom-nav {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 45;
+    background: rgba(11, 19, 41, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+  }
+
+  .mobile-bottom-nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    height: 58px;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 6px;
+  }
+
+  .mobile-bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex: 1;
+    height: 100%;
+    min-height: 48px;
+    min-width: 48px;
+    color: #94a3b8;
+    text-decoration: none;
+    transition: color var(--duration-fast, 150ms) ease, transform var(--duration-fast, 150ms) ease;
+    cursor: pointer;
+    border-radius: 8px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .mobile-bottom-nav-item:active {
+    transform: scale(0.92);
+  }
+
+  .mobile-bottom-nav-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    color: #94a3b8;
+    transition: color var(--duration-fast, 150ms) ease, transform var(--duration-fast, 150ms) ease;
+  }
+
+  .mobile-bottom-nav-label {
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    color: #94a3b8;
+    white-space: nowrap;
+    transition: color var(--duration-fast, 150ms) ease;
+  }
+
+  /* Active state (matches Lintasarta reference design: vibrant blue #0066FF) */
+  .mobile-bottom-nav-item.active {
+    color: #0066ff;
+  }
+
+  .mobile-bottom-nav-item.active .mobile-bottom-nav-label {
+    font-weight: 700;
+    color: #0066ff;
+  }
+
+  .mobile-bottom-nav-item.active .mobile-bottom-nav-icon {
+    color: #0066ff;
+    transform: translateY(-1px);
+  }
+
+  /* Light Theme Fallback (if user switches to light) */
+  html:not(.dark):not([data-theme='dark']) .mobile-bottom-nav {
+    background: rgba(255, 255, 255, 0.94);
+    border-top: 1px solid #e2edf5;
+    box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.06);
+  }
+
+  html:not(.dark):not([data-theme='dark']) .mobile-bottom-nav-item {
+    color: #64748b;
+  }
+
+  html:not(.dark):not([data-theme='dark']) .mobile-bottom-nav-icon {
+    color: #64748b;
+  }
+
+  html:not(.dark):not([data-theme='dark']) .mobile-bottom-nav-label {
+    color: #64748b;
+  }
+
+  html:not(.dark):not([data-theme='dark']) .mobile-bottom-nav-item.active {
+    color: #0e5b92;
+  }
+
+  html:not(.dark):not([data-theme='dark']) .mobile-bottom-nav-item.active .mobile-bottom-nav-label,
+  html:not(.dark):not([data-theme='dark']) .mobile-bottom-nav-item.active .mobile-bottom-nav-icon {
+    color: #0e5b92;
   }
 }

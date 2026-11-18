@@ -33,13 +33,11 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
         {/* 3 Radius Option Cards */}
         <fieldset
           aria-label="Batas Jarak Radius ODP"
+          className="settings-three-col-grid"
           style={{
             border: 0,
             margin: 0,
             padding: 0,
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '10px',
             marginBottom: '22px',
           }}
         >

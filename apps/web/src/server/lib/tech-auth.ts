@@ -4,6 +4,7 @@ import { ERROR_CODES, UserTypeEnum } from '@repo/shared';
 
 export type SubmissionChannel = 'WEB' | 'MOBILE' | 'TELEGRAM';
 import { AuthService } from '@/server/services/auth.service';
+import { sanitizeAndLogServerError } from '@/server/lib/api-error-sanitizer';
 import { redisManager } from '@/server/lib/redis';
 import {
   requireLiveDatabase,
@@ -83,6 +84,9 @@ export async function resolveTechActor(request: NextRequest): Promise<TechActorC
         username = verified.username;
         userType = verified.userType;
       } catch (err) {
+        if (err instanceof ServiceUnavailableError) {
+          throw err;
+        }
         const msg = err instanceof Error ? err.message : '';
         const code = msg.includes(ERROR_CODES.SESSION_REVOKED)
           ? ERROR_CODES.SESSION_REVOKED
@@ -152,75 +156,12 @@ export function handleTechRouteError(
   error: unknown,
   fallbackCode: string,
   fallbackMessage: string,
-  defaultStatus = 400,
+  _defaultStatus = 500,
 ): NextResponse {
-  if (error instanceof ServiceUnavailableError) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: error.code,
-          message: error.message,
-        },
-      },
-      { status: 503 },
-    );
-  }
-
-  if (error instanceof TechHttpError) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: error.code,
-          message: error.message,
-        },
-      },
-      { status: error.status },
-    );
-  }
-
-  const err = error as Error & { name?: string; errors?: Array<{ message: string }> };
-  const isValidation = err.name === 'ZodError';
-  const msg = err.message || fallbackMessage;
-  const isOccupied = msg.includes(ERROR_CODES.PORT_OCCUPIED);
-  const isMock = msg.includes(ERROR_CODES.MOCK_LOCATION_DETECTED);
-  const isIdor = msg.includes(ERROR_CODES.IDOR_VIOLATION);
-  const isNotFound = msg.toLowerCase().includes('tidak ditemukan');
-  const isClosed =
-    msg.includes('tidak dapat dimutasi') ||
-    msg.includes(ERROR_CODES.TICKET_ALREADY_CLOSED) ||
-    msg.includes('bisa dimulai kembali');
-
-  let status = defaultStatus;
-  if (isOccupied || isClosed) status = 409;
-  else if (isMock || isIdor) status = 403;
-  else if (isNotFound) status = 404;
-
-  const code = isOccupied
-    ? ERROR_CODES.PORT_OCCUPIED
-    : isClosed
-      ? ERROR_CODES.TICKET_ALREADY_CLOSED
-      : isMock
-        ? ERROR_CODES.MOCK_LOCATION_DETECTED
-        : isIdor
-          ? ERROR_CODES.IDOR_VIOLATION
-          : isNotFound
-            ? ERROR_CODES.TICKET_NOT_FOUND
-            : isValidation
-              ? ERROR_CODES.VALIDATION_ERROR
-              : fallbackCode;
-
-  return NextResponse.json(
-    {
-      success: false,
-      error: {
-        code,
-        message: isValidation ? err.errors?.[0]?.message || 'Payload tidak valid' : msg,
-        details: err.errors,
-      },
-    },
-    { status },
-  );
+  return sanitizeAndLogServerError(error, {
+    context: 'TECH_API',
+    defaultCode: fallbackCode,
+    defaultMessage: fallbackMessage,
+  });
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 import { redisManager } from '@/server/lib/redis';
+import { sanitizeAndLogServerError } from '@/server/lib/api-error-sanitizer';
 import { logoutRequestSchema } from '@repo/shared';
 
 export async function POST(request: NextRequest) {
@@ -54,15 +55,8 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error: unknown) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'LOGOUT_ERROR',
-          message: (error as Error).message || 'Gagal melakukan logout',
-        },
-      },
-      { status: 500 },
-    );
+    return sanitizeAndLogServerError(error, {
+      route: 'POST /api/v1/auth/logout',
+    });
   }
 }

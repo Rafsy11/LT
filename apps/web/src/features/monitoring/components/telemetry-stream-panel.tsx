@@ -1,4 +1,5 @@
 import React from 'react';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { TelemetryStreamSkeletonRows } from '@/components/ui/PageSkeleton';
 import { SearchInput } from '@/components/ui/search-input';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
@@ -181,8 +182,38 @@ export function TelemetryStreamPanel({
         {loading ? (
           <TelemetryStreamSkeletonRows count={STREAM_SKELETON_ROW_COUNT} />
         ) : filteredReports.length === 0 ? (
-          <li className="noc-empty-stream" role="status">
-            Tidak ada laporan telemetri pada kriteria filter ini.
+          <li style={{ listStyle: 'none', padding: '16px' }}>
+            <EmptyState
+              icon="activity"
+              title="Tidak ada laporan telemetri"
+              description="Tidak ditemukan stream pengukuran OPM lapangan yang cocok dengan kriteria filter aktif Anda."
+              actionLabel={
+                Boolean(search.trim()) ||
+                cluster !== 'Semua cluster' ||
+                typeFilter !== 'Semua tipe' ||
+                techFilter !== 'Semua teknisi' ||
+                tab !== 'Semua'
+                  ? 'Reset Filter Telemetri'
+                  : undefined
+              }
+              actionIcon="refresh"
+              onAction={
+                Boolean(search.trim()) ||
+                cluster !== 'Semua cluster' ||
+                typeFilter !== 'Semua tipe' ||
+                techFilter !== 'Semua teknisi' ||
+                tab !== 'Semua'
+                  ? () => {
+                      setSearch('');
+                      setCluster('Semua cluster');
+                      setTypeFilter('Semua tipe');
+                      setTechFilter('Semua teknisi');
+                      setTab('Semua');
+                    }
+                  : undefined
+              }
+              size="compact"
+            />
           </li>
         ) : (
           filteredReports.map((report) => {
@@ -234,7 +265,7 @@ export function TelemetryStreamPanel({
                 {/* Network: Splitter & Port */}
                 <div className="col-network">
                   <div className="col-network-odp">
-                    <span>{report.splitterCode || '—'}</span>
+                    <span>{report.splitterCode || '-'}</span>
                     {report.portNumber ? <span className="port-tag">P{report.portNumber}</span> : null}
                   </div>
                   <div className="col-network-cluster">{report.cluster}</div>

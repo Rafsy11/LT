@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { minioManager } from '@/server/lib/minio';
 import { redisManager } from '@/server/lib/redis';
-import { ERROR_CODES } from '@repo/shared';
+import { handleTechRouteError } from '@/server/lib/tech-auth';
+import { ERROR_CODES, STANDARD_ERROR_MESSAGES } from '@repo/shared';
 import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
 import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
 
@@ -141,16 +142,11 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    const err = error as Error;
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: ERROR_CODES.INTERNAL_ERROR,
-          message: err.message || 'Gagal menghasilkan Presigned PUT URL MinIO',
-        },
-      },
-      { status: 500 },
+    return handleTechRouteError(
+      error,
+      ERROR_CODES.INTERNAL_ERROR,
+      STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
+      500,
     );
   }
 }

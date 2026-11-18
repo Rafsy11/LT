@@ -23,6 +23,7 @@ export function TicketsView() {
     setTypeFilter,
     tickets,
     loading,
+    loadError,
     modalOpen,
     setModalOpen,
     selectedTicket,
@@ -125,9 +126,25 @@ export function TicketsView() {
       {/* Work Order Cards Grid */}
       <TicketGrid
         loading={loading}
+        loadError={loadError}
+        onRetry={() => void fetchTickets(true)}
         tickets={filtered}
         onSelectTicket={setSelectedTicket}
         getDbmBadge={getDbmBadge}
+        hasActiveFilters={
+          Boolean(search.trim()) ||
+          cluster !== 'Semua cluster' ||
+          typeFilter !== 'Semua tipe' ||
+          tab !== 'Semua'
+        }
+        onResetFilters={() => {
+          setSearch('');
+          setCluster('Semua cluster');
+          setTypeFilter('Semua tipe');
+          setTab('Semua');
+        }}
+        canCreateTicket={canCreateTicket}
+        onCreateTicket={() => setModalOpen(true)}
       />
 
       {/* Ticket Create Modal */}

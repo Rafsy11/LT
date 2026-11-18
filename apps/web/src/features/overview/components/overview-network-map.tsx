@@ -294,7 +294,38 @@ export function OverviewNetworkMap({
 
   return (
     <section className="panel overview-map-panel" aria-label="Peta Sebaran Jaringan FTTH">
-      <div className="panel-inner">
+      {/* Mobile GIS Navigation Card (as per Lintasarta Dark Dashboard Trio reference) */}
+      <Link href="/network" className="mobile-gis-card" aria-label="Buka visualisasi Peta GIS Sebaran Jaringan">
+        <div className="mobile-gis-card-left">
+          <span className="mobile-gis-icon-wrap" aria-hidden="true">
+            <Icon name="mapPin" size={20} />
+          </span>
+          <div className="mobile-gis-text">
+            <span className="mobile-gis-title">Sebaran Jaringan</span>
+            <span className="mobile-gis-subtitle">
+              Visualisasi cluster &amp; titik ODP menggunakan Peta GIS.
+            </span>
+          </div>
+        </div>
+        <div className="mobile-gis-card-right">
+          <span className="mobile-gis-action-btn" aria-hidden="true">
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 12h14M13 5l7 7-7 7" />
+            </svg>
+          </span>
+        </div>
+      </Link>
+
+      <div className="panel-inner desktop-map-inner">
         <header className="panel-heading">
           <div>
             <h2>Sebaran Jaringan</h2>

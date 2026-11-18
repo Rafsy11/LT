@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { classifyDbm, dbmTone, PERMISSIONS, type CustomerListItem } from '@repo/shared';
 import { useAuth, useToast } from '@/providers';
@@ -243,7 +244,7 @@ export function CustomerDetailModal({
                     fontWeight: 600,
                   }}
                 >
-                  {customer.gponNode || '—'}
+                  {customer.gponNode || '-'}
                 </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -265,7 +266,7 @@ export function CustomerDetailModal({
                     fontWeight: 600,
                   }}
                 >
-                  {customer.oltSlot || '—'}
+                  {customer.oltSlot || '-'}
                 </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -287,7 +288,7 @@ export function CustomerDetailModal({
                     fontWeight: 600,
                   }}
                 >
-                  {customer.ontSn || '—'}
+                  {customer.ontSn || '-'}
                 </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -410,10 +411,12 @@ export function CustomerDetailModal({
                 Memuat riwayat redaman...
               </div>
             ) : histories.length === 0 ? (
-              <div className="modal-empty-box">
-                Belum ada data pengukuran redaman yang tercatat di{' '}
-                <code>attenuation_histories</code>.
-              </div>
+              <EmptyState
+                icon="activity"
+                title="Belum ada riwayat pengukuran"
+                description="Riwayat redaman optik akan tercatat otomatis saat teknisi mengirimkan hasil ukur OPM lapangan."
+                size="compact"
+              />
             ) : (
               <div className="modal-table-wrap">
                 <table

@@ -189,7 +189,7 @@ export function CustomerFormModal({
                   ) : (
                     dbClusters.map((item) => (
                       <option key={item.id} value={item.clusterCode}>
-                        {item.clusterCode} — {item.name}
+                        {item.clusterCode} - {item.name}
                       </option>
                     ))
                   )}

@@ -12,6 +12,7 @@ export async function GET() {
       await prisma.$queryRaw`SELECT 1`;
       postgresUp = true;
     } catch (err) {
+      console.error('[GET /api/v1/health] PostgreSQL probe failed:', err);
       markDatabaseUnavailable(err);
       postgresUp = false;
     }

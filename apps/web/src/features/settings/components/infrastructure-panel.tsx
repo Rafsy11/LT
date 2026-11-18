@@ -216,7 +216,7 @@ export function InfrastructurePanel({
             </span>
           </header>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div className="settings-two-col-grid">
             {telemetry?.containers.map((c) => (
               <div
                 key={c.service}

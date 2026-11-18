@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAuth } from '@/providers/auth-provider';
 import { useToast } from '@/providers/toast-provider';
 import type { TechnicianListItem } from '@repo/shared';
+import { STANDARD_ERROR_MESSAGES } from '@repo/shared';
 import type { TechnicianFilterTab } from '../components/technician-filters';
 import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
 import { fetchWithCache, getCachedData, invalidateQueryCache } from '@/lib/query-cache';
@@ -21,6 +22,7 @@ export function useTechnicians() {
   const [loading, setLoading] = useState<boolean>(
     () => !getCachedData<TechnicianListItem[]>(TECHNICIANS_CACHE_KEY),
   );
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [processingUser, setProcessingUser] = useState<string | null>(null);
   const [selectedTech, setSelectedTech] = useState<TechnicianListItem | null>(null);
 
@@ -32,6 +34,7 @@ export function useTechnicians() {
   const fetchTechs = useCallback(
     async (force = false) => {
       try {
+        setLoadError(null);
         if (!getCachedData<TechnicianListItem[]>(TECHNICIANS_CACHE_KEY)) {
           setLoading(true);
         }
@@ -56,6 +59,9 @@ export function useTechnicians() {
         );
         setTechnicians(data);
       } catch (err: unknown) {
+        setLoadError(
+          err instanceof Error ? err.message : STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
+        );
         showError(err);
       } finally {
         setLoading(false);
@@ -248,6 +254,7 @@ export function useTechnicians() {
     setActiveTab,
     technicians,
     loading,
+    loadError,
     processingUser,
     selectedTech,
     setSelectedTech,

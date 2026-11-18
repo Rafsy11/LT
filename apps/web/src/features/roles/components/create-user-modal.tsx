@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
+import { formatSafeUiError } from '@/lib/api-error';
 import { RoleApiItem } from '../hooks/use-roles';
 
 export interface CreateUserModalProps {
@@ -79,7 +80,10 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
       setPassword('');
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Gagal menyimpan akun pengguna baru.');
+      const safe = formatSafeUiError(err, {
+        fallbackMessage: 'Gagal menyimpan akun pengguna baru. Silakan coba kembali.',
+      });
+      setError(`${safe.message} (${safe.refId})`);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,20 +1,27 @@
 import { NextResponse } from 'next/server';
 import { SystemService } from '@/server/services/system.service';
+import { sanitizeAndLogServerError } from '@/server/lib/api-error-sanitizer';
 import { CURRENT_MOBILE_APP_VERSION, MIN_MOBILE_APP_VERSION } from '@repo/shared';
 
 export async function GET() {
-  const { settings } = await SystemService.getSystemSettings();
+  try {
+    const { settings } = await SystemService.getSystemSettings();
 
-  return NextResponse.json({
-    success: true,
-    data: {
-      runtimeVersion: CURRENT_MOBILE_APP_VERSION,
-      minRequiredVersion: settings.minAppVersion || MIN_MOBILE_APP_VERSION,
-      apkDownloadUrl: settings.apkDownloadUrl,
-      otaUpdateUrl: settings.otaUpdateUrl,
-      publishedAt: new Date().toISOString(),
-      channel: 'production-on-premise',
-    },
-  });
+    return NextResponse.json({
+      success: true,
+      data: {
+        runtimeVersion: CURRENT_MOBILE_APP_VERSION,
+        minRequiredVersion: settings.minAppVersion || MIN_MOBILE_APP_VERSION,
+        apkDownloadUrl: settings.apkDownloadUrl,
+        otaUpdateUrl: settings.otaUpdateUrl,
+        publishedAt: new Date().toISOString(),
+        channel: 'production-on-premise',
+      },
+    });
+  } catch (error: unknown) {
+    return sanitizeAndLogServerError(error, {
+      route: 'GET /api/v1/ota/manifest',
+    });
+  }
 }
 

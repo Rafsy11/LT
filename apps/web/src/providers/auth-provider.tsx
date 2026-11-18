@@ -2,7 +2,12 @@
 
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { PERMISSIONS, ROLE_PRESETS, UserTypeEnum } from '@repo/shared';
+import {
+  PERMISSIONS,
+  ROLE_PRESETS,
+  STANDARD_ERROR_MESSAGES,
+  UserTypeEnum,
+} from '@repo/shared';
 import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
 
 const AUTH_STORAGE_KEY = 'fiberops_auth_user';
@@ -87,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           notifyApiResponseError(
             res.status,
             json,
-            'Koneksi database PostgreSQL terputus saat memverifikasi sesi operator.',
+            STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
             { category: 'database', source: '/api/v1/auth/me' },
           );
           return;

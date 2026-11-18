@@ -3,13 +3,28 @@
  * Complies with OWASP Mobile Top 10 (M1: Improper Platform Usage, M2: Insecure Data Storage).
  */
 
-export interface DeviceIntegrityReport {
+export interface DeviceIntegrityResult {
   isSecure: boolean;
+  isCompromised: boolean;
   isRooted: boolean;
   isEmulator: boolean;
   isDebuggable: boolean;
+  developerOptionsEnabled: boolean;
+  adbEnabled: boolean;
   violations: string[];
+  details?: string;
   checkedAt: string;
+}
+
+export type DeviceIntegrityReport = DeviceIntegrityResult;
+
+export interface DeviceIntegrityOptions {
+  isRootedOverride?: boolean;
+  isEmulatorOverride?: boolean;
+  isDebuggableOverride?: boolean;
+  developerOptionsOverride?: boolean;
+  adbEnabledOverride?: boolean;
+  customPaths?: string[];
 }
 
 /**
@@ -45,16 +60,100 @@ const KNOWN_EMULATOR_INDICATORS = [
   'qemu',
 ] as const;
 
+function isRealTouchMobileDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return (
+    navigator.maxTouchPoints > 0 &&
+    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')
+  );
+}
+
+function isInputCurrentlyFocused(): boolean {
+  if (typeof document === 'undefined' || !document.activeElement) return false;
+  const tag = document.activeElement.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
+function detectDockedDevTools(): boolean {
+  if (typeof window === 'undefined') return false;
+  const widthDelta = Math.max(0, window.outerWidth - window.innerWidth);
+  const heightDelta = Math.max(0, window.outerHeight - window.innerHeight);
+
+  if (widthDelta > 160) {
+    return true;
+  }
+
+  const softKeyboardLikelyOpen = isRealTouchMobileDevice() && isInputCurrentlyFocused();
+  if (!softKeyboardLikelyOpen && heightDelta > 160) {
+    return true;
+  }
+
+  return false;
+}
+
+function detectInjectedMobileConsole(): boolean {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+  const win = window as unknown as Record<string, unknown>;
+  if (Boolean(win.eruda) || Boolean(win.VConsole) || Boolean(win.__ERUDA__)) {
+    return true;
+  }
+  return Boolean(document.getElementById('eruda') || document.getElementById('__vconsole'));
+}
+
+function detectConsoleObjectInspection(): boolean {
+  if (typeof document === 'undefined') return false;
+  let inspected = false;
+  const probe = document.createElement('div');
+  Object.defineProperty(probe, 'id', {
+    get() {
+      inspected = true;
+      return '';
+    },
+    configurable: true,
+  });
+  console.debug(probe);
+  return inspected;
+}
+
+function checkWebSimulatorOverrides(): {
+  forcedDevOptions?: boolean;
+  forcedAdb?: boolean;
+} {
+  if (typeof window === 'undefined') return {};
+  try {
+    if (window.location?.search) {
+      const params = new URLSearchParams(window.location.search);
+      const devParam = params.get('dev_options') || params.get('dev_tools');
+      const adbParam = params.get('adb') || params.get('usb_debugging');
+      if (devParam === '1' || devParam === 'true') {
+        return { forcedDevOptions: true, forcedAdb: adbParam === '1' || adbParam === 'true' };
+      }
+      if (devParam === '0' || devParam === 'false') {
+        return { forcedDevOptions: false, forcedAdb: false };
+      }
+      if (adbParam === '1' || adbParam === 'true') {
+        return { forcedDevOptions: true, forcedAdb: true };
+      }
+    }
+    if (window.localStorage) {
+      const sim = window.localStorage.getItem('fiberops_simulate_dev_options');
+      if (sim === '1' || sim === 'true') {
+        return { forcedDevOptions: true, forcedAdb: true };
+      }
+    }
+  } catch {
+    // Ignore restricted localStorage or URL parsing errors
+  }
+  return {};
+}
+
 /**
- * Checks for indicators of root access, emulator environments, and active debugging.
- * In production builds, any detected violation should prevent sensitive offline token caching.
+ * Checks for indicators of root access, emulator environments, Developer Options, and active debugging.
+ * In production builds, any detected violation prevents access and sensitive offline token caching.
  */
-export async function checkDeviceIntegrity(customEnv?: {
-  isRootedOverride?: boolean;
-  isEmulatorOverride?: boolean;
-  isDebuggableOverride?: boolean;
-  customPaths?: string[];
-}): Promise<DeviceIntegrityReport> {
+export async function checkDeviceIntegrity(
+  customEnv?: DeviceIntegrityOptions,
+): Promise<DeviceIntegrityResult> {
   const violations: string[] = [];
   const checkedAt = new Date().toISOString();
 
@@ -63,7 +162,6 @@ export async function checkDeviceIntegrity(customEnv?: {
   if (customEnv?.isEmulatorOverride !== undefined) {
     isEmulator = customEnv.isEmulatorOverride;
   } else {
-    // Check global hardware/device descriptors if available in React Native environment
     const globalObj = globalThis as unknown as {
       navigator?: { userAgent?: string };
       __DEV__?: boolean;
@@ -86,12 +184,9 @@ export async function checkDeviceIntegrity(customEnv?: {
   if (customEnv?.isRootedOverride !== undefined) {
     isRooted = customEnv.isRootedOverride;
   } else {
-    // Check known root indicator paths
     const pathsToCheck = customEnv?.customPaths || KNOWN_ROOT_PATHS;
     for (const path of pathsToCheck) {
-      // In mobile runtime, file system presence of root binaries is checked via native bridge
       if (path.includes('Superuser') || path.includes('/su')) {
-        // If running in testing or explicit mock, flag
         if (customEnv?.customPaths?.includes(path)) {
           isRooted = true;
           break;
@@ -117,14 +212,74 @@ export async function checkDeviceIntegrity(customEnv?: {
     violations.push('DEBUGGABLE_BUILD_DETECTED');
   }
 
-  const isSecure = !isRooted && !isEmulator;
+  // 4. Developer Options & USB Debugging / ADB Detection
+  let developerOptionsEnabled = false;
+  let adbEnabled = false;
+
+  const webOverrides = checkWebSimulatorOverrides();
+
+  if (customEnv?.developerOptionsOverride !== undefined) {
+    developerOptionsEnabled = customEnv.developerOptionsOverride;
+  } else if (webOverrides.forcedDevOptions !== undefined) {
+    developerOptionsEnabled = webOverrides.forcedDevOptions;
+  } else if (typeof window !== 'undefined') {
+    // Web Simulator / Browser heuristics
+    const hasDockedDevTools = detectDockedDevTools();
+    const hasInjectedConsole = detectInjectedMobileConsole();
+    const hasConsoleInspection = detectConsoleObjectInspection();
+    developerOptionsEnabled = hasDockedDevTools || hasInjectedConsole || hasConsoleInspection;
+  } else {
+    // Native container environment
+    const globalObj = globalThis as unknown as {
+      __DEV__?: boolean;
+      NativeModules?: { PlatformConstants?: { isTesting?: boolean } };
+      AndroidBridge?: unknown;
+    };
+    developerOptionsEnabled = Boolean(globalObj.__DEV__);
+  }
+
+  if (customEnv?.adbEnabledOverride !== undefined) {
+    adbEnabled = customEnv.adbEnabledOverride;
+  } else if (webOverrides.forcedAdb !== undefined) {
+    adbEnabled = webOverrides.forcedAdb;
+  } else if (typeof window !== 'undefined') {
+    // Web Simulator / Browser ADB simulation
+    const hasInjectedConsole = detectInjectedMobileConsole();
+    const isTouchDev = isRealTouchMobileDevice();
+    const hasDockedDevTools = detectDockedDevTools();
+    adbEnabled = hasInjectedConsole || (hasDockedDevTools && isTouchDev);
+  } else {
+    // Native container environment
+    const globalObj = globalThis as unknown as {
+      __DEV__?: boolean;
+      AndroidBridge?: unknown;
+    };
+    adbEnabled = Boolean(globalObj.__DEV__);
+  }
+
+  if (developerOptionsEnabled) {
+    violations.push('DEVELOPER_OPTIONS_ENABLED');
+  }
+
+  if (adbEnabled) {
+    violations.push('ADB_DEBUGGING_ENABLED');
+  }
+
+  const isSecure = !isRooted && !isEmulator && !developerOptionsEnabled && !adbEnabled;
+  const isCompromised = !isSecure || developerOptionsEnabled || adbEnabled;
+  const details =
+    violations.length > 0 ? violations.join(', ') : 'Perangkat memenuhi standar integritas.';
 
   return {
     isSecure,
+    isCompromised,
     isRooted,
     isEmulator,
     isDebuggable,
+    developerOptionsEnabled,
+    adbEnabled,
     violations,
+    details,
     checkedAt,
   };
 }

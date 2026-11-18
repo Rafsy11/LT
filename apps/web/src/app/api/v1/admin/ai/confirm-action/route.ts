@@ -103,39 +103,10 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : '';
-    if (msg.includes(ERROR_CODES.ACTION_TOKEN_REPLAYED)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: { code: ERROR_CODES.ACTION_TOKEN_REPLAYED, message: msg },
-        },
-        { status: 409 },
-      );
-    }
-    if (msg.includes('kedaluwarsa') || msg.includes(ERROR_CODES.AI_ACTION_EXPIRED)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: { code: ERROR_CODES.AI_ACTION_EXPIRED, message: msg },
-        },
-        { status: 400 },
-      );
-    }
-    if (msg.includes(ERROR_CODES.INVALID_ACTION_TOKEN) || msg.includes('manipulasi')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: { code: ERROR_CODES.INVALID_ACTION_TOKEN, message: msg },
-        },
-        { status: 400 },
-      );
-    }
     return handleAdminRouteError(
       error,
-      ERROR_CODES.VALIDATION_ERROR,
+      ERROR_CODES.INTERNAL_ERROR,
       'Gagal mengeksekusi aksi AI',
-      400,
     );
   }
 }

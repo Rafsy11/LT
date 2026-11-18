@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import {
   clearServiceUnavailable,
+  formatSafeUiError,
   getServiceUnavailableState,
   reportServiceUnavailable,
   subscribeServiceUnavailable,
@@ -11,8 +12,8 @@ import {
 } from '@/lib/api-error';
 
 /**
- * Global non-intrusive diagnostic banner displayed at the top of the dashboard shell
- * whenever STRICT_LIVE_DATA receives HTTP 503 SERVICE_UNAVAILABLE from PostgreSQL/Redis/MinIO/Ollama.
+ * Global non-intrusive connectivity banner displayed at the top of the dashboard shell
+ * when core services fail health checks, keeping technical internals redacted from UI copy.
  */
 export function ConnectionBanner() {
   const [state, setState] = useState<ServiceUnavailableState>(() => getServiceUnavailableState());
@@ -39,10 +40,11 @@ export function ConnectionBanner() {
           window.dispatchEvent(new CustomEvent('app:refresh-data'));
         }
       } else {
-        const msg =
-          json?.error?.message ||
-          'Database PostgreSQL atau layanan prasyarat masih belum merespons (HTTP 503).';
-        reportServiceUnavailable(msg, state.category, '/api/v1/health');
+        const safe = formatSafeUiError(
+          { code: 'SERVICE_UNAVAILABLE' },
+          { fallbackMessage: 'Layanan sistem pusat belum merespons. Silakan coba beberapa saat lagi.' },
+        );
+        reportServiceUnavailable(safe.message, state.category, '/api/v1/health');
       }
     } catch {
       reportServiceUnavailable(
@@ -59,23 +61,26 @@ export function ConnectionBanner() {
     return null;
   }
 
+  const safeBanner = formatSafeUiError(state.message, {
+    fallbackMessage: 'Layanan sistem pusat sedang mengalami gangguan sementara. Silakan coba beberapa saat lagi.',
+  });
+
   return (
     <section
       className="connection-banner"
       role="alert"
       aria-live="assertive"
-      aria-label="Status Koneksi Layanan Backend"
+      aria-label="Status Koneksi Layanan Sistem"
     >
       <div className="connection-banner-icon" aria-hidden="true">
         <Icon name="alert" size={18} />
       </div>
       <div className="connection-banner-copy">
         <strong className="connection-banner-title">
-          Koneksi Layanan Live Terputus (503 SERVICE UNAVAILABLE)
+          Koneksi Layanan Sistem Terganggu
         </strong>
         <p className="connection-banner-message">
-          {state.message ||
-            'Sistem berjalan dalam mode data langsung (strict). Pastikan Docker / PostgreSQL / Redis / MinIO aktif.'}
+          {safeBanner.message}
         </p>
       </div>
       <div className="connection-banner-actions">

@@ -1,3 +1,5 @@
+import { classifyDbm, DbmStatus } from '@repo/shared';
+
 export interface ThemePalette {
   bg: string;
   background: string;
@@ -8,6 +10,21 @@ export interface ThemePalette {
   border: string;
   primary: string;
   primaryText: string;
+  surfaceSecondary: string;
+  surfaceElevated: string;
+  surfaceInset: string;
+  textMuted: string;
+  borderLight: string;
+  borderHighlight: string;
+  primaryHover: string;
+  accentCyan: string;
+  statusActive: string;
+  statusNew: string;
+  statusWarning: string;
+  statusDanger: string;
+  statusOptimal: string;
+  statusCritical: string;
+  ambientGlow: string;
 }
 
 export const LIGHT_THEME: ThemePalette = {
@@ -20,18 +37,49 @@ export const LIGHT_THEME: ThemePalette = {
   border: '#CBD5E1',
   primary: '#0284C7',
   primaryText: '#FFFFFF',
+  surfaceSecondary: '#F1F5F9',
+  surfaceElevated: '#FFFFFF',
+  surfaceInset: '#F8FAFC',
+  textMuted: '#64748B',
+  borderLight: '#E2E8F0',
+  borderHighlight: 'rgba(2, 132, 199, 0.3)',
+  primaryHover: '#0369A1',
+  accentCyan: '#0284C7',
+  statusActive: '#10B981',
+  statusNew: '#0EA5E9',
+  statusWarning: '#F59E0B',
+  statusDanger: '#EF4444',
+  statusOptimal: '#10B981',
+  statusCritical: '#EF4444',
+  ambientGlow: 'none',
 };
 
 export const DARK_THEME: ThemePalette = {
-  bg: '#0B0F19',
-  background: '#0B0F19',
-  surface: '#151C2C',
+  bg: '#080E1A',
+  background: '#080E1A',
+  surface: '#10192D',
   textPrimary: '#F8FAFC',
   textSecondary: '#94A3B8',
   badgeBg: '#1E293B',
-  border: '#334155',
-  primary: '#38BDF8',
-  primaryText: '#0B0F19',
+  border: 'rgba(255, 255, 255, 0.08)',
+  primary: '#0284C7',
+  primaryText: '#FFFFFF',
+  surfaceSecondary: '#162035',
+  surfaceElevated: '#15223C',
+  surfaceInset: '#0A1224',
+  textMuted: '#64748B',
+  borderLight: 'rgba(255, 255, 255, 0.12)',
+  borderHighlight: 'rgba(14, 165, 233, 0.35)',
+  primaryHover: '#0369A1',
+  accentCyan: '#0EA5E9',
+  statusActive: '#10B981',
+  statusNew: '#0EA5E9',
+  statusWarning: '#F59E0B',
+  statusDanger: '#EF4444',
+  statusOptimal: '#10B981',
+  statusCritical: '#EF4444',
+  ambientGlow:
+    'radial-gradient(ellipse at 85% -10%, rgba(14, 165, 233, 0.18) 0%, rgba(2, 132, 199, 0.06) 45%, #080E1A 85%)',
 };
 
 export const OUTDOOR_SUNLIGHT_THEME: ThemePalette = {
@@ -44,6 +92,21 @@ export const OUTDOOR_SUNLIGHT_THEME: ThemePalette = {
   border: '#000000',
   primary: '#0047AB',
   primaryText: '#FFFFFF',
+  surfaceSecondary: '#F3F4F6',
+  surfaceElevated: '#FFFFFF',
+  surfaceInset: '#F9FAFB',
+  textMuted: '#1F2937',
+  borderLight: '#000000',
+  borderHighlight: '#0047AB',
+  primaryHover: '#003380',
+  accentCyan: '#0047AB',
+  statusActive: '#047857',
+  statusNew: '#0369A1',
+  statusWarning: '#B45309',
+  statusDanger: '#B91C1C',
+  statusOptimal: '#047857',
+  statusCritical: '#B91C1C',
+  ambientGlow: 'none',
 };
 
 export const OUTDOOR_THEME = OUTDOOR_SUNLIGHT_THEME;
@@ -66,7 +129,25 @@ export const GEOMETRY_TOKENS = {
   touch: {
     minTouchTarget: 44,
     buttonMinHeight: 44,
-    inputMinHeight: 44,
+    inputMinHeight: 48,
+    headerActionSize: 44,
+  },
+};
+
+export const ENTERPRISE_GEOMETRY_TOKENS = {
+  radii: {
+    badge: 6,
+    button: 10,
+    input: 12,
+    kpiCard: 14,
+    card: 16,
+    modal: 16,
+    pill: 24,
+  },
+  touch: {
+    minTouchTarget: 44,
+    buttonMinHeight: 44,
+    inputMinHeight: 48,
     headerActionSize: 44,
   },
 };
@@ -92,11 +173,91 @@ export const TYPOGRAPHY_TOKENS = {
   separator: ' - ',
 };
 
+export const TACTILE_TOKENS = {
+  transition: 'all 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+  activeScale: 'scale(0.98)',
+  glowPrimary: '0 2px 14px rgba(2, 132, 199, 0.35)',
+  glowCyan: '0 2px 10px rgba(14, 165, 233, 0.25)',
+  shadowCard: '0 4px 20px -2px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.25)',
+  shadowElevated: '0 10px 40px -10px rgba(0, 0, 0, 0.65)',
+};
+
+export interface OpticalDbmTelemetryBadge {
+  status: DbmStatus | 'Neutral';
+  label: string;
+  tone: 'green' | 'orange' | 'red' | 'gray';
+  color: string;
+  bg: string;
+  border: string;
+  description: string;
+}
+
+/**
+ * Formats and classifies raw attenuation (dBm) for field technician telemetry display.
+ * ITU-T G.984.2 compliant GPON ONT operational range:
+ * - Normal: -15.00 to -22.00 dBm (Standard FTTH link)
+ * - Warning: -22.10 to -25.00 dBm (Degraded link)
+ * - Critical: < -25.00 dBm or > -10.00 dBm (Drop / Outage / Optic saturation)
+ */
+export function formatOpticalTelemetryDbm(
+  value: number | string | null | undefined,
+): OpticalDbmTelemetryBadge {
+  const status = classifyDbm(value);
+  const num = typeof value === 'number' ? value : Number(value);
+  const formattedVal = !isNaN(num) && value !== null && value !== undefined && value !== ''
+    ? `${num.toFixed(2)} dBm`
+    : 'Belum Terukur';
+
+  switch (status) {
+    case 'Normal':
+      return {
+        status: 'Normal',
+        label: `${formattedVal} (Optimal)`,
+        tone: 'green',
+        color: '#10B981',
+        bg: 'rgba(16, 185, 129, 0.12)',
+        border: 'rgba(16, 185, 129, 0.28)',
+        description: 'Sinyal optik prima sesuai standar FTTH GPON.',
+      };
+    case 'Warning':
+      return {
+        status: 'Warning',
+        label: `${formattedVal} (Warning)`,
+        tone: 'orange',
+        color: '#F59E0B',
+        bg: 'rgba(245, 158, 11, 0.12)',
+        border: 'rgba(245, 158, 11, 0.28)',
+        description: 'Redaman mendekati batas toleransi operasi.',
+      };
+    case 'Critical':
+      return {
+        status: 'Critical',
+        label: `${formattedVal} (Kritis)`,
+        tone: 'red',
+        color: '#EF4444',
+        bg: 'rgba(239, 68, 68, 0.12)',
+        border: 'rgba(239, 68, 68, 0.28)',
+        description: 'Sinyal optik di luar batas operasi (-25.00 dBm).',
+      };
+    default:
+      return {
+        status: 'Neutral',
+        label: formattedVal,
+        tone: 'gray',
+        color: '#94A3B8',
+        bg: 'rgba(148, 163, 184, 0.1)',
+        border: 'rgba(148, 163, 184, 0.2)',
+        description: 'Nilai redaman optik belum terbaca dari OPM.',
+      };
+  }
+}
+
 export const tokens = {
   radii: GEOMETRY_TOKENS.radii,
   touch: GEOMETRY_TOKENS.touch,
   themes: THEME_PALETTES,
   typography: TYPOGRAPHY_TOKENS,
+  tactile: TACTILE_TOKENS,
 };
 
 export const DESIGN_TOKENS = tokens;
@@ -112,6 +273,7 @@ export function getThemeTokens(
     typography: TYPOGRAPHY_TOKENS,
     radii: GEOMETRY_TOKENS.radii,
     touch: GEOMETRY_TOKENS.touch,
+    tactile: TACTILE_TOKENS,
   };
 }
 

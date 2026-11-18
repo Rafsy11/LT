@@ -11,34 +11,21 @@ export interface AiHeroProps {
 
 export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
   return (
-    <section
-      aria-label="Pengenalan AI Assistant"
-      style={{
-        margin: 'auto 0',
-        textAlign: 'center',
-        width: '100%',
-        maxWidth: '680px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-      }}
-    >
+    <section aria-label="Pengenalan AI Assistant" className="ai-hero-section">
       {/* Brand Logo Emblem from Lintasarta-Icon.svg */}
-      <figure style={{ margin: '0 auto 20px' }}>
+      <figure className="ai-hero-logo-wrap">
         <Image
           src="/assets/Lintasarta-Icon.svg"
           alt="AI Assistant"
-          width={72}
-          height={72}
+          width={64}
+          height={64}
           priority
           className="ai-hero-logo-img"
         />
       </figure>
 
       {/* Heading */}
-      <h1 className="ai-hero-title">
-        AI Assistant
-      </h1>
+      <h1 className="ai-hero-title">AI Assistant</h1>
 
       {/* Subtitle */}
       <p className="ai-hero-desc">
@@ -46,10 +33,7 @@ export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
       </p>
 
       {/* 2x2 Suggestion Grid */}
-      <nav
-        aria-label="Saran Pertanyaan AI"
-        className="ai-hero-cards-grid"
-      >
+      <nav aria-label="Saran Pertanyaan AI" className="ai-hero-cards-grid">
         {suggestions.map((item) => (
           <button
             key={item.label}
@@ -57,7 +41,7 @@ export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
             className="ai-hero-suggestion-btn"
             onClick={() => onSelectSuggestion(item.label)}
           >
-            {item.label}
+            <span className="ai-hero-btn-text">{item.label}</span>
           </button>
         ))}
       </nav>

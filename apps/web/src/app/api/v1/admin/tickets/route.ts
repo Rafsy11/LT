@@ -57,6 +57,6 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error: unknown) {
-    return handleAdminRouteError(error, ERROR_CODES.VALIDATION_ERROR, 'Gagal membuat tiket', 400);
+    return handleAdminRouteError(error, ERROR_CODES.INTERNAL_ERROR, 'Gagal membuat tiket');
   }
 }

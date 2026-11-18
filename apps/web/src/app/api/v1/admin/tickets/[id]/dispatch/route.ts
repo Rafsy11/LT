@@ -63,7 +63,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       error,
       'DISPATCH_ERROR',
       'Gagal memperbarui disposisi vendor tiket',
-      400,
     );
   }
 }

@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { useToast } from '@/providers';
+import { formatSafeUiError } from '@/lib/api-error';
 import { invalidateQueryCache } from '@/lib/query-cache';
 
 export interface ImportSummary {
@@ -153,10 +154,12 @@ export function DatekImportModal({ isOpen, onClose, onSuccess }: DatekImportModa
         setAnomalies(json.data.anomalies);
         setStep('PREVIEW');
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Terjadi kesalahan saat menganalisis file.';
-        setErrorMessage(msg);
+        const safe = formatSafeUiError(err, {
+          fallbackMessage: 'Terjadi kesalahan saat menganalisis lembar kerja.',
+        });
+        setErrorMessage(`${safe.message} (${safe.refId})`);
         setStep('SELECT_FILE');
-        showError(msg);
+        showError(err);
       }
     },
     [showError],
@@ -243,10 +246,12 @@ export function DatekImportModal({ isOpen, onClose, onSuccess }: DatekImportModa
 
       showSuccess('Master data Palembang GPON & ODP berhasil disinkronisasi ke PostgreSQL!');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal menyimpan master data datek ke database.';
-      setErrorMessage(msg);
+      const safe = formatSafeUiError(err, {
+        fallbackMessage: 'Gagal menyimpan master data ke sistem. Silakan coba kembali.',
+      });
+      setErrorMessage(`${safe.message} (${safe.refId})`);
       setStep('PREVIEW');
-      showError(msg);
+      showError(err);
     }
   };
 
@@ -643,7 +648,7 @@ export function DatekImportModal({ isOpen, onClose, onSuccess }: DatekImportModa
                 <div className="datek-success-card">
                   <span className="datek-success-label">Waktu Eksekusi</span>
                   <span className="datek-success-val mono">
-                    {durationMs != null ? `${durationMs} ms` : '—'}
+                    {durationMs != null ? `${durationMs} ms` : '-'}
                   </span>
                   <span className="datek-success-sub">Transaksional</span>
                 </div>

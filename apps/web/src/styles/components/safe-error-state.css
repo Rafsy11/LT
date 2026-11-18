@@ -1,0 +1,269 @@
+/* FiberOps Modular Stylesheet: components/safe-error-state.css */
+
+.ui-safe-error-shell {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.ui-safe-error-shell--full {
+  min-height: 100dvh;
+  padding: 24px 16px;
+  background: var(--color-surface, #f2f8fb);
+}
+
+.ui-safe-error-shell--panel {
+  padding: 28px 16px;
+}
+
+.ui-safe-error-shell--compact {
+  padding: 8px 0;
+}
+
+.ui-safe-error-card {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px 24px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+  box-sizing: border-box;
+}
+
+.ui-safe-error-shell--compact .ui-safe-error-card {
+  max-width: 100%;
+  padding: 20px 16px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.ui-safe-error-icon-box {
+  width: 50px;
+  height: 50px;
+  min-width: 50px;
+  min-height: 50px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  margin-bottom: 14px;
+}
+
+.ui-safe-error-shell--compact .ui-safe-error-icon-box {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  margin-bottom: 10px;
+}
+
+.ui-safe-error-title {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+}
+
+.ui-safe-error-shell--compact .ui-safe-error-title {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.ui-safe-error-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.55;
+  max-width: 420px;
+}
+
+.ui-safe-error-shell--compact .ui-safe-error-desc {
+  font-size: 12px;
+}
+
+.ui-safe-error-ref {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.ui-safe-error-actions {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.ui-safe-error-shell--compact .ui-safe-error-actions {
+  margin-top: 14px;
+}
+
+.ui-safe-error-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), background-color 150ms ease, border-color 150ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ui-safe-error-btn--primary {
+  color: #ffffff;
+  background: #0e5b92;
+  border: 1px solid #0e5b92;
+}
+
+.ui-safe-error-btn--secondary {
+  color: #0f172a;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-safe-error-btn--primary:hover {
+    background: #0b4a78;
+    border-color: #0b4a78;
+  }
+
+  .ui-safe-error-btn--secondary:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+  }
+}
+
+.ui-safe-error-btn:active {
+  transform: scale(0.98);
+}
+
+.ui-safe-error-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+/* Dark Theme Calibration */
+html.dark .ui-safe-error-shell--full,
+[data-theme='dark'] .ui-safe-error-shell--full {
+  background: #020617;
+}
+
+html.dark .ui-safe-error-card,
+[data-theme='dark'] .ui-safe-error-card {
+  background: #0b1329;
+  border: 1px solid #1e293b;
+  box-shadow: 0 8px 28px rgba(2, 6, 23, 0.55);
+}
+
+html.dark .ui-safe-error-icon-box,
+[data-theme='dark'] .ui-safe-error-icon-box {
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fca5a5;
+}
+
+html.dark .ui-safe-error-title,
+[data-theme='dark'] .ui-safe-error-title {
+  color: #f1f5f9;
+}
+
+html.dark .ui-safe-error-desc,
+[data-theme='dark'] .ui-safe-error-desc {
+  color: #94a3b8;
+}
+
+html.dark .ui-safe-error-ref,
+[data-theme='dark'] .ui-safe-error-ref {
+  background: #060b18;
+  border-color: #1e293b;
+  color: #cbd5e1;
+}
+
+html.dark .ui-safe-error-btn--primary,
+[data-theme='dark'] .ui-safe-error-btn--primary {
+  background: #0066ff;
+  border-color: #0066ff;
+  color: #ffffff;
+}
+
+html.dark .ui-safe-error-btn--secondary,
+[data-theme='dark'] .ui-safe-error-btn--secondary {
+  background: #111e3f;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html.dark .ui-safe-error-btn--primary:hover,
+  [data-theme='dark'] .ui-safe-error-btn--primary:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+  }
+
+  html.dark .ui-safe-error-btn--secondary:hover,
+  [data-theme='dark'] .ui-safe-error-btn--secondary:hover {
+    background: #1e293b;
+    border-color: #38bdf8;
+  }
+}
+
+/* Mobile Responsive Layout (< 768px) */
+@media (max-width: 767px) {
+  .ui-safe-error-shell--panel {
+    padding: 16px 12px 96px;
+  }
+
+  .ui-safe-error-card {
+    padding: 24px 16px;
+    border-radius: 14px;
+  }
+
+  .ui-safe-error-title {
+    font-size: 15px;
+  }
+
+  .ui-safe-error-desc {
+    font-size: 12.5px;
+  }
+
+  .ui-safe-error-actions {
+    flex-direction: column;
+  }
+
+  .ui-safe-error-btn {
+    width: 100%;
+    min-height: 44px;
+    min-width: 44px;
+    border-radius: 10px;
+  }
+}

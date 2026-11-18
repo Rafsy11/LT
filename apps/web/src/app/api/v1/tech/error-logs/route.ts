@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
-import { ERROR_CODES } from '@repo/shared';
+import { handleTechRouteError } from '@/server/lib/tech-auth';
+import { ERROR_CODES, STANDARD_ERROR_MESSAGES } from '@repo/shared';
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (err) {
+        console.error('[POST /api/v1/tech/error-logs] DB insert failed:', err);
         markDatabaseUnavailable(err);
       }
     }
@@ -64,15 +66,11 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: ERROR_CODES.INTERNAL_ERROR,
-          message: error instanceof Error ? error.message : 'Gagal menyimpan client error log',
-        },
-      },
-      { status: 500 },
+    return handleTechRouteError(
+      error,
+      ERROR_CODES.INTERNAL_ERROR,
+      STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
+      500,
     );
   }
 }

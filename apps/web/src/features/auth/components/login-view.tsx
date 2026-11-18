@@ -4,6 +4,8 @@ import React from 'react';
 import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
 import { useLogin } from '../hooks/use-login';
+import { useMobileDevToolsGuard } from '../hooks/use-devtools-detector';
+import { MobileDevToolsGuard } from './mobile-devtools-guard';
 import '@/styles/features/auth.css';
 
 function formatCountdown(seconds: number): string {
@@ -39,12 +41,14 @@ export function LoginView() {
     handleSubmit,
   } = useLogin();
 
-  const isLocked = isSubmitting || rateLimitSeconds > 0;
+  const { isBlocked: isDevToolsBlocked, recheck: recheckDevTools } = useMobileDevToolsGuard();
+  const isLocked = isSubmitting || rateLimitSeconds > 0 || isDevToolsBlocked;
 
   return (
     <main id="main-content" className="auth-page" aria-label="Portal Kendali NOC FiberOps">
+      <MobileDevToolsGuard isBlocked={isDevToolsBlocked} onRecheck={recheckDevTools} />
       <h1 className="sr-only">Masuk ke Portal Kendali NOC FiberOps</h1>
-      <article className="auth-card">
+      <article className="auth-card" aria-hidden={isDevToolsBlocked || undefined}>
         <header className="auth-header">
           <div className="auth-brand-bar">
             <Image

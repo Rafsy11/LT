@@ -44,34 +44,36 @@ export function TicketFilters({
             className="tickets-search"
           />
 
-          <div className="select-wrapper">
-            <select
-              value={cluster}
-              onChange={(e) => setCluster(e.target.value)}
-              aria-label="Filter Wilayah Cluster"
-              className="cluster-select"
-            >
-              <option value="Semua cluster">Semua cluster</option>
-              {clusters.map((item) => (
-                <option key={item.id} value={item.name}>
-                  {item.name} ({item.clusterCode})
-                </option>
-              ))}
-            </select>
-          </div>
+          <div className="tickets-select-row">
+            <div className="select-wrapper">
+              <select
+                value={cluster}
+                onChange={(e) => setCluster(e.target.value)}
+                aria-label="Filter Wilayah Cluster"
+                className="cluster-select"
+              >
+                <option value="Semua cluster">Semua cluster</option>
+                {clusters.map((item) => (
+                  <option key={item.id} value={item.name}>
+                    {item.name} ({item.clusterCode})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="select-wrapper">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              aria-label="Filter Tipe Pekerjaan"
-              className="cluster-select"
-            >
-              <option value="Semua tipe">Semua tipe pekerjaan</option>
-              <option value="Pasang baru">Pasang baru (PSB)</option>
-              <option value="Maintenance">Maintenance</option>
-              <option value="Perbaikan">Perbaikan redaman</option>
-            </select>
+            <div className="select-wrapper">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                aria-label="Filter Tipe Pekerjaan"
+                className="cluster-select"
+              >
+                <option value="Semua tipe">Semua tipe pekerjaan</option>
+                <option value="Pasang baru">Pasang baru (PSB)</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Perbaikan">Perbaikan redaman</option>
+              </select>
+            </div>
           </div>
         </div>
       </section>

@@ -418,27 +418,185 @@ html.dark .customer-status-select,
   word-break: break-word;
 }
 
+/* Desktop vs Mobile Customer Table Switching */
+.desktop-customer-table {
+  display: block;
+}
+
+.mobile-customer-cards {
+  display: none;
+}
+
 @media (max-width: 767px) {
   .customers-page {
+    padding: 14px 14px 96px 14px !important;
     max-width: 100vw !important;
     min-width: 0 !important;
     overflow-x: clip !important;
   }
 
+  /* 2x2 Bento Grid for Customer Stats */
+  .customers-stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .customers-stats-grid .stat-card {
+    padding: 12px 10px 10px 10px !important;
+    border-radius: 12px !important;
+    background: #0b1329 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  .customers-stats-grid .stat-card-icon-round {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    border-radius: 8px !important;
+  }
+
+  .customers-stats-grid .stat-card-label {
+    font-size: 11px !important;
+    color: #94a3b8 !important;
+  }
+
+  .customers-stats-grid .stat-card-value {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+    margin-top: 2px !important;
+  }
+
+  .customers-stats-grid .stat-card-footer {
+    display: none !important;
+  }
+
+  /* Horizontal Swipeable Tabs (Anti-Wrap) */
   .customer-cluster-tab-bar,
   .customer-status-segmented-tabs {
-    flex-wrap: wrap !important;
-    white-space: normal !important;
-    overflow-x: visible !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    white-space: nowrap !important;
     width: 100% !important;
     max-width: 100% !important;
-    gap: 4px !important;
+    gap: 6px !important;
+    padding: 2px 2px 6px 2px !important;
+  }
+
+  .customer-cluster-tab-bar::-webkit-scrollbar,
+  .customer-status-segmented-tabs::-webkit-scrollbar {
+    display: none !important;
   }
 
   .customer-cluster-tab-btn,
   .customer-status-tab-btn {
-    padding: 5px 8px !important;
+    flex-shrink: 0 !important;
+    min-height: 38px !important;
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    white-space: nowrap !important;
+  }
+
+  /* Table Hide & Mobile Cards Display */
+  .desktop-customer-table {
+    display: none !important;
+  }
+
+  .mobile-customer-cards {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .mobile-customer-card {
+    padding: 12px 14px !important;
+    border-radius: 14px !important;
+    background: #0b1329 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+    transition: transform 150ms ease, border-color 150ms ease !important;
+  }
+
+  .mobile-customer-card:active {
+    transform: scale(0.985) !important;
+    border-color: rgba(0, 102, 255, 0.4) !important;
+  }
+
+  .mobile-customer-top {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .mobile-customer-name {
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    color: #f1f5f9 !important;
+    margin: 0 0 2px 0 !important;
+    line-height: 1.3 !important;
+  }
+
+  .mobile-customer-spec-strip {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 6px 10px !important;
+    border-radius: 8px !important;
+    background: #060b18 !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
     font-size: 11px !important;
-    white-space: nowrap;
+    color: #94a3b8 !important;
+  }
+
+  .mobile-customer-cluster {
+    color: #38bdf8 !important;
+    font-weight: 600 !important;
+  }
+
+  .mobile-customer-sep {
+    color: rgba(255, 255, 255, 0.2) !important;
+  }
+
+  .mobile-customer-bottom {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 11.5px !important;
+    color: #64748b !important;
+    padding-top: 4px !important;
+  }
+
+  .mobile-customer-address {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    max-width: 75% !important;
+  }
+
+  .mobile-customer-arrow {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    color: #38bdf8 !important;
   }
 }

@@ -26,6 +26,7 @@ export function CustomersView() {
     setStatusTab,
     customers,
     loading,
+    loadError,
     fetchCustomers,
     selectedCustomer,
     setSelectedCustomer,
@@ -139,6 +140,20 @@ export function CustomersView() {
           customers={displayedCustomers}
           onSelectCustomer={setSelectedCustomer}
           loading={loading}
+          loadError={loadError}
+          onRetry={() => void fetchCustomers(true)}
+          hasActiveFilters={
+            Boolean(search.trim()) ||
+            cluster !== 'Semua cluster' ||
+            statusTab !== 'all' ||
+            activeWilayahCount > 0
+          }
+          onResetFilters={() => {
+            setSearch('');
+            setCluster('Semua cluster');
+            setStatusTab('all');
+            resetWilayahFilters();
+          }}
         />
       </section>
 

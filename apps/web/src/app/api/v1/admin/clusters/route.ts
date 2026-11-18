@@ -83,7 +83,6 @@ export async function POST(request: NextRequest) {
       error,
       'NETWORK_CREATE_ERROR',
       'Gagal menambahkan master data jaringan',
-      400,
     );
   }
 }
@@ -115,7 +114,6 @@ export async function PATCH(request: NextRequest) {
       error,
       'NETWORK_UPDATE_ERROR',
       'Gagal memperbarui data ODP splitter',
-      400,
     );
   }
 }

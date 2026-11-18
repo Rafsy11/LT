@@ -74,7 +74,7 @@ export function OpmCameraModalView({
   latitude,
   longitude,
   attenuationDbm,
-  themeMode = 'light',
+  themeMode = 'dark',
 }: OpmCameraModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -169,6 +169,23 @@ export function OpmCameraModalView({
         fontFamily: theme.typography.fontFamily.sans,
       }}
     >
+      <style>{`
+        .fiberops-action-btn:active {
+          transform: scale(0.98);
+        }
+        .fiberops-action-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .fiberops-action-btn:focus-visible {
+          outline: 2px solid #0284C7;
+          outline-offset: 2px;
+        }
+        button, .fiberops-action-btn {
+          white-space: nowrap;
+        }
+      `}</style>
+
       <div
         style={{
           width: '100%',
@@ -195,6 +212,7 @@ export function OpmCameraModalView({
           </h3>
           <button
             type="button"
+            className="fiberops-action-btn"
             onClick={onClose}
             style={{
               minHeight: '44px',
@@ -220,12 +238,12 @@ export function OpmCameraModalView({
         {/* Live Watermark Viewfinder Preview */}
         <div
           style={{
-            background: '#0B0F19',
+            background: theme.surfaceInset,
             border: `1px solid ${theme.border}`,
             borderRadius: '6px',
             padding: '14px',
             marginBottom: '14px',
-            color: '#F8FAFC',
+            color: theme.textPrimary,
             fontFamily: theme.typography.fontFamily.mono,
             fontSize: '11px',
             lineHeight: 1.6,
@@ -235,7 +253,7 @@ export function OpmCameraModalView({
             style={{
               fontSize: '10px',
               fontWeight: 700,
-              color: '#38BDF8',
+              color: theme.accentCyan,
               marginBottom: '6px',
               letterSpacing: '0.04em',
             }}
@@ -253,10 +271,10 @@ export function OpmCameraModalView({
           <div
             style={{
               padding: '10px 12px',
-              background: '#FEF2F2',
-              border: '1px solid #FECACA',
+              background: 'rgba(185, 28, 28, 0.15)',
+              border: '1px solid rgba(185, 28, 28, 0.35)',
               borderRadius: '6px',
-              color: '#DC2626',
+              color: theme.statusCritical,
               fontSize: '12px',
               marginBottom: '12px',
             }}
@@ -277,6 +295,7 @@ export function OpmCameraModalView({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <button
             type="button"
+            className="fiberops-action-btn"
             disabled={isProcessing}
             onClick={() => fileInputRef.current?.click()}
             style={{
@@ -292,11 +311,12 @@ export function OpmCameraModalView({
               cursor: isProcessing ? 'not-allowed' : 'pointer',
             }}
           >
-            {isProcessing ? 'Memproses Kompresi (<300KB)...' : 'Ambil Foto Kamera Belakang'}
+            {isProcessing ? 'Memproses Kompresi (<300KB)…' : 'Ambil Foto Kamera Belakang'}
           </button>
 
           <button
             type="button"
+            className="fiberops-action-btn"
             disabled={isProcessing}
             onClick={handleSimulatedFieldCapture}
             style={{

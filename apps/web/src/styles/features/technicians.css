@@ -565,23 +565,186 @@ html.dark .technicians-empty-state,
 
 @media (max-width: 767px) {
   .technicians-page {
+    padding: 14px 14px 96px 14px !important;
     max-width: 100vw !important;
     min-width: 0 !important;
     overflow-x: clip !important;
   }
 
-  .technician-status-tabs {
-    flex-wrap: wrap !important;
-    white-space: normal !important;
-    overflow-x: visible !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    gap: 4px !important;
+  /* 2x2 Bento Grid for Technician Stats */
+  .technicians-stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
   }
 
+  .technicians-stats-grid .stat-card {
+    padding: 12px 10px 10px 10px !important;
+    border-radius: 12px !important;
+    background: #0b1329 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  .technicians-stats-grid .stat-card-icon-round {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    border-radius: 8px !important;
+  }
+
+  .technicians-stats-grid .stat-card-label {
+    font-size: 11px !important;
+    color: #94a3b8 !important;
+  }
+
+  .technicians-stats-grid .stat-card-value {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+    margin-top: 2px !important;
+  }
+
+  .technicians-stats-grid .stat-card-footer {
+    display: none !important;
+  }
+
+  /* Filter Toolbar on Mobile */
   .technician-sub-toolbar {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    width: 100% !important;
+    margin-bottom: 14px !important;
+  }
+
+  .customer-search-box {
+    width: 100% !important;
     max-width: 100% !important;
-    min-width: 0 !important;
-    flex-wrap: wrap !important;
+  }
+
+  .technician-filter-controls {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .technician-cluster-select {
+    width: 100% !important;
+    min-height: 42px !important;
+    font-size: 12.5px !important;
+    padding: 8px 12px !important;
+    border-radius: 8px !important;
+    background: #0b1329 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #f1f5f9 !important;
+  }
+
+  /* Horizontal Swipeable Status Tabs (Anti-Wrap) */
+  .technician-status-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    white-space: nowrap !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 6px !important;
+    padding: 2px 2px 6px 2px !important;
+    background: transparent !important;
+    border: none !important;
+  }
+
+  .technician-status-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .technician-tab-btn {
+    flex-shrink: 0 !important;
+    min-height: 38px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    background: #0b1329 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: #94a3b8 !important;
+    white-space: nowrap !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  .technician-tab-btn:active {
+    transform: scale(0.97) !important;
+  }
+
+  .technician-tab-btn.is-active {
+    background: rgba(0, 102, 255, 0.18) !important;
+    border-color: #0066ff !important;
+    color: #38bdf8 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 8px rgba(0, 102, 255, 0.25) !important;
+  }
+
+  /* Technician Cards Grid & Mobile Card Layout */
+  .technicians-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .technician-card {
+    padding: 12px 14px !important;
+    border-radius: 14px !important;
+    background: #0b1329 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  .tech-card-name {
+    font-size: 13.5px !important;
+  }
+
+  .tech-spec-strip {
+    padding: 8px 10px !important;
+    border-radius: 8px !important;
+    background: #060b18 !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    font-size: 11px !important;
+  }
+
+  .tech-card-footer {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding-top: 8px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .tech-detail-btn {
+    flex: 1 !important;
+    min-height: 40px !important;
+    border-radius: 8px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    background: #111e3f !important;
+    border: 1px solid rgba(56, 189, 248, 0.25) !important;
+    color: #38bdf8 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .tech-logout-btn,
+  .tech-lock-btn {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 }

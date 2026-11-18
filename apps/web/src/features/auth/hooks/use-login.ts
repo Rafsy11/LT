@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { ERROR_CODES, UserTypeEnum } from '@repo/shared';
+import {
+  ERROR_CODES,
+  STANDARD_ERROR_MESSAGES,
+  sanitizeUiErrorMessage,
+  UserTypeEnum,
+} from '@repo/shared';
 import { useAuth, useToast } from '@/providers';
 
 export type OtpDeliveryStatus = 'IDLE' | 'SENT';
@@ -183,11 +188,21 @@ export function useLogin() {
 
         if (res.status === 429) {
           const retryAfter = json?.error?.retryAfter || 60;
+          const cooldownCode = json?.error?.code || ERROR_CODES.OTP_COOLDOWN_ACTIVE;
+          const msgCheck =
+            typeof json?.error?.message === 'string'
+              ? sanitizeUiErrorMessage(new Error(json.error.message))
+              : null;
+          const safeMessage =
+            msgCheck && msgCheck.message !== STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR
+              ? msgCheck.message
+              : sanitizeUiErrorMessage({
+                  code: cooldownCode,
+                  message: `Harap tunggu ${retryAfter} detik sebelum meminta OTP baru.`,
+                }).message;
           setResendCooldownSeconds(retryAfter);
-          setErrorCode(json?.error?.code || ERROR_CODES.OTP_COOLDOWN_ACTIVE);
-          setErrorMessage(
-            json?.error?.message || `Harap tunggu ${retryAfter} detik sebelum meminta OTP baru.`,
-          );
+          setErrorCode(cooldownCode);
+          setErrorMessage(safeMessage);
           return preAuthToken;
         }
 
@@ -205,6 +220,36 @@ export function useLogin() {
           );
           return data.preAuthToken as string;
         }
+
+        if (res.status === 503 || json?.error?.code === ERROR_CODES.SERVICE_UNAVAILABLE) {
+          setErrorCode(ERROR_CODES.SERVICE_UNAVAILABLE);
+          setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
+          return null;
+        }
+
+        if (res.status >= 500) {
+          setErrorCode(ERROR_CODES.INTERNAL_ERROR);
+          setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
+          return null;
+        }
+
+        const resendCode = json?.error?.code || ERROR_CODES.OTP_EXPIRED;
+        const safeResendErr = sanitizeUiErrorMessage({
+          code: resendCode,
+          message: json?.error?.message,
+        });
+        if (
+          resendCode === ERROR_CODES.OTP_EXPIRED ||
+          resendCode === ERROR_CODES.OTP_MAX_ATTEMPTS
+        ) {
+          setPreAuthToken(null);
+          setOtpCodeState('');
+          setDeliveryStatus('IDLE');
+          setOtpExpiresSeconds(0);
+        }
+        setErrorCode(resendCode);
+        setErrorMessage(safeResendErr.message);
+        return null;
       }
 
       const res = await fetch('/api/v1/auth/login', {
@@ -236,36 +281,40 @@ export function useLogin() {
       }
 
       if (res.status === 401) {
-        setErrorCode(ERROR_CODES.UNAUTHORIZED);
-        setErrorMessage(
-          'Kredensial tidak valid. Periksa kembali kombinasi username dan kata sandi Anda.',
-        );
+        setErrorCode(ERROR_CODES.INVALID_CREDENTIALS);
+        setErrorMessage(STANDARD_ERROR_MESSAGES.INVALID_CREDENTIALS);
         return null;
       }
 
       if (res.status === 403) {
+        const safeErr = sanitizeUiErrorMessage({
+          code: json?.error?.code || ERROR_CODES.FORBIDDEN,
+          message: json?.error?.message,
+        });
         setErrorCode(json?.error?.code || ERROR_CODES.FORBIDDEN);
-        setErrorMessage(
-          json?.error?.message ||
-            'Akses ditolak: Akun dinonaktifkan atau tidak memiliki izin akses Web NOC.',
-        );
+        setErrorMessage(safeErr.message);
         return null;
       }
 
       if (res.status === 503 || json?.error?.code === ERROR_CODES.SERVICE_UNAVAILABLE) {
         setErrorCode(ERROR_CODES.SERVICE_UNAVAILABLE);
-        setErrorMessage(
-          json?.error?.message ||
-            'Koneksi database PostgreSQL atau layanan autentikasi sedang tidak tersedia (HTTP 503).',
-        );
+        setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
         return null;
       }
 
       if (!res.ok || !json?.success) {
-        setErrorCode(json?.error?.code || ERROR_CODES.VALIDATION_ERROR);
-        setErrorMessage(
-          json?.error?.message || 'Gagal memverifikasi kredensial untuk pengiriman OTP.',
-        );
+        const isServerError = res.status >= 500;
+        const resolvedCode = isServerError
+          ? ERROR_CODES.INTERNAL_ERROR
+          : json?.error?.code || ERROR_CODES.VALIDATION_ERROR;
+        const safeErr = sanitizeUiErrorMessage({
+          code: resolvedCode,
+          message: isServerError
+            ? undefined
+            : json?.error?.message || STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
+        });
+        setErrorCode(resolvedCode);
+        setErrorMessage(safeErr.message);
         return null;
       }
 
@@ -285,9 +334,7 @@ export function useLogin() {
       return authData.preAuthToken as string;
     } catch {
       setErrorCode(ERROR_CODES.INTERNAL_ERROR);
-      setErrorMessage(
-        'Tidak dapat terhubung ke server autentikasi On-Premise. Periksa koneksi jaringan lokal.',
-      );
+      setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
       return null;
     } finally {
       setIsRequestingOtp(false);
@@ -347,20 +394,39 @@ export function useLogin() {
 
         if (res.status === 429) {
           const fallbackSeconds = json?.error?.retryAfter || 60;
+          const msgCheck =
+            typeof json?.error?.message === 'string'
+              ? sanitizeUiErrorMessage(new Error(json.error.message))
+              : null;
+          const safeMessage =
+            msgCheck && msgCheck.message !== STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR
+              ? msgCheck.message
+              : sanitizeUiErrorMessage({
+                  code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
+                  message: 'Terlalu banyak percobaan verifikasi OTP. Akses dikunci sementara.',
+                }).message;
           setRateLimitSeconds(fallbackSeconds);
           setErrorCode(ERROR_CODES.RATE_LIMIT_EXCEEDED);
-          setErrorMessage(
-            json?.error?.message ||
-              'Terlalu banyak percobaan verifikasi OTP. Akses dikunci sementara.',
-          );
+          setErrorMessage(safeMessage);
           setIsSubmitting(false);
           return;
         }
 
         if (!res.ok || !json?.success) {
-          const code = json?.error?.code || ERROR_CODES.OTP_INVALID;
-          const message =
-            json?.error?.message || 'Kode OTP tidak sesuai atau telah kedaluwarsa.';
+          const isUnavailable =
+            res.status === 503 || json?.error?.code === ERROR_CODES.SERVICE_UNAVAILABLE;
+          const isServerError = res.status >= 500;
+          const code = isUnavailable
+            ? ERROR_CODES.SERVICE_UNAVAILABLE
+            : isServerError
+              ? ERROR_CODES.INTERNAL_ERROR
+              : json?.error?.code || ERROR_CODES.OTP_INVALID;
+          const safeErr = sanitizeUiErrorMessage({
+            code,
+            message: isServerError
+              ? undefined
+              : json?.error?.message || 'Kode OTP tidak sesuai atau telah kedaluwarsa.',
+          });
 
           if (code === ERROR_CODES.OTP_MAX_ATTEMPTS || code === ERROR_CODES.OTP_EXPIRED) {
             setPreAuthToken(null);
@@ -370,7 +436,7 @@ export function useLogin() {
           }
 
           setErrorCode(code);
-          setErrorMessage(message);
+          setErrorMessage(safeErr.message);
           setIsSubmitting(false);
           return;
         }
@@ -378,7 +444,7 @@ export function useLogin() {
         completeWebSession(json.data);
       } catch {
         setErrorCode(ERROR_CODES.INTERNAL_ERROR);
-        setErrorMessage('Gagal menghubungi server untuk verifikasi OTP.');
+        setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
         setIsSubmitting(false);
       }
     },

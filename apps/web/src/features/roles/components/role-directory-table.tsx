@@ -4,6 +4,7 @@ import React from 'react';
 import type { ClusterOptionItem } from '@repo/shared';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { SearchInput } from '@/components/ui/search-input';
 import { RoleApiItem, UserAccessItem } from '../hooks/use-roles';
 
@@ -60,6 +61,17 @@ export function RoleDirectoryTable({
   onEditUserRole,
   onOpenTelegramGuide,
 }: RoleDirectoryTableProps) {
+  const hasActiveFilters =
+    Boolean(searchQuery.trim()) ||
+    roleFilter !== 'Semua Peran' ||
+    clusterFilter !== 'Semua Wilayah';
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setRoleFilter('Semua Peran');
+    setClusterFilter('Semua Wilayah');
+  };
+
   return (
     <section aria-label="Direktori Pengguna & Hak Akses">
       {/* Search & Filter Toolbar */}
@@ -113,7 +125,7 @@ export function RoleDirectoryTable({
         </select>
       </header>
 
-      <div className="table-scroll" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }} tabIndex={0} role="region" aria-label="Tabel Direktori Pengguna">
+      <div className="table-scroll desktop-role-table" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }} tabIndex={0} role="region" aria-label="Tabel Direktori Pengguna">
         <table
           className="lintasarta-table"
           style={{
@@ -144,12 +156,24 @@ export function RoleDirectoryTable({
           <tbody>
             {filteredUsers.length === 0 ? (
               <tr>
-                <td
-                  colSpan={6}
-                  className="ui-text-muted"
-                  style={{ padding: '40px 16px', textAlign: 'center' }}
-                >
-                  Tidak ada pengguna yang sesuai dengan filter pencarian ini.
+                <td colSpan={6} style={{ padding: '16px' }}>
+                  <EmptyState
+                    icon="users"
+                    title={
+                      hasActiveFilters
+                        ? 'Tidak ada pengguna yang sesuai filter'
+                        : 'Belum ada pengguna terdaftar'
+                    }
+                    description={
+                      hasActiveFilters
+                        ? 'Tidak ditemukan akun dengan nama, peran, atau cakupan wilayah yang Anda pilih.'
+                        : 'Belum ada operator atau staf terdaftar pada direktori akses.'
+                    }
+                    actionLabel={hasActiveFilters ? 'Reset Filter Direktori' : undefined}
+                    actionIcon="refresh"
+                    onAction={hasActiveFilters ? handleResetFilters : undefined}
+                    size="compact"
+                  />
                 </td>
               </tr>
             ) : (
@@ -330,6 +354,130 @@ export function RoleDirectoryTable({
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Role Cards View (<768px) */}
+      <div className="mobile-role-cards" aria-label="Daftar Kartu Pengguna">
+        {filteredUsers.length === 0 ? (
+          <EmptyState
+            icon="users"
+            title={
+              hasActiveFilters
+                ? 'Tidak ada pengguna yang sesuai filter'
+                : 'Belum ada pengguna terdaftar'
+            }
+            description={
+              hasActiveFilters
+                ? 'Tidak ditemukan akun dengan nama, peran, atau cakupan wilayah yang Anda pilih.'
+                : 'Belum ada operator atau staf terdaftar pada direktori akses.'
+            }
+            actionLabel={hasActiveFilters ? 'Reset Filter Direktori' : undefined}
+            actionIcon="refresh"
+            onAction={hasActiveFilters ? handleResetFilters : undefined}
+          />
+        ) : (
+          filteredUsers.map((u) => {
+            const isCurrentUser = currentUsername === u.username;
+
+            return (
+              <article key={u.id} className="mobile-role-card">
+                {/* Top Row: User Avatar, Name, and Status Switch */}
+                <div className="mobile-role-top">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                    <DefaultAvatar size={34} name={u.name} />
+                    <div style={{ minWidth: 0 }}>
+                      <div className="mobile-role-name-row">
+                        <h3 className="mobile-role-user-name">{u.name}</h3>
+                        {isCurrentUser && <span className="role-self-badge">Anda</span>}
+                      </div>
+                      <div className="mobile-role-subtext">
+                        <span>@{u.username}</span>
+                        {u.nik && <span>· NIK {u.nik}</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={u.isActive}
+                      disabled={isCurrentUser || actionInProgress === u.id}
+                      onClick={() => onToggleUserStatus(u)}
+                      className={`ui-switch-track ${u.isActive ? 'is-on' : ''}`}
+                      style={{
+                        position: 'relative',
+                        width: '38px',
+                        height: '20px',
+                        borderRadius: '10px',
+                        border: 'none',
+                        cursor: isCurrentUser || actionInProgress === u.id ? 'not-allowed' : 'pointer',
+                        padding: 0,
+                        opacity: isCurrentUser ? 0.4 : 1,
+                      }}
+                      title={isCurrentUser ? 'Akun Anda' : u.isActive ? 'Nonaktifkan akun' : 'Aktifkan akun'}
+                    >
+                      <span
+                        className="ui-switch-thumb"
+                        style={{
+                          position: 'absolute',
+                          top: '2px',
+                          left: u.isActive ? '20px' : '2px',
+                          width: '16px',
+                          height: '16px',
+                          borderRadius: '50%',
+                        }}
+                      />
+                    </button>
+                    <span className={`role-status-text ${u.isActive ? 'active' : 'inactive'}`} style={{ fontSize: '11px' }}>
+                      {u.isActive ? 'Aktif' : 'Nonaktif'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Role & Cluster Tag Strip */}
+                <div className="mobile-role-spec-strip">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="role-name-clean">{u.role}</span>
+                    <span className="mobile-role-sep">·</span>
+                    <span className="role-cluster-text">{u.cluster}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => onOpenTelegramGuide(u)}
+                    className={`telegram-status-badge ${u.telegramChatId ? 'connected' : 'pending'}`}
+                    style={{ cursor: 'pointer', fontSize: '10.5px', padding: '2px 6px' }}
+                  >
+                    <Icon name={u.telegramChatId ? 'check' : 'clock'} size={11} />
+                    <span>{u.telegramChatId ? '2FA Aktif' : 'Belum 2FA'}</span>
+                  </button>
+                </div>
+
+                {/* Card Action Buttons */}
+                <div className="mobile-role-actions">
+                  <button
+                    type="button"
+                    onClick={() => onEditUserRole(u)}
+                    className="button mobile-role-edit-btn"
+                  >
+                    <Icon name="pencil" size={13} />
+                    <span>Ubah Peran</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenTelegramGuide(u)}
+                    className="button mobile-role-bot-btn"
+                    title="Panduan Telegram"
+                  >
+                    <Icon name="bot" size={14} />
+                    <span>Bot 2FA</span>
+                  </button>
+                </div>
+              </article>
+            );
+          })
+        )}
       </div>
 
       {/* Quick Context Footer */}

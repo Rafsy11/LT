@@ -3,7 +3,7 @@ services:
     image: nginx:alpine
     container_name: fiberops-nginx
     ports:
-      - "${WEB_HTTP_PORT:-8080}:80"
+      - "${WEB_HTTP_PORT:-3000}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -125,8 +125,9 @@ services:
         max-file: "3"
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: fiberops-minio
+    user: root
     command: server /data --console-address ":9001"
     environment:
       - MINIO_ROOT_USER=fiberops_minio_admin

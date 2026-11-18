@@ -4,6 +4,8 @@ const icons: Record<string, string> = {
   grid: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
   columns: 'M4 4h6v16H4z M14 4h6v16h-6z',
   activity: 'M3 12h4l3-8 4 16 3-8h4',
+  trendingUp: 'M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6',
+  arrowRight: 'M5 12h14 M12 5l7 7-7 7',
   network: 'M12 3v6 M5 14v-5h14v5 M2 14h6v6H2z M9 2h6v5H9z M16 14h6v6h-6z',
   users:
     'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M17 4a4 4 0 0 1 0 8 M22 21v-2a4 4 0 0 0-3-3.9',

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { classifyDbm, type CustomerListItem } from '@repo/shared';
+import { classifyDbm, type CustomerListItem, STANDARD_ERROR_MESSAGES } from '@repo/shared';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
 import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
 import { useToast } from '@/providers';
@@ -22,6 +22,7 @@ export function useCustomers() {
   const [loading, setLoading] = useState<boolean>(
     () => !getCachedData<CustomerListItem[]>(CUSTOMERS_CACHE_KEY),
   );
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem | null>(null);
 
   // Filter Spesifikasi Wilayah: Kecamatan, Kelurahan, Jalan
@@ -32,6 +33,7 @@ export function useCustomers() {
 
   const fetchCustomers = useCallback(async (force = false) => {
     try {
+      setLoadError(null);
       if (!getCachedData<CustomerListItem[]>(CUSTOMERS_CACHE_KEY)) {
         setLoading(true);
       }
@@ -56,6 +58,9 @@ export function useCustomers() {
       );
       setCustomers(data);
     } catch (err) {
+      setLoadError(
+        err instanceof Error ? err.message : STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
+      );
       showError(err);
     } finally {
       setLoading(false);
@@ -236,6 +241,7 @@ export function useCustomers() {
     setStatusTab,
     customers,
     loading,
+    loadError,
     fetchCustomers,
     selectedCustomer,
     setSelectedCustomer,

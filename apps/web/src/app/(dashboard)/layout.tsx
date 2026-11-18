@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { DbTicket } from '@repo/shared';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header, type HeaderNotificationItem } from '@/components/layout/Header';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { ConnectionBanner } from '@/components/ui/connection-banner';
 import { AiChatWidget } from '@/features/ai';
 import { notifyApiResponseError } from '@/lib/api-error';
@@ -365,13 +366,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
         <ConnectionBanner />
         {children}
-        <footer>
+        <footer className={`app-footer ${pathname.startsWith('/ai') ? 'hide-on-mobile' : ''}`}>
           <span>
             &copy; 2026 FiberOps Lintasarta. Hak cipta dilindungi. Single Source of Truth FTTH.
           </span>
           <span className="footer-version">Versi 1.0.0 (On-Premise)</span>
         </footer>
       </div>
+      <MobileBottomNav />
       <AiChatWidget />
     </div>
   );

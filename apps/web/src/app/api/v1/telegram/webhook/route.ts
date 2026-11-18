@@ -6,6 +6,8 @@ import { redisManager } from '@/server/lib/redis';
 import { minioManager } from '@/server/lib/minio';
 import { downloadTelegramFileBuffer, sendTelegramHtmlMessage } from '@/server/lib/telegram';
 import { normalizeTechUsernameAlias } from '@/server/lib/tech-auth';
+import { ServiceUnavailableError } from '@/server/lib/live-data';
+import { sanitizeUiErrorMessage, STANDARD_ERROR_MESSAGES } from '@repo/shared';
 
 interface TelegramPhotoSize {
   file_id: string;
@@ -414,8 +416,12 @@ export async function POST(request: NextRequest) {
           },
         );
       } catch (err) {
-        const errMsg = err instanceof Error ? err.message : 'Gagal memulai eksekusi.';
-        await sendTelegramHtmlMessage(chatId, `⚠️ ${escapeHtml(errMsg)}`);
+        console.error('[Telegram Webhook /mulai Error]:', err);
+        const safeMsg =
+          err instanceof ServiceUnavailableError
+            ? STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR
+            : sanitizeUiErrorMessage(err).message;
+        await sendTelegramHtmlMessage(chatId, `⚠️ ${escapeHtml(safeMsg)}`);
         return NextResponse.json({ ok: true, action: 'mulai_error' });
       }
 

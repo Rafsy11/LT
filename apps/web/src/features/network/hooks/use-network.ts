@@ -10,6 +10,7 @@ import type {
   OdpHistoryEntry,
   NetworkAuditResult,
 } from '@repo/shared';
+import { STANDARD_ERROR_MESSAGES } from '@repo/shared';
 import { useToast, useAuth } from '@/providers';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
 import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
@@ -67,6 +68,7 @@ export function useNetwork() {
   const [loading, setLoading] = useState<boolean>(
     () => !getCachedData<ClusterListItem[]>(CLUSTERS_CACHE_KEY),
   );
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedPort, setSelectedPort] = useState<SelectedPortContext | null>(null);
   const [portFilter, setPortFilter] = useState<'ALL' | 'OCCUPIED' | 'AVAILABLE'>('ALL');
   const [activeTab, setActiveTab] = useState<'ports' | 'inspeksi' | 'riwayat' | 'audit'>('ports');
@@ -92,6 +94,7 @@ export function useNetwork() {
   const fetchClusters = useCallback(
     async (force = false) => {
       try {
+        setLoadError(null);
         if (!getCachedData<ClusterListItem[]>(CLUSTERS_CACHE_KEY)) {
           setLoading(true);
         }
@@ -116,6 +119,9 @@ export function useNetwork() {
         );
         setNetworkData(data);
       } catch (err) {
+        setLoadError(
+          err instanceof Error ? err.message : STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
+        );
         showError(err);
       } finally {
         setLoading(false);
@@ -510,6 +516,7 @@ export function useNetwork() {
     toggleClusterExpand,
     networkData,
     loading,
+    loadError,
     selectedPort,
     handlePortClick,
     portFilter,

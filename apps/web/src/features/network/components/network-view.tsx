@@ -1,9 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PERMISSIONS } from '@repo/shared';
+import {
+  PERMISSIONS,
+  STANDARD_ERROR_MESSAGES,
+  STANDARD_ACTION_LABELS,
+  STANDARD_EMPTY_STATES,
+} from '@repo/shared';
 import { useAuth } from '@/providers';
 import { Icon } from '@/components/ui/Icon';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SafeErrorState } from '@/components/ui/SafeErrorState';
 import { NetworkConsoleSkeleton } from '@/components/ui/PageSkeleton';
 import { CustomerDetailModal } from '@/features/customers';
 import { CreateTicketModal } from '@/features/tickets/components/create-ticket-modal';
@@ -31,6 +38,7 @@ export function NetworkView() {
     expandedClusters,
     toggleClusterExpand,
     loading,
+    loadError,
     portFilter,
     setPortFilter,
     activeTab,
@@ -131,15 +139,32 @@ export function NetworkView() {
       {/* Main Content Area: Master-Detail Console View OR Balanced 2x2 Grid View */}
       {loading ? (
         <NetworkConsoleSkeleton />
+      ) : loadError && filteredClusters.length === 0 ? (
+        <SafeErrorState
+          error={loadError}
+          title="Gagal Memuat Data Jaringan"
+          description={STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED}
+          onRetry={() => void fetchClusters(true)}
+          retryLabel={STANDARD_ACTION_LABELS.RELOAD_DATA}
+          variant="panel"
+        />
       ) : filteredClusters.length === 0 ? (
-        <div className="empty-state-card">
-          <p style={{ fontWeight: 600, color: 'inherit' }}>
-            Tidak ada splitter yang cocok dengan filter pencarian.
-          </p>
-          <p style={{ fontSize: '12px', color: 'inherit', opacity: 0.75, marginTop: '4px' }}>
-            Coba ubah kata kunci atau reset filter cluster.
-          </p>
-        </div>
+        <EmptyState
+          icon={search.trim() ? 'search' : 'network'}
+          title={
+            search.trim()
+              ? STANDARD_EMPTY_STATES.NETWORK.FILTER_TITLE
+              : STANDARD_EMPTY_STATES.NETWORK.EMPTY_TITLE
+          }
+          description={
+            search.trim()
+              ? STANDARD_EMPTY_STATES.NETWORK.FILTER_DESC
+              : STANDARD_EMPTY_STATES.NETWORK.EMPTY_DESC
+          }
+          actionLabel={search.trim() ? STANDARD_ACTION_LABELS.RESET_FILTER : undefined}
+          actionIcon="refresh"
+          onAction={search.trim() ? () => setSearch('') : undefined}
+        />
       ) : (
         <div className="network-main-grid">
           {/* Left Panel: Struktur Wilayah (Clean Tree, No Emojis, No Progress Percentages) */}

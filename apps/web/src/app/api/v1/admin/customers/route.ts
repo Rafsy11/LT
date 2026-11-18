@@ -82,7 +82,6 @@ export async function POST(request: NextRequest) {
       error,
       'CUSTOMER_CREATE_ERROR',
       'Gagal mendaftarkan pelanggan baru',
-      400,
     );
   }
 }
@@ -138,7 +137,6 @@ export async function PATCH(request: NextRequest) {
       error,
       'CUSTOMER_UPDATE_ERROR',
       'Gagal memperbarui data pelanggan',
-      400,
     );
   }
 }

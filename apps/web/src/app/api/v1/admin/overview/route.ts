@@ -7,7 +7,7 @@ import {
   matchesAssignedClusters,
   handleAdminRouteError,
 } from '@/server/lib/admin-auth';
-import { ERROR_CODES, PERMISSIONS } from '@repo/shared';
+import { ERROR_CODES, PERMISSIONS, STANDARD_ERROR_MESSAGES } from '@repo/shared';
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
   } catch (error: unknown) {
     return handleAdminRouteError(
       error,
-      'OVERVIEW_FETCH_ERROR',
       ERROR_CODES.INTERNAL_ERROR,
+      STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
     );
   }
 }

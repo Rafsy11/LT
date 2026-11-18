@@ -21,6 +21,7 @@ import {
   RefreshTokenPayload,
   UserSessionContext,
   ERROR_CODES,
+  STANDARD_ERROR_MESSAGES,
   OTP_CONFIG,
   UserTypeEnum,
 } from '@repo/shared';
@@ -32,6 +33,8 @@ const WEB_SESSION_TOKEN_EXPIRY = '8h'; // Web NOC dashboard session
 const PRE_AUTH_TOKEN_EXPIRY = '5m'; // 2FA OTP challenge token
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const BCRYPT_SALT_ROUNDS = 10;
+// Pre-computed valid cost-10 bcrypt hash for constant-time dummy compare (anti-timing side-channel)
+const DUMMY_BCRYPT_HASH = '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
 export interface FallbackAccount {
   id: string;
@@ -384,6 +387,9 @@ export class AuthService {
       if (err instanceof ServiceUnavailableError) {
         throw err;
       }
+      if (err instanceof Error && err.message === ERROR_CODES.SESSION_REVOKED) {
+        throw err;
+      }
       throw new Error(ERROR_CODES.UNAUTHORIZED);
     }
   }
@@ -448,6 +454,9 @@ export class AuthService {
         }
       } catch (err) {
         rethrowIfStrictDatabaseError(err, 'Gagal menghubungi database PostgreSQL.');
+        if (isStrictLiveMode()) {
+          throw err;
+        }
       }
       if (isStrictLiveMode()) {
         return dbUser;
@@ -473,6 +482,9 @@ export class AuthService {
         }
       } catch (err) {
         rethrowIfStrictDatabaseError(err, 'Gagal menghubungi database PostgreSQL.');
+        if (isStrictLiveMode()) {
+          throw err;
+        }
       }
       if (isStrictLiveMode()) {
         return null;
@@ -513,6 +525,9 @@ export class AuthService {
         }
       } catch (err) {
         rethrowIfStrictDatabaseError(err, 'Gagal menghubungi database PostgreSQL.');
+        if (isStrictLiveMode()) {
+          throw err;
+        }
       }
       if (isStrictLiveMode()) {
         return null;
@@ -645,44 +660,32 @@ export class AuthService {
    */
   public static async loginWeb(username: string, plainPassword: string, clientIp?: string) {
     const user = await this.resolveAccountByUsername(username);
-
-    if (!user) {
-      const authErr = new Error('Kombinasi username atau kata sandi tidak valid.');
-      (authErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.UNAUTHORIZED;
-      (authErr as Error & { code?: string; statusCode?: number }).statusCode = 401;
-      throw authErr;
-    }
-
-    const match = user.passwordHash
-      ? await this.comparePassword(plainPassword, user.passwordHash).catch(() => false)
-      : false;
+    const hasHash = Boolean(user?.passwordHash);
+    const candidateHash = user?.passwordHash || DUMMY_BCRYPT_HASH;
+    const match = await this.comparePassword(plainPassword, candidateHash).catch(() => false);
     const allowMockPassword = !isStrictLiveMode() && process.env.NODE_ENV === 'test';
     const isSeedDefaultPassword =
-      allowMockPassword && (plainPassword === 'password123' || plainPassword === 'admin123');
-    const isValid = match || isSeedDefaultPassword;
+      Boolean(user) &&
+      allowMockPassword &&
+      (plainPassword === 'password123' || plainPassword === 'admin123');
+    const isValid = Boolean(user) && ((hasHash && match) || isSeedDefaultPassword);
 
-    if (!isValid) {
-      const authErr = new Error('Kombinasi username atau kata sandi tidak valid.');
-      (authErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.UNAUTHORIZED;
-      (authErr as Error & { code?: string; statusCode?: number }).statusCode = 401;
+    if (!user || !isValid || !user.isActive) {
+      const authErr = new Error(STANDARD_ERROR_MESSAGES.INVALID_CREDENTIALS) as Error & {
+        code?: string;
+        statusCode?: number;
+      };
+      authErr.code = ERROR_CODES.INVALID_CREDENTIALS;
+      authErr.statusCode = 401;
       throw authErr;
-    }
-
-    if (!user.isActive) {
-      const forbiddenErr = new Error(
-        'Akun Anda telah dinonaktifkan oleh Administrator. Hubungi tim NOC.',
-      );
-      (forbiddenErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
-      (forbiddenErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
-      throw forbiddenErr;
     }
 
     if (user.userType === 'TECHNICIAN') {
       const forbiddenErr = new Error(
         'Akun Teknisi Lapangan hanya dapat diakses melalui Aplikasi Mobile FiberOps atau Bot Telegram.',
-      );
-      (forbiddenErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
-      (forbiddenErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+      ) as Error & { code?: string; statusCode?: number };
+      forbiddenErr.code = ERROR_CODES.FORBIDDEN;
+      forbiddenErr.statusCode = 403;
       throw forbiddenErr;
     }
 
@@ -924,21 +927,28 @@ export class AuthService {
     }
 
     try {
+      const normalizedUsername = username.trim().toLowerCase();
       const user = await prisma.user.findUnique({
-        where: { username },
+        where: { username: normalizedUsername },
         include: { role: true },
       });
 
-      if (!user || !user.isActive) {
-        throw new Error('Akun teknisi dinonaktifkan atau tidak ditemukan');
-      }
-
-      const match = await this.comparePassword(plainPassword, user.passwordHash).catch(() => false);
+      const hasHash = Boolean(user?.passwordHash);
+      const candidateHash = user?.passwordHash || DUMMY_BCRYPT_HASH;
+      const match = await this.comparePassword(plainPassword, candidateHash).catch(() => false);
       const isValid =
-        match || (!isStrictLiveMode() && process.env.NODE_ENV === 'test' && plainPassword === 'password123');
+        Boolean(user) &&
+        ((hasHash && match) ||
+          (!isStrictLiveMode() && process.env.NODE_ENV === 'test' && plainPassword === 'password123'));
 
-      if (!isValid) {
-        throw new Error('Kredensial tidak valid');
+      if (!user || !isValid || !user.isActive) {
+        const authErr = new Error(STANDARD_ERROR_MESSAGES.INVALID_CREDENTIALS) as Error & {
+          code?: string;
+          statusCode?: number;
+        };
+        authErr.code = ERROR_CODES.INVALID_CREDENTIALS;
+        authErr.statusCode = 401;
+        throw authErr;
       }
 
       // Revoke previous sessions on the same device
@@ -1001,7 +1011,10 @@ export class AuthService {
         },
       };
     } catch (err) {
-      markDatabaseUnavailable(err);
+      rethrowIfStrictDatabaseError(
+        err,
+        'Database PostgreSQL tidak tersedia untuk autentikasi perangkat mobile',
+      );
       throw err;
     }
   }
@@ -1112,7 +1125,10 @@ export class AuthService {
           data: { refreshTokenHash: newRefreshHash },
         });
       } catch (dbErr) {
-        markDatabaseUnavailable(dbErr);
+        rethrowIfStrictDatabaseError(
+          dbErr,
+          'Koneksi database PostgreSQL terputus saat refresh sesi.',
+        );
         throw dbErr;
       }
 
@@ -1125,7 +1141,10 @@ export class AuthService {
         throw err;
       }
       const errMsg = (err as Error).message || '';
-      if (errMsg.includes(ERROR_CODES.TOKEN_REUSE_DETECTED)) {
+      if (
+        errMsg.includes(ERROR_CODES.TOKEN_REUSE_DETECTED) ||
+        errMsg.includes(ERROR_CODES.SESSION_REVOKED)
+      ) {
         throw err;
       }
       throw new Error(ERROR_CODES.UNAUTHORIZED);

@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuth, useTheme } from '@/providers';
 import { PERMISSIONS } from '@repo/shared';
 
@@ -279,10 +280,14 @@ export function Header({
                   })}
                 </div>
               ) : (
-                <>
-                  <p className="notification-empty">Belum ada notifikasi insiden baru.</p>
-                  <small>Peringatan eskalasi telemetri dan tiket aktif akan tampil di sini.</small>
-                </>
+                <div style={{ padding: '8px 0' }}>
+                  <EmptyState
+                    icon="bell"
+                    title="Belum ada notifikasi insiden baru"
+                    description="Peringatan eskalasi telemetri dan tiket aktif akan tampil di sini."
+                    size="compact"
+                  />
+                </div>
               )}
             </aside>
           )}

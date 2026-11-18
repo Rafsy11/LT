@@ -8,6 +8,7 @@ import {
 } from '@repo/shared';
 import { AuthService } from '../services/auth.service';
 import { RoleService } from '../services/role.service';
+import { sanitizeAndLogServerError } from './api-error-sanitizer';
 import { ServiceUnavailableError, isStrictLiveMode } from './live-data';
 
 export class AuthHttpError extends Error {
@@ -250,74 +251,12 @@ export function handleAdminRouteError(
   error: unknown,
   defaultCode: string,
   defaultMessage: string,
-  overrideStatus?: number,
+  _overrideStatus?: number,
 ): NextResponse {
-  if (error instanceof ServiceUnavailableError) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: { code: error.code, message: error.message },
-      },
-      { status: 503 },
-    );
-  }
-
-  if (error instanceof AuthHttpError) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: { code: error.code, message: error.message },
-      },
-      { status: error.status },
-    );
-  }
-
-  const errObj = error as {
-    name?: string;
-    code?: string;
-    statusCode?: number;
-    message?: string;
-    errors?: Array<{ message: string }>;
-  };
-
-  if (errObj?.name === 'ZodError') {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: errObj.errors?.[0]?.message || 'Validasi input gagal',
-          details: errObj.errors,
-        },
-      },
-      { status: 400 },
-    );
-  }
-
-  const msg = errObj?.message || defaultMessage;
-  let status = errObj?.statusCode ?? overrideStatus ?? 500;
-  let code = errObj?.code || defaultCode;
-
-  if (msg.includes(ERROR_CODES.FORBIDDEN)) {
-    status = 403;
-    code = ERROR_CODES.FORBIDDEN;
-  } else if (msg.includes(ERROR_CODES.HIERARCHY_VIOLATION)) {
-    status = 403;
-    code = ERROR_CODES.HIERARCHY_VIOLATION;
-  } else if (msg.includes(ERROR_CODES.PORT_OCCUPIED)) {
-    status = 409;
-    code = ERROR_CODES.PORT_OCCUPIED;
-  } else if (msg.includes(ERROR_CODES.UNAUTHORIZED) || msg.includes(ERROR_CODES.SESSION_REVOKED)) {
-    status = 401;
-    code = ERROR_CODES.UNAUTHORIZED;
-  }
-
-  return NextResponse.json(
-    {
-      success: false,
-      error: { code, message: msg },
-    },
-    { status },
-  );
+  return sanitizeAndLogServerError(error, {
+    context: 'ADMIN_API',
+    defaultCode,
+    defaultMessage,
+  });
 }
 

@@ -20,6 +20,7 @@ export function TechniciansView() {
     setActiveTab,
     technicians,
     loading,
+    loadError,
     processingUser,
     selectedTech,
     setSelectedTech,
@@ -48,7 +49,7 @@ export function TechniciansView() {
   }
 
   return (
-    <main className="technicians-page" id="main-content" style={{ paddingBottom: '32px' }}>
+    <main className="technicians-page" id="main-content">
       {/* Page Heading & Redis Telemetry Beacon */}
       <header className="overview-header" style={{ marginBottom: '28px' }}>
         <div className="overview-header-copy">
@@ -129,6 +130,16 @@ export function TechniciansView() {
           onForceLogout={handleForceLogout}
           onToggleAccount={handleToggleAccount}
           loading={loading}
+          loadError={loadError}
+          onRetry={() => void fetchTechs(true)}
+          hasActiveFilters={
+            Boolean(search.trim()) || cluster !== 'Semua cluster' || activeTab !== 'all'
+          }
+          onResetFilters={() => {
+            setSearch('');
+            setCluster('Semua cluster');
+            setActiveTab('all');
+          }}
         />
       </section>
 

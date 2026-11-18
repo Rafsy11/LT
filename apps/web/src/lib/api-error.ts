@@ -1,4 +1,4 @@
-import { ERROR_CODES } from '@repo/shared';
+import { ERROR_CODES, STANDARD_ERROR_MESSAGES, sanitizeUiErrorMessage } from '@repo/shared';
 
 export type OutageCategory = 'database' | 'service';
 
@@ -13,6 +13,12 @@ export interface ServiceUnavailableState {
 export interface ParsedApiError {
   isServiceUnavailable: boolean;
   code: string;
+  message: string;
+}
+
+export interface SafeUiErrorDetails {
+  code: string;
+  refId: string;
   message: string;
 }
 
@@ -108,11 +114,56 @@ export function subscribeServiceUnavailable(
 }
 
 /**
- * Parses an HTTP response + JSON payload cleanly without leaking stack traces.
+ * Converts any raw error, HTTP payload, or exception into a strictly non-informative
+ * client-safe object plus an opaque reference code for internal incident tracking.
+ */
+export function formatSafeUiError(
+  rawError: unknown,
+  options: { fallbackMessage?: string; digest?: string } = {},
+): SafeUiErrorDetails {
+  const sanitized = sanitizeUiErrorMessage(rawError);
+  const rawObj =
+    typeof rawError === 'object' && rawError !== null
+      ? (rawError as { code?: unknown; errorCode?: unknown; error?: { code?: unknown } })
+      : null;
+  const rawCode = String(
+    rawObj?.code || rawObj?.errorCode || rawObj?.error?.code || '',
+  ).toUpperCase();
+  const hasExplicitServerSystemCode =
+    rawCode === ERROR_CODES.INTERNAL_ERROR || rawCode === ERROR_CODES.SERVICE_UNAVAILABLE;
+
+  // Prefer explicit caller fallback when sanitized fell back to the generic internal message
+  const genericInternal = STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR;
+  const safeFallback = options.fallbackMessage
+    ? sanitizeUiErrorMessage(options.fallbackMessage).message
+    : '';
+
+  const message =
+    safeFallback &&
+    !hasExplicitServerSystemCode &&
+    sanitized.code === ERROR_CODES.INTERNAL_ERROR &&
+    sanitized.message === genericInternal
+      ? safeFallback
+      : sanitized.message;
+
+  const cleanDigest = options.digest
+    ? options.digest.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12).toUpperCase()
+    : '';
+  const refId = cleanDigest ? `INC-${cleanDigest}` : `REF-${sanitized.code}`;
+
+  return {
+    code: sanitized.code,
+    refId,
+    message,
+  };
+}
+
+/**
+ * Parses an HTTP response + JSON payload cleanly without leaking stack traces or DB internals.
  *
  * @param status - HTTP response status code.
  * @param json - Parsed JSON envelope (if available).
- * @param fallbackMessage - Message to surface when no server error message is present.
+ * @param fallbackMessage - Message to surface when no safe server error message is present.
  */
 export function extractApiError(
   status: number,
@@ -121,17 +172,44 @@ export function extractApiError(
 ): ParsedApiError {
   const payload =
     json && typeof json === 'object' ? (json as { error?: { code?: string; message?: string } }) : null;
-  const code = payload?.error?.code || (status === 503 ? ERROR_CODES.SERVICE_UNAVAILABLE : 'HTTP_ERROR');
-  const message =
-    payload?.error?.message ||
+  const code =
+    payload?.error?.code ||
     (status === 503
-      ? 'Layanan backend atau database PostgreSQL sedang tidak tersedia.'
-      : fallbackMessage);
+      ? ERROR_CODES.SERVICE_UNAVAILABLE
+      : status >= 500
+        ? ERROR_CODES.INTERNAL_ERROR
+        : status === 401
+          ? ERROR_CODES.UNAUTHORIZED
+          : status === 409
+            ? 'CONFLICT'
+            : 'HTTP_ERROR');
+
+  if (status === 503 || code === ERROR_CODES.SERVICE_UNAVAILABLE) {
+    return {
+      isServiceUnavailable: true,
+      code: ERROR_CODES.SERVICE_UNAVAILABLE,
+      message: STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
+    };
+  }
+
+  // Always suppress raw server error messages on 5xx responses to guarantee non-informative UI
+  if (status >= 500) {
+    return {
+      isServiceUnavailable: false,
+      code: ERROR_CODES.INTERNAL_ERROR,
+      message: STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
+    };
+  }
+
+  const sanitized = sanitizeUiErrorMessage({
+    code,
+    message: payload?.error?.message || fallbackMessage,
+  });
 
   return {
-    isServiceUnavailable: status === 503 || code === ERROR_CODES.SERVICE_UNAVAILABLE,
-    code,
-    message,
+    isServiceUnavailable: false,
+    code: sanitized.code === ERROR_CODES.INTERNAL_ERROR && code !== ERROR_CODES.INTERNAL_ERROR ? code : sanitized.code,
+    message: sanitized.message,
   };
 }
 

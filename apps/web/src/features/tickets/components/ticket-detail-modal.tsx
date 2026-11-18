@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { useToast, useAuth } from '@/providers';
+import { formatSafeUiError } from '@/lib/api-error';
 import { invalidateQueryCache } from '@/lib/query-cache';
 import type { TechnicianListItem } from '@repo/shared';
 import '@/styles/components/ticket-modal.css';
@@ -233,15 +234,16 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
         error?: { message?: string };
       };
       if (!res.ok || !json.success || !json.data?.url) {
-        throw new Error(json.error?.message || 'Gagal mengambil URL foto bukti dari MinIO.');
+        throw new Error('Gagal memuat URL foto bukti dari penyimpanan media.');
       }
       setPhotoUrl(json.data.url);
       setPhotoIsMockFallback(Boolean(json.data.isMockFallback));
       setLoadedPhotoKey(objectKey);
     } catch (err: unknown) {
-      setPhotoError(
-        err instanceof Error ? err.message : 'Gagal memuat pratinjau foto OPM.',
-      );
+      const safe = formatSafeUiError(err, {
+        fallbackMessage: 'Gagal memuat pratinjau foto bukti lapangan.',
+      });
+      setPhotoError(`${safe.message} (${safe.refId})`);
     } finally {
       setPhotoLoading(false);
     }
@@ -634,10 +636,10 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                     ODP &amp; Port Splitter Diajukan
                   </span>
                   <div className="ticket-pending-value">
-                    {pendingData?.splitterCode || ticket.splitterCode || '—'} ·{' '}
+                    {pendingData?.splitterCode || ticket.splitterCode || '-'} ·{' '}
                     {pendingData?.portNumber || ticket.portNumber
                       ? `Port ${pendingData?.portNumber || ticket.portNumber}`
-                      : 'Port —'}
+                      : 'Port -'}
                   </div>
                 </div>
 

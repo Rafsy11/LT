@@ -1673,9 +1673,69 @@ html.dark .tree-chevron-icon,
 
 @media (max-width: 767px) {
   .network-page-container {
+    padding: 14px 14px 96px 14px !important;
     max-width: 100vw !important;
     min-width: 0 !important;
     overflow-x: clip !important;
+  }
+
+  /* 2x2 Bento Grid for Network Stats */
+  .network-stats-grid,
+  .network-metrics-row-3 {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .network-stats-grid .stat-card,
+  .network-metrics-row-3 .stat-card {
+    padding: 12px 10px 10px 10px !important;
+    border-radius: 12px !important;
+    background: #0b1329 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  .network-stats-grid .stat-card-value,
+  .network-metrics-row-3 .stat-card-value {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+    margin-top: 2px !important;
+  }
+
+  .network-stats-grid .stat-card-footer,
+  .network-metrics-row-3 .stat-card-footer {
+    display: none !important;
+  }
+
+  /* Header & CRUD Actions on Mobile */
+  .network-main-title {
+    font-size: 20px !important;
+  }
+
+  .network-crud-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+    gap: 8px !important;
+    padding-bottom: 4px !important;
+  }
+
+  .network-crud-actions::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .network-crud-actions .button {
+    flex-shrink: 0 !important;
+    min-height: 38px !important;
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
   }
 
   .odp-main-panel-card,
@@ -1684,20 +1744,49 @@ html.dark .tree-chevron-icon,
     min-width: 0 !important;
   }
 
+  /* Horizontal Swipeable ODP Navigation Tabs (Anti-Wrap) */
   .odp-navigation-tabs-bar {
-    flex-wrap: wrap !important;
-    white-space: normal !important;
-    overflow-x: visible !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    white-space: nowrap !important;
     width: 100% !important;
     max-width: 100% !important;
-    gap: 4px !important;
+    gap: 6px !important;
+    padding: 2px 2px 6px 2px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .odp-navigation-tabs-bar::-webkit-scrollbar {
+    display: none !important;
   }
 
   .odp-nav-tab-btn {
-    min-height: 44px !important;
+    flex-shrink: 0 !important;
+    min-height: 40px !important;
     padding: 8px 12px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+  }
+
+  /* Port Filter Nav */
+  .odp-port-filter-nav {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 6px !important;
+  }
+
+  .odp-port-filter-btn {
+    flex-shrink: 0 !important;
+    min-height: 36px !important;
+    padding: 6px 10px !important;
     font-size: 11.5px !important;
-    white-space: nowrap;
+    white-space: nowrap !important;
   }
 
   .inline-inspect-box-title {
