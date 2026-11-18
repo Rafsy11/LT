@@ -90,7 +90,6 @@ export function Header({
   }, [isThemeOpen]);
 
   const canEditRole = hasPermission(PERMISSIONS.ROLE_EDIT);
-  const isVendorSession = user.userType === 'TECHNICIAN' || pathname.startsWith('/vendor');
   const unreadCount = notifications.filter((item) => item.isUnread !== false).length;
 
   const handleRefresh = () => {
@@ -135,38 +134,34 @@ export function Header({
             <Icon name="refresh" size={17} className={isRefreshing ? 'icon-spin' : ''} />
           </button>
 
-          {!isVendorSession && (
-            <>
-              <Link
-                href="/ai"
-                className={`icon-button header-action-btn ${pathname.startsWith('/ai') ? 'active' : ''}`}
-                title="Asisten AI (On-Premise)"
-                aria-label="Asisten AI"
-              >
-                <Icon name="bot" size={18} />
-              </Link>
+          <Link
+            href="/ai"
+            className={`icon-button header-action-btn ${pathname.startsWith('/ai') ? 'active' : ''}`}
+            title="Asisten AI (On-Premise)"
+            aria-label="Asisten AI"
+          >
+            <Icon name="bot" size={18} />
+          </Link>
 
-              {canEditRole && (
-                <Link
-                  href="/roles"
-                  className={`icon-button header-action-btn ${pathname.startsWith('/roles') ? 'active' : ''}`}
-                  title="Role & Akses (RBAC)"
-                  aria-label="Role & Akses"
-                >
-                  <Icon name="user" size={19} />
-                </Link>
-              )}
-
-              <Link
-                href="/settings"
-                className={`icon-button header-action-btn ${pathname.startsWith('/settings') ? 'active' : ''}`}
-                title="Pengaturan Sistem"
-                aria-label="Pengaturan"
-              >
-                <Icon name="settings" size={19} />
-              </Link>
-            </>
+          {canEditRole && (
+            <Link
+              href="/roles"
+              className={`icon-button header-action-btn ${pathname.startsWith('/roles') ? 'active' : ''}`}
+              title="Role & Akses (RBAC)"
+              aria-label="Role & Akses"
+            >
+              <Icon name="user" size={19} />
+            </Link>
           )}
+
+          <Link
+            href="/settings"
+            className={`icon-button header-action-btn ${pathname.startsWith('/settings') ? 'active' : ''}`}
+            title="Pengaturan Sistem"
+            aria-label="Pengaturan"
+          >
+            <Icon name="settings" size={19} />
+          </Link>
 
           <div className="theme-dropdown-wrap" ref={themeWrapRef}>
             <button

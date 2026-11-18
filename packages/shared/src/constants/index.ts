@@ -178,7 +178,7 @@ export const ROLE_PRESETS: Record<string, RolePreset> = {
     hierarchyLevel: 10,
     permissions: [PERMISSIONS.TICKET_READ, PERMISSIONS.TICKET_SUBMIT],
     description:
-      'Vendor Mitra Lapangan (Web Portal /vendor, Mobile App & Bot Telegram): Menerima tugas berlokasi, check-in eksekusi, uji OPM/GPS, dan mengirim laporan terbaru ke Pusat.',
+      'Teknisi Mitra Lapangan (Aplikasi Mobile & Bot Telegram): Menerima tugas berlokasi, check-in eksekusi, uji OPM/GPS, dan mengirim laporan terbaru ke Pusat.',
   },
 };
 

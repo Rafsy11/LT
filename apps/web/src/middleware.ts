@@ -90,7 +90,6 @@ const PROTECTED_DASHBOARD_PREFIXES = [
   '/network',
   '/customers',
   '/technicians',
-  '/vendor',
   '/roles',
   '/settings',
   '/ai',
@@ -110,7 +109,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow Web Browser Vendor Portal cookies in addition to versioned Mobile Bearer JWTs
+  // Verify Mobile Bearer JWTs and check mobile app minimum semver
   if (pathname.startsWith('/api/v1/tech')) {
     const authHeader = request.headers.get('authorization');
     const cookieToken =
@@ -291,28 +290,24 @@ export async function middleware(request: NextRequest) {
     }
 
     if (isLoginRoute) {
-      if (validWebPayload) {
-        const homeTarget = validWebPayload.userType === 'TECHNICIAN' ? '/vendor' : '/';
-        return NextResponse.redirect(new URL(homeTarget, request.url));
+      if (validWebPayload && validWebPayload.userType !== 'TECHNICIAN') {
+        return NextResponse.redirect(new URL('/', request.url));
       }
       return NextResponse.next();
     }
 
     if (isDashboardPage) {
-      if (!validWebPayload) {
+      if (!validWebPayload || validWebPayload.userType === 'TECHNICIAN') {
         const loginUrl = new URL('/login', request.url);
         if (pathname !== '/') {
           loginUrl.searchParams.set('callbackUrl', pathname);
         }
-        return NextResponse.redirect(loginUrl);
-      }
-
-      if (
-        validWebPayload.userType === 'TECHNICIAN' &&
-        pathname !== '/vendor' &&
-        !pathname.startsWith('/vendor/')
-      ) {
-        return NextResponse.redirect(new URL('/vendor', request.url));
+        const response = NextResponse.redirect(loginUrl);
+        if (validWebPayload?.userType === 'TECHNICIAN') {
+          response.cookies.delete('fiberops_session');
+          response.cookies.delete('session');
+        }
+        return response;
       }
 
       const requestHeaders = buildVerifiedHeaders(request.headers, validWebPayload);
@@ -337,7 +332,6 @@ export const config = {
     '/network/:path*',
     '/customers/:path*',
     '/technicians/:path*',
-    '/vendor/:path*',
     '/roles/:path*',
     '/settings/:path*',
     '/ai/:path*',

@@ -18,7 +18,6 @@ import '@/styles/layout/shell.css';
 import '@/styles/components/primitives.css';
 
 const ADMIN_TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
-const TECH_TICKETS_CACHE_KEY = '/api/v1/tech/tickets';
 const READ_NOTIFICATIONS_STORAGE_KEY = 'fiberops_read_notifications';
 const MAX_STORED_READ_IDS = 100;
 const MAX_STREAM_ALERTS = 6;
@@ -30,8 +29,7 @@ const pageTitleMap: Record<string, string> = {
   '/tickets': 'Tiket & Tugas',
   '/network': 'Master Jaringan',
   '/customers': 'Master Pelanggan (SIA)',
-  '/technicians': 'Teknisi & Vendor',
-  '/vendor': 'Portal Kerja Vendor',
+  '/technicians': 'Teknisi Lapangan',
   '/roles': 'Role & Akses (RBAC)',
   '/settings': 'Pengaturan',
   '/ai': 'Asisten AI',
@@ -47,8 +45,7 @@ function formatNotificationTime(iso?: string): string {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const isVendorScope = pathname.startsWith('/vendor') || user.userType === 'TECHNICIAN';
-  const activeCacheKey = isVendorScope ? TECH_TICKETS_CACHE_KEY : ADMIN_TICKETS_CACHE_KEY;
+  const activeCacheKey = ADMIN_TICKETS_CACHE_KEY;
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
   const title = pageTitleMap[pathname] || 'Dasbor';
@@ -128,19 +125,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         async () => {
           const res = await fetch(activeCacheKey);
           const json = await res.json().catch(() => null);
-          if (isVendorScope) {
-            if (!res.ok || !json?.success) {
-              const parsed = notifyApiResponseError(
-                res.status,
-                json,
-                'Gagal memuat daftar tiket vendor dari PostgreSQL.',
-                { category: 'database', source: activeCacheKey },
-              );
-              throw new Error(parsed.message);
-            }
-            const list = Array.isArray(json?.data?.tickets) ? (json.data.tickets as DbTicket[]) : [];
-            return list;
-          }
           if (!res.ok || !json?.success || !Array.isArray(json.data)) {
             const parsed = notifyApiResponseError(
               res.status,
@@ -165,11 +149,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     if (
       pathnameRef.current !== '/' &&
-      !pathnameRef.current.startsWith('/vendor') &&
       !getCachedData<DbTicket[]>(activeCacheKey)
     ) {
-      fetchTicketCount();
-    } else if (isVendorScope && !getCachedData<DbTicket[]>(activeCacheKey)) {
       fetchTicketCount();
     }
 
@@ -178,8 +159,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (
         currentPath !== '/' &&
         currentPath !== '/tickets' &&
-        currentPath !== '/monitoring' &&
-        currentPath !== '/vendor'
+        currentPath !== '/monitoring'
       ) {
         fetchTicketCount(true);
       }
@@ -191,11 +171,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       window.removeEventListener('app:refresh-data', handleGlobalRefresh);
       unsubscribe();
     };
-  }, [activeCacheKey, isVendorScope]);
+  }, [activeCacheKey]);
 
   useEffect(() => {
     if (
-      isVendorScope ||
       user.userType === 'TECHNICIAN' ||
       !user.id ||
       typeof EventSource === 'undefined'
@@ -259,95 +238,64 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       eventSource.removeEventListener('report', handleReport);
       eventSource.close();
     };
-  }, [isVendorScope, user.id, user.userType]);
+  }, [user.id, user.userType]);
 
   const notifications = useMemo<HeaderNotificationItem[]>(() => {
     const ticketItems: HeaderNotificationItem[] = [];
 
-    if (isVendorScope) {
-      const vendorActive = cachedTickets.filter(
-        (t) =>
-          t.status === 'Menunggu' ||
-          t.status === 'Dalam proses' ||
-          t.status === 'Menunggu verifikasi',
+    const relevant = cachedTickets.filter((t) => {
+      const isCriticalDbm =
+        typeof t.currentAttenuation === 'number' &&
+        t.currentAttenuation !== 0 &&
+        t.currentAttenuation < -24;
+      return (
+        Boolean(t.isLocationFlagged) ||
+        isCriticalDbm ||
+        t.status === 'Menunggu verifikasi' ||
+        t.status === 'Menunggu'
       );
-      for (const t of vendorActive.slice(0, 6)) {
-        const title =
-          t.status === 'Menunggu'
-            ? `Tugas Baru · ${t.ticketNumber}`
-            : t.status === 'Dalam proses'
-              ? `Sedang Dikerjakan · ${t.ticketNumber}`
-              : `Menunggu Verifikasi · ${t.ticketNumber}`;
-        const severity: HeaderNotificationItem['severity'] =
-          t.status === 'Menunggu'
-            ? 'warning'
-            : t.status === 'Dalam proses'
-              ? 'info'
-              : 'success';
-        ticketItems.push({
-          id: `ticket-${t.id}-${t.status}`,
-          title,
-          message: [t.customerName, t.cluster].filter(Boolean).join(' · '),
-          timestamp: formatNotificationTime(t.dispatchedAt || t.createdAt),
-          href: '/vendor',
-          severity,
-        });
+    });
+
+    const score = (t: DbTicket): number => {
+      const isCriticalDbm =
+        typeof t.currentAttenuation === 'number' &&
+        t.currentAttenuation !== 0 &&
+        t.currentAttenuation < -24;
+      if (t.isLocationFlagged || isCriticalDbm) return 0;
+      if (t.status === 'Menunggu verifikasi') return 1;
+      return 2;
+    };
+
+    const ordered = [...relevant].sort((a, b) => score(a) - score(b));
+    for (const t of ordered.slice(0, 6)) {
+      const isCriticalDbm =
+        typeof t.currentAttenuation === 'number' &&
+        t.currentAttenuation !== 0 &&
+        t.currentAttenuation < -24;
+      let title = `Menunggu Penugasan · ${t.ticketNumber}`;
+      let severity: HeaderNotificationItem['severity'] = 'info';
+
+      if (t.isLocationFlagged) {
+        title = `Anomali Lokasi GPS · ${t.ticketNumber}`;
+        severity = 'critical';
+      } else if (isCriticalDbm) {
+        title = `Redaman Kritis (${t.currentAttenuation} dBm) · ${t.ticketNumber}`;
+        severity = 'critical';
+      } else if (t.status === 'Menunggu verifikasi') {
+        title = `Perlu Verifikasi QA · ${t.ticketNumber}`;
+        severity = 'warning';
       }
-    } else {
-      const relevant = cachedTickets.filter((t) => {
-        const isCriticalDbm =
-          typeof t.currentAttenuation === 'number' &&
-          t.currentAttenuation !== 0 &&
-          t.currentAttenuation < -24;
-        return (
-          Boolean(t.isLocationFlagged) ||
-          isCriticalDbm ||
-          t.status === 'Menunggu verifikasi' ||
-          t.status === 'Menunggu'
-        );
+
+      ticketItems.push({
+        id: `ticket-${t.id}-${t.status}-${t.isLocationFlagged ? 'flag' : 'ok'}`,
+        title,
+        message: [t.customerName, t.cluster, t.assignedTech].filter(Boolean).join(' · '),
+        timestamp: formatNotificationTime(
+          t.pendingSubmission?.submittedAt || t.dispatchedAt || t.createdAt,
+        ),
+        href: '/tickets',
+        severity,
       });
-
-      const score = (t: DbTicket): number => {
-        const isCriticalDbm =
-          typeof t.currentAttenuation === 'number' &&
-          t.currentAttenuation !== 0 &&
-          t.currentAttenuation < -24;
-        if (t.isLocationFlagged || isCriticalDbm) return 0;
-        if (t.status === 'Menunggu verifikasi') return 1;
-        return 2;
-      };
-
-      const ordered = [...relevant].sort((a, b) => score(a) - score(b));
-      for (const t of ordered.slice(0, 6)) {
-        const isCriticalDbm =
-          typeof t.currentAttenuation === 'number' &&
-          t.currentAttenuation !== 0 &&
-          t.currentAttenuation < -24;
-        let title = `Menunggu Penugasan · ${t.ticketNumber}`;
-        let severity: HeaderNotificationItem['severity'] = 'info';
-
-        if (t.isLocationFlagged) {
-          title = `Anomali Lokasi GPS · ${t.ticketNumber}`;
-          severity = 'critical';
-        } else if (isCriticalDbm) {
-          title = `Redaman Kritis (${t.currentAttenuation} dBm) · ${t.ticketNumber}`;
-          severity = 'critical';
-        } else if (t.status === 'Menunggu verifikasi') {
-          title = `Perlu Verifikasi QA · ${t.ticketNumber}`;
-          severity = 'warning';
-        }
-
-        ticketItems.push({
-          id: `ticket-${t.id}-${t.status}-${t.isLocationFlagged ? 'flag' : 'ok'}`,
-          title,
-          message: [t.customerName, t.cluster, t.assignedTech].filter(Boolean).join(' · '),
-          timestamp: formatNotificationTime(
-            t.pendingSubmission?.submittedAt || t.dispatchedAt || t.createdAt,
-          ),
-          href: '/tickets',
-          severity,
-        });
-      }
     }
 
     const merged = [...streamAlerts, ...ticketItems].slice(0, MAX_VISIBLE_NOTIFICATIONS);
@@ -355,7 +303,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       ...item,
       isUnread: !readNotificationIds.has(item.id),
     }));
-  }, [cachedTickets, isVendorScope, readNotificationIds, streamAlerts]);
+  }, [cachedTickets, readNotificationIds, streamAlerts]);
 
   const persistReadIds = useCallback((next: Set<string>) => {
     try {
@@ -424,7 +372,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span className="footer-version">Versi 1.0.0 (On-Premise)</span>
         </footer>
       </div>
-      {!isVendorScope && <AiChatWidget />}
+      <AiChatWidget />
     </div>
   );
 }

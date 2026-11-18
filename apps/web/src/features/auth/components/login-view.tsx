@@ -98,7 +98,7 @@ export function LoginView() {
                   type="text"
                   autoComplete="username"
                   required
-                  placeholder="superadmin, admin.noc, atau tech.andi"
+                  placeholder="superadmin atau admin.noc"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="auth-input"

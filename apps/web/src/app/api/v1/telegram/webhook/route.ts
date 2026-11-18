@@ -197,7 +197,7 @@ async function finalizeTelegramReport(params: {
 async function handleBoundCommandHelp(chatId: string, account: FallbackAccount) {
   const vendorLabel = account.vendorCompany ? ` (${escapeHtml(account.vendorCompany)})` : '';
   const html = [
-    `📡 <b>PORTAL TELEGRAM VENDOR LINTASARTA</b>`,
+    `📡 <b>BOT TELEGRAM OPERASIONAL LINTASARTA</b>`,
     `Halo, <b>${escapeHtml(account.fullName)}</b>${vendorLabel}.`,
     ``,
     `<b>Perintah Operasional Lapangan:</b>`,
@@ -761,7 +761,9 @@ async function handleNikRegistration(chatId: string, candidateNik: string, _send
     `• <b>Username:</b> <code>${escapeHtml(user.username)}</code>`,
     `• <b>Peran:</b> ${escapeHtml(user.role.name)}`,
     ``,
-    `Ketik /tugas untuk melihat pekerjaan aktif atau gunakan kode 2FA saat login di portal web.`,
+    user.userType === 'TECHNICIAN'
+      ? `Ketik /tugas untuk melihat daftar tugas lapangan, atau gunakan Aplikasi Mobile FiberOps.`
+      : `Gunakan akun ini untuk menerima kode OTP 2FA saat login di Dasbor NOC Lintasarta.`,
   ].join('\n');
 
   await sendTelegramHtmlMessage(chatId, successHtml);

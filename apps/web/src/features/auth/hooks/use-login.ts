@@ -137,13 +137,12 @@ export function useLogin() {
         `Verifikasi 2FA Berhasil: Selamat bertugas, ${userPayload.fullName || userPayload.username}.`,
       );
 
-      const isVendor = userPayload.userType === 'TECHNICIAN';
-      let targetUrl = isVendor ? '/vendor' : '/';
+      let targetUrl = '/';
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const callbackUrl = params.get('callbackUrl');
         if (callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')) {
-          targetUrl = isVendor && !callbackUrl.startsWith('/vendor') ? '/vendor' : callbackUrl;
+          targetUrl = callbackUrl;
         }
       }
 

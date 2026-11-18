@@ -677,7 +677,16 @@ export class AuthService {
       throw forbiddenErr;
     }
 
-    // Mandatory 2FA OTP via Telegram Bot for all Web CS & Vendor accounts (Strict Pre-Bound Chat ID)
+    if (user.userType === 'TECHNICIAN') {
+      const forbiddenErr = new Error(
+        'Akun Teknisi Lapangan hanya dapat diakses melalui Aplikasi Mobile FiberOps atau Bot Telegram.',
+      );
+      (forbiddenErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
+      (forbiddenErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+      throw forbiddenErr;
+    }
+
+    // Mandatory 2FA OTP via Telegram Bot for all Web Admin & NOC accounts (Strict Pre-Bound Chat ID)
     let resolvedChatId = resolveTelegramChatId({
       dbChatId: user.telegramChatId,
     });

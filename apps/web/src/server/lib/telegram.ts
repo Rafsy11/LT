@@ -246,7 +246,7 @@ export async function sendVendorVerificationResultTelegram(params: {
         `• <b>Pelanggan:</b> ${params.customerName}`,
         `• <b>Alasan Pusat:</b> ${params.reason || 'Data belum memenuhi standar operasional'}`,
         ``,
-        `Silakan kirim ulang laporan terbaru lewat Portal Web <code>/vendor</code>, Mobile App, atau ketik <code>/lapor ${params.ticketNumber}</code>.`,
+        `Silakan kirim ulang laporan terbaru lewat Aplikasi Mobile atau ketik <code>/lapor ${params.ticketNumber}</code>.`,
       ].join('\n');
 
   const results = await Promise.allSettled(

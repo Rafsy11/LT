@@ -5,7 +5,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
-import { useAuth } from '@/providers';
 
 interface SidebarProps {
   ticketCount?: number;
@@ -32,10 +31,8 @@ export function Sidebar({
   onToggleCollapse,
 }: SidebarProps) {
   const pathname = usePathname();
-  const { user } = useAuth();
   const asideRef = useRef<HTMLElement>(null);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const isVendorUser = user.userType === 'TECHNICIAN' || pathname.startsWith('/vendor');
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
@@ -54,27 +51,14 @@ export function Sidebar({
     (el as HTMLElement & { inert: boolean }).inert = isClosedMobile;
   }, [isClosedMobile]);
 
-  const navItems: NavItem[] = isVendorUser
-    ? [
-        {
-          label: 'Portal Kerja Vendor',
-          href: '/vendor',
-          icon: 'wrench',
-          count: ticketCount,
-          tag: 'Lapangan',
-        },
-      ]
-    : [
-        { label: 'Ringkasan', href: '/', icon: 'home' },
-        { label: 'Pantauan Langsung', href: '/monitoring', icon: 'activity', hasLiveDot: true },
-        { label: 'Tiket & Tugas', href: '/tickets', icon: 'ticket', count: ticketCount },
-        { label: 'Cluster Jaringan', href: '/network', icon: 'network' },
-        { label: 'Pelanggan (SIA)', href: '/customers', icon: 'users' },
-        { label: 'Teknisi & Vendor', href: '/technicians', icon: 'wrench' },
-        ...(user.userType === 'SUPER_ADMIN'
-          ? [{ label: 'Portal Vendor', href: '/vendor', icon: 'send', tag: 'Simulasi' }]
-          : []),
-      ];
+  const navItems: NavItem[] = [
+    { label: 'Ringkasan', href: '/', icon: 'home' },
+    { label: 'Pantauan Langsung', href: '/monitoring', icon: 'activity', hasLiveDot: true },
+    { label: 'Tiket & Tugas', href: '/tickets', icon: 'ticket', count: ticketCount },
+    { label: 'Cluster Jaringan', href: '/network', icon: 'network' },
+    { label: 'Pelanggan (SIA)', href: '/customers', icon: 'users' },
+    { label: 'Teknisi Lapangan', href: '/technicians', icon: 'wrench' },
+  ];
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/' || pathname === '';
@@ -91,7 +75,7 @@ export function Sidebar({
       >
         <div className="sidebar-header-row">
           <Link
-            href={isVendorUser ? '/vendor' : '/'}
+            href="/"
             className="brand lintasarta-brand-wrap"
             aria-label="Beranda Lintasarta"
             onClick={onClose}

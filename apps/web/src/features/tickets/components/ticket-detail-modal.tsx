@@ -502,8 +502,8 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                   Status: Menunggu Konfirmasi Vendor di Lokasi
                 </div>
                 <div className="ui-alert-banner-sub" style={{ fontSize: '11.5px', lineHeight: 1.4 }}>
-                  Penugasan beserta alamat dan titik lokasi telah dikirim ke Vendor via Portal Web,
-                  Aplikasi Mobile, dan Bot Telegram.
+                  Penugasan beserta alamat dan titik lokasi telah dikirim ke Teknisi Lapangan via
+                  Aplikasi Mobile dan Bot Telegram.
                 </div>
               </div>
             </div>
@@ -519,11 +519,11 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                     fontSize: '12.5px',
                   }}
                 >
-                  Vendor Sedang Mengeksekusi di Lokasi Pelanggan
+                  Teknisi Sedang Mengeksekusi di Lokasi Pelanggan
                 </div>
                 <div className="ui-alert-banner-sub" style={{ fontSize: '11.5px', lineHeight: 1.4 }}>
-                  Vendor dapat mengirimkan laporan terbaru beserta bukti foto OPM dan lokasi melalui
-                  Portal Web Vendor (/vendor), Mobile App, atau Bot Telegram (/lapor).
+                  Teknisi Lapangan dapat mengirimkan laporan terbaru beserta bukti foto OPM dan lokasi melalui
+                  Aplikasi Mobile atau Bot Telegram (/lapor).
                 </div>
               </div>
             </div>
