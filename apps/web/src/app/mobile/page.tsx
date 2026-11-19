@@ -13,8 +13,7 @@ export default function MobileFieldAppPage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #060B18;
-          background-image: radial-gradient(ellipse at 50% 25%, rgba(14, 165, 233, 0.08) 0%, rgba(8, 14, 26, 0.8) 60%, #060B18 100%);
+          background: #F1F5F9;
           padding: 20px 16px;
           box-sizing: border-box;
           overflow-x: clip;
@@ -26,10 +25,10 @@ export default function MobileFieldAppPage() {
           min-height: min(880px, calc(100vh - 40px));
           display: flex;
           flex-direction: column;
-          background: #080E1A;
-          border-radius: 20px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.8), 0 0 30px rgba(14, 165, 233, 0.06);
+          background: #FFFFFF;
+          border-radius: 16px;
+          border: 1px solid #CBD5E1;
+          box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.06);
           overflow-y: auto;
           overflow-x: clip;
           position: relative;
@@ -41,15 +40,14 @@ export default function MobileFieldAppPage() {
         }
 
         .mobile-shell-viewport::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.12);
+          background: #CBD5E1;
           border-radius: 4px;
         }
 
         @media (max-width: 768px) {
           .mobile-shell-root {
             padding: 0 !important;
-            background: #080E1A !important;
-            background-image: none !important;
+            background: #FFFFFF !important;
             display: block !important;
             min-height: 100vh !important;
             overflow-x: clip !important;
@@ -68,7 +66,7 @@ export default function MobileFieldAppPage() {
       `}</style>
 
       <div className="mobile-shell-viewport">
-        <App initialThemeMode="dark" />
+        <App initialThemeMode="light" />
       </div>
     </main>
   );

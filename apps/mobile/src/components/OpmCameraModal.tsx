@@ -74,7 +74,7 @@ export function OpmCameraModalView({
   latitude,
   longitude,
   attenuationDbm,
-  themeMode = 'dark',
+  themeMode = 'light',
 }: OpmCameraModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);

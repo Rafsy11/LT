@@ -64,7 +64,7 @@ export interface AppProps {
   initialThemeMode?: ThemeMode;
 }
 
-export default function App({ initialThemeMode = 'dark' }: AppProps = {}) {
+export default function App({ initialThemeMode = 'light' }: AppProps = {}) {
   const [securityState, setSecurityState] = useState<AppSecurityState>('CHECKING_INTEGRITY');
   const [integrityReport, setIntegrityReport] = useState<DeviceIntegrityReport | null>(null);
   const [upgradeLock, setUpgradeLock] = useState<UpgradeRequiredDetails | null>(null);
@@ -135,22 +135,12 @@ export default function App({ initialThemeMode = 'dark' }: AppProps = {}) {
     };
   }, [securityState, performIntegrityRecheck]);
 
-  // Automatic OS / System Color Scheme synchronization (no manual theme selector clutter)
+  // Enforce consistent light/dark themeMode as designated by initialThemeMode
   useEffect(() => {
-    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      setThemeMode(mediaQuery.matches ? 'dark' : 'light');
-
-      const listener = (e: MediaQueryListEvent) => {
-        setThemeMode(e.matches ? 'dark' : 'light');
-      };
-      if (typeof mediaQuery.addEventListener === 'function') {
-        mediaQuery.addEventListener('change', listener);
-        return () => mediaQuery.removeEventListener('change', listener);
-      }
+    if (initialThemeMode) {
+      setThemeMode(initialThemeMode);
     }
-    return undefined;
-  }, []);
+  }, [initialThemeMode]);
 
   // Initialize singleton mobile API client with security interceptors
   const apiClient = useMemo(() => {

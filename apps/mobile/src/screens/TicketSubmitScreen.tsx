@@ -39,7 +39,7 @@ export type CameraState = 'IDLE' | 'CAPTURING' | 'COMPRESSING_AND_WATERMARKING' 
 export type SubmitLifecycleState = 'IDLE' | 'SUBMITTING' | 'QUEUED_OFFLINE' | 'COMPLETED';
 
 /**
- * Generates an immutable UUID v4 for ticket submission idempotency (Law 3).
+ * Generates an immutable UUID v4 for ticket submission idempotency.
  */
 function generateUuidV4(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -321,7 +321,7 @@ export function TicketSubmitScreen({
               lng: ticket.customer.lng,
             },
             currentOdpSplitter:
-              ticket.customer.splitterCode || defaultSplitter?.splitterCode || 'ODP-PLB-001',
+              ticket.customer.splitterCode || defaultSplitter?.splitterCode || 'ODP-PLB-034',
             currentPortNumber: ticket.customer.portNumber || 1,
             last5AttenuationHistory,
           }
@@ -369,13 +369,67 @@ export function TicketSubmitScreen({
   };
 }
 
+function ArrowLeftIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12" />
+      <polyline points="12 19 5 12 12 5" />
+    </svg>
+  );
+}
+
+function MapPinIcon({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function PhoneIcon({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+  );
+}
+
+function CameraIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
+
+function CompassIcon({ size = 15, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+    </svg>
+  );
+}
+
 /**
- * Interactive Field Validation & OPM Submission View.
- * Provides 5-step guided flow for Palembang ODP selection, port matrix, dBm classification, and camera watermark proof.
+ * Redesigned Industrial Field Validation & OPM Submission View.
+ * Clean, high contrast, zero AI slop, reliable single-handed field operation.
  */
 export function TicketSubmitView(props: TicketSubmitScreenProps) {
   const { state, actions } = TicketSubmitScreen(props);
-  const theme = getThemeTokens(props.themeMode || 'dark');
+  const theme = getThemeTokens(props.themeMode || 'light');
+  const isDark = props.themeMode === 'dark';
 
   const maxPorts = state.selectedSplitter?.maxPorts || 8;
   const portsArray = Array.from({ length: maxPorts }, (_, i) => i + 1);
@@ -391,6 +445,17 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
   const parsedAttenuation = parseFloat(state.attenuationInput);
   const telemetry = formatOpticalTelemetryDbm(isNaN(parsedAttenuation) ? -18.5 : parsedAttenuation);
 
+  const assignedOdpCode =
+    props.ticket.customer.splitterCode ||
+    state.selectedSplitter?.splitterCode ||
+    'ODP-PLB-034';
+  const clusterRaw =
+    state.selectedSplitter?.clusterName ||
+    props.ticket.customer.clusterName ||
+    'H. R. Agam';
+  const cleanCluster = clusterRaw.replace(/^Palembang\s+/i, '');
+  const assignedOdpDisplay = `${assignedOdpCode} - ${cleanCluster}`;
+
   return (
     <div
       style={{
@@ -400,39 +465,38 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
         boxSizing: 'border-box',
         padding: '16px 16px 36px',
         color: theme.textPrimary,
-        background: theme.bg,
+        background: isDark ? '#080E1A' : '#F8FAFC',
         fontFamily: theme.typography.fontFamily.sans,
         overflowX: 'clip',
       }}
     >
       <style>{`
         .fiberops-input:focus-visible {
-          outline: 2px solid #0284c7;
+          outline: 2px solid #1B5CA2;
           outline-offset: 1px;
         }
         .fiberops-action-btn:active {
           transform: scale(0.98);
         }
         .fiberops-action-btn:disabled {
-          opacity: 0.6;
+          opacity: 0.55;
           cursor: not-allowed;
         }
         .fiberops-action-btn:focus-visible {
-          outline: 2px solid #0284c7;
+          outline: 2px solid #1B5CA2;
           outline-offset: 2px;
-        }
-        button, .fiberops-action-btn {
-          white-space: nowrap;
         }
       `}</style>
 
-      {/* Top Navigation & Ticket Identity */}
-      <div
+      {/* Top Navigation & Ticket Number Bar */}
+      <header
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '10px',
+          gap: '12px',
+          paddingBottom: '14px',
+          borderBottom: `1px solid ${theme.border}`,
           marginBottom: '14px',
         }}
       >
@@ -440,13 +504,15 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
           type="button"
           className="fiberops-action-btn"
           onClick={actions.cancel}
+          aria-label="Kembali ke daftar tiket"
           style={{
-            minHeight: '44px',
-            padding: '8px 16px',
-            background: theme.surfaceElevated,
+            height: '38px',
+            minHeight: '38px',
+            padding: '0 12px',
+            background: isDark ? '#10192D' : '#FFFFFF',
             color: theme.textPrimary,
             border: `1px solid ${theme.border}`,
-            borderRadius: `${theme.radii.button}px`,
+            borderRadius: '6px',
             fontSize: '12px',
             fontWeight: 600,
             cursor: 'pointer',
@@ -455,92 +521,121 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
             gap: '6px',
           }}
         >
-          <span>← Kembali</span>
+          <ArrowLeftIcon size={14} color="currentColor" />
+          <span>Kembali</span>
         </button>
 
         <div style={{ textAlign: 'right' }}>
           <div
             style={{
               fontFamily: theme.typography.fontFamily.mono,
-              fontSize: '14px',
+              fontSize: '13px',
               fontWeight: 800,
               color: theme.textPrimary,
               letterSpacing: '0.02em',
             }}
           >
-            NO. {state.ticket.ticketNumber}
+            #{state.ticket.ticketNumber}
           </div>
-          <div style={{ fontSize: '11px', color: theme.textSecondary, marginTop: '2px' }}>
-            Tipe: <span style={{ color: state.ticketType === 'MAINTENANCE' ? theme.statusWarning : theme.statusNew, fontWeight: 700 }}>{state.ticketType}</span> | Status: <span style={{ color: theme.accentCyan, fontWeight: 600 }}>{state.ticket.status}</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', marginTop: '2px' }}>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 700,
+                padding: '1px 6px',
+                borderRadius: '3px',
+                color: '#FFFFFF',
+                background: state.ticketType === 'MAINTENANCE' ? '#D97706' : '#1B5CA2',
+              }}
+            >
+              {state.ticketType === 'MAINTENANCE' ? 'GANGGUAN' : 'PASANG BARU'}
+            </span>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Error Alert Banner */}
       {state.errorMessage && (
         <div
           role="alert"
           style={{
-            padding: '12px 14px',
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
-            borderRadius: `${theme.radii.input}px`,
-            color: theme.statusCritical,
+            padding: '10px 14px',
+            background: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+            border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.35)' : '#FECACA'}`,
+            borderRadius: '6px',
+            color: isDark ? '#FCA5A5' : '#B91C1C',
             fontSize: '12px',
-            marginBottom: '14px',
-            lineHeight: 1.5,
+            marginBottom: '12px',
+            lineHeight: 1.45,
           }}
         >
           {state.errorMessage}
         </div>
       )}
 
-      {/* NOC Rejection Reason Alert */}
+      {/* NOC Rejection Notice if applicable */}
       {state.dispatchLocation.rejectionReason && (
         <div
           style={{
-            padding: '12px 14px',
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
-            borderRadius: `${theme.radii.input}px`,
-            color: theme.statusCritical,
+            padding: '10px 14px',
+            background: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+            border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.35)' : '#FECACA'}`,
+            borderRadius: '6px',
+            color: isDark ? '#FCA5A5' : '#B91C1C',
             fontSize: '12px',
-            marginBottom: '14px',
-            lineHeight: 1.5,
+            marginBottom: '12px',
+            lineHeight: 1.45,
           }}
         >
           <strong>Catatan Revisi NOC:</strong> {state.dispatchLocation.rejectionReason}
         </div>
       )}
 
-      {/* Customer & Dispatch Summary Card */}
-      <div
+      {/* Customer & Ticket Overview Card */}
+      <section
         style={{
-          background: theme.surface,
+          background: isDark ? '#10192D' : '#FFFFFF',
           border: `1px solid ${theme.border}`,
-          borderRadius: `${theme.radii.card}px`,
-          padding: '16px',
-          marginBottom: '14px',
+          borderRadius: '8px',
+          padding: '14px',
+          marginBottom: '12px',
         }}
       >
-        <div style={{ fontSize: '16px', fontWeight: 800, color: theme.textPrimary, letterSpacing: '-0.01em' }}>
+        <div
+          style={{
+            fontSize: '16px',
+            fontWeight: 800,
+            color: theme.textPrimary,
+            letterSpacing: '-0.01em',
+            marginBottom: '4px',
+          }}
+        >
           {state.ticket.customer.fullName}
         </div>
+
         <div
           style={{
             fontSize: '12px',
-            color: theme.textSecondary,
             fontFamily: theme.typography.fontFamily.mono,
-            marginTop: '3px',
+            color: theme.textSecondary,
+            marginBottom: '6px',
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '6px',
           }}
         >
-          SIA: <span style={{ color: theme.textPrimary, fontWeight: 600 }}>{state.ticket.customer.siaNumber}</span> | Cluster: {state.ticket.customer.clusterName}
+          <span>SIA: <strong style={{ color: theme.textPrimary }}>{state.ticket.customer.siaNumber}</strong></span>
+          <span style={{ color: theme.border }}>•</span>
+          <span>Cluster: <strong style={{ color: theme.textPrimary }}>{state.ticket.customer.clusterName}</strong></span>
         </div>
-        <div style={{ fontSize: '12px', color: theme.textSecondary, marginTop: '6px', lineHeight: 1.5 }}>
+
+        <div style={{ fontSize: '12px', color: theme.textSecondary, lineHeight: 1.45, marginBottom: '10px' }}>
           {state.dispatchLocation.serviceAddress}
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+        {/* Action Row: Map navigation & Customer Phone */}
+        <div style={{ display: 'flex', gap: '8px' }}>
           <a
             href={mapsUrl}
             target="_blank"
@@ -548,23 +643,25 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
             className="fiberops-action-btn"
             style={{
               flex: 1,
-              minHeight: '44px',
-              padding: '8px 12px',
-              background: theme.surfaceSecondary,
+              height: '38px',
+              minHeight: '38px',
+              padding: '0 12px',
+              background: isDark ? '#1E293B' : '#E2E8F0',
               color: theme.textPrimary,
               border: `1px solid ${theme.border}`,
-              borderRadius: `${theme.radii.button}px`,
+              borderRadius: '6px',
               fontSize: '12px',
               fontWeight: 600,
               textDecoration: 'none',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: '6px',
               boxSizing: 'border-box',
-              textAlign: 'center',
             }}
           >
-            Navigasi ke ODP ({targetLat.toFixed(4)}, {targetLng.toFixed(4)})
+            <MapPinIcon size={13} color="currentColor" />
+            <span>Rute Peta ODP</span>
           </a>
 
           {state.dispatchLocation.customerPhone && (
@@ -572,26 +669,30 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
               href={`tel:${state.dispatchLocation.customerPhone}`}
               className="fiberops-action-btn"
               style={{
-                minHeight: '44px',
-                padding: '8px 14px',
-                background: theme.surfaceSecondary,
+                height: '38px',
+                minHeight: '38px',
+                padding: '0 14px',
+                background: isDark ? '#1E293B' : '#E2E8F0',
                 color: theme.textPrimary,
                 border: `1px solid ${theme.border}`,
-                borderRadius: `${theme.radii.button}px`,
+                borderRadius: '6px',
                 fontSize: '12px',
                 fontWeight: 600,
                 textDecoration: 'none',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                gap: '6px',
                 boxSizing: 'border-box',
               }}
             >
-              Hubungi ({state.dispatchLocation.customerPhone})
+              <PhoneIcon size={13} color="currentColor" />
+              <span>Telepon</span>
             </a>
           )}
         </div>
 
+        {/* Check-In Action when status is OPEN */}
         {state.ticket.status === 'OPEN' && (
           <button
             type="button"
@@ -599,162 +700,35 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
             onClick={() => void actions.startExecution()}
             style={{
               width: '100%',
-              minHeight: '44px',
+              height: '42px',
+              minHeight: '42px',
               marginTop: '10px',
-              padding: '10px 14px',
-              background: theme.primary,
-              color: theme.primaryText,
+              padding: '0 14px',
+              background: '#1B5CA2',
+              color: '#FFFFFF',
               border: 'none',
-              borderRadius: `${theme.radii.button}px`,
-              fontSize: '12px',
+              borderRadius: '6px',
+              fontSize: '13px',
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 2px 10px rgba(2, 132, 199, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            Check-In Mulai Eksekusi Lapangan (Ubah ke IN_PROGRESS)
+            Check-In Mulai Kerja (IN_PROGRESS)
           </button>
         )}
-      </div>
+      </section>
 
-      {/* Maintenance Read-Only Panel */}
-      {state.isMaintenance && state.maintenanceReadOnly && (
-        <div
-          style={{
-            background: theme.surface,
-            border: `1px solid ${theme.border}`,
-            borderRadius: `${theme.radii.card}px`,
-            padding: '14px 16px',
-            marginBottom: '14px',
-          }}
-        >
-          <div style={{ fontSize: '12px', fontWeight: 700, color: theme.statusWarning, marginBottom: '6px' }}>
-            Data Eksisting Pelanggan (Maintenance)
-          </div>
-          <div style={{ fontSize: '12px', color: theme.textSecondary }}>
-            ODP Terdaftar: <strong style={{ color: theme.textPrimary }}>{state.maintenanceReadOnly.currentOdpSplitter}</strong> | Port:{' '}
-            <strong style={{ color: theme.textPrimary }}>{state.maintenanceReadOnly.currentPortNumber}</strong>
-          </div>
-          {state.maintenanceReadOnly.last5AttenuationHistory.length > 0 && (
-            <div style={{ marginTop: '10px' }}>
-              <div style={{ fontSize: '11px', color: theme.textSecondary, marginBottom: '6px' }}>
-                Riwayat 5 Pengukuran Redaman Terakhir:
-              </div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {state.maintenanceReadOnly.last5AttenuationHistory.map((val, idx) => (
-                  <span
-                    key={idx}
-                    style={{
-                      padding: '4px 8px',
-                      background: theme.bg,
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: `${theme.radii.badge}px`,
-                      fontFamily: theme.typography.fontFamily.mono,
-                      fontSize: '11px',
-                      color: theme.textPrimary,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {val} dBm
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Step 1: GPS & Geofence Verification */}
-      <div
+      {/* 1. Alokasi ODP Palembang & Port Splitter */}
+      <section
         style={{
-          background: theme.surface,
+          background: isDark ? '#10192D' : '#FFFFFF',
           border: `1px solid ${theme.border}`,
-          borderRadius: `${theme.radii.card}px`,
-          padding: '16px',
-          marginBottom: '14px',
-        }}
-      >
-        <div style={{ fontSize: '13px', fontWeight: 700, color: theme.textPrimary, marginBottom: '6px' }}>
-          1. Verifikasi Lokasi GPS & Geofence (Maks {state.maxGeofenceMeters}m)
-        </div>
-        <div style={{ fontSize: '12px', color: theme.textSecondary, marginBottom: '10px' }}>
-          Status GPS:{' '}
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '2px 8px',
-              borderRadius: `${theme.radii.badge}px`,
-              fontWeight: 700,
-              fontSize: '11px',
-              background:
-                state.gpsState === 'VERIFIED_IN_RANGE'
-                  ? 'rgba(16, 185, 129, 0.15)'
-                  : state.gpsState === 'MOCK_DETECTED'
-                    ? 'rgba(239, 68, 68, 0.15)'
-                    : state.gpsState === 'FLAGGED_OUT_OF_RANGE'
-                      ? 'rgba(245, 158, 11, 0.15)'
-                      : theme.badgeBg,
-              color:
-                state.gpsState === 'VERIFIED_IN_RANGE'
-                  ? theme.statusOptimal
-                  : state.gpsState === 'MOCK_DETECTED'
-                    ? theme.statusCritical
-                    : state.gpsState === 'FLAGGED_OUT_OF_RANGE'
-                      ? theme.statusWarning
-                      : theme.textSecondary,
-              border: `1px solid ${
-                state.gpsState === 'VERIFIED_IN_RANGE'
-                  ? 'rgba(16, 185, 129, 0.3)'
-                  : state.gpsState === 'MOCK_DETECTED'
-                    ? 'rgba(239, 68, 68, 0.35)'
-                    : state.gpsState === 'FLAGGED_OUT_OF_RANGE'
-                      ? 'rgba(245, 158, 11, 0.3)'
-                      : theme.border
-              }`,
-            }}
-          >
-            {state.gpsState === 'VERIFIED_IN_RANGE' ? 'VALID (DALAM JANGKAUAN)' : state.gpsState}
-          </span>
-          {state.locationResult?.distanceToSplitterMeters !== undefined && (
-            <span style={{ marginLeft: '6px', fontFamily: theme.typography.fontFamily.mono }}>
-              | Jarak ODP: {state.locationResult.distanceToSplitterMeters}m
-            </span>
-          )}
-        </div>
-
-        <button
-          type="button"
-          className="fiberops-action-btn"
-          onClick={() => void actions.verifyLocation()}
-          disabled={state.gpsState === 'ACQUIRING'}
-          style={{
-            width: '100%',
-            minHeight: '44px',
-            padding: '10px 14px',
-            background: theme.surfaceSecondary,
-            color: theme.textPrimary,
-            border: `1px solid ${theme.border}`,
-            borderRadius: `${theme.radii.button}px`,
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: state.gpsState === 'ACQUIRING' ? 'not-allowed' : 'pointer',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          {state.gpsState === 'ACQUIRING' ? 'Membaca Satelit GPS…' : 'Ambil & Verifikasi Koordinat GPS'}
-        </button>
-      </div>
-
-      {/* Step 2: 90 Palembang ODP Selector & Port Matrix */}
-      <div
-        style={{
-          background: theme.surface,
-          border: `1px solid ${theme.border}`,
-          borderRadius: `${theme.radii.card}px`,
-          padding: '16px',
-          marginBottom: '14px',
+          borderRadius: '8px',
+          padding: '14px',
+          marginBottom: '12px',
         }}
       >
         <label
@@ -763,83 +737,64 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
             fontSize: '13px',
             fontWeight: 700,
             color: theme.textPrimary,
-            marginBottom: '6px',
-          }}
-        >
-          2. Pilih Titik ODP Palembang ({state.splitters.length} Titik) & Port
-        </label>
-        <select
-          value={state.selectedSplitterId}
-          onChange={(e) => actions.setSelectedSplitterId(e.target.value)}
-          className="fiberops-input"
-          style={{
-            width: '100%',
-            minHeight: '44px',
-            padding: '10px 12px',
-            background: theme.bg,
-            color: theme.textPrimary,
-            border: `1px solid ${theme.border}`,
-            borderRadius: `${theme.radii.input}px`,
-            fontSize: '12px',
-            fontWeight: 600,
             marginBottom: '8px',
-            outline: 'none',
           }}
         >
-          {state.splitters.map((odp) => (
-            <option key={odp.id} value={odp.id}>
-              {odp.splitterCode} [Sisa {odp.availablePorts.length}/{odp.maxPorts} Port] - {odp.clusterName.replace(/^Palembang\s+/i, '')}
-            </option>
-          ))}
-        </select>
+          1. Titik ODP & Alokasi Port
+        </label>
 
-        {state.selectedSplitter && (
-          <div
-            style={{
-              padding: '8px 12px',
-              background: theme.bg,
-              border: `1px solid ${theme.border}`,
-              borderRadius: `${theme.radii.input}px`,
-              fontSize: '11px',
-              color: theme.textSecondary,
-              marginBottom: '12px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '6px',
-            }}
-          >
-            <span>
-              Cluster: <strong style={{ color: theme.textPrimary }}>{state.selectedSplitter.clusterName}</strong>
-            </span>
-            <span style={{ fontFamily: theme.typography.fontFamily.mono }}>
-              Kapasitas: <strong style={{ color: theme.statusOptimal }}>{state.selectedSplitter.availablePorts.length} kosong</strong> / {state.selectedSplitter.maxPorts} port
-            </span>
-          </div>
-        )}
-
+        {/* Titik ODP Ditugaskan (Fixed / Non-filter) */}
         <div
           style={{
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '6px',
-            marginBottom: '8px',
+            justifyContent: 'space-between',
+            padding: '10px 12px',
+            background: isDark ? '#080E1A' : '#F1F5F9',
+            border: `1px solid ${isDark ? '#1E293B' : '#CBD5E1'}`,
+            borderRadius: '6px',
+            marginBottom: '10px',
           }}
         >
-          <span style={{ fontSize: '12px', fontWeight: 600, color: theme.textSecondary }}>
-            Pilih Port (Aktif: Port {activePort}):
-          </span>
-          <span style={{ fontSize: '11px', color: theme.textMuted }}>
-            [Biru] Dipilih | [Abu] Tersedia | [Merah] Terpakai
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span
+              style={{
+                fontSize: '13px',
+                fontWeight: 800,
+                fontFamily: theme.typography.fontFamily.mono,
+                color: theme.textPrimary,
+                letterSpacing: '0.01em',
+              }}
+            >
+              {assignedOdpDisplay}
+            </span>
+            <span style={{ fontSize: '11px', color: theme.textSecondary }}>
+              Cluster: {cleanCluster}
+            </span>
+          </div>
+          {state.selectedSplitter && (
+            <span
+              style={{
+                fontSize: '11px',
+                fontFamily: theme.typography.fontFamily.mono,
+                fontWeight: 700,
+                color: isDark ? '#4ADE80' : '#15803D',
+              }}
+            >
+              {state.selectedSplitter.availablePorts.length} Kosong / {state.selectedSplitter.maxPorts} Port
+            </span>
+          )}
         </div>
+
+        <div style={{ fontSize: '12px', fontWeight: 600, color: theme.textSecondary, marginBottom: '6px' }}>
+          Pilih Port (Aktif: Port {activePort}):
+        </div>
+
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '8px',
+            gap: '6px',
           }}
         >
           {portsArray.map((portNum) => {
@@ -862,29 +817,35 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
                   }
                 }}
                 style={{
-                  minHeight: '44px',
-                  padding: '8px',
+                  height: '40px',
+                  minHeight: '40px',
+                  padding: '4px',
                   background: isSelected
-                    ? theme.primary
+                    ? '#1B5CA2'
                     : isOccupiedByOther
-                      ? 'rgba(239, 68, 68, 0.15)'
-                      : theme.surfaceSecondary,
+                      ? isDark
+                        ? 'rgba(239, 68, 68, 0.15)'
+                        : '#FEF2F2'
+                      : isDark
+                        ? '#1E293B'
+                        : '#E2E8F0',
                   color: isSelected
-                    ? theme.primaryText
+                    ? '#FFFFFF'
                     : isOccupiedByOther
-                      ? theme.statusCritical
+                      ? isDark
+                        ? '#FCA5A5'
+                        : '#DC2626'
                       : theme.textPrimary,
                   border: isSelected
-                    ? `1px solid ${theme.primary}`
+                    ? '1px solid #1B5CA2'
                     : isOccupiedByOther
-                      ? '1px solid rgba(239, 68, 68, 0.35)'
+                      ? `1px solid ${isDark ? 'rgba(239, 68, 68, 0.35)' : '#FECACA'}`
                       : `1px solid ${theme.border}`,
-                  borderRadius: `${theme.radii.button}px`,
+                  borderRadius: '6px',
                   fontSize: '12px',
                   fontWeight: 700,
                   cursor: isOccupiedByOther ? 'not-allowed' : 'pointer',
-                  boxShadow: isSelected ? '0 0 10px rgba(2, 132, 199, 0.35)' : 'none',
-                  transition: 'all 0.15s ease',
+                  transition: 'background-color 0.15s ease',
                 }}
               >
                 P{portNum} {isOccupiedByOther ? '(Isi)' : ''}
@@ -892,16 +853,16 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* Step 3: Optical Attenuation dBm Input */}
-      <div
+      {/* 2. Redaman Optik OPM (dBm) */}
+      <section
         style={{
-          background: theme.surface,
+          background: isDark ? '#10192D' : '#FFFFFF',
           border: `1px solid ${theme.border}`,
-          borderRadius: `${theme.radii.card}px`,
-          padding: '16px',
-          marginBottom: '14px',
+          borderRadius: '8px',
+          padding: '14px',
+          marginBottom: '12px',
         }}
       >
         <div
@@ -913,15 +874,15 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
           }}
         >
           <label style={{ fontSize: '13px', fontWeight: 700, color: theme.textPrimary }}>
-            3. Redaman Optik OPM (dBm)
+            2. Redaman Optik OPM (dBm)
           </label>
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '3px 8px',
-              borderRadius: `${theme.radii.badge}px`,
+              gap: '4px',
+              padding: '2px 8px',
+              borderRadius: '4px',
               fontSize: '11px',
               fontWeight: 700,
               background: telemetry.bg,
@@ -930,15 +891,6 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
               fontFamily: theme.typography.fontFamily.mono,
             }}
           >
-            <span
-              style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                background: telemetry.color,
-                display: 'inline-block',
-              }}
-            />
             <span>{telemetry.label}</span>
           </div>
         </div>
@@ -953,21 +905,28 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
                 actions.setAttenuationInput(`-${trimmed.replace(/^\+/, '')}`);
               }
             }}
+            title="Tanda minus (-)"
+            aria-label="Set nilai minus"
             style={{
-              minHeight: '44px',
-              padding: '0 16px',
-              background: theme.surfaceSecondary,
+              width: '42px',
+              height: '42px',
+              minHeight: '42px',
+              padding: 0,
+              background: isDark ? '#1E293B' : '#E2E8F0',
               color: theme.textPrimary,
               border: `1px solid ${theme.border}`,
-              borderRadius: `${theme.radii.button}px`,
+              borderRadius: '6px',
               fontFamily: theme.typography.fontFamily.mono,
-              fontSize: '13px',
-              fontWeight: 700,
+              fontSize: '15px',
+              fontWeight: 800,
               cursor: 'pointer',
               flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            (-) Minus
+            (-)
           </button>
           <input
             type="text"
@@ -979,15 +938,16 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
             style={{
               flex: 1,
               width: '100%',
-              minHeight: '44px',
-              padding: '10px 12px',
+              height: '42px',
+              minHeight: '42px',
+              padding: '0 12px',
               fontSize: '15px',
               fontWeight: 700,
               fontFamily: theme.typography.fontFamily.mono,
-              background: theme.bg,
+              background: isDark ? '#080E1A' : '#F8FAFC',
               color: theme.textPrimary,
               border: `1px solid ${theme.border}`,
-              borderRadius: `${theme.radii.input}px`,
+              borderRadius: '6px',
               boxSizing: 'border-box',
               outline: 'none',
             }}
@@ -1004,17 +964,25 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
                 className="fiberops-action-btn"
                 onClick={() => actions.setAttenuationInput(preset)}
                 style={{
-                  minHeight: '44px',
-                  padding: '6px',
-                  background: isPresetActive ? theme.surfaceElevated : theme.surfaceSecondary,
-                  color: isPresetActive ? theme.accentCyan : theme.textSecondary,
-                  border: isPresetActive ? `1px solid ${theme.primary}` : `1px solid ${theme.border}`,
-                  borderRadius: `${theme.radii.button}px`,
+                  height: '34px',
+                  minHeight: '34px',
+                  padding: '2px',
+                  background: isPresetActive
+                    ? isDark
+                      ? '#1E3A8A'
+                      : '#DBEAFE'
+                    : isDark
+                      ? '#1E293B'
+                      : '#E2E8F0',
+                  color: isPresetActive ? (isDark ? '#93C5FD' : '#1D4ED8') : theme.textSecondary,
+                  border: isPresetActive
+                    ? '1px solid #1B5CA2'
+                    : `1px solid ${theme.border}`,
+                  borderRadius: '4px',
                   fontFamily: theme.typography.fontFamily.mono,
                   fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'all 0.15s ease',
                 }}
               >
                 {preset}
@@ -1022,75 +990,215 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* Step 4: In-App Watermarked Camera Capture */}
-      <div
+      {/* 3. Verifikasi Lapangan: Lokasi GPS & Foto OPM Ber-Watermark */}
+      <section
         style={{
-          background: theme.surface,
+          background: isDark ? '#10192D' : '#FFFFFF',
           border: `1px solid ${theme.border}`,
-          borderRadius: `${theme.radii.card}px`,
-          padding: '16px',
-          marginBottom: '14px',
+          borderRadius: '8px',
+          padding: '14px',
+          marginBottom: '12px',
         }}
       >
         <div style={{ fontSize: '13px', fontWeight: 700, color: theme.textPrimary, marginBottom: '8px' }}>
-          4. Bukti Foto OPM Ber-Watermark (&lt; 300 KB)
+          3. Verifikasi Lokasi & Bukti Foto OPM
         </div>
 
-        {state.photoEvidence ? (
-          <div
-            style={{
-              padding: '10px 12px',
-              background: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              borderRadius: `${theme.radii.input}px`,
-              color: theme.statusOptimal,
-              fontSize: '12px',
-              marginBottom: '10px',
-              lineHeight: 1.5,
-            }}
-          >
-            <strong>Foto Terverifikasi:</strong> Resolusi {state.photoEvidence.width}x{state.photoEvidence.height}px
-            {state.photoEvidence.watermarkText ? ` | ${state.photoEvidence.watermarkText}` : ''}
-          </div>
-        ) : (
-          <div style={{ fontSize: '12px', color: theme.textSecondary, marginBottom: '10px' }}>
-            Belum ada foto OPM. Wajib diambil melalui kamera aplikasi.
-          </div>
-        )}
-
-        <button
-          type="button"
-          className="fiberops-action-btn"
-          onClick={actions.openCamera}
+        {/* GPS Verification Subcard */}
+        <div
           style={{
-            width: '100%',
-            minHeight: '44px',
-            padding: '10px 14px',
-            background: state.photoEvidence ? theme.surfaceSecondary : theme.primary,
-            color: theme.primaryText,
-            border: state.photoEvidence ? `1px solid ${theme.border}` : 'none',
-            borderRadius: `${theme.radii.button}px`,
-            fontSize: '12px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: state.photoEvidence ? 'none' : '0 2px 10px rgba(2, 132, 199, 0.35)',
-            transition: 'all 0.15s ease',
+            padding: '10px 12px',
+            background: isDark ? '#080E1A' : '#F8FAFC',
+            border: `1px solid ${theme.border}`,
+            borderRadius: '6px',
+            marginBottom: '10px',
           }}
         >
-          {state.photoEvidence ? 'Ambil Ulang Foto Kamera OPM' : 'Buka Kamera OPM In-App'}
-        </button>
-      </div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '6px',
+            }}
+          >
+            <span style={{ fontSize: '12px', fontWeight: 600, color: theme.textSecondary }}>
+              Satelit GPS & Geofence (Maks {state.maxGeofenceMeters}m):
+            </span>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 700,
+                padding: '2px 6px',
+                borderRadius: '3px',
+                background:
+                  state.gpsState === 'VERIFIED_IN_RANGE'
+                    ? isDark
+                      ? 'rgba(34, 197, 94, 0.15)'
+                      : '#F0FDF4'
+                    : state.gpsState === 'MOCK_DETECTED'
+                      ? isDark
+                        ? 'rgba(239, 68, 68, 0.15)'
+                        : '#FEF2F2'
+                      : state.gpsState === 'FLAGGED_OUT_OF_RANGE'
+                        ? isDark
+                          ? 'rgba(245, 158, 11, 0.15)'
+                          : '#FEF3C7'
+                        : isDark
+                          ? 'rgba(255, 255, 255, 0.06)'
+                          : '#F1F5F9',
+                color:
+                  state.gpsState === 'VERIFIED_IN_RANGE'
+                    ? isDark
+                      ? '#4ADE80'
+                      : '#15803D'
+                    : state.gpsState === 'MOCK_DETECTED'
+                      ? isDark
+                        ? '#FCA5A5'
+                        : '#DC2626'
+                      : state.gpsState === 'FLAGGED_OUT_OF_RANGE'
+                        ? isDark
+                          ? '#FCD34D'
+                          : '#B45309'
+                        : theme.textSecondary,
+                border: `1px solid ${
+                  state.gpsState === 'VERIFIED_IN_RANGE'
+                    ? isDark
+                      ? 'rgba(34, 197, 94, 0.3)'
+                      : '#BBF7D0'
+                    : state.gpsState === 'MOCK_DETECTED'
+                      ? isDark
+                        ? 'rgba(239, 68, 68, 0.35)'
+                        : '#FECACA'
+                      : state.gpsState === 'FLAGGED_OUT_OF_RANGE'
+                        ? isDark
+                          ? 'rgba(245, 158, 11, 0.3)'
+                          : '#FDE68A'
+                        : theme.border
+                }`,
+              }}
+            >
+              {state.gpsState === 'VERIFIED_IN_RANGE'
+                ? 'VALID'
+                : state.gpsState === 'MOCK_DETECTED'
+                  ? 'FAKE GPS DETECTED'
+                  : state.gpsState === 'FLAGGED_OUT_OF_RANGE'
+                    ? 'DI LUAR RADIUS'
+                    : 'BELUM DIVERIFIKASI'}
+            </span>
+          </div>
 
-      {/* Step 5: Technician Notes & Submit */}
-      <div
+          {state.locationResult?.distanceToSplitterMeters !== undefined && (
+            <div style={{ fontSize: '11px', color: theme.textSecondary, marginBottom: '8px', fontFamily: theme.typography.fontFamily.mono }}>
+              Jarak ke titik ODP: <strong>{state.locationResult.distanceToSplitterMeters} meter</strong>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="fiberops-action-btn"
+            onClick={() => void actions.verifyLocation()}
+            disabled={state.gpsState === 'ACQUIRING'}
+            style={{
+              width: '100%',
+              height: '38px',
+              minHeight: '38px',
+              padding: '0 12px',
+              background: isDark ? '#1E293B' : '#E2E8F0',
+              color: theme.textPrimary,
+              border: `1px solid ${theme.border}`,
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: state.gpsState === 'ACQUIRING' ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+            }}
+          >
+            <CompassIcon size={14} color="currentColor" />
+            <span>{state.gpsState === 'ACQUIRING' ? 'Membaca Satelit GPS...' : 'Verifikasi Koordinat GPS'}</span>
+          </button>
+        </div>
+
+        {/* OPM Photo Evidence Subcard */}
+        <div
+          style={{
+            padding: '10px 12px',
+            background: isDark ? '#080E1A' : '#F8FAFC',
+            border: `1px solid ${theme.border}`,
+            borderRadius: '6px',
+          }}
+        >
+          <div style={{ fontSize: '12px', fontWeight: 600, color: theme.textSecondary, marginBottom: '6px' }}>
+            Bukti Foto Layar OPM (Watermark Otomatis):
+          </div>
+
+          {state.photoEvidence ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 10px',
+                background: isDark ? 'rgba(34, 197, 94, 0.15)' : '#F0FDF4',
+                border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.3)' : '#BBF7D0'}`,
+                borderRadius: '4px',
+                color: isDark ? '#4ADE80' : '#15803D',
+                fontSize: '11px',
+                marginBottom: '8px',
+              }}
+            >
+              <CheckCircleIcon size={14} color="currentColor" />
+              <span>
+                Foto Terverifikasi: {state.photoEvidence.width}×{state.photoEvidence.height}px
+              </span>
+            </div>
+          ) : (
+            <div style={{ fontSize: '11px', color: theme.textMuted, marginBottom: '8px' }}>
+              Wajib menyertakan foto alat ukur OPM via kamera aplikasi.
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="fiberops-action-btn"
+            onClick={actions.openCamera}
+            style={{
+              width: '100%',
+              height: '38px',
+              minHeight: '38px',
+              padding: '0 12px',
+              background: state.photoEvidence ? (isDark ? '#1E293B' : '#E2E8F0') : '#1B5CA2',
+              color: state.photoEvidence ? theme.textPrimary : '#FFFFFF',
+              border: state.photoEvidence ? `1px solid ${theme.border}` : 'none',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+            }}
+          >
+            <CameraIcon size={15} color="currentColor" />
+            <span>{state.photoEvidence ? 'Ambil Ulang Foto Kamera OPM' : 'Buka Kamera OPM In-App'}</span>
+          </button>
+        </div>
+      </section>
+
+      {/* 4. Catatan Teknisi & Tombol Kirim */}
+      <section
         style={{
-          background: theme.surface,
+          background: isDark ? '#10192D' : '#FFFFFF',
           border: `1px solid ${theme.border}`,
-          borderRadius: `${theme.radii.card}px`,
-          padding: '16px',
-          marginBottom: '20px',
+          borderRadius: '8px',
+          padding: '14px',
+          marginBottom: '14px',
         }}
       >
         <label
@@ -1102,22 +1210,22 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
             marginBottom: '6px',
           }}
         >
-          5. Catatan Teknisi Lapangan (Opsional)
+          4. Catatan Teknisi Lapangan (Opsional)
         </label>
         <textarea
           rows={3}
           value={state.technicianNotes}
           onChange={(e) => actions.setTechnicianNotes(e.target.value)}
-          placeholder="Contoh: Dropcore 150m terpasang aman, konektor SC-UPC bersih."
+          placeholder="Contoh: Dropcore 150m terpasang aman, redaman ODP normal (-18.5 dBm)."
           className="fiberops-input"
           style={{
             width: '100%',
-            padding: '10px 12px',
+            padding: '8px 10px',
             fontSize: '12px',
-            background: theme.bg,
+            background: isDark ? '#080E1A' : '#F8FAFC',
             color: theme.textPrimary,
             border: `1px solid ${theme.border}`,
-            borderRadius: `${theme.radii.input}px`,
+            borderRadius: '6px',
             boxSizing: 'border-box',
             marginBottom: '12px',
             fontFamily: theme.typography.fontFamily.sans,
@@ -1132,27 +1240,30 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
           onClick={() => void actions.submit()}
           style={{
             width: '100%',
-            minHeight: '48px',
-            padding: '12px 16px',
-            background: state.isMockBlocked ? theme.statusDanger : theme.primary,
-            color: theme.primaryText,
+            height: '46px',
+            minHeight: '46px',
+            padding: '0 16px',
+            background: state.isMockBlocked ? (isDark ? '#991B1B' : '#DC2626') : '#1B5CA2',
+            color: '#FFFFFF',
             border: 'none',
-            borderRadius: `${theme.radii.button}px`,
+            borderRadius: '6px',
             fontSize: '14px',
             fontWeight: 700,
             cursor: state.isSubmitting || state.isMockBlocked ? 'not-allowed' : 'pointer',
             opacity: state.isSubmitting ? 0.75 : 1,
-            boxShadow: '0 4px 14px rgba(2, 132, 199, 0.4)',
-            transition: 'all 0.15s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            letterSpacing: '0.01em',
           }}
         >
           {state.isMockBlocked
             ? 'Diblokir: Fake GPS Terdeteksi'
             : state.isSubmitting
-              ? 'Mengirim & Mengenkripsi Laporan…'
+              ? 'Mengirim Laporan...'
               : 'Kirim Laporan Validasi'}
         </button>
-      </div>
+      </section>
 
       <OpmCameraModalView
         visible={state.isCameraModalOpen}
