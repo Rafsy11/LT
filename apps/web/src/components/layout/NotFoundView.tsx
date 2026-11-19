@@ -3,32 +3,40 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useTheme } from '@/providers';
 
 export function NotFoundView() {
-  const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const [isDarkTheme, setIsDarkTheme] = useState<boolean>(false);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    const checkTheme = () => {
+      if (typeof document === 'undefined') return;
+      const isDark =
+        document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        (typeof window !== 'undefined' && window.localStorage?.getItem('fiberops_theme') === 'dark');
+      setIsDarkTheme(isDark);
+    };
 
-  // Sync with global theme (from ThemeProvider or documentElement fallback)
-  const isDark = mounted
-    ? resolvedTheme === 'dark'
-    : typeof document !== 'undefined'
-      ? document.documentElement.classList.contains('dark') ||
-        document.documentElement.getAttribute('data-theme') === 'dark'
-      : false;
+    checkTheme();
+
+    // Dynamically observe class or data-theme attribute changes on <html>
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme'],
+    });
+
+    window.addEventListener('storage', checkTheme);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('storage', checkTheme);
+    };
+  }, []);
 
   return (
     <main
       id="main-content"
-      className="min-h-screen min-h-[100dvh] w-full flex flex-col items-center justify-center px-4 py-12 text-center transition-colors duration-200 bg-white dark:bg-[#020617]"
-      style={{
-        backgroundColor: isDark ? '#020617' : '#ffffff',
-        color: isDark ? '#f8fafc' : '#0f172a',
-      }}
+      className="not-found-main min-h-screen min-h-[100dvh] w-full flex flex-col items-center justify-center px-4 py-12 text-center transition-colors duration-200"
     >
       <div className="w-full max-w-lg mx-auto flex flex-col items-center select-none">
         {/* Isometric 404 Illustration with Ladder */}
@@ -44,18 +52,12 @@ export function NotFoundView() {
         </div>
 
         {/* Heading */}
-        <h1
-          className="mt-8 text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight transition-colors duration-200 text-slate-900 dark:text-white"
-          style={{ color: isDark ? '#f8fafc' : '#0f172a' }}
-        >
+        <h1 className="not-found-title mt-8 text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight transition-colors duration-200">
           Something&apos;s missing.
         </h1>
 
         {/* Subtitle */}
-        <p
-          className="mt-2.5 text-sm sm:text-base max-w-sm sm:max-w-md mx-auto leading-relaxed font-normal transition-colors duration-200 text-slate-500 dark:text-slate-400"
-          style={{ color: isDark ? '#94a3b8' : '#64748b' }}
-        >
+        <p className="not-found-subtitle mt-2.5 text-sm sm:text-base max-w-sm sm:max-w-md mx-auto leading-relaxed font-normal transition-colors duration-200">
           The page you looking for is not found.
         </p>
 

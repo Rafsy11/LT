@@ -339,24 +339,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app">
-      <a href="#main-content" className="skip-to-content">
+      <a key="skip-to-content" href="#main-content" className="skip-to-content">
         Lewati ke konten utama
       </a>
       {/* Mobile Off-Canvas Backdrop */}
       <div
+        key="sidebar-backdrop"
         className={`sidebar-backdrop ${isMobileMenuOpen ? 'active' : ''}`}
         onClick={() => setIsMobileMenuOpen(false)}
         aria-hidden="true"
       />
       <Sidebar
+        key="dashboard-sidebar"
         ticketCount={ticketCount}
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={handleToggleSidebarCollapse}
       />
-      <div className={`main ${isSidebarCollapsed ? 'sidebar-collapsed collapsed' : ''}`}>
+      <div
+        key="dashboard-main"
+        className={`main ${isSidebarCollapsed ? 'sidebar-collapsed collapsed' : ''}`}
+      >
         <Header
+          key="dashboard-header"
           pageTitle={title}
           isMobileMenuOpen={isMobileMenuOpen}
           onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
@@ -364,17 +370,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onMarkAllRead={handleMarkAllRead}
           onMarkNotificationRead={handleMarkNotificationRead}
         />
-        <ConnectionBanner />
-        {children}
-        <footer className={`app-footer ${pathname.startsWith('/ai') ? 'hide-on-mobile' : ''}`}>
+        <ConnectionBanner key="dashboard-connection-banner" />
+        <div
+          key="dashboard-page-slot"
+          className="app-main-content-slot"
+          style={{ display: 'contents' }}
+        >
+          {children}
+        </div>
+        <footer
+          key="dashboard-footer"
+          className={`app-footer ${pathname.startsWith('/ai') ? 'hide-on-mobile' : ''}`}
+        >
           <span>
             &copy; 2026 FiberOps Lintasarta. Hak cipta dilindungi. Single Source of Truth FTTH.
           </span>
           <span className="footer-version">Versi 1.0.0 (On-Premise)</span>
         </footer>
       </div>
-      <MobileBottomNav />
-      <AiChatWidget />
+      <MobileBottomNav key="dashboard-mobile-nav" />
+      <AiChatWidget key="dashboard-ai-widget" />
     </div>
   );
 }

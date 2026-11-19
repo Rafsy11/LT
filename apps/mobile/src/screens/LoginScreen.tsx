@@ -200,6 +200,20 @@ export function LoginScreen({
           opacity: 0.6;
           cursor: not-allowed;
         }
+        .fiberops-input {
+          background-color: #FFFFFF !important;
+          color: #0F172A !important;
+          color-scheme: light;
+        }
+        .fiberops-input:-webkit-autofill,
+        .fiberops-input:-webkit-autofill:hover,
+        .fiberops-input:-webkit-autofill:focus,
+        .fiberops-input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+          -webkit-text-fill-color: #0F172A !important;
+          caret-color: #0F172A !important;
+          color: #0F172A !important;
+        }
       `}</style>
 
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -295,12 +309,13 @@ export function LoginScreen({
                 minHeight: '48px',
                 padding: '12px 14px',
                 fontSize: '14px',
-                background: isDark ? '#0D1527' : '#FFFFFF',
-                color: theme.textPrimary,
-                border: focusedInput === 'username' ? '1px solid #1B5CA2' : `1px solid ${theme.border}`,
+                background: '#FFFFFF',
+                color: '#0F172A',
+                border: focusedInput === 'username' ? '1px solid #1B5CA2' : '1px solid #CBD5E1',
                 borderRadius: '6px',
                 boxSizing: 'border-box',
                 outline: 'none',
+                colorScheme: 'light',
                 boxShadow: focusedInput === 'username' ? '0 0 0 2px rgba(27, 92, 162, 0.2)' : 'none',
                 transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
               }}
@@ -338,12 +353,13 @@ export function LoginScreen({
                   minHeight: '48px',
                   padding: '12px 46px 12px 14px',
                   fontSize: '14px',
-                  background: isDark ? '#0D1527' : '#FFFFFF',
-                  color: theme.textPrimary,
-                  border: focusedInput === 'password' ? '1px solid #1B5CA2' : `1px solid ${theme.border}`,
+                  background: '#FFFFFF',
+                  color: '#0F172A',
+                  border: focusedInput === 'password' ? '1px solid #1B5CA2' : '1px solid #CBD5E1',
                   borderRadius: '6px',
                   boxSizing: 'border-box',
                   outline: 'none',
+                  colorScheme: 'light',
                   boxShadow: focusedInput === 'password' ? '0 0 0 2px rgba(27, 92, 162, 0.2)' : 'none',
                   transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                 }}

@@ -447,6 +447,15 @@ export function TicketListView(props: TicketListScreenProps) {
           outline: 2px solid #1B5CA2;
           outline-offset: 1px;
         }
+        .fiberops-input {
+          background-color: #FFFFFF !important;
+          color: #0F172A !important;
+          color-scheme: light;
+        }
+        .fiberops-input:-webkit-autofill {
+          -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+          -webkit-text-fill-color: #0F172A !important;
+        }
         .fiberops-action-btn:active {
           transform: scale(0.98);
         }
@@ -1196,7 +1205,7 @@ export function TicketListView(props: TicketListScreenProps) {
                       gap: '3px',
                       minHeight: '22px',
                       padding: '1px 6px',
-                      background: copiedSia === ticket.customer.siaNumber ? '#10B981' : isDark ? '#1E293B' : '#E2E8F0',
+                      background: copiedSia === ticket.customer.siaNumber ? '#10B981' : isDark ? '#1E293B' : '#F1F5F9',
                       color: copiedSia === ticket.customer.siaNumber ? '#FFFFFF' : theme.textPrimary,
                       border: 'none',
                       borderRadius: '3px',
@@ -1283,9 +1292,9 @@ export function TicketListView(props: TicketListScreenProps) {
                         height: '42px',
                         minHeight: '42px',
                         padding: 0,
-                        background: isDark ? '#1E293B' : '#E2E8F0',
+                        background: isDark ? '#1E293B' : '#F1F5F9',
                         color: theme.textPrimary,
-                        border: `1px solid ${theme.border}`,
+                        border: `1px solid ${isDark ? theme.border : '#CBD5E1'}`,
                         borderRadius: '6px',
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -1308,9 +1317,9 @@ export function TicketListView(props: TicketListScreenProps) {
                         height: '42px',
                         minHeight: '42px',
                         padding: 0,
-                        background: isDark ? '#1E293B' : '#E2E8F0',
+                        background: isDark ? '#1E293B' : '#F1F5F9',
                         color: theme.textMuted,
-                        border: `1px solid ${theme.border}`,
+                        border: `1px solid ${isDark ? theme.border : '#CBD5E1'}`,
                         borderRadius: '6px',
                         display: 'inline-flex',
                         alignItems: 'center',

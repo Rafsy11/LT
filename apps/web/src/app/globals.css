@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@custom-variant dark (&:where(.dark, [data-theme="dark"], .dark *));
 
 :root {
   --font-sans: var(--font-jakarta), 'Plus Jakarta Sans', 'Open Sans', -apple-system, BlinkMacSystemFont,
@@ -743,21 +744,73 @@ html.dark body,
   color: #cbd5e1 !important;
 }
 
-html.dark input:not(.ai-prompt-input-elem):not(.auth-input):not(.customer-search-input):not(.fiberops-search-input):not( .tree-sidebar-search-input ):not(.tickets-search-input),
-html.dark select,
-[data-theme='dark'] input:not(.ai-prompt-input-elem):not(.auth-input):not(.customer-search-input):not(.fiberops-search-input):not( .tree-sidebar-search-input ):not(.tickets-search-input),
-[data-theme='dark'] select {
+html.dark input:not(.ai-prompt-input-elem):not(.auth-input):not(.customer-search-input):not(.fiberops-search-input):not( .tree-sidebar-search-input ):not(.tickets-search-input):not(.fiberops-input):not(.mobile-shell-viewport *),
+html.dark select:not(.mobile-shell-viewport *),
+[data-theme='dark'] input:not(.ai-prompt-input-elem):not(.auth-input):not(.customer-search-input):not(.fiberops-search-input):not( .tree-sidebar-search-input ):not(.tickets-search-input):not(.fiberops-input):not(.mobile-shell-viewport *),
+[data-theme='dark'] select:not(.mobile-shell-viewport *) {
   background: #020617 !important;
   border: 1px solid #334155 !important;
   color: #f1f5f9 !important;
 }
 
-html.dark input:not(.ai-prompt-input-elem):not(.auth-input):not(.customer-search-input):not(.fiberops-search-input):not( .tree-sidebar-search-input ):not(.tickets-search-input):focus,
-html.dark select:focus,
-html.dark textarea:focus,
-[data-theme='dark'] input:not(.ai-prompt-input-elem):not(.auth-input):not(.customer-search-input):not(.fiberops-search-input):not( .tree-sidebar-search-input ):not(.tickets-search-input):focus,
-[data-theme='dark'] select:focus,
-[data-theme='dark'] textarea:focus {
+html.dark input:not(.ai-prompt-input-elem):not(.auth-input):not(.customer-search-input):not(.fiberops-search-input):not( .tree-sidebar-search-input ):not(.tickets-search-input):not(.fiberops-input):not(.mobile-shell-viewport *):focus,
+html.dark select:not(.mobile-shell-viewport *):focus,
+html.dark textarea:not(.mobile-shell-viewport *):focus,
+[data-theme='dark'] input:not(.ai-prompt-input-elem):not(.auth-input):not(.customer-search-input):not(.fiberops-search-input):not( .tree-sidebar-search-input ):not(.tickets-search-input):not(.fiberops-input):not(.mobile-shell-viewport *):focus,
+[data-theme='dark'] select:not(.mobile-shell-viewport *):focus,
+[data-theme='dark'] textarea:not(.mobile-shell-viewport *):focus {
   border-color: #38bdf8 !important;
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25) !important;
+}
+
+/* Isolated Light Mode Theme for Mobile Console Viewport */
+.mobile-shell-viewport {
+  color-scheme: light;
+}
+
+.mobile-shell-viewport input,
+.mobile-shell-viewport select,
+.mobile-shell-viewport textarea,
+.mobile-shell-viewport .fiberops-input {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.mobile-shell-viewport input:focus,
+.mobile-shell-viewport textarea:focus,
+.mobile-shell-viewport .fiberops-input:focus {
+  border-color: #1b5ca2 !important;
+  box-shadow: 0 0 0 2px rgba(27, 92, 162, 0.2) !important;
+}
+
+.mobile-shell-viewport input:-webkit-autofill,
+.mobile-shell-viewport input:-webkit-autofill:hover,
+.mobile-shell-viewport input:-webkit-autofill:focus,
+.mobile-shell-viewport input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
+}
+
+/* Custom 404 Handler Robust Dynamic Theming */
+.not-found-main {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+html.dark .not-found-main,
+[data-theme='dark'] .not-found-main {
+  background-color: #020617 !important;
+  color: #f8fafc !important;
+}
+
+html.dark .not-found-title,
+[data-theme='dark'] .not-found-title {
+  color: #f8fafc !important;
+}
+
+html.dark .not-found-subtitle,
+[data-theme='dark'] .not-found-subtitle {
+  color: #94a3b8 !important;
 }
