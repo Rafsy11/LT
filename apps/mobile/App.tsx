@@ -591,7 +591,10 @@ export default function App({ initialThemeMode = 'light' }: AppProps = {}) {
     <div
       style={{
         width: '100%',
-        minHeight: '100vh',
+        minHeight: '100%',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
         overflowX: 'clip',
         boxSizing: 'border-box',
         background:

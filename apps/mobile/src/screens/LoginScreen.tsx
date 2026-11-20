@@ -40,6 +40,24 @@ function EyeOffIcon({ size = 18, color = 'currentColor' }: { size?: number; colo
   );
 }
 
+function UserIcon({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function LockIcon({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
 function CloseIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
   return (
     <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -176,7 +194,8 @@ export function LoginScreen({
     <div
       style={{
         width: '100%',
-        minHeight: '100vh',
+        minHeight: '100%',
+        flex: 1,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -184,7 +203,7 @@ export function LoginScreen({
         color: theme.textPrimary,
         fontFamily: theme.typography.fontFamily.sans,
         boxSizing: 'border-box',
-        padding: '28px 20px 20px',
+        padding: '24px 20px 20px',
         overflowX: 'clip',
       }}
     >
@@ -216,127 +235,144 @@ export function LoginScreen({
         }
       `}</style>
 
-      <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
-        {/* Lintasarta Brand Bar */}
+      <div
+        style={{
+          width: '100%',
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          boxSizing: 'border-box',
+          paddingBottom: '16px',
+        }}
+      >
+        {/* Large Centered Logo Lintasarta without text (matching preference login.jpeg) */}
         <div
           style={{
             display: 'flex',
+            justifyContent: 'center',
             alignItems: 'center',
-            gap: '12px',
-            marginBottom: '28px',
+            marginBottom: '32px',
           }}
         >
           <img
             src="/assets/Lintasarta-Icon.svg"
             alt="Lintasarta"
-            width={32}
-            height={32}
-            style={{ display: 'block', flexShrink: 0 }}
+            width={84}
+            height={84}
+            style={{ display: 'block' }}
           />
-          <span
-            style={{
-              fontSize: '18px',
-              fontWeight: 800,
-              letterSpacing: '-0.01em',
-              color: isDark ? '#F8FAFC' : '#0F172A',
-              lineHeight: 1,
-            }}
-          >
-            Lintasarta
-          </span>
         </div>
 
-        {/* Headline */}
-        <h1
-          style={{
-            fontSize: '24px',
-            fontWeight: 800,
-            color: theme.textPrimary,
-            margin: '0 0 24px',
-            letterSpacing: '-0.02em',
-            lineHeight: 1.2,
-          }}
-        >
-          Login Teknisi
-        </h1>
+        {/* Form Container */}
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+          {/* Centered Heading & Subtitle */}
+          <h1
+            style={{
+              fontSize: '24px',
+              fontWeight: 800,
+              color: isDark ? '#F8FAFC' : '#0F172A',
+              margin: '0 0 6px',
+              letterSpacing: '-0.02em',
+              lineHeight: 1.2,
+              textAlign: 'center',
+            }}
+          >
+            Login Teknisi
+          </h1>
+          <p
+            style={{
+              fontSize: '13px',
+              fontWeight: 500,
+              color: isDark ? '#94A3B8' : '#64748B',
+              margin: '0 0 28px',
+              textAlign: 'center',
+              lineHeight: 1.4,
+            }}
+          >
+            Portal Otentikasi Petugas Lapangan FTTH
+          </p>
 
-        {sessionRevokedReason && (
-          <div style={{ marginBottom: '16px' }}>
-            <ErrorBanner message={sessionRevokedReason} themeMode={themeMode} />
-          </div>
-        )}
+          {sessionRevokedReason && (
+            <div style={{ marginBottom: '16px' }}>
+              <ErrorBanner message={sessionRevokedReason} themeMode={themeMode} />
+            </div>
+          )}
 
-        {errorMessage && (
-          <div style={{ marginBottom: '16px' }}>
-            <ErrorBanner
-              message={errorMessage}
-              onDismiss={() => setErrorMessage(null)}
-              themeMode={themeMode}
-            />
-          </div>
-        )}
+          {errorMessage && (
+            <div style={{ marginBottom: '16px' }}>
+              <ErrorBanner
+                message={errorMessage}
+                onDismiss={() => setErrorMessage(null)}
+                themeMode={themeMode}
+              />
+            </div>
+          )}
 
-        {/* Clean Login Form */}
-        <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-          {/* Username Field */}
-          <div style={{ marginBottom: '18px' }}>
-            <label
-              htmlFor="field-username"
-              style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: theme.textPrimary,
-                marginBottom: '6px',
-              }}
-            >
-              Username Teknisi
-            </label>
-            <input
-              id="field-username"
-              type="text"
-              className="fiberops-input"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onFocus={() => setFocusedInput('username')}
-              onBlur={() => setFocusedInput(null)}
-              disabled={isLoading}
-              placeholder="contoh: andi.pratama"
-              autoComplete="username"
-              autoCapitalize="none"
-              style={{
-                width: '100%',
-                minHeight: '48px',
-                padding: '12px 14px',
-                fontSize: '14px',
-                background: '#FFFFFF',
-                color: '#0F172A',
-                border: focusedInput === 'username' ? '1px solid #1B5CA2' : '1px solid #CBD5E1',
-                borderRadius: '6px',
-                boxSizing: 'border-box',
-                outline: 'none',
-                colorScheme: 'light',
-                boxShadow: focusedInput === 'username' ? '0 0 0 2px rgba(27, 92, 162, 0.2)' : 'none',
-                transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
-              }}
-            />
-          </div>
+          {/* Clean Login Form */}
+          <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+            {/* Username Field with User Icon */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  left: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: focusedInput === 'username' ? '#1B5CA2' : '#94A3B8',
+                  pointerEvents: 'none',
+                  transition: 'color 0.15s ease',
+                }}
+              >
+                <UserIcon size={19} />
+              </span>
+              <input
+                id="field-username"
+                type="text"
+                className="fiberops-input"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onFocus={() => setFocusedInput('username')}
+                onBlur={() => setFocusedInput(null)}
+                disabled={isLoading}
+                placeholder="Username Teknisi"
+                aria-label="Username Teknisi"
+                autoComplete="username"
+                autoCapitalize="none"
+                style={{
+                  width: '100%',
+                  minHeight: '48px',
+                  padding: '12px 18px 12px 46px',
+                  fontSize: '14px',
+                  background: '#FFFFFF',
+                  color: '#0F172A',
+                  border: focusedInput === 'username' ? '1.5px solid #1B5CA2' : '1px solid #CBD5E1',
+                  borderRadius: '24px',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  colorScheme: 'light',
+                  boxShadow: focusedInput === 'username' ? '0 0 0 3px rgba(27, 92, 162, 0.15)' : 'none',
+                  transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                }}
+              />
+            </div>
 
-          {/* Password Field */}
-          <div style={{ marginBottom: '22px' }}>
-            <label
-              htmlFor="field-password"
-              style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: theme.textPrimary,
-                marginBottom: '6px',
-              }}
-            >
-              Password
-            </label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            {/* Password Field with Lock Icon and Eye Toggle */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  left: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: focusedInput === 'password' ? '#1B5CA2' : '#94A3B8',
+                  pointerEvents: 'none',
+                  transition: 'color 0.15s ease',
+                }}
+              >
+                <LockIcon size={19} />
+              </span>
               <input
                 id="field-password"
                 type={showPassword ? 'text' : 'password'}
@@ -346,21 +382,22 @@ export function LoginScreen({
                 onFocus={() => setFocusedInput('password')}
                 onBlur={() => setFocusedInput(null)}
                 disabled={isLoading}
-                placeholder="Masukkan kata sandi"
+                placeholder="Kata Sandi"
+                aria-label="Kata Sandi"
                 autoComplete="current-password"
                 style={{
                   width: '100%',
                   minHeight: '48px',
-                  padding: '12px 46px 12px 14px',
+                  padding: '12px 48px 12px 46px',
                   fontSize: '14px',
                   background: '#FFFFFF',
                   color: '#0F172A',
-                  border: focusedInput === 'password' ? '1px solid #1B5CA2' : '1px solid #CBD5E1',
-                  borderRadius: '6px',
+                  border: focusedInput === 'password' ? '1.5px solid #1B5CA2' : '1px solid #CBD5E1',
+                  borderRadius: '24px',
                   boxSizing: 'border-box',
                   outline: 'none',
                   colorScheme: 'light',
-                  boxShadow: focusedInput === 'password' ? '0 0 0 2px rgba(27, 92, 162, 0.2)' : 'none',
+                  boxShadow: focusedInput === 'password' ? '0 0 0 3px rgba(27, 92, 162, 0.15)' : 'none',
                   transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                 }}
               />
@@ -368,61 +405,62 @@ export function LoginScreen({
                 type="button"
                 className="fiberops-action-btn"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
                 style={{
                   position: 'absolute',
-                  right: '2px',
-                  width: '44px',
-                  height: '44px',
-                  minHeight: '44px',
+                  right: '4px',
+                  width: '42px',
+                  height: '42px',
+                  minHeight: '42px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   background: 'transparent',
                   border: 'none',
-                  color: showPassword ? '#1B5CA2' : theme.textSecondary,
+                  color: showPassword ? '#1B5CA2' : '#94A3B8',
                   cursor: 'pointer',
-                  borderRadius: '4px',
+                  borderRadius: '50%',
                 }}
               >
                 {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
               </button>
             </div>
-          </div>
 
-          {/* Primary Action Button: Lintasarta Cobalt Blue */}
-          <button
-            type="submit"
-            className="fiberops-action-btn"
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              minHeight: '48px',
-              padding: '12px 16px',
-              background: '#1B5CA2',
-              color: '#FFFFFF',
-              fontSize: '14px',
-              fontWeight: 700,
-              border: 'none',
-              borderRadius: '6px',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              opacity: isLoading ? 0.7 : 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(27, 92, 162, 0.25)',
-              transition: 'background-color 0.15s ease',
-            }}
-          >
-            {isLoading ? 'Memverifikasi...' : 'Masuk Aplikasi'}
-          </button>
-        </form>
+            {/* Primary Action Button: Lintasarta Cobalt Blue pill style */}
+            <button
+              type="submit"
+              className="fiberops-action-btn"
+              disabled={isLoading}
+              style={{
+                width: '100%',
+                minHeight: '48px',
+                padding: '12px 16px',
+                background: '#1B5CA2',
+                color: '#FFFFFF',
+                fontSize: '14px',
+                fontWeight: 700,
+                border: 'none',
+                borderRadius: '24px',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                opacity: isLoading ? 0.7 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 14px rgba(27, 92, 162, 0.28)',
+                transition: 'background-color 0.15s ease, transform 0.1s ease',
+              }}
+            >
+              {isLoading ? 'Memverifikasi...' : 'Masuk Aplikasi'}
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* Footer Utility & Device Information */}
       <footer
         style={{
-          marginTop: '32px',
+          marginTop: 'auto',
+          flexShrink: 0,
           paddingTop: '16px',
           borderTop: `1px solid ${theme.border}`,
           display: 'flex',
