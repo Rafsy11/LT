@@ -1,4 +1,4 @@
-import { ErrorCode, UserTypeEnum } from '../constants/index';
+import type { ErrorCode, UserTypeEnum } from '../constants/index';
 
 export type ApiResponse<T> =
   | { success: true; data: T; meta?: Record<string, unknown> }

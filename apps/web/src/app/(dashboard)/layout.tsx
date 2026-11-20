@@ -6,7 +6,6 @@ import type { DbTicket } from '@repo/shared';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header, type HeaderNotificationItem } from '@/components/layout/Header';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
-import { ConnectionBanner } from '@/components/ui/connection-banner';
 import { AiChatWidget } from '@/features/ai';
 import { webApiClient } from '@/lib/api-client';
 import {
@@ -363,7 +362,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onMarkAllRead={handleMarkAllRead}
           onMarkNotificationRead={handleMarkNotificationRead}
         />
-        <ConnectionBanner key="dashboard-connection-banner" />
         <div
           key="dashboard-page-slot"
           className="app-main-content-slot"

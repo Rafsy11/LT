@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { OTP_CONFIG, ERROR_CODES } from '@repo/shared';
-import { env } from '../../env';
+import { env } from '@/env';
 import { redisManager } from './redis';
 
 export interface OtpChallengeRecord {

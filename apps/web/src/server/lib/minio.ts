@@ -1,5 +1,5 @@
 import * as Minio from 'minio';
-import { env } from '../../env';
+import { env } from '@/env';
 import { isStrictLiveMode, ServiceUnavailableError } from './live-data';
 
 /**

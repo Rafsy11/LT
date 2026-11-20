@@ -33,7 +33,7 @@ import { TicketService } from './ticket.service';
 import { TechnicianService } from './technician.service';
 import { CustomerService } from './customer.service';
 import { RoleService } from './role.service';
-import { env } from '../../env';
+import { env } from '@/env';
 
 const ACTION_TOKEN_SECRET = new TextEncoder().encode(env.JWT_SECRET);
 
@@ -131,9 +131,7 @@ export class AiService {
 
     const tools: Record<string, any> = {};
 
-    // ==========================================
-    // READ TOOL 1: get_recent_reports
-    // ==========================================
+    // Read tool: get_recent_reports (capped at 50 rows, cluster-scoped)
     if (hasPermission('ticket:read') || hasPermission('network:read')) {
       tools.get_recent_reports = tool({
         description:
@@ -212,9 +210,7 @@ export class AiService {
       });
     }
 
-    // ==========================================
-    // READ TOOL 2: get_customer_detail
-    // ==========================================
+    // Read tool: get_customer_detail (cluster-scoped)
     if (hasPermission('customer:read')) {
       tools.get_customer_detail = tool({
         description:
@@ -304,9 +300,7 @@ export class AiService {
       });
     }
 
-    // ==========================================
-    // READ TOOL 3: get_technician_workload
-    // ==========================================
+    // Read tool: get_technician_workload
     if (hasPermission('tech:read')) {
       tools.get_technician_workload = tool({
         description:
@@ -372,9 +366,7 @@ export class AiService {
       });
     }
 
-    // ==========================================
-    // WRITE TOOL 1: prepare_create_ticket (DILARANG MUTASI DB LANGSUNG)
-    // ==========================================
+    // Write tool: prepare_create_ticket (draft-only; never mutates DB directly)
     if (hasPermission('ticket:create')) {
       tools.prepare_create_ticket = tool({
         description:
@@ -491,9 +483,7 @@ export class AiService {
       });
     }
 
-    // ==========================================
-    // WRITE TOOL 2: prepare_toggle_tech_account (DILARANG MUTASI DB LANGSUNG)
-    // ==========================================
+    // Write tool: prepare_toggle_tech_account (draft-only; never mutates DB directly)
     if (hasPermission('tech:manage')) {
       tools.prepare_toggle_tech_account = tool({
         description:
@@ -575,9 +565,7 @@ export class AiService {
       });
     }
 
-    // ==========================================
-    // WRITE TOOL 3: prepare_mutate_splitter_port (DILARANG MUTASI DB LANGSUNG)
-    // ==========================================
+    // Write tool: prepare_mutate_splitter_port (draft-only; never mutates DB directly)
     if (hasPermission('customer:update') || hasPermission('network:update')) {
       tools.prepare_mutate_splitter_port = tool({
         description:

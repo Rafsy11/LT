@@ -1191,9 +1191,7 @@ export class TicketService {
       assignedTechId: string | null;
     } | null = null;
 
-    // ------------------------------------------------------------------
-    // 1. TICKET OWNERSHIP VERIFICATION (Rule 1: Anti-IDOR)
-    // ------------------------------------------------------------------
+    // Verify technician owns this ticket before accepting a submission (anti-IDOR)
     if (dbAvailable) {
       try {
         preliminaryTicket = await prisma.ticket.findFirst({
@@ -1242,9 +1240,7 @@ export class TicketService {
       }
     }
 
-    // ------------------------------------------------------------------
-    // 2. IDEMPOTENCY CHECK (Rule 2: Before Ticket Status Check with Cross-Ticket Guard)
-    // ------------------------------------------------------------------
+    // Check submissionId idempotency before status checks, guarding against cross-ticket replay
     let checkedDbIdempotency = false;
     if (dbAvailable) {
       try {
@@ -1324,9 +1320,7 @@ export class TicketService {
       }
     }
 
-    // ------------------------------------------------------------------
-    // 3. TICKET LIFECYCLE STATUS (Rule 3: Reject new submissions on closed tickets)
-    // ------------------------------------------------------------------
+    // Reject new submissions on closed tickets (COMPLETED or CANCELLED)
     if (dbAvailable) {
       try {
         const statusCheckTicket = await prisma.ticket.findFirst({
@@ -1355,18 +1349,14 @@ export class TicketService {
       }
     }
 
-    // ------------------------------------------------------------------
-    // b. ANTI-FAKE GPS CHECK (Law 4 & AGENT.md Section 4)
-    // ------------------------------------------------------------------
+    // Reject mock GPS / fake location submissions
     if (input.isMockLocation) {
       throw new Error(
         `${ERROR_CODES.MOCK_LOCATION_DETECTED}: Pengiriman ditolak. Perangkat terdeteksi menggunakan Mock Location / Fake GPS.`,
       );
     }
 
-    // ------------------------------------------------------------------
-    // c. GEOFENCING & HAVERSINE DISTANCE TO SPLITTER
-    // ------------------------------------------------------------------
+    // Compute Haversine distance to target splitter for geofence verification
     let distanceMeters = 0;
     let isLocationFlagged = false;
     let splitterDbId = input.splitterId;
@@ -1438,9 +1428,7 @@ export class TicketService {
       }
     }
 
-    // ------------------------------------------------------------------
-    // e. PREPARE PENDING SUBMISSION PAYLOAD & INTERACTIVE TRANSACTION
-    // ------------------------------------------------------------------
+    // Persist pending submission payload inside an interactive transaction
     const submissionChannel = input.channel || 'MOBILE';
     const fallbackTechProfile = techContext?.username
       ? await this.resolveTechProfile(techContext.username)
@@ -1647,9 +1635,7 @@ export class TicketService {
       });
     }
 
-    // ------------------------------------------------------------------
-    // f. REDIS PUB/SUB & SSE BROADCAST
-    // ------------------------------------------------------------------
+    // Broadcast live report update over Redis pub/sub and SSE
     const completedDto = completedTicketResult ? mapDbTicketToDto(completedTicketResult) : null;
     const customerName = completedDto?.customerName || ticket?.customerName || 'Pelanggan Lapangan';
     const siaNumber = completedDto?.siaNumber || ticket?.siaNumber || 'SIA-000';

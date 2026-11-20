@@ -13,7 +13,7 @@ import {
 import { redisManager } from '../lib/redis';
 import { minioManager } from '../lib/minio';
 import { ollamaClient } from '../lib/ollama';
-import { env } from '../../env';
+import { env } from '@/env';
 import {
   requireLiveDatabase,
   rethrowIfStrictDatabaseError,

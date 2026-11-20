@@ -1,6 +1,6 @@
 import Redis from 'ioredis';
 import { ActivityFeedItem } from '@repo/shared';
-import { env } from '../../env';
+import { env } from '@/env';
 
 export const ISP_LIVE_REPORTS_CHANNEL = 'isp_live_reports';
 

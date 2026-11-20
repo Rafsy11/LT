@@ -1,8 +1,6 @@
 import { z } from 'zod';
 
-// ==========================================
-// 1. READ TOOLS (Eksekusi Otomatis, LIMIT <= 50, Cluster Scoped)
-// ==========================================
+// Read tool schemas (auto-executed, capped at 50 rows, cluster-scoped)
 
 export const getRecentReportsToolSchema = z.object({
   clusterCode: z
@@ -42,10 +40,7 @@ export const getTechnicianWorkloadToolSchema = z.object({
 
 export type GetTechnicianWorkloadInput = z.infer<typeof getTechnicianWorkloadToolSchema>;
 
-// ==========================================
-// 2. WRITE TOOLS (Wajib Draf Konfirmasi / Human-in-the-Loop)
-// DILARANG melakukan mutasi database langsung di dalam tool handler!
-// ==========================================
+// Write tool schemas (human-in-the-loop drafts only; never mutate DB directly)
 
 export const prepareCreateTicketToolSchema = z.object({
   ticketType: z
@@ -77,10 +72,7 @@ export const prepareMutateSplitterPortToolSchema = z.object({
 
 export type PrepareMutateSplitterPortInput = z.infer<typeof prepareMutateSplitterPortToolSchema>;
 
-// ==========================================
-// 3. HUMAN-IN-THE-LOOP ACTION CONFIRMATION SCHEMA
-// Dieksekusi hanya saat Admin menekan tombol [Approve & Execute] di Web UI
-// ==========================================
+// Action confirmation schema executed only after explicit admin approval in Web UI
 
 export const confirmActionSchema = z.object({
   actionToken: z.string().min(1, 'actionToken wajib disertakan untuk validasi integritas draf'),

@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
-import { DraftActionCardData, sanitizeUiErrorMessage } from '@repo/shared';
-import { notifyApiResponseError } from '@/lib/api-error';
+import { DraftActionCardData } from '@repo/shared';
+import { webApiClient } from '@/lib/api-client';
+import { normalizeAppError } from '@/lib/error-normalizer';
 import { useToast } from '@/providers';
 import { DraftActionCard } from './draft-action-card';
 import '@/styles/components/ai-widget.css';
@@ -38,14 +39,13 @@ export function AiChatWidget() {
     setExecutedFeedback(null);
 
     try {
-      const res = await fetch('/api/v1/admin/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userText }),
-      });
-      const json = await res.json().catch(() => null);
+      const json = await webApiClient.post<{ content: string; draftCard?: DraftActionCardData }>(
+        '/api/v1/admin/ai/chat',
+        { message: userText },
+        { timeoutMs: 45_000 },
+      );
 
-      if (res.ok && json?.success && json.data) {
+      if (json.success && json.data) {
         setMessages((prev) => [
           ...prev,
           {
@@ -55,28 +55,28 @@ export function AiChatWidget() {
           },
         ]);
       } else {
-        const parsed = notifyApiResponseError(
-          res.status,
-          json,
-          'Asisten AI sedang tidak tersedia.',
-          { category: 'service', source: '/api/v1/admin/ai/chat' },
-        );
-        // Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
-        const sanitized = sanitizeUiErrorMessage(json?.error || { code: parsed.code, message: parsed.message });
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', text: `Perhatian: ${sanitized.message}` },
-        ]);
-        showError(json?.error || new Error(parsed.message));
+        throw normalizeAppError(!json.success ? json.error : null, {
+          fallbackMessage: 'Asisten AI belum dapat merespons saat ini. Silakan coba kembali.',
+        });
       }
     } catch (err: unknown) {
-      // Sanitasi Pesan Error di UI (Anti-Information Leakage - Requirement 1)
-      const sanitized = sanitizeUiErrorMessage(err);
+      const normalized = normalizeAppError(err, {
+        fallbackMessage: 'Asisten AI belum dapat merespons saat ini. Silakan coba kembali.',
+      });
+      const refSuffix =
+        normalized.category === 'SERVER_ERROR' || normalized.statusCode >= 500
+          ? ` (Ref: ${normalized.refCode})`
+          : '';
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', text: `Perhatian: ${sanitized.message}` },
+        { role: 'assistant', text: `${normalized.title}: ${normalized.message}${refSuffix}` },
       ]);
-      showError(err);
+      showError(normalized, {
+        onRetry:
+          normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
+            ? () => void sendMessage(userText)
+            : undefined,
+      });
     } finally {
       setLoading(false);
     }

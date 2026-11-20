@@ -1,8 +1,6 @@
 import { z } from 'zod';
 
-// ==========================================
-// CREATE TICKET (Admin Dispatch: PSB vs Maintenance)
-// ==========================================
+// Admin ticket dispatch schemas (PSB and maintenance)
 
 export const createTicketSchema = z.object({
   ticketType: z.enum(['PSB', 'MAINTENANCE'], {
@@ -47,10 +45,7 @@ export const dispatchTicketSchema = z.object({
 
 export type DispatchTicketInput = z.infer<typeof dispatchTicketSchema>;
 
-// ==========================================
-// SUBMIT TICKET (Field Technician Work Order Submission)
-// Strict adherence to Law 2 (Server timestamp) & Law 3 (Idempotency UUID)
-// ==========================================
+// Field technician submission schema (server timestamp and UUID idempotency key)
 
 export const submitTicketSchema = z.object({
   submissionId: z.string().uuid('submission_id wajib berupa UUID v4 yang valid (Idempotency Key)'),
@@ -74,9 +69,7 @@ export const submitTicketSchema = z.object({
 
 export type SubmitTicketInput = z.infer<typeof submitTicketSchema>;
 
-// ==========================================
-// TICKET FILTER & QUERY SCHEMA
-// ==========================================
+// Ticket filter and pagination query schema
 
 export const ticketQuerySchema = z.object({
   cluster: z.string().optional(),

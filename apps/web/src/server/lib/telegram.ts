@@ -1,4 +1,4 @@
-import { env, ensureRootEnvLoaded } from '../../env';
+import { env, ensureRootEnvLoaded } from '@/env';
 
 const TELEGRAM_API_TIMEOUT_MS = 8000;
 const NUMERIC_CHAT_ID_REGEX = /^-?\d{5,20}$/;

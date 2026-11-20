@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
-import { env } from '../../env';
+import { env } from '@/env';
 import {
   isStrictLiveMode,
   requireLiveDatabase,

@@ -185,9 +185,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // 2. Admin API Gate: /api/v1/admin/*
-  // ---------------------------------------------------------------------------
+  // Admin API gate: /api/v1/admin/*
   if (pathname.startsWith('/api/v1/admin')) {
     const authHeader = request.headers.get('authorization');
     const cookieToken =
@@ -267,9 +265,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // 3. Web Dashboard Page Guard: /login & Protected NOC Routes
-  // ---------------------------------------------------------------------------
+  // Web dashboard page guard: /login and protected NOC routes
   const isLoginRoute = pathname === '/login' || pathname.startsWith('/login/');
   const isDashboardPage = isProtectedDashboardPage(pathname);
 
