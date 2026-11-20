@@ -1,6 +1,6 @@
 import { env, ensureRootEnvLoaded } from '@/env';
 
-const TELEGRAM_API_TIMEOUT_MS = 8000;
+const TELEGRAM_API_TIMEOUT_MS = 4000;
 const NUMERIC_CHAT_ID_REGEX = /^-?\d{5,20}$/;
 
 interface TelegramSendMessageResponse {

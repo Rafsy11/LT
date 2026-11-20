@@ -28,40 +28,27 @@ export async function GET(request: NextRequest) {
     }
 
     const sessionCtx = await AuthService.verifyAccessToken(rawToken);
-    const [account, permissions] = await Promise.all([
-      AuthService.resolveAccountByUsername(sessionCtx.username),
-      getActorPermissions(sessionCtx),
-    ]);
-
-    if (account && !account.isActive) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: ERROR_CODES.FORBIDDEN,
-            message: 'Akun Anda telah dinonaktifkan oleh Administrator.',
-          },
-        },
-        { status: 403 },
-      );
-    }
+    const permissions =
+      Array.isArray(sessionCtx.permissions) && sessionCtx.permissions.length > 0
+        ? sessionCtx.permissions
+        : await getActorPermissions(sessionCtx);
 
     return NextResponse.json({
       success: true,
       data: {
         user: {
-          id: account?.id || sessionCtx.userId,
-          nik: account?.nik || null,
-          username: account?.username || sessionCtx.username,
-          fullName: account?.fullName || sessionCtx.fullName || sessionCtx.username,
-          vendorCompany: account?.vendorCompany || null,
-          role: account?.role.name || sessionCtx.role,
-          roleName: account?.role.name || sessionCtx.role,
-          userType: account?.userType || sessionCtx.userType,
-          hierarchyLevel: account?.role.hierarchyLevel ?? sessionCtx.hierarchyLevel,
+          id: sessionCtx.userId,
+          nik: sessionCtx.nik ?? null,
+          username: sessionCtx.username,
+          fullName: sessionCtx.fullName || sessionCtx.username,
+          vendorCompany: sessionCtx.vendorCompany ?? null,
+          role: sessionCtx.role,
+          roleName: sessionCtx.role,
+          userType: sessionCtx.userType,
+          hierarchyLevel: sessionCtx.hierarchyLevel,
           permissions,
-          assignedClusters: account?.assignedClusters || sessionCtx.assignedClusters || [],
-          isActive: account?.isActive ?? true,
+          assignedClusters: sessionCtx.assignedClusters || [],
+          isActive: true,
         },
       },
     });

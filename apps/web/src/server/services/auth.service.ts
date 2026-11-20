@@ -289,10 +289,26 @@ export class AuthService {
 
       if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk verifikasi sesi.')) {
         try {
-          // Check user existence and active status in DB
+          // Check user existence and active status in DB with narrow projection
           const user = await prisma.user.findUnique({
             where: { id: userId },
-            include: { role: true },
+            select: {
+              id: true,
+              nik: true,
+              username: true,
+              fullName: true,
+              vendorCompany: true,
+              userType: true,
+              isActive: true,
+              assignedClusters: true,
+              role: {
+                select: {
+                  name: true,
+                  hierarchyLevel: true,
+                  permissions: true,
+                },
+              },
+            },
           });
 
           if (!user || !user.isActive) {
@@ -313,6 +329,7 @@ export class AuthService {
                 revokedAt: null,
                 expiresAt: { gt: new Date() },
               },
+              select: { id: true },
             });
 
             if (!activeSession) {
@@ -322,11 +339,16 @@ export class AuthService {
 
           return {
             userId: user.id,
+            nik: user.nik,
             username: user.username,
             fullName: user.fullName,
+            vendorCompany: user.vendorCompany ?? null,
             role: user.role.name,
             userType: user.userType as UserTypeEnum,
             hierarchyLevel: user.role.hierarchyLevel,
+            permissions: Array.isArray(user.role.permissions)
+              ? user.role.permissions.map(String)
+              : [],
             assignedClusters: user.assignedClusters,
             deviceId,
           };
@@ -361,11 +383,14 @@ export class AuthService {
       if (fallbackUser) {
         return {
           userId: fallbackUser.id,
+          nik: fallbackUser.nik ?? null,
           username: fallbackUser.username,
           fullName: fallbackUser.fullName,
+          vendorCompany: fallbackUser.vendorCompany ?? null,
           role: fallbackUser.role.name,
           userType: fallbackUser.userType,
           hierarchyLevel: fallbackUser.role.hierarchyLevel,
+          permissions: fallbackUser.role.permissions,
           assignedClusters: fallbackUser.assignedClusters,
           deviceId,
         };

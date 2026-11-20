@@ -2,11 +2,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 
+let rootEnvLoaded = false;
+
 /**
- * Loads environment variables from the monorepo root `.env` / `.env.local` if not already
- * populated in `process.env` (e.g., when a contributor places `.env` at the repo root only).
+ * Loads environment variables from the monorepo root `.env` / `.env.local` once per process
+ * if not already populated in `process.env` (e.g., when a contributor places `.env` at the repo root only).
  */
-export function ensureRootEnvLoaded(): void {
+export function ensureRootEnvLoaded(force = false): void {
+  if (rootEnvLoaded && !force) return;
+  rootEnvLoaded = true;
+
   const candidates = [
     path.resolve(process.cwd(), '.env.local'),
     path.resolve(process.cwd(), '.env'),

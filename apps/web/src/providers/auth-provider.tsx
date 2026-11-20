@@ -68,6 +68,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    const isLoginPath =
+      typeof window !== 'undefined' &&
+      (window.location.pathname === '/login' || window.location.pathname.startsWith('/login/'));
+
+    if (isLoginPath) {
+      try {
+        window.localStorage.removeItem(AUTH_STORAGE_KEY);
+        window.localStorage.removeItem('fiberops_access_token');
+      } catch {
+        // Ignore storage errors
+      }
+      setSessionUser(null);
+      setIsAuthLoading(false);
+      return () => {
+        active = false;
+      };
+    }
 
     try {
       const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
@@ -239,8 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Ignore storage errors
       }
       setIsLoggingOut(false);
-      router.push('/login');
-      router.refresh();
+      router.replace('/login');
     }
   }, [router]);
 

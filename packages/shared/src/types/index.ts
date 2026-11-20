@@ -6,11 +6,14 @@ export type ApiResponse<T> =
 
 export interface UserSessionContext {
   userId: string;
+  nik?: string | null;
   username: string;
   fullName: string;
+  vendorCompany?: string | null;
   role: string;
   userType: UserTypeEnum;
   hierarchyLevel: number;
+  permissions?: string[];
   assignedClusters: string[];
   deviceId?: string;
 }

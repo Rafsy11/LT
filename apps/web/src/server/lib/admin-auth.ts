@@ -196,6 +196,10 @@ export async function getActorPermissions(actor: UserSessionContext): Promise<st
     return [PERMISSIONS.ALL];
   }
 
+  if (Array.isArray(actor.permissions) && actor.permissions.length > 0) {
+    return actor.permissions;
+  }
+
   try {
     const roles = await RoleService.listRoles();
     const matched = roles.find((r) => r.name.toLowerCase() === actor.role.toLowerCase());

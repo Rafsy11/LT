@@ -6,10 +6,16 @@ export const ISP_LIVE_REPORTS_CHANNEL = 'isp_live_reports';
 
 const redisUrl = env.REDIS_URL;
 
+const REDIS_CONNECT_TIMEOUT_MS = 1_500;
+const REDIS_COMMAND_TIMEOUT_MS = 2_000;
+const REDIS_RECONNECT_COOLDOWN_MS = 15_000;
+
 class RedisManager {
   private publisher: Redis | null = null;
   private subscriber: Redis | null = null;
   private isAvailable = false;
+  private isConnecting = false;
+  private lastReconnectAttemptAt = 0;
 
   constructor() {
     this.initClients();
@@ -19,6 +25,8 @@ class RedisManager {
     try {
       this.publisher = new Redis(redisUrl, {
         lazyConnect: true,
+        connectTimeout: REDIS_CONNECT_TIMEOUT_MS,
+        commandTimeout: REDIS_COMMAND_TIMEOUT_MS,
         maxRetriesPerRequest: 1,
         retryStrategy: () => null, // Non-blocking in dev if Redis is not running
         enableOfflineQueue: false,
@@ -26,12 +34,22 @@ class RedisManager {
 
       this.subscriber = new Redis(redisUrl, {
         lazyConnect: true,
+        connectTimeout: REDIS_CONNECT_TIMEOUT_MS,
+        commandTimeout: REDIS_COMMAND_TIMEOUT_MS,
         maxRetriesPerRequest: 1,
         retryStrategy: () => null,
         enableOfflineQueue: false,
       });
 
+      this.publisher.on('ready', () => {
+        this.isAvailable = true;
+      });
+
       this.publisher.on('error', () => {
+        this.isAvailable = false;
+      });
+
+      this.publisher.on('close', () => {
         this.isAvailable = false;
       });
 
@@ -39,6 +57,8 @@ class RedisManager {
         this.isAvailable = false;
       });
 
+      this.lastReconnectAttemptAt = Date.now();
+      this.isConnecting = true;
       this.publisher
         .connect()
         .then(() => {
@@ -46,6 +66,9 @@ class RedisManager {
         })
         .catch(() => {
           this.isAvailable = false;
+        })
+        .finally(() => {
+          this.isConnecting = false;
         });
 
       this.subscriber.connect().catch(() => {
@@ -54,6 +77,26 @@ class RedisManager {
     } catch {
       this.isAvailable = false;
     }
+  }
+
+  private triggerBackgroundReconnect(): void {
+    if (this.isAvailable || this.isConnecting || !this.publisher) return;
+    const now = Date.now();
+    if (now - this.lastReconnectAttemptAt < REDIS_RECONNECT_COOLDOWN_MS) return;
+
+    this.lastReconnectAttemptAt = now;
+    this.isConnecting = true;
+    this.publisher
+      .connect()
+      .then(() => {
+        this.isAvailable = true;
+      })
+      .catch(() => {
+        this.isAvailable = false;
+      })
+      .finally(() => {
+        this.isConnecting = false;
+      });
   }
 
   public async publishLiveReport(item: ActivityFeedItem): Promise<void> {
@@ -133,6 +176,7 @@ class RedisManager {
     maxRequests: number,
   ): Promise<{ allowed: boolean; remaining: number; retryAfterMs: number }> {
     if (!this.publisher || !this.isAvailable) {
+      this.triggerBackgroundReconnect();
       throw new Error('Redis unavailable for rate limiting');
     }
 
@@ -276,11 +320,15 @@ class RedisManager {
   }
 
   public async ping(): Promise<boolean> {
-    if (!this.publisher || !this.isAvailable) return false;
+    if (!this.publisher || !this.isAvailable) {
+      this.triggerBackgroundReconnect();
+      return false;
+    }
     try {
       const res = await this.publisher.ping();
       return res === 'PONG';
     } catch {
+      this.isAvailable = false;
       return false;
     }
   }
@@ -290,7 +338,10 @@ class RedisManager {
       value,
       expiresAt: Date.now() + ttlSeconds * 1000,
     });
-    if (!this.publisher || !this.isAvailable) return;
+    if (!this.publisher || !this.isAvailable) {
+      this.triggerBackgroundReconnect();
+      return;
+    }
     try {
       await this.publisher.set(key, value, 'EX', ttlSeconds);
     } catch {
@@ -306,6 +357,8 @@ class RedisManager {
       } catch {
         // Fallback to in-memory map
       }
+    } else {
+      this.triggerBackgroundReconnect();
     }
     const entry = this.inMemoryKeyValue.get(key);
     if (!entry) return null;

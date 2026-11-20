@@ -241,8 +241,7 @@ export function useLogin() {
           ? resolveSafeRedirectTarget(window.location.search)
           : '/';
 
-      router.push(targetUrl);
-      router.refresh();
+      router.replace(targetUrl);
     },
     [loginUser, router, showSuccess],
   );
@@ -391,7 +390,9 @@ export function useLogin() {
 
       if (res.success && res.data) {
         completeWebSession(res.data);
+        return;
       }
+      setIsSubmitting(false);
     } catch (err: unknown) {
       applyAppError(err);
       setIsSubmitting(false);
