@@ -68,7 +68,7 @@ export function MonitoringStats({
               <Icon name="check" size={17} />
             </span>
             <div className="stat-card-text">
-              <span className="stat-card-label">Normal (-15 s/d -22 dBm)</span>
+              <span className="stat-card-label">Normal (-10 s/d -25 dBm)</span>
               <div className="stat-card-value">{normalCount}</div>
             </div>
           </div>
@@ -97,12 +97,12 @@ export function MonitoringStats({
               <Icon name="alert" size={17} />
             </span>
             <div className="stat-card-text">
-              <span className="stat-card-label">Warning (-22.1 s/d -25 dBm)</span>
+              <span className="stat-card-label">Mendekati Batas (-25.1 s/d -28 dBm)</span>
               <div className="stat-card-value">{warningCount}</div>
             </div>
           </div>
           <div className="stat-card-footer">
-            <span className="caption">Perlu Pantau · Potensi bending/kotor</span>
+            <span className="caption">Masih layak (≤ 28 dB) · Perlu pantau</span>
           </div>
         </div>
       </article>
@@ -126,7 +126,7 @@ export function MonitoringStats({
               <Icon name="zap" size={17} />
             </span>
             <div className="stat-card-text">
-              <span className="stat-card-label">Critical (&lt; -25 dBm / Drop)</span>
+              <span className="stat-card-label">Jelek / Kritis (&lt; -28 dBm / &gt; 28 dB)</span>
               <div className="stat-card-value">{criticalCount}</div>
             </div>
           </div>

@@ -1,9 +1,14 @@
 import { prisma, Prisma } from '@repo/database';
 import {
   FALLBACK_CLUSTERS,
+  classifyDbm,
+  isAttenuationBad,
   type ClusterListItem,
   type ClusterOptionItem,
   type OdpHistoryEntry,
+  type OdpMapCustomerPoint,
+  type OdpMapRadarItem,
+  type OdpRadarStatus,
   type NetworkAuditFinding,
   type NetworkAuditResult,
   type SplitterPortState,
@@ -18,6 +23,7 @@ import {
   requireLiveDatabase,
   rethrowIfStrictDatabaseError,
 } from '../lib/live-data';
+import { minioManager } from '../lib/minio';
 
 export { FALLBACK_CLUSTERS };
 export type { ClusterListItem, SplitterPortState, SplitterPortActivity };
@@ -751,8 +757,9 @@ export class NetworkService {
       let criticalAttenuationCount = 0;
       for (const c of activeCustomers) {
         const dbm = Number(c.currentAttenuation);
-        if (dbm <= -24) {
-          const isCritical = dbm <= -25;
+        const status = classifyDbm(dbm);
+        if (status === 'Critical' || status === 'Warning') {
+          const isCritical = status === 'Critical';
           if (isCritical) criticalAttenuationCount += 1;
           findings.push({
             id: `att-${c.id}`,
@@ -760,8 +767,8 @@ export class NetworkService {
             category: 'ATTENUATION',
             clusterCode: c.cluster.clusterCode,
             splitterCode: c.splitter?.splitterCode || '-',
-            title: `Redaman ${isCritical ? 'Kritis' : 'Peringatan'} ${dbm.toFixed(1)} dBm · ${c.siaNumber}`,
-            description: `Pelanggan ${c.fullName} (Port #${c.portNumber || '-'}) melewati ambang batas optik.`,
+            title: `Redaman ${isCritical ? 'Jelek (> 28 dB)' : 'Mendekati Batas'} ${dbm.toFixed(1)} dBm · ${c.siaNumber}`,
+            description: `Pelanggan ${c.fullName} (Port #${c.portNumber || '-'}) ${isCritical ? 'melewati batas maksimal normal 28 dB.' : 'berada di rentang mendekati batas 28 dB.'}`,
           });
         }
       }
@@ -812,5 +819,240 @@ export class NetworkService {
       rethrowIfStrictDatabaseError(err, 'Gagal menjalankan audit jaringan di PostgreSQL.');
       throw err;
     }
+  }
+
+  /**
+   * Lists ODP datek points with radar health classification (Normal <= 28 dB vs Abnormal > 28 dB / active issue)
+   * and attached customer coordinates for the dedicated /maps module.
+   */
+  public static async listOdpRadarMap(
+    search = '',
+    clusterFilter = 'Semua cluster',
+  ): Promise<OdpMapRadarItem[]> {
+    const resolveMapPhotoUrl = async (key: string | null | undefined): Promise<string | null> => {
+      if (!key) return null;
+      if (key.startsWith('https://') || key.startsWith('/assets/')) return key;
+      try {
+        return await minioManager.generatePresignedGetUrl(key);
+      } catch {
+        return null;
+      }
+    };
+
+    const filterRadarItems = (items: OdpMapRadarItem[]): OdpMapRadarItem[] => {
+      let filtered = items;
+      if (clusterFilter && clusterFilter !== 'Semua cluster') {
+        const needle = clusterFilter.replace(/^(?:Bandung|Palembang)\s+/i, '').trim().toLowerCase();
+        const rawLower = clusterFilter.trim().toLowerCase();
+        filtered = filtered.filter(
+          (item) =>
+            item.clusterName.toLowerCase().includes(needle) ||
+            item.clusterCode.toLowerCase().includes(needle) ||
+            item.clusterName.toLowerCase().includes(rawLower) ||
+            item.clusterCode.toLowerCase().includes(rawLower),
+        );
+      }
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        filtered = filtered.filter(
+          (item) =>
+            item.splitterCode.toLowerCase().includes(q) ||
+            item.name.toLowerCase().includes(q) ||
+            item.clusterCode.toLowerCase().includes(q) ||
+            item.clusterName.toLowerCase().includes(q) ||
+            item.customers.some(
+              (c) =>
+                c.fullName.toLowerCase().includes(q) ||
+                c.siaNumber.toLowerCase().includes(q) ||
+                (c.picName && c.picName.toLowerCase().includes(q)),
+            ),
+        );
+      }
+      return filtered;
+    };
+
+    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memuat peta radar ODP.')) {
+      try {
+        const splitters = await prisma.networkSplitter.findMany({
+          include: {
+            cluster: true,
+            customers: {
+              where: { status: { not: 'DISMANTLED' } },
+              include: {
+                tickets: {
+                  where: { status: { in: ['OPEN', 'IN_PROGRESS', 'PENDING_APPROVAL'] } },
+                  orderBy: { createdAt: 'desc' },
+                  take: 1,
+                  select: { ticketNumber: true },
+                },
+              },
+              orderBy: [{ portNumber: 'asc' }, { fullName: 'asc' }],
+            },
+          },
+          orderBy: { splitterCode: 'asc' },
+        });
+
+        const radarItems: OdpMapRadarItem[] = await Promise.all(
+          splitters.map(async (s) => {
+            const customers: OdpMapCustomerPoint[] = await Promise.all(
+              s.customers.map(async (c) => {
+                const cur = c.currentAttenuation != null ? Number(c.currentAttenuation) : null;
+                const olt = c.oltAttenuation != null ? Number(c.oltAttenuation) : null;
+                const ont = c.ontAttenuation != null ? Number(c.ontAttenuation) : cur;
+                return {
+                  id: c.id,
+                  siaNumber: c.siaNumber,
+                  fullName: c.fullName,
+                  portNumber: c.portNumber ?? null,
+                  lat: c.lat ? Number(c.lat) : null,
+                  lng: c.lng ? Number(c.lng) : null,
+                  currentAttenuation: cur,
+                  oltAttenuation: olt,
+                  ontAttenuation: ont,
+                  status: c.status,
+                  picName: c.picName ?? null,
+                  picPhone: c.picPhone ?? null,
+                  photoUrl: await resolveMapPhotoUrl(c.photoObjectKey),
+                  openTicketNumber: c.tickets[0]?.ticketNumber ?? null,
+                };
+              }),
+            );
+
+            const measuredValues: number[] = [];
+            let badPortCount = 0;
+            let openTicketCount = 0;
+
+            for (const c of customers) {
+              const readings = [c.ontAttenuation, c.oltAttenuation, c.currentAttenuation].filter(
+                (v): v is number => typeof v === 'number' && Number.isFinite(v),
+              );
+              if (readings.length > 0) {
+                const worstForCust = Math.min(...readings);
+                measuredValues.push(worstForCust);
+                if (readings.some((v) => isAttenuationBad(v))) {
+                  badPortCount += 1;
+                }
+              }
+              if (c.openTicketNumber) {
+                openTicketCount += 1;
+              }
+            }
+
+            const worstAttenuation =
+              measuredValues.length > 0 ? Math.min(...measuredValues) : null;
+            const avgAttenuation =
+              measuredValues.length > 0
+                ? Number(
+                    (
+                      measuredValues.reduce((sum, v) => sum + v, 0) / measuredValues.length
+                    ).toFixed(1),
+                  )
+                : null;
+
+            const anomalyReasons: string[] = [];
+            if (badPortCount > 0) {
+              anomalyReasons.push(
+                `${badPortCount} pelanggan memiliki redaman jelek (> 28 dB${worstAttenuation !== null ? `, terburuk ${worstAttenuation.toFixed(1)} dBm` : ''})`,
+              );
+            }
+            if (!s.isActive) {
+              anomalyReasons.push('Status ODP sedang nonaktif');
+            }
+            if (openTicketCount > 0) {
+              anomalyReasons.push(`${openTicketCount} tiket gangguan aktif terbuka`);
+            }
+
+            let radarStatus: OdpRadarStatus = 'UNMEASURED';
+            if (badPortCount > 0 || !s.isActive || openTicketCount > 0) {
+              radarStatus = 'ABNORMAL';
+            } else if (measuredValues.length > 0) {
+              radarStatus = 'NORMAL';
+            }
+
+            return {
+              id: s.id,
+              splitterCode: s.splitterCode,
+              name: s.name || s.splitterCode,
+              notes: s.notes ?? null,
+              clusterCode: s.cluster.clusterCode,
+              clusterName: s.cluster.name,
+              lat: Number(s.lat),
+              lng: Number(s.lng),
+              maxPorts: s.maxPorts,
+              usedPorts: customers.filter((c) => c.status === 'ACTIVE').length,
+              isActive: s.isActive,
+              radarStatus,
+              worstAttenuation,
+              avgAttenuation,
+              measuredCount: measuredValues.length,
+              badPortCount,
+              openTicketCount,
+              anomalyReasons,
+              customers,
+            };
+          }),
+        );
+
+        return filterRadarItems(radarItems);
+      } catch (err) {
+        rethrowIfStrictDatabaseError(err, 'Gagal membaca titik datek ODP dari PostgreSQL.');
+      }
+    }
+
+    const fallbackItems: OdpMapRadarItem[] = MEMORY_CLUSTERS.map((s) => {
+      const measured = s.ports
+        .map((p) => p.attenuation)
+        .filter((v): v is number => typeof v === 'number');
+      const badPortCount = measured.filter((v) => isAttenuationBad(v)).length;
+      const worstAttenuation = measured.length > 0 ? Math.min(...measured) : null;
+      const avgAttenuation =
+        measured.length > 0
+          ? Number((measured.reduce((acc, v) => acc + v, 0) / measured.length).toFixed(1))
+          : null;
+      const radarStatus: OdpRadarStatus =
+        badPortCount > 0 ? 'ABNORMAL' : measured.length > 0 ? 'NORMAL' : 'UNMEASURED';
+
+      return {
+        id: s.id,
+        splitterCode: s.splitterCode,
+        name: s.locationName || s.splitterCode,
+        notes: null,
+        clusterCode: s.clusterCode,
+        clusterName: s.name,
+        lat: s.lat,
+        lng: s.lng,
+        maxPorts: s.maxPorts,
+        usedPorts: s.usedPorts,
+        isActive: true,
+        radarStatus,
+        worstAttenuation,
+        avgAttenuation,
+        measuredCount: measured.length,
+        badPortCount,
+        openTicketCount: 0,
+        anomalyReasons:
+          badPortCount > 0 ? [`${badPortCount} port melewati batas redaman 28 dB`] : [],
+        customers: s.ports
+          .filter((p) => p.isOccupied && p.siaNumber)
+          .map((p) => ({
+            id: `${s.id}-p${p.portNumber}`,
+            siaNumber: p.siaNumber!,
+            fullName: p.customerName || 'Pelanggan',
+            portNumber: p.portNumber,
+            lat: null,
+            lng: null,
+            currentAttenuation: p.attenuation ?? null,
+            oltAttenuation: null,
+            ontAttenuation: p.attenuation ?? null,
+            status: p.status || 'ACTIVE',
+            picName: null,
+            picPhone: null,
+            photoUrl: null,
+            openTicketNumber: null,
+          })),
+      };
+    });
+
+    return filterRadarItems(fallbackItems);
   }
 }

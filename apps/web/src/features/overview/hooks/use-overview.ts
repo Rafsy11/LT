@@ -6,6 +6,8 @@ import { useClusterOptions } from '@/hooks/use-cluster-options';
 import { webApiClient } from '@/lib/api-client';
 import { normalizeAppError } from '@/lib/error-normalizer';
 import {
+  classifyDbm,
+  isAttenuationBad,
   PERMISSIONS,
   type ClusterListItem,
   type DbTicket,
@@ -109,7 +111,7 @@ export function useOverview() {
       const isCriticalAttenuation =
         typeof t.currentAttenuation === 'number' &&
         t.currentAttenuation !== 0 &&
-        t.currentAttenuation < -24;
+        classifyDbm(t.currentAttenuation) === 'Critical';
 
       let type: OverviewFeedItem['type'] = 'info';
       let title = `${t.ticketNumber} · Menunggu Penugasan`;
@@ -331,8 +333,8 @@ export function useOverview() {
   const normalAttenuationCount = tickets.filter(
     (t) =>
       typeof t.currentAttenuation === 'number' &&
-      t.currentAttenuation >= -22 &&
-      t.currentAttenuation <= -15,
+      t.currentAttenuation !== 0 &&
+      !isAttenuationBad(t.currentAttenuation),
   ).length;
   const networkHealthPct: number | null =
     tickets.length > 0 ? Math.round((normalAttenuationCount / tickets.length) * 100) : null;

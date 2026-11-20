@@ -1,21 +1,29 @@
 export type DbmStatus = 'Normal' | 'Warning' | 'Critical';
 
-// Ambang batas redaman optik (PRD 3.4 & AGENT.md Section 5)
+// Ambang batas redaman optik standar operasional (batas bagus maksimal 28 dB / -28.0 dBm)
 export const ATTENUATION_THRESHOLDS = {
-  NORMAL_MIN: -22.0,
-  NORMAL_MAX: -15.0,
-  WARNING_MIN: -25.0,
-  WARNING_MAX: -22.1,
-  CRITICAL_BELOW: -25.0, // Di bawah -25 dBm (lebih buruk dari -25.0)
+  NORMAL_MIN: -25.0,
+  NORMAL_MAX: -10.0,
+  WARNING_MIN: -28.0,
+  WARNING_MAX: -25.1,
+  GOOD_MAX_LOSS_DB: 28.0,
+  CRITICAL_BELOW: -28.0, // Lebih buruk dari -28.0 dBm (di atas 28 dB = redaman jelek)
   CRITICAL_ABOVE: -10.0, // Optik terbakar/overpower
 } as const;
+
+export function isAttenuationBad(value: number | string | null | undefined): boolean {
+  if (value === null || value === undefined || value === '') return false;
+  const v = typeof value === 'number' ? value : Number(value);
+  if (Number.isNaN(v)) return false;
+  return v < ATTENUATION_THRESHOLDS.CRITICAL_BELOW || v > ATTENUATION_THRESHOLDS.CRITICAL_ABOVE;
+}
 
 export function classifyDbm(
   value: number | string | null | undefined,
 ): DbmStatus | 'Neutral' {
   if (value === null || value === undefined || value === '') return 'Neutral';
   const v = typeof value === 'number' ? value : Number(value);
-  if (isNaN(v)) return 'Warning';
+  if (Number.isNaN(v)) return 'Warning';
   if (v < ATTENUATION_THRESHOLDS.CRITICAL_BELOW || v > ATTENUATION_THRESHOLDS.CRITICAL_ABOVE) {
     return 'Critical';
   }
@@ -475,10 +483,10 @@ export function sanitizeUiErrorMessage(rawError: unknown): {
 
 // 3. OUTDOOR UX & VISIBILITAS LAPANGAN (PRD Section 3.3 & Requirement 4)
 export const OUTDOOR_CONTRAST_TOKENS = {
-  // Sinyal Normal: -15.0 s/d -22.0 dBm
+  // Sinyal Normal Optimal: -10.0 s/d -25.0 dBm
   NORMAL: {
     label: 'NORMAL',
-    range: '-15.0 s/d -22.0 dBm',
+    range: '-10.0 s/d -25.0 dBm',
     hex: '#059669',
     outdoorBg: '#056434', // Kontras tinggi outdoor
     outdoorText: '#ffffff',
@@ -487,10 +495,10 @@ export const OUTDOOR_CONTRAST_TOKENS = {
     badgeText: '#14532d',
     statusDot: '#22c55e',
   },
-  // Sinyal Warning: -22.1 s/d -25.0 dBm
+  // Sinyal Mendekati Batas (masih layak <= 28 dB): -25.1 s/d -28.0 dBm
   WARNING: {
     label: 'WARNING',
-    range: '-22.1 s/d -25.0 dBm',
+    range: '-25.1 s/d -28.0 dBm',
     hex: '#d97706',
     outdoorBg: '#92400e', // Kontras tinggi outdoor
     outdoorText: '#ffffff',
@@ -499,10 +507,10 @@ export const OUTDOOR_CONTRAST_TOKENS = {
     badgeText: '#78350f',
     statusDot: '#eab308',
   },
-  // Sinyal Critical: < -25.0 dBm atau > -10.0 dBm
+  // Sinyal Jelek / Kritis: < -28.0 dBm (> 28 dB) atau > -10.0 dBm
   CRITICAL: {
     label: 'CRITICAL',
-    range: '< -25.0 dBm / Overpower',
+    range: '< -28.0 dBm (> 28 dB) / Overpower',
     hex: '#dc2626',
     outdoorBg: '#991b1b', // Kontras tinggi outdoor
     outdoorText: '#ffffff',

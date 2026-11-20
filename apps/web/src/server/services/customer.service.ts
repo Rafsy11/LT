@@ -2,6 +2,8 @@ import { prisma, Prisma } from '@repo/database';
 import {
   ERROR_CODES,
   type CustomerListItem,
+  type CustomerProfileDetail,
+  type CustomerRecentTicket,
   type CreateCustomerInput,
   type UpdateCustomerInput,
   type UserSessionContext,
@@ -11,8 +13,21 @@ import {
   requireLiveDatabase,
   rethrowIfStrictDatabaseError,
 } from '../lib/live-data';
+import { minioManager } from '../lib/minio';
 
 const DEFAULT_CUSTOMER_LIST_LIMIT = 1000;
+
+async function resolvePhotoUrl(photoObjectKey: string | null | undefined): Promise<string | null> {
+  if (!photoObjectKey) return null;
+  if (photoObjectKey.startsWith('https://') || photoObjectKey.startsWith('/assets/')) {
+    return photoObjectKey;
+  }
+  try {
+    return await minioManager.generatePresignedGetUrl(photoObjectKey);
+  } catch {
+    return null;
+  }
+}
 
 export type { CustomerListItem };
 
@@ -286,6 +301,10 @@ export class CustomerService {
             { fullName: { contains: q, mode: 'insensitive' } },
             { siaNumber: { contains: q, mode: 'insensitive' } },
             { address: { contains: q, mode: 'insensitive' } },
+            { picName: { contains: q, mode: 'insensitive' } },
+            { picPhone: { contains: q, mode: 'insensitive' } },
+            { splitter: { is: { splitterCode: { contains: q, mode: 'insensitive' } } } },
+            { splitter: { is: { name: { contains: q, mode: 'insensitive' } } } },
           ];
         }
 
@@ -294,37 +313,65 @@ export class CustomerService {
           include: {
             cluster: true,
             splitter: true,
+            tickets: {
+              where: { status: { in: ['OPEN', 'IN_PROGRESS', 'PENDING_APPROVAL'] } },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: { ticketNumber: true },
+            },
           },
           orderBy: { updatedAt: 'desc' },
           take: DEFAULT_CUSTOMER_LIST_LIMIT,
         });
 
         if (isStrictLiveMode() || customers.length > 0) {
-          return customers.map((c) => {
-            const parsed = parseCustomerAddress(c.address);
-            return {
-              id: c.id,
-              siaNumber: c.siaNumber,
-              fullName: c.fullName,
-              address: c.address,
-              lat: c.lat ? Number(c.lat) : undefined,
-              lng: c.lng ? Number(c.lng) : undefined,
-              kecamatan: parsed.kecamatan,
-              kelurahan: parsed.kelurahan,
-              street: parsed.street,
-              cluster: c.cluster?.name || 'Palembang H. R. Agam',
-              clusterCode: c.cluster?.clusterCode || 'PLBHRAGA01',
-              splitterCode: c.splitter?.splitterCode ?? null,
-              portNumber: c.portNumber ?? null,
-              currentAttenuation: c.currentAttenuation != null ? Number(c.currentAttenuation) : null,
-              status: c.status,
-              gponNode: c.gponNode ?? null,
-              oltSlot: c.oltSlot ?? null,
-              ontSn: c.ontSn ?? null,
-              notes: c.notes ?? null,
-              updatedAt: c.updatedAt.toISOString(),
-            };
-          });
+          return await Promise.all(
+            customers.map(async (c) => {
+              const parsed = parseCustomerAddress(c.address);
+              const photoUrl = await resolvePhotoUrl(c.photoObjectKey);
+              const currentAtt =
+                c.currentAttenuation != null ? Number(c.currentAttenuation) : null;
+              const oltAtt = c.oltAttenuation != null ? Number(c.oltAttenuation) : null;
+              const ontAtt = c.ontAttenuation != null ? Number(c.ontAttenuation) : currentAtt;
+
+              return {
+                id: c.id,
+                siaNumber: c.siaNumber,
+                fullName: c.fullName,
+                address: c.address,
+                lat: c.lat ? Number(c.lat) : undefined,
+                lng: c.lng ? Number(c.lng) : undefined,
+                kecamatan: parsed.kecamatan,
+                kelurahan: parsed.kelurahan,
+                street: parsed.street,
+                cluster: c.cluster?.name || 'Palembang H. R. Agam',
+                clusterCode: c.cluster?.clusterCode || 'PLBHRAGA01',
+                splitterCode: c.splitter?.splitterCode ?? null,
+                splitterName: c.splitter?.name ?? null,
+                odpLat: c.splitter?.lat ? Number(c.splitter.lat) : null,
+                odpLng: c.splitter?.lng ? Number(c.splitter.lng) : null,
+                portNumber: c.portNumber ?? null,
+                currentAttenuation: currentAtt,
+                oltAttenuation: oltAtt,
+                ontAttenuation: ontAtt,
+                status: c.status,
+                picName: c.picName ?? null,
+                picPhone: c.picPhone ?? null,
+                picRole: c.picRole ?? null,
+                profileDescription: c.profileDescription ?? null,
+                photoObjectKey: c.photoObjectKey ?? null,
+                photoUrl,
+                photoCaption: c.photoCaption ?? null,
+                lastActivityNote: c.lastActivityNote ?? null,
+                openTicketNumber: c.tickets[0]?.ticketNumber ?? null,
+                gponNode: c.gponNode ?? null,
+                oltSlot: c.oltSlot ?? null,
+                ontSn: c.ontSn ?? null,
+                notes: c.notes ?? null,
+                updatedAt: c.updatedAt.toISOString(),
+              };
+            }),
+          );
         }
       } catch (err) {
         rethrowIfStrictDatabaseError(err, 'Gagal memuat daftar pelanggan dari PostgreSQL.');
@@ -354,9 +401,10 @@ export class CustomerService {
   }
 
   /**
-   * Retrieves single customer details by SIA number including recent attenuation histories.
+   * Retrieves single customer profile details by SIA number including PIC, ODP coordinates,
+   * OLT/ONT attenuation, last activity note, open/recent 4 tickets, and attenuation histories.
    */
-  public static async getCustomerBySia(siaNumber: string) {
+  public static async getCustomerBySia(siaNumber: string): Promise<CustomerProfileDetail> {
     if (await requireLiveDatabase('Database PostgreSQL diperlukan untuk membaca detail pelanggan.')) {
       try {
         const customer = await prisma.customer.findUnique({
@@ -364,6 +412,13 @@ export class CustomerService {
           include: {
             cluster: true,
             splitter: true,
+            tickets: {
+              take: 10,
+              orderBy: { createdAt: 'desc' },
+              include: {
+                assignedTech: { select: { fullName: true } },
+              },
+            },
             attenuations: {
               take: 10,
               orderBy: { createdAt: 'desc' },
@@ -373,6 +428,35 @@ export class CustomerService {
         });
 
         if (customer) {
+          const parsed = parseCustomerAddress(customer.address);
+          const photoUrl = await resolvePhotoUrl(customer.photoObjectKey);
+          const mappedTickets: CustomerRecentTicket[] = customer.tickets.map((t) => ({
+            id: t.id,
+            ticketNumber: t.ticketNumber,
+            ticketType: t.ticketType,
+            status: t.status,
+            complaintSummary: t.complaintSummary ?? null,
+            adminNotes: t.adminNotes ?? null,
+            assignedTech: t.assignedTech?.fullName ?? t.vendorName ?? null,
+            createdAt: t.createdAt.toISOString(),
+            completedAt: t.completedAt ? t.completedAt.toISOString() : null,
+          }));
+          const openTicket =
+            mappedTickets.find(
+              (t) =>
+                t.status === 'OPEN' ||
+                t.status === 'IN_PROGRESS' ||
+                t.status === 'PENDING_APPROVAL',
+            ) ?? null;
+          const recentTickets = mappedTickets.slice(0, 4);
+
+          const currentAtt =
+            customer.currentAttenuation != null ? Number(customer.currentAttenuation) : null;
+          const oltAtt =
+            customer.oltAttenuation != null ? Number(customer.oltAttenuation) : null;
+          const ontAtt =
+            customer.ontAttenuation != null ? Number(customer.ontAttenuation) : currentAtt;
+
           return {
             customer: {
               id: customer.id,
@@ -381,20 +465,42 @@ export class CustomerService {
               address: customer.address,
               lat: customer.lat ? Number(customer.lat) : undefined,
               lng: customer.lng ? Number(customer.lng) : undefined,
+              kecamatan: parsed.kecamatan,
+              kelurahan: parsed.kelurahan,
+              street: parsed.street,
               cluster: customer.cluster?.name || '-',
               clusterCode: customer.cluster?.clusterCode || '-',
               splitterCode: customer.splitter?.splitterCode ?? null,
+              splitterName: customer.splitter?.name ?? null,
+              odpLat: customer.splitter?.lat ? Number(customer.splitter.lat) : null,
+              odpLng: customer.splitter?.lng ? Number(customer.splitter.lng) : null,
               portNumber: customer.portNumber ?? null,
-              currentAttenuation: customer.currentAttenuation != null
-                ? Number(customer.currentAttenuation)
-                : null,
+              currentAttenuation: currentAtt,
+              oltAttenuation: oltAtt,
+              ontAttenuation: ontAtt,
               status: customer.status,
+              picName: customer.picName ?? null,
+              picPhone: customer.picPhone ?? null,
+              picRole: customer.picRole ?? null,
+              profileDescription: customer.profileDescription ?? null,
+              photoObjectKey: customer.photoObjectKey ?? null,
+              photoUrl,
+              photoCaption: customer.photoCaption ?? null,
+              lastActivityNote:
+                customer.lastActivityNote ??
+                openTicket?.adminNotes ??
+                openTicket?.complaintSummary ??
+                customer.notes ??
+                null,
+              openTicketNumber: openTicket?.ticketNumber ?? null,
               gponNode: customer.gponNode ?? null,
               oltSlot: customer.oltSlot ?? null,
               ontSn: customer.ontSn ?? null,
               notes: customer.notes ?? null,
               updatedAt: customer.updatedAt.toISOString(),
             },
+            openTicket,
+            recentTickets,
             histories: customer.attenuations.map((h) => ({
               id: h.id,
               submissionId: h.submissionId,
@@ -430,14 +536,16 @@ export class CustomerService {
 
     return {
       customer: fallbackCust,
+      openTicket: null,
+      recentTickets: [],
       histories: [
         {
           id: 'hist-1',
           submissionId: 'sub-demo-1',
           oldAttenuation: -21.0,
-          newAttenuation: fallbackCust.currentAttenuation,
-          splitterCode: fallbackCust.splitterCode,
-          portNumber: fallbackCust.portNumber,
+          newAttenuation: fallbackCust.currentAttenuation ?? -21.0,
+          splitterCode: fallbackCust.splitterCode || '-',
+          portNumber: fallbackCust.portNumber ?? 1,
           photoObjectKey: 'proofs/demo_proof.jpg',
           technicianName: 'Andi Pratama',
           recordedAt: new Date().toISOString(),
@@ -643,6 +751,9 @@ export class CustomerService {
             resolvedSplitterCode = sp.splitterCode;
           }
 
+          const effectiveAttenuation =
+            input.ontAttenuation ?? input.oltAttenuation ?? null;
+
           const customer = await tx.customer.create({
             data: {
               siaNumber,
@@ -653,7 +764,21 @@ export class CustomerService {
               clusterId: cluster.id,
               splitterId,
               portNumber: input.portNumber ?? null,
+              currentAttenuation: effectiveAttenuation,
+              oltAttenuation: input.oltAttenuation ?? null,
+              ontAttenuation: input.ontAttenuation ?? null,
               status: input.status,
+              picName: input.picName ?? null,
+              picPhone: input.picPhone ?? null,
+              picRole: input.picRole ?? null,
+              profileDescription: input.profileDescription ?? null,
+              photoObjectKey: input.photoObjectKey ?? null,
+              photoCaption: input.photoCaption ?? null,
+              lastActivityNote: input.lastActivityNote ?? null,
+              gponNode: input.gponNode ?? null,
+              oltSlot: input.oltSlot ?? null,
+              ontSn: input.ontSn ?? null,
+              notes: input.notes ?? null,
             },
           });
 
@@ -671,6 +796,7 @@ export class CustomerService {
                 splitterCode: resolvedSplitterCode,
                 portNumber: input.portNumber ?? null,
                 status: input.status,
+                picName: input.picName ?? null,
               } as Prisma.InputJsonValue,
             },
           });
@@ -679,13 +805,14 @@ export class CustomerService {
         });
 
         const parsed = parseCustomerAddress(created.customer.address);
+        const photoUrl = await resolvePhotoUrl(created.customer.photoObjectKey);
         return {
           id: created.customer.id,
           siaNumber: created.customer.siaNumber,
           fullName: created.customer.fullName,
           address: created.customer.address,
-          lat: created.customer.lat ? Number(created.customer.lat) : input.lat,
-          lng: created.customer.lng ? Number(created.customer.lng) : input.lng,
+          lat: created.customer.lat ? Number(created.customer.lat) : (input.lat ?? undefined),
+          lng: created.customer.lng ? Number(created.customer.lng) : (input.lng ?? undefined),
           kecamatan: parsed.kecamatan,
           kelurahan: parsed.kelurahan,
           street: parsed.street,
@@ -693,12 +820,31 @@ export class CustomerService {
           clusterCode: cluster.clusterCode,
           splitterCode: created.resolvedSplitterCode === 'Belum dialokasi' ? null : created.resolvedSplitterCode,
           portNumber: created.customer.portNumber ?? null,
-          currentAttenuation: null,
+          currentAttenuation:
+            created.customer.currentAttenuation != null
+              ? Number(created.customer.currentAttenuation)
+              : null,
+          oltAttenuation:
+            created.customer.oltAttenuation != null
+              ? Number(created.customer.oltAttenuation)
+              : null,
+          ontAttenuation:
+            created.customer.ontAttenuation != null
+              ? Number(created.customer.ontAttenuation)
+              : null,
           status: created.customer.status,
-          gponNode: null,
-          oltSlot: null,
-          ontSn: null,
-          notes: null,
+          picName: created.customer.picName ?? null,
+          picPhone: created.customer.picPhone ?? null,
+          picRole: created.customer.picRole ?? null,
+          profileDescription: created.customer.profileDescription ?? null,
+          photoObjectKey: created.customer.photoObjectKey ?? null,
+          photoUrl,
+          photoCaption: created.customer.photoCaption ?? null,
+          lastActivityNote: created.customer.lastActivityNote ?? null,
+          gponNode: created.customer.gponNode ?? null,
+          oltSlot: created.customer.oltSlot ?? null,
+          ontSn: created.customer.ontSn ?? null,
+          notes: created.customer.notes ?? null,
           updatedAt: created.customer.updatedAt.toISOString(),
         };
       } catch (err) {
@@ -712,6 +858,9 @@ export class CustomerService {
           throw err;
         }
         rethrowIfStrictDatabaseError(err, 'Gagal menyimpan pelanggan baru ke PostgreSQL.');
+        if (isStrictLiveMode()) {
+          throw err;
+        }
       }
     }
 
@@ -725,8 +874,8 @@ export class CustomerService {
       siaNumber,
       fullName: input.fullName,
       address: input.address,
-      lat: input.lat,
-      lng: input.lng,
+      lat: input.lat ?? undefined,
+      lng: input.lng ?? undefined,
       kecamatan: parsed.kecamatan,
       kelurahan: parsed.kelurahan,
       street: parsed.street,
@@ -734,12 +883,22 @@ export class CustomerService {
       clusterCode: input.clusterCode.toUpperCase(),
       splitterCode: input.splitterCode || null,
       portNumber: input.portNumber ?? null,
-      currentAttenuation: null,
+      currentAttenuation: input.ontAttenuation ?? input.oltAttenuation ?? null,
+      oltAttenuation: input.oltAttenuation ?? null,
+      ontAttenuation: input.ontAttenuation ?? null,
       status: input.status,
-      gponNode: null,
-      oltSlot: null,
-      ontSn: null,
-      notes: null,
+      picName: input.picName ?? null,
+      picPhone: input.picPhone ?? null,
+      picRole: input.picRole ?? null,
+      profileDescription: input.profileDescription ?? null,
+      photoObjectKey: input.photoObjectKey ?? null,
+      photoUrl: input.photoObjectKey ?? null,
+      photoCaption: input.photoCaption ?? null,
+      lastActivityNote: input.lastActivityNote ?? null,
+      gponNode: input.gponNode ?? null,
+      oltSlot: input.oltSlot ?? null,
+      ontSn: input.ontSn ?? null,
+      notes: input.notes ?? null,
       updatedAt: new Date().toISOString(),
     };
     FALLBACK_CUSTOMERS.unshift(newItem);
@@ -747,7 +906,7 @@ export class CustomerService {
   }
 
   /**
-   * Updates customer master details or service lifecycle status (ACTIVE / ISOLATED / DISMANTLED).
+   * Updates complete customer profile details (SUPER_ADMIN only at API layer) with audit logging.
    */
   public static async updateCustomer(
     input: UpdateCustomerInput,
@@ -763,18 +922,136 @@ export class CustomerService {
           throw new Error(`Pelanggan dengan SIA "${input.siaNumber}" tidak ditemukan.`);
         }
 
-        const shouldReleasePort = input.status === 'DISMANTLED';
+        const nextStatus = input.status ?? existing.status;
+        const shouldReleasePort = nextStatus === 'DISMANTLED';
+
         const updated = await prisma.$transaction(async (tx) => {
+          let resolvedSplitterId: string | null = existing.splitterId;
+          let resolvedPortNumber: number | null =
+            input.portNumber !== undefined ? input.portNumber : existing.portNumber;
+
+          if (shouldReleasePort) {
+            resolvedSplitterId = null;
+            resolvedPortNumber = null;
+          } else if (input.splitterCode !== undefined) {
+            if (input.splitterCode === null) {
+              resolvedSplitterId = null;
+              resolvedPortNumber = null;
+            } else {
+              const targetSplitter = await tx.networkSplitter.findFirst({
+                where: {
+                  OR: [
+                    { splitterCode: { equals: input.splitterCode, mode: 'insensitive' } },
+                    { id: input.splitterCode },
+                  ],
+                },
+              });
+              if (!targetSplitter) {
+                throw new Error(`ODP Splitter "${input.splitterCode}" tidak ditemukan.`);
+              }
+              if (resolvedPortNumber !== null && resolvedPortNumber > targetSplitter.maxPorts) {
+                throw new Error(
+                  `Nomor port ${resolvedPortNumber} melebihi batas kapasitas ODP (${targetSplitter.maxPorts} port).`,
+                );
+              }
+              if (resolvedPortNumber !== null && nextStatus === 'ACTIVE') {
+                const occupied = await tx.customer.findFirst({
+                  where: {
+                    splitterId: targetSplitter.id,
+                    portNumber: resolvedPortNumber,
+                    status: 'ACTIVE',
+                    id: { not: existing.id },
+                  },
+                });
+                if (occupied) {
+                  throw new Error(
+                    `${ERROR_CODES.PORT_OCCUPIED}: Port ${resolvedPortNumber} pada ${targetSplitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName} - ${occupied.siaNumber}).`,
+                  );
+                }
+              }
+              resolvedSplitterId = targetSplitter.id;
+            }
+          } else if (
+            input.portNumber !== undefined &&
+            input.portNumber !== null &&
+            resolvedSplitterId &&
+            nextStatus === 'ACTIVE'
+          ) {
+            const sp = await tx.networkSplitter.findUnique({ where: { id: resolvedSplitterId } });
+            if (sp && input.portNumber > sp.maxPorts) {
+              throw new Error(
+                `Nomor port ${input.portNumber} melebihi batas kapasitas ODP (${sp.maxPorts} port).`,
+              );
+            }
+            const occupied = await tx.customer.findFirst({
+              where: {
+                splitterId: resolvedSplitterId,
+                portNumber: input.portNumber,
+                status: 'ACTIVE',
+                id: { not: existing.id },
+              },
+            });
+            if (occupied) {
+              throw new Error(
+                `${ERROR_CODES.PORT_OCCUPIED}: Port ${input.portNumber} sudah digunakan oleh pelanggan aktif (${occupied.fullName} - ${occupied.siaNumber}).`,
+              );
+            }
+          }
+
+          const nextOlt =
+            input.oltAttenuation !== undefined
+              ? input.oltAttenuation
+              : existing.oltAttenuation != null
+                ? Number(existing.oltAttenuation)
+                : null;
+          const nextOnt =
+            input.ontAttenuation !== undefined
+              ? input.ontAttenuation
+              : existing.ontAttenuation != null
+                ? Number(existing.ontAttenuation)
+                : null;
+          const shouldSyncCurrentAtt =
+            input.ontAttenuation !== undefined || input.oltAttenuation !== undefined;
+          const nextCurrentAtt = shouldSyncCurrentAtt
+            ? (nextOnt ?? nextOlt)
+            : existing.currentAttenuation != null
+              ? Number(existing.currentAttenuation)
+              : null;
+
           const next = await tx.customer.update({
             where: { id: existing.id },
             data: {
               fullName: input.fullName ?? existing.fullName,
               address: input.address ?? existing.address,
-              lat: input.lat ?? existing.lat,
-              lng: input.lng ?? existing.lng,
-              status: input.status ?? existing.status,
-              splitterId: shouldReleasePort ? null : existing.splitterId,
-              portNumber: shouldReleasePort ? null : existing.portNumber,
+              lat: input.lat !== undefined ? input.lat : existing.lat,
+              lng: input.lng !== undefined ? input.lng : existing.lng,
+              status: nextStatus,
+              splitterId: resolvedSplitterId,
+              portNumber: resolvedPortNumber,
+              oltAttenuation: nextOlt,
+              ontAttenuation: nextOnt,
+              currentAttenuation: nextCurrentAtt,
+              picName: input.picName !== undefined ? input.picName : existing.picName,
+              picPhone: input.picPhone !== undefined ? input.picPhone : existing.picPhone,
+              picRole: input.picRole !== undefined ? input.picRole : existing.picRole,
+              profileDescription:
+                input.profileDescription !== undefined
+                  ? input.profileDescription
+                  : existing.profileDescription,
+              photoObjectKey:
+                input.photoObjectKey !== undefined
+                  ? input.photoObjectKey
+                  : existing.photoObjectKey,
+              photoCaption:
+                input.photoCaption !== undefined ? input.photoCaption : existing.photoCaption,
+              lastActivityNote:
+                input.lastActivityNote !== undefined
+                  ? input.lastActivityNote
+                  : existing.lastActivityNote,
+              gponNode: input.gponNode !== undefined ? input.gponNode : existing.gponNode,
+              oltSlot: input.oltSlot !== undefined ? input.oltSlot : existing.oltSlot,
+              ontSn: input.ontSn !== undefined ? input.ontSn : existing.ontSn,
+              notes: input.notes !== undefined ? input.notes : existing.notes,
             },
             include: { cluster: true, splitter: true },
           });
@@ -783,18 +1060,34 @@ export class CustomerService {
             data: {
               actorUserId: actor.userId,
               actorRole: actor.role,
-              actionType: 'CUSTOMER_UPDATED',
+              actionType: 'CUSTOMER_PROFILE_UPDATED',
               targetEntity: 'customer',
               targetId: existing.id,
               oldPayload: {
                 fullName: existing.fullName,
                 address: existing.address,
                 status: existing.status,
+                picName: existing.picName,
+                picPhone: existing.picPhone,
+                profileDescription: existing.profileDescription,
+                oltAttenuation: existing.oltAttenuation ? Number(existing.oltAttenuation) : null,
+                ontAttenuation: existing.ontAttenuation ? Number(existing.ontAttenuation) : null,
+                lastActivityNote: existing.lastActivityNote,
+                splitterCode: existing.splitter?.splitterCode ?? null,
+                portNumber: existing.portNumber,
               } as Prisma.InputJsonValue,
               newPayload: {
                 fullName: next.fullName,
                 address: next.address,
                 status: next.status,
+                picName: next.picName,
+                picPhone: next.picPhone,
+                profileDescription: next.profileDescription,
+                oltAttenuation: next.oltAttenuation ? Number(next.oltAttenuation) : null,
+                ontAttenuation: next.ontAttenuation ? Number(next.ontAttenuation) : null,
+                lastActivityNote: next.lastActivityNote,
+                splitterCode: next.splitter?.splitterCode ?? null,
+                portNumber: next.portNumber,
               } as Prisma.InputJsonValue,
             },
           });
@@ -803,20 +1096,37 @@ export class CustomerService {
         });
 
         const parsed = parseCustomerAddress(updated.address);
+        const photoUrl = await resolvePhotoUrl(updated.photoObjectKey);
         return {
           id: updated.id,
           siaNumber: updated.siaNumber,
           fullName: updated.fullName,
           address: updated.address,
+          lat: updated.lat ? Number(updated.lat) : undefined,
+          lng: updated.lng ? Number(updated.lng) : undefined,
           kecamatan: parsed.kecamatan,
           kelurahan: parsed.kelurahan,
           street: parsed.street,
           cluster: updated.cluster?.name || 'Palembang',
           clusterCode: updated.cluster?.clusterCode || 'PLBHRAGA01',
           splitterCode: updated.splitter?.splitterCode ?? null,
+          splitterName: updated.splitter?.name ?? null,
+          odpLat: updated.splitter?.lat ? Number(updated.splitter.lat) : null,
+          odpLng: updated.splitter?.lng ? Number(updated.splitter.lng) : null,
           portNumber: updated.portNumber ?? null,
-          currentAttenuation: updated.currentAttenuation != null ? Number(updated.currentAttenuation) : null,
+          currentAttenuation:
+            updated.currentAttenuation != null ? Number(updated.currentAttenuation) : null,
+          oltAttenuation: updated.oltAttenuation != null ? Number(updated.oltAttenuation) : null,
+          ontAttenuation: updated.ontAttenuation != null ? Number(updated.ontAttenuation) : null,
           status: updated.status,
+          picName: updated.picName ?? null,
+          picPhone: updated.picPhone ?? null,
+          picRole: updated.picRole ?? null,
+          profileDescription: updated.profileDescription ?? null,
+          photoObjectKey: updated.photoObjectKey ?? null,
+          photoUrl,
+          photoCaption: updated.photoCaption ?? null,
+          lastActivityNote: updated.lastActivityNote ?? null,
           gponNode: updated.gponNode ?? null,
           oltSlot: updated.oltSlot ?? null,
           ontSn: updated.ontSn ?? null,
@@ -824,10 +1134,18 @@ export class CustomerService {
           updatedAt: updated.updatedAt.toISOString(),
         };
       } catch (err) {
-        if (err instanceof Error && err.message.includes('tidak ditemukan')) {
+        if (
+          err instanceof Error &&
+          (err.message.includes('tidak ditemukan') ||
+            err.message.includes(ERROR_CODES.PORT_OCCUPIED) ||
+            err.message.includes('melebihi'))
+        ) {
           throw err;
         }
         rethrowIfStrictDatabaseError(err, 'Gagal memperbarui data pelanggan di PostgreSQL.');
+        if (isStrictLiveMode()) {
+          throw err;
+        }
       }
     }
 
@@ -843,11 +1161,30 @@ export class CustomerService {
       fallback.kelurahan = p.kelurahan;
       fallback.kecamatan = p.kecamatan;
     }
-    if (input.lat !== undefined) fallback.lat = input.lat;
-    if (input.lng !== undefined) fallback.lng = input.lng;
+    if (input.lat !== undefined) fallback.lat = input.lat ?? undefined;
+    if (input.lng !== undefined) fallback.lng = input.lng ?? undefined;
+    if (input.picName !== undefined) fallback.picName = input.picName;
+    if (input.picPhone !== undefined) fallback.picPhone = input.picPhone;
+    if (input.picRole !== undefined) fallback.picRole = input.picRole;
+    if (input.profileDescription !== undefined) fallback.profileDescription = input.profileDescription;
+    if (input.photoObjectKey !== undefined) {
+      fallback.photoObjectKey = input.photoObjectKey;
+      fallback.photoUrl = input.photoObjectKey;
+    }
+    if (input.photoCaption !== undefined) fallback.photoCaption = input.photoCaption;
+    if (input.oltAttenuation !== undefined) fallback.oltAttenuation = input.oltAttenuation;
+    if (input.ontAttenuation !== undefined) {
+      fallback.ontAttenuation = input.ontAttenuation;
+      fallback.currentAttenuation = input.ontAttenuation;
+    }
+    if (input.lastActivityNote !== undefined) fallback.lastActivityNote = input.lastActivityNote;
+    if (input.gponNode !== undefined) fallback.gponNode = input.gponNode;
+    if (input.oltSlot !== undefined) fallback.oltSlot = input.oltSlot;
+    if (input.ontSn !== undefined) fallback.ontSn = input.ontSn;
+    if (input.notes !== undefined) fallback.notes = input.notes;
     if (input.status) {
       fallback.status = input.status;
-      if (input.status === 'DISMANTLED') fallback.portNumber = 0;
+      if (input.status === 'DISMANTLED') fallback.portNumber = null;
     }
     fallback.updatedAt = new Date().toISOString();
     return fallback;

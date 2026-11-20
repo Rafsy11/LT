@@ -167,6 +167,9 @@ export function useCustomers() {
         c.siaNumber.toLowerCase().includes(search.toLowerCase()) ||
         c.address.toLowerCase().includes(search.toLowerCase()) ||
         Boolean(c.splitterCode && c.splitterCode.toLowerCase().includes(search.toLowerCase())) ||
+        Boolean(c.splitterName && c.splitterName.toLowerCase().includes(search.toLowerCase())) ||
+        Boolean(c.picName && c.picName.toLowerCase().includes(search.toLowerCase())) ||
+        Boolean(c.picPhone && c.picPhone.toLowerCase().includes(search.toLowerCase())) ||
         c.cluster.toLowerCase().includes(search.toLowerCase()) ||
         Boolean(c.kecamatan && c.kecamatan.toLowerCase().includes(search.toLowerCase())) ||
         Boolean(c.kelurahan && c.kelurahan.toLowerCase().includes(search.toLowerCase())) ||

@@ -3,6 +3,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { ClusterListItem, ClusterOptionItem } from '@repo/shared';
+import { classifyDbm } from '@repo/shared';
 import { Icon } from '@/components/ui/Icon';
 
 export interface OverviewNetworkMapProps {
@@ -56,14 +57,14 @@ const MIN_LNG_SPAN = 0.08;
 function resolveNodeStatus(item: ClusterListItem): NodeStatus {
   const ports = Array.isArray(item.ports) ? item.ports : [];
   const hasCriticalAttenuation = ports.some(
-    (p) => typeof p.attenuation === 'number' && p.attenuation < -25,
+    (p) => typeof p.attenuation === 'number' && classifyDbm(p.attenuation) === 'Critical',
   );
   if (hasCriticalAttenuation || (item.maxPorts > 0 && item.usedPorts >= item.maxPorts)) {
     return 'critical';
   }
 
   const hasWarningAttenuation = ports.some(
-    (p) => typeof p.attenuation === 'number' && p.attenuation < -22,
+    (p) => typeof p.attenuation === 'number' && classifyDbm(p.attenuation) === 'Warning',
   );
   const utilization = item.maxPorts > 0 ? item.usedPorts / item.maxPorts : 0;
   if (hasWarningAttenuation || utilization >= 0.75) {
@@ -295,7 +296,7 @@ export function OverviewNetworkMap({
   return (
     <section className="panel overview-map-panel" aria-label="Peta Sebaran Jaringan FTTH">
       {/* Mobile GIS Navigation Card (as per Lintasarta Dark Dashboard Trio reference) */}
-      <Link href="/network" className="mobile-gis-card" aria-label="Buka visualisasi Peta GIS Sebaran Jaringan">
+      <Link href="/maps" className="mobile-gis-card" aria-label="Buka visualisasi Peta Radar ODP (Maps)">
         <div className="mobile-gis-card-left">
           <span className="mobile-gis-icon-wrap" aria-hidden="true">
             <Icon name="mapPin" size={20} />
@@ -331,8 +332,8 @@ export function OverviewNetworkMap({
             <h2>Sebaran Jaringan</h2>
             <p>Visibilitas cluster &amp; titik ODP langsung dari PostgreSQL</p>
           </div>
-          <Link href="/network" className="link-arrow">
-            <span>Lihat jaringan</span>
+          <Link href="/maps" className="link-arrow">
+            <span>Buka Peta Maps</span>
           </Link>
         </header>
 

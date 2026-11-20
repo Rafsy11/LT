@@ -41,6 +41,9 @@ export function CustomerFormModal({
   const [splitterCode, setSplitterCode] = useState('');
   const [portNumber, setPortNumber] = useState('');
   const [status, setStatus] = useState<'PENDING_INSTALL' | 'ACTIVE'>('PENDING_INSTALL');
+  const [picName, setPicName] = useState('');
+  const [picPhone, setPicPhone] = useState('');
+  const [profileDescription, setProfileDescription] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -51,6 +54,9 @@ export function CustomerFormModal({
     setSplitterCode('');
     setPortNumber('');
     setStatus('PENDING_INSTALL');
+    setPicName('');
+    setPicPhone('');
+    setProfileDescription('');
     setFieldErrors({});
   }, [isOpen]);
 
@@ -116,6 +122,9 @@ export function CustomerFormModal({
         status,
         ...(splitterCode.trim() ? { splitterCode: splitterCode.trim().toUpperCase() } : {}),
         ...(parsedPort !== undefined ? { portNumber: parsedPort } : {}),
+        ...(picName.trim() ? { picName: picName.trim() } : {}),
+        ...(picPhone.trim() ? { picPhone: picPhone.trim() } : {}),
+        ...(profileDescription.trim() ? { profileDescription: profileDescription.trim() } : {}),
       };
 
       const res = await webApiClient.post('/api/v1/admin/customers', payload);
@@ -312,6 +321,38 @@ export function CustomerFormModal({
                 <FieldError id="cust-port-err" message={fieldErrors.portNumber} />
               </label>
             </div>
+
+            <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <label className="field">
+                <span>Nama PIC (Opsional)</span>
+                <input
+                  type="text"
+                  placeholder="Nama penanggung jawab lokasi"
+                  value={picName}
+                  onChange={(e) => setPicName(e.target.value)}
+                />
+              </label>
+
+              <label className="field">
+                <span>Telepon / WA PIC (Opsional)</span>
+                <input
+                  type="tel"
+                  placeholder="+62 812-xxxx-xxxx"
+                  value={picPhone}
+                  onChange={(e) => setPicPhone(e.target.value)}
+                />
+              </label>
+            </div>
+
+            <label className="field">
+              <span>Deskripsi Profil Pelanggan (Opsional)</span>
+              <textarea
+                rows={2}
+                placeholder="Catatan singkat profil cabang/gedung atau akses teknisi"
+                value={profileDescription}
+                onChange={(e) => setProfileDescription(e.target.value)}
+              />
+            </label>
           </div>
 
           <footer className="modal-footer">

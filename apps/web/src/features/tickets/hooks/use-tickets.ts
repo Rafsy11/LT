@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { CreateTicketInput, DbTicket } from '@repo/shared';
-import { STANDARD_ERROR_MESSAGES } from '@repo/shared';
+import { classifyDbm, STANDARD_ERROR_MESSAGES } from '@repo/shared';
 import { webApiClient } from '@/lib/api-client';
 import { normalizeAppError } from '@/lib/error-normalizer';
 import { useAuth, useToast } from '@/providers';
@@ -135,13 +135,14 @@ export function useTickets() {
     if (att === undefined || att === null) {
       return { label: 'Belum diukur', cls: 'badge gray' };
     }
-    if (att >= -22.0 && att <= -15.0) {
-      return { label: `${att.toFixed(1)} dBm (Normal)`, cls: 'badge green' };
+    const status = classifyDbm(att);
+    if (status === 'Normal') {
+      return { label: `${att.toFixed(1)} dBm (Bagus)`, cls: 'badge green' };
     }
-    if (att < -22.0 && att >= -25.0) {
-      return { label: `${att.toFixed(1)} dBm (Warning)`, cls: 'badge yellow' };
+    if (status === 'Warning') {
+      return { label: `${att.toFixed(1)} dBm (Layak ≤ 28 dB)`, cls: 'badge yellow' };
     }
-    return { label: `${att.toFixed(1)} dBm (Critical)`, cls: 'badge red' };
+    return { label: `${att.toFixed(1)} dBm (Jelek > 28 dB)`, cls: 'badge red' };
   };
 
   return {

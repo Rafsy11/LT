@@ -10,7 +10,7 @@ import { useToast, useAuth } from '@/providers';
 import { webApiClient } from '@/lib/api-client';
 import { normalizeAppError } from '@/lib/error-normalizer';
 import { invalidateQueryCache } from '@/lib/query-cache';
-import type { TechnicianListItem } from '@repo/shared';
+import { classifyDbm, type TechnicianListItem } from '@repo/shared';
 import '@/styles/components/ticket-modal.css';
 
 const TICKET_MUTATION_CACHE_KEYS = [
@@ -63,7 +63,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [rejectReason, setRejectReason] = useState(
-    'Data redaman atau bukti foto OPM belum memenuhi standar toleransi operasional (-22 dBm).',
+    'Data redaman atau bukti foto OPM belum memenuhi standar toleransi operasional (maksimal 28 dB / -28.0 dBm).',
   );
   const [rejectReasonError, setRejectReasonError] = useState<string | null>(null);
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
@@ -126,13 +126,14 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
     if (att === undefined || att === null) {
       return { label: 'Belum diukur', cls: 'badge gray' };
     }
-    if (att >= -22.0 && att <= -15.0) {
-      return { label: `${att.toFixed(1)} dBm (Normal)`, cls: 'badge green' };
+    const status = classifyDbm(att);
+    if (status === 'Normal') {
+      return { label: `${att.toFixed(1)} dBm (Bagus)`, cls: 'badge green' };
     }
-    if (att < -22.0 && att >= -25.0) {
-      return { label: `${att.toFixed(1)} dBm (Warning)`, cls: 'badge yellow' };
+    if (status === 'Warning') {
+      return { label: `${att.toFixed(1)} dBm (Layak ≤ 28 dB)`, cls: 'badge yellow' };
     }
-    return { label: `${att.toFixed(1)} dBm (Critical)`, cls: 'badge red' };
+    return { label: `${att.toFixed(1)} dBm (Jelek > 28 dB)`, cls: 'badge red' };
   };
 
   const attMeta = getDbmBadge(currentAttenuationVal);

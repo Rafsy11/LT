@@ -10,7 +10,7 @@ import type {
   OdpHistoryEntry,
   NetworkAuditResult,
 } from '@repo/shared';
-import { STANDARD_ERROR_MESSAGES } from '@repo/shared';
+import { classifyDbm, STANDARD_ERROR_MESSAGES } from '@repo/shared';
 import { useToast, useAuth } from '@/providers';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
 import { webApiClient } from '@/lib/api-client';
@@ -276,24 +276,25 @@ export function useNetwork() {
     if (att === undefined || att === null) {
       return { label: 'Belum diukur', tone: 'neutral', badge: 'badge gray', status: 'neutral' };
     }
-    if (att >= -22.0 && att <= -15.0) {
+    const status = classifyDbm(att);
+    if (status === 'Normal') {
       return {
-        label: `${att.toFixed(1)} dBm (Normal)`,
+        label: `${att.toFixed(1)} dBm (Bagus)`,
         tone: 'normal',
         badge: 'badge green',
         status: 'normal',
       };
     }
-    if (att < -22.0 && att >= -25.0) {
+    if (status === 'Warning') {
       return {
-        label: `${att.toFixed(1)} dBm (Warning)`,
+        label: `${att.toFixed(1)} dBm (Layak ≤ 28 dB)`,
         tone: 'warning',
         badge: 'badge yellow',
         status: 'warning',
       };
     }
     return {
-      label: `${att.toFixed(1)} dBm (Critical)`,
+      label: `${att.toFixed(1)} dBm (Jelek > 28 dB)`,
       tone: 'critical',
       badge: 'badge red',
       status: 'critical',

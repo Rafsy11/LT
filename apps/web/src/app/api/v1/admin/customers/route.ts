@@ -115,6 +115,19 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: true, data: updated });
     }
 
+    if (actor.userType !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: ERROR_CODES.FORBIDDEN,
+            message: 'Hanya Super Admin yang memiliki izin untuk mengubah profil pelanggan.',
+          },
+        },
+        { status: 403 },
+      );
+    }
+
     const validated = updateCustomerSchema.parse(rawBody);
     const existing = await CustomerService.getCustomerBySia(validated.siaNumber);
     if (!matchesAssignedClusters(actor, existing.customer.clusterCode, existing.customer.cluster)) {

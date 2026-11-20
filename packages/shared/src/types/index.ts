@@ -132,14 +132,109 @@ export interface CustomerListItem {
   cluster: string;
   clusterCode: string;
   splitterCode?: string | null;
+  splitterName?: string | null;
+  odpLat?: number | null;
+  odpLng?: number | null;
   portNumber?: number | null;
   currentAttenuation?: number | null;
+  oltAttenuation?: number | null;
+  ontAttenuation?: number | null;
   status: string;
+  picName?: string | null;
+  picPhone?: string | null;
+  picRole?: string | null;
+  profileDescription?: string | null;
+  photoObjectKey?: string | null;
+  photoUrl?: string | null;
+  photoCaption?: string | null;
+  lastActivityNote?: string | null;
+  openTicketNumber?: string | null;
   gponNode?: string | null;
   oltSlot?: string | null;
   ontSn?: string | null;
   notes?: string | null;
   updatedAt: string;
+}
+
+export interface CustomerRecentTicket {
+  id: string;
+  ticketNumber: string;
+  ticketType: string;
+  status: string;
+  complaintSummary?: string | null;
+  adminNotes?: string | null;
+  assignedTech?: string | null;
+  createdAt: string;
+  completedAt?: string | null;
+}
+
+export interface CustomerAttenuationHistoryItem {
+  id: string;
+  submissionId: string;
+  oldAttenuation: number | null;
+  newAttenuation: number;
+  splitterCode: string;
+  portNumber: number;
+  photoObjectKey?: string;
+  technicianName: string;
+  recordedAt: string;
+}
+
+export interface CustomerProfileDetail {
+  customer: CustomerListItem;
+  openTicket: CustomerRecentTicket | null;
+  recentTickets: CustomerRecentTicket[];
+  histories: CustomerAttenuationHistoryItem[];
+}
+
+export type OdpRadarStatus = 'NORMAL' | 'ABNORMAL' | 'UNMEASURED';
+
+export interface OdpMapCustomerPoint {
+  id: string;
+  siaNumber: string;
+  fullName: string;
+  portNumber: number | null;
+  lat: number | null;
+  lng: number | null;
+  currentAttenuation: number | null;
+  oltAttenuation: number | null;
+  ontAttenuation: number | null;
+  status: string;
+  picName: string | null;
+  picPhone: string | null;
+  photoUrl: string | null;
+  openTicketNumber: string | null;
+}
+
+export interface OdpMapRadarItem {
+  id: string;
+  splitterCode: string;
+  name: string;
+  notes: string | null;
+  clusterCode: string;
+  clusterName: string;
+  lat: number;
+  lng: number;
+  maxPorts: number;
+  usedPorts: number;
+  isActive: boolean;
+  radarStatus: OdpRadarStatus;
+  worstAttenuation: number | null;
+  avgAttenuation: number | null;
+  measuredCount: number;
+  badPortCount: number;
+  openTicketCount: number;
+  anomalyReasons: string[];
+  customers: OdpMapCustomerPoint[];
+}
+
+export interface OdpRadarSummary {
+  totalOdps: number;
+  normalCount: number;
+  abnormalCount: number;
+  unmeasuredCount: number;
+  badAttenuationCustomers: number;
+  mappedCustomers: number;
 }
 
 export interface DbTicketPendingSubmission {

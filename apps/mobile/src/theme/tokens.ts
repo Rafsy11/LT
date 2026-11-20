@@ -194,10 +194,10 @@ export interface OpticalDbmTelemetryBadge {
 
 /**
  * Formats and classifies raw attenuation (dBm) for field technician telemetry display.
- * ITU-T G.984.2 compliant GPON ONT operational range:
- * - Normal: -15.00 to -22.00 dBm (Standard FTTH link)
- * - Warning: -22.10 to -25.00 dBm (Degraded link)
- * - Critical: < -25.00 dBm or > -10.00 dBm (Drop / Outage / Optic saturation)
+ * Standar redaman operasional FTTH GPON (batas bagus maksimal 28 dB):
+ * - Normal: -10.00 to -25.00 dBm (Optimal FTTH link)
+ * - Warning: -25.10 to -28.00 dBm (Masih layak, mendekati batas 28 dB)
+ * - Critical: < -28.00 dBm (> 28 dB) or > -10.00 dBm (Redaman jelek / saturasi)
  */
 export function formatOpticalTelemetryDbm(
   value: number | string | null | undefined,
@@ -237,7 +237,7 @@ export function formatOpticalTelemetryDbm(
         color: '#EF4444',
         bg: 'rgba(239, 68, 68, 0.12)',
         border: 'rgba(239, 68, 68, 0.28)',
-        description: 'Sinyal optik di luar batas operasi (-25.00 dBm).',
+        description: 'Sinyal optik melebihi batas redaman maksimal 28 dB (-28.00 dBm).',
       };
     default:
       return {

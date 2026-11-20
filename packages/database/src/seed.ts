@@ -210,13 +210,190 @@ export async function seedDatabase() {
     `✓ Palembang Master Data Imported: ${importResult.counts?.clusters} clusters, ${importResult.counts?.splitters} splitters, ${importResult.counts?.customers} customers.`,
   );
 
-  // 5. DEMO WORK ORDERS & BASELINE ATTENUATION (PALEMBANG CONTEXT)
+  // 5. DEMO WORK ORDERS, CUSTOMER PROFILES & BASELINE ATTENUATION (PALEMBANG CONTEXT)
   const cust1 = await prisma.customer.findUniqueOrThrow({
     where: { siaNumber: '2025468390' },
   });
   const cust2 = await prisma.customer.findUniqueOrThrow({
     where: { siaNumber: '2025468388' },
   });
+
+  await prisma.customer.update({
+    where: { id: cust1.id },
+    data: {
+      oltAttenuation: -26.2,
+      ontAttenuation: -25.8,
+      currentAttenuation: -25.8,
+      picName: 'Rahmat Hidayat',
+      picPhone: '+62 812-2200-1045',
+      picRole: 'Store Supervisor Sports Station PS Mall',
+      profileDescription:
+        'Gerai ritel Sports Station lantai 2 Palembang Square Mall. Jalur distribusi fiber melalui ODP rooftop PS Mall dengan jam akses teknisi mengikuti jam operasional mal (09.00-21.00 WIB).',
+      lastActivityNote:
+        'Redaman optik terukur -25.8 dBm (masih dalam batas layak <= 28 dB). Pembersihan konektor terjadwal.',
+    },
+  });
+
+  await prisma.customer.update({
+    where: { id: cust2.id },
+    data: {
+      oltAttenuation: -25.6,
+      ontAttenuation: -25.3,
+      currentAttenuation: -25.3,
+      picName: 'Siti Rahmawati',
+      picPhone: '+62 813-9900-2211',
+      picRole: 'PIC Operasional Skechers PS Mall',
+      profileDescription:
+        'Outlet Skechers unit 12 lantai 1 Palembang Square Mall. Terkoneksi pada ODP rooftop PS Mall port 3 dengan layanan FTTH korporat stabil.',
+      lastActivityNote: 'Instalasi ONT selesai dan sinyal normal (-25.3 dBm).',
+    },
+  });
+
+  // Enrich sample Palembang customers matching client reference & radar demo (Normal <= 28 dB vs Abnormal > 28 dB)
+  const bsiCustomer = await prisma.customer.findUnique({
+    where: { siaNumber: '2024437353' },
+  });
+  if (bsiCustomer) {
+    await prisma.customer.update({
+      where: { id: bsiCustomer.id },
+      data: {
+        status: 'ACTIVE',
+        portNumber: 2,
+        oltAttenuation: -28.0,
+        ontAttenuation: -27.0,
+        currentAttenuation: -27.0,
+        picName: 'Hendra Wijaya',
+        picPhone: '+62 812-7311-4092',
+        picRole: 'PIC Operasional ATM BSI Palembang',
+        profileDescription:
+          'Titik layanan BSI ATM di area Indomaret Jl. Parameswara, Palembang. Akses perangkat modem ONT berada di ruang mesin ATM bagian depan toko; koordinasi kunci dan izin akses dilakukan melalui PIC BSI atau kepala toko Indomaret.',
+        lastActivityNote:
+          'Kabel nya ketabrak, masih ada PR perlu pergantian kabel dropcore dari ODP Depan PT Sumber Terang menuju tiang akses Indomaret.',
+      },
+    });
+
+    const bsiTickets: Array<{
+      ticketNumber: string;
+      status: 'COMPLETED' | 'OPEN';
+      summary: string;
+      daysAgo: number;
+    }> = [
+      {
+        ticketNumber: '2026-001105823',
+        status: 'COMPLETED',
+        summary: 'Pengecekan berkala konektor dropcore dan pengukuran OPM ATM BSI Parameswara.',
+        daysAgo: 21,
+      },
+      {
+        ticketNumber: '2026-001105824',
+        status: 'COMPLETED',
+        summary: 'Re-terminasi fast connector port 2 ODP Depan PT Sumber Terang.',
+        daysAgo: 12,
+      },
+      {
+        ticketNumber: '2026-001105825',
+        status: 'OPEN',
+        summary: 'Kabel dropcore tertabrak kendaraan, perlu pergantian jalur dan penarikan ulang.',
+        daysAgo: 2,
+      },
+      {
+        ticketNumber: '2026-001105826',
+        status: 'COMPLETED',
+        summary: 'Verifikasi redaman OLT (-28 dB) & ONT (-27 dB) pasca penyesuaian sementara.',
+        daysAgo: 1,
+      },
+    ];
+
+    for (const item of bsiTickets) {
+      await prisma.ticket.upsert({
+        where: { ticketNumber: item.ticketNumber },
+        update: {},
+        create: {
+          ticketNumber: item.ticketNumber,
+          ticketType: 'MAINTENANCE',
+          customerId: bsiCustomer.id,
+          assignedTechId: techAndi.id,
+          createdByAdminId: adminNoc.id,
+          status: item.status,
+          vendorName: 'PT Mitra Fiber Nusantara',
+          complaintSummary: item.summary,
+          customerPhone: '+62 812-7311-4092',
+          serviceAddress: bsiCustomer.address,
+          locationPlace: 'Indomaret Parameswara (Area ATM BSI)',
+          targetLat: bsiCustomer.lat ? Number(bsiCustomer.lat) : -2.9790933,
+          targetLng: bsiCustomer.lng ? Number(bsiCustomer.lng) : 104.7570692,
+          adminNotes: item.summary,
+          createdAt: new Date(Date.now() - item.daysAgo * 24 * 60 * 60 * 1000),
+          completedAt:
+            item.status === 'COMPLETED'
+              ? new Date(Date.now() - (item.daysAgo * 24 - 3) * 60 * 60 * 1000)
+              : null,
+        },
+      });
+    }
+  }
+
+  const paninBatubara = await prisma.customer.findUnique({ where: { siaNumber: '2010008482' } });
+  if (paninBatubara) {
+    await prisma.customer.update({
+      where: { id: paninBatubara.id },
+      data: {
+        status: 'ACTIVE',
+        portNumber: 1,
+        oltAttenuation: -21.8,
+        ontAttenuation: -21.2,
+        currentAttenuation: -21.2,
+        picName: 'Rina Kusuma',
+        picPhone: '+62 811-7809-112',
+        picRole: 'IT Branch Support Bank Panin',
+        profileDescription:
+          'Gedung kantor cabang Bank Panin Jl. M. Salim Batubara Palembang. Jalur fiber korporat dedicated menuju ruang server lantai 2; teknisi wajib membawa surat tugas resmi Lintasarta.',
+        lastActivityNote: 'Pemantauan rutin redaman optik stabil di -21.2 dBm (Normal Optimal).',
+      },
+    });
+  }
+
+  const bniTasik = await prisma.customer.findUnique({ where: { siaNumber: '2010006485' } });
+  if (bniTasik) {
+    await prisma.customer.update({
+      where: { id: bniTasik.id },
+      data: {
+        status: 'ACTIVE',
+        portNumber: 1,
+        oltAttenuation: -30.4,
+        ontAttenuation: -29.6,
+        currentAttenuation: -29.6,
+        picName: 'Darmawan Putra',
+        picPhone: '+62 813-6844-2210',
+        picRole: 'Koordinator Pengelola ATM BNI',
+        profileDescription:
+          'Unit ATM BNI kompleks Rumah Dinas Jl. Tasik Palembang. Terhubung ke ODP Simpang Jl. Let. Iskandar dengan prioritas SLA perbankan 4 jam.',
+        lastActivityNote:
+          'Redaman melewati batas normal 28 dB (-29.6 dBm). Terindikasi tekukan patchcord pada box ODP.',
+      },
+    });
+  }
+
+  const paninSalatin = await prisma.customer.findUnique({ where: { siaNumber: '2019005579' } });
+  if (paninSalatin) {
+    await prisma.customer.update({
+      where: { id: paninSalatin.id },
+      data: {
+        status: 'ACTIVE',
+        portNumber: 1,
+        oltAttenuation: -31.8,
+        ontAttenuation: -31.2,
+        currentAttenuation: -31.2,
+        picName: 'Fajar Nugroho',
+        picPhone: '+62 812-7890-3341',
+        picRole: 'Chief Engineering Salatin Hotel',
+        profileDescription:
+          'Lokasi ATM Bank Panin Dubai Syariah di lobby Salatin Hotel Jl. Demang Lebar Daun. Koordinasi akses ruang panel dilakukan melalui pos engineering hotel.',
+        lastActivityNote:
+          'Redaman kritis di atas 28 dB (-31.2 dBm). Perlu re-splicing kabel distribusi dari ODP Depan Pegadaian Demang.',
+      },
+    });
+  }
 
   await prisma.ticket.upsert({
     where: { ticketNumber: 'WO-2025-0842' },

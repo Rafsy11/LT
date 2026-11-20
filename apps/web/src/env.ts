@@ -110,8 +110,9 @@ const envSchema = z.object({
   // Mobile App Gate
   MIN_MOBILE_APP_VERSION: z.string().default('1.0.0'),
 
-  // Public Web URL
+  // Public Web URL & Maps
   NEXT_PUBLIC_APP_URL: z.string().default('http://localhost:3000'),
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z.string().optional(),
 
   // Strict live database/infrastructure enforcement (disables static mock fallbacks)
   STRICT_LIVE_DATA: z

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import type { DbTicket } from '@repo/shared';
+import { classifyDbm } from '@repo/shared';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header, type HeaderNotificationItem } from '@/components/layout/Header';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
@@ -28,6 +29,7 @@ const pageTitleMap: Record<string, string> = {
   '/monitoring': 'Pantauan Langsung',
   '/tickets': 'Tiket & Tugas',
   '/network': 'Master Jaringan',
+  '/maps': 'Peta ODP (Maps)',
   '/customers': 'Master Pelanggan (SIA)',
   '/technicians': 'Teknisi Lapangan',
   '/roles': 'Role & Akses (RBAC)',
@@ -48,7 +50,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const activeCacheKey = ADMIN_TICKETS_CACHE_KEY;
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
-  const title = pageTitleMap[pathname] || 'Dasbor';
+  const title =
+    pageTitleMap[pathname] ||
+    (pathname.startsWith('/customers/') ? 'Profil Pelanggan (SIA)' : 'Dasbor');
   const [ticketCount, setTicketCount] = useState(0);
   const [cachedTickets, setCachedTickets] = useState<DbTicket[]>([]);
   const [streamAlerts, setStreamAlerts] = useState<HeaderNotificationItem[]>([]);
@@ -191,7 +195,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const rawDbm = Number(item.attenuationDbm);
         const distance = item.distanceMeters !== undefined ? Number(item.distanceMeters) : 0;
         const isFlagged = Boolean(item.isLocationFlagged || distance > 100);
-        const isCriticalDbm = !Number.isNaN(rawDbm) && rawDbm !== 0 && rawDbm < -24;
+        const isCriticalDbm =
+          !Number.isNaN(rawDbm) && rawDbm !== 0 && classifyDbm(rawDbm) === 'Critical';
         const severity: HeaderNotificationItem['severity'] =
           isFlagged || isCriticalDbm ? 'critical' : 'warning';
         const ticketNo = item.ticketNumber || 'Tiket Baru';
@@ -240,7 +245,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const isCriticalDbm =
         typeof t.currentAttenuation === 'number' &&
         t.currentAttenuation !== 0 &&
-        t.currentAttenuation < -24;
+        classifyDbm(t.currentAttenuation) === 'Critical';
       return (
         Boolean(t.isLocationFlagged) ||
         isCriticalDbm ||
@@ -253,7 +258,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const isCriticalDbm =
         typeof t.currentAttenuation === 'number' &&
         t.currentAttenuation !== 0 &&
-        t.currentAttenuation < -24;
+        classifyDbm(t.currentAttenuation) === 'Critical';
       if (t.isLocationFlagged || isCriticalDbm) return 0;
       if (t.status === 'Menunggu verifikasi') return 1;
       return 2;
@@ -264,7 +269,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const isCriticalDbm =
         typeof t.currentAttenuation === 'number' &&
         t.currentAttenuation !== 0 &&
-        t.currentAttenuation < -24;
+        classifyDbm(t.currentAttenuation) === 'Critical';
       let title = `Menunggu Penugasan · ${t.ticketNumber}`;
       let severity: HeaderNotificationItem['severity'] = 'info';
 

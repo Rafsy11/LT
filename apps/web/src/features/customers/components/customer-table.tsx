@@ -1,5 +1,7 @@
 import React from 'react';
+import Link from 'next/link';
 import {
+  classifyDbm,
   type CustomerListItem,
   STANDARD_ERROR_MESSAGES,
   STANDARD_ACTION_LABELS,
@@ -105,10 +107,15 @@ export function CustomerTable({
                   <div className="customer-name-heading">
                     {c.fullName}
                   </div>
-                  <div style={{ marginTop: '2px' }}>
+                  <div style={{ marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <span className="customer-sia-mono">
                       {c.siaNumber}
                     </span>
+                    {c.picName && (
+                      <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                        PIC: {c.picName}
+                      </span>
+                    )}
                   </div>
                 </td>
 
@@ -169,46 +176,59 @@ export function CustomerTable({
                 </td>
 
                 <td>
-                  <div className="customer-dbm-row">
-                    <span>
-                      {c.currentAttenuation != null
-                        ? `${c.currentAttenuation.toFixed(1)} dBm`
-                        : 'Belum diukur'}
-                    </span>
-                    <SignalStrengthBars
-                      status={
-                        c.currentAttenuation == null
-                          ? 'neutral'
-                          : c.currentAttenuation >= -22.0 && c.currentAttenuation <= -15.0
-                            ? 'normal'
-                            : c.currentAttenuation < -22.0 && c.currentAttenuation >= -25.0
-                              ? 'warning'
-                              : 'critical'
-                      }
-                    />
-                  </div>
-                  <span className="customer-dbm-label">
-                    {c.currentAttenuation == null
-                      ? 'Belum diukur'
-                      : c.currentAttenuation >= -22.0 && c.currentAttenuation <= -15.0
-                        ? 'Normal'
-                        : c.currentAttenuation < -22.0 && c.currentAttenuation >= -25.0
-                          ? 'Waspada'
-                          : 'Kritis'}
-                  </span>
+                  {(() => {
+                    const effAtt = c.ontAttenuation ?? c.currentAttenuation ?? c.oltAttenuation ?? null;
+                    const dbmStatus = classifyDbm(effAtt);
+                    const barStatus =
+                      dbmStatus === 'Normal'
+                        ? 'normal'
+                        : dbmStatus === 'Warning'
+                          ? 'warning'
+                          : dbmStatus === 'Critical'
+                            ? 'critical'
+                            : 'neutral';
+                    return (
+                      <>
+                        <div className="customer-dbm-row">
+                          <span>
+                            {effAtt != null ? `${effAtt.toFixed(1)} dBm` : 'Belum diukur'}
+                          </span>
+                          <SignalStrengthBars status={barStatus} />
+                        </div>
+                        <span className="customer-dbm-label">
+                          {dbmStatus === 'Neutral'
+                            ? 'Belum diukur'
+                            : dbmStatus === 'Normal'
+                              ? 'Bagus'
+                              : dbmStatus === 'Warning'
+                                ? 'Layak (<= 28 dB)'
+                                : 'Jelek (> 28 dB)'}
+                        </span>
+                      </>
+                    );
+                  })()}
                 </td>
 
                 <td style={{ textAlign: 'right' }}>
-                  <button
-                    type="button"
-                    className="button customer-action-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectCustomer(c);
-                    }}
-                  >
-                    Detail SIA
-                  </button>
+                  <div style={{ display: 'inline-flex', gap: '6px', justifyContent: 'flex-end' }}>
+                    <Link
+                      href={`/customers/${encodeURIComponent(c.siaNumber)}`}
+                      className="button customer-action-btn"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Profil
+                    </Link>
+                    <button
+                      type="button"
+                      className="button customer-action-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectCustomer(c);
+                      }}
+                    >
+                      Ringkasan
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -300,15 +320,16 @@ export function CustomerTable({
                   {c.currentAttenuation != null ? `${c.currentAttenuation.toFixed(1)} dBm` : '-'}
                 </span>
                 <SignalStrengthBars
-                  status={
-                    c.currentAttenuation == null
-                      ? 'neutral'
-                      : c.currentAttenuation >= -22.0 && c.currentAttenuation <= -15.0
-                        ? 'normal'
-                        : c.currentAttenuation < -22.0 && c.currentAttenuation >= -25.0
-                          ? 'warning'
-                          : 'critical'
-                  }
+                  status={(() => {
+                    const s = classifyDbm(c.ontAttenuation ?? c.currentAttenuation);
+                    return s === 'Normal'
+                      ? 'normal'
+                      : s === 'Warning'
+                        ? 'warning'
+                        : s === 'Critical'
+                          ? 'critical'
+                          : 'neutral';
+                  })()}
                 />
               </div>
             </div>

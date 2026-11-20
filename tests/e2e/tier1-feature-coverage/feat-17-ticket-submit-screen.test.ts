@@ -63,10 +63,11 @@ describe('Tier 1: Feature 17 - Field Ticket Submit Screen (apps/mobile/src/scree
     }
   });
 
-  it('classifies attenuation dBm into Normal (Good), Warning, and Critical categories', () => {
-    assert.strictEqual(classifyDbm(-18.5), 'Normal'); // Between -15 and -22
-    assert.strictEqual(classifyDbm(-23.5), 'Warning'); // Between -22 and -25
-    assert.strictEqual(classifyDbm(-27.0), 'Critical'); // Below -25
+  it('classifies attenuation dBm into Normal (Good), Warning (<=28 dB), and Critical (>28 dB) categories', () => {
+    assert.strictEqual(classifyDbm(-18.5), 'Normal'); // Optimal (-10 to -25 dBm)
+    assert.strictEqual(classifyDbm(-27.0), 'Warning'); // Acceptable approaching 28 dB (-25.1 to -28.0 dBm)
+    assert.strictEqual(classifyDbm(-28.0), 'Warning'); // Exactly 28 dB is still within good limit
+    assert.strictEqual(classifyDbm(-28.5), 'Critical'); // Worse than -28.0 dBm (> 28 dB = bad)
     assert.strictEqual(classifyDbm(null), 'Neutral');
   });
 

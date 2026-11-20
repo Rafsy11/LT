@@ -1,10 +1,11 @@
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { EmptyState } from '@/components/ui/EmptyState';
-import type {
-  ClusterListItem,
-  CreateTicketInput,
-  NetworkAuditResult,
+import {
+  isAttenuationBad,
+  type ClusterListItem,
+  type CreateTicketInput,
+  type NetworkAuditResult,
 } from '@repo/shared';
 import { SignalStrengthBars } from '@/features/customers';
 import type { AttenuationMeta, OdpHistoryLogItem } from '../hooks/use-network';
@@ -81,7 +82,7 @@ export function PortDetailPanel({
       measuredPorts.length > 0
         ? measuredPorts.reduce((sum, p) => sum + (p.attenuation ?? 0), 0) / measuredPorts.length
         : null;
-    const criticalPortCount = measuredPorts.filter((p) => (p.attenuation ?? 0) < -25).length;
+    const criticalPortCount = measuredPorts.filter((p) => isAttenuationBad(p.attenuation)).length;
 
     return (
       <section className="odp-tab-pane" aria-label="Inspeksi Teknis">
@@ -122,7 +123,7 @@ export function PortDetailPanel({
               {criticalPortCount > 0 ? `${criticalPortCount} Port Kritis` : 'Normal Operasional'}
             </div>
             <div className="inspection-chassis-sub">
-              Pemantauan ambang batas redaman optik &lt; -25.0 dBm pada seluruh pelanggan ODP.
+              Pemantauan ambang batas redaman optik &lt; -28.0 dBm (&gt; 28 dB) pada seluruh pelanggan ODP.
             </div>
           </article>
 

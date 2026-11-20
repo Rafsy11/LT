@@ -84,7 +84,7 @@ export function CustomerStats({
             </div>
           </div>
           <div className="stat-card-footer">
-            <span className="caption">Nilai redaman optik &lt; -25.0 dBm</span>
+            <span className="caption">Redaman jelek &lt; -28.0 dBm (&gt; 28 dB)</span>
           </div>
         </div>
       </article>

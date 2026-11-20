@@ -4,7 +4,7 @@ import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { OverviewTableSkeletonRows } from '@/components/ui/PageSkeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import type { DbTicket } from '@repo/shared';
+import { classifyDbm, type DbTicket } from '@repo/shared';
 
 const OVERVIEW_SKELETON_ROW_COUNT = 4;
 
@@ -316,9 +316,9 @@ export function OverviewTicketQueue({
                       {typeof r.currentAttenuation === 'number' && (
                         <span
                           className={`mobile-ticket-dbm-pill ${
-                            r.currentAttenuation < -25
+                            classifyDbm(r.currentAttenuation) === 'Critical'
                               ? 'critical'
-                              : r.currentAttenuation < -22
+                              : classifyDbm(r.currentAttenuation) === 'Warning'
                                 ? 'warning'
                                 : 'normal'
                           }`}

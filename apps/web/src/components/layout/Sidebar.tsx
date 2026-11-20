@@ -56,6 +56,7 @@ export function Sidebar({
     { label: 'Pantauan Langsung', href: '/monitoring', icon: 'activity', hasLiveDot: true },
     { label: 'Tiket & Tugas', href: '/tickets', icon: 'ticket', count: ticketCount },
     { label: 'Cluster Jaringan', href: '/network', icon: 'network' },
+    { label: 'Peta ODP (Maps)', href: '/maps', icon: 'map' },
     { label: 'Pelanggan (SIA)', href: '/customers', icon: 'users' },
     { label: 'Teknisi Lapangan', href: '/technicians', icon: 'wrench' },
   ];

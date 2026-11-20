@@ -56,29 +56,29 @@ export function TelemetryInspectorHud({
             />
           </div>
           <div className="hud-spectrum-labels" aria-hidden="true">
-            <span>-30 dBm</span>
-            <span>-22.0</span>
-            <span>-15.0</span>
+            <span>-35 dBm</span>
+            <span>-28.0</span>
+            <span>-25.0</span>
             <span>-10 dBm</span>
           </div>
 
           <p className="hud-diagnostic-text">
             {status === 'Normal' && (
               <>
-                Sinyal redaman optik berada di rentang ideal (<b>-15.0 s/d -22.0 dBm</b>) untuk
+                Sinyal redaman optik berada di rentang ideal (<b>-10.0 s/d -25.0 dBm</b>) untuk
                 transmisi GPON tanpa <i>packet loss</i>.
               </>
             )}
             {status === 'Warning' && (
               <>
-                Sinyal mendekati ambang batas margin redaman (<b>-22.1 s/d -25.0 dBm</b>).
-                Disarankan inspeksi konektor patch cord dan adaptor ODP.
+                Sinyal masih dalam batas layak 28 dB (<b>-25.1 s/d -28.0 dBm</b>). Disarankan
+                pemantauan berkala pada konektor patch cord dan adaptor ODP.
               </>
             )}
             {status === 'Critical' && (
               <>
-                Sinyal redaman drop kritis (<b>&lt; -25.0 dBm</b>). Risiko tinggi terjadi degradasi
-                layanan pelanggan atau link optik terputus.
+                Sinyal redaman jelek/kritis (<b>&lt; -28.0 dBm / di atas 28 dB</b>). Risiko tinggi
+                terjadi degradasi layanan pelanggan atau link optik terputus.
               </>
             )}
           </p>

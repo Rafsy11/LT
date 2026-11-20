@@ -33,13 +33,13 @@ export function categorizeAttenuation(dbm: number): {
   if (dbm > 0 || dbm < -50) {
     return { category: 'INVALID', label: 'Di Luar Rentang', colorHex: '#EF4444' };
   }
-  if (dbm >= -22.0 && dbm <= -15.0) {
+  if (dbm >= -25.0 && dbm <= -10.0) {
     return { category: 'GOOD', label: 'Baik', colorHex: '#10B981' };
   }
-  if (dbm >= -25.0 && dbm < -22.0) {
-    return { category: 'WARNING', label: 'Peringatan', colorHex: '#F59E0B' };
+  if (dbm >= -28.0 && dbm < -25.0) {
+    return { category: 'WARNING', label: 'Layak (≤ 28 dB)', colorHex: '#F59E0B' };
   }
-  return { category: 'CRITICAL', label: 'Kritis', colorHex: '#EF4444' };
+  return { category: 'CRITICAL', label: 'Jelek (> 28 dB)', colorHex: '#EF4444' };
 }
 
 export function formatOpmWatermarkLines(data: WatermarkData): string[] {
