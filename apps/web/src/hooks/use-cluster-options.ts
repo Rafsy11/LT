@@ -7,7 +7,8 @@ import {
   getCachedData,
   subscribeQueryCache,
 } from '@/lib/query-cache';
-import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
+import { webApiClient } from '@/lib/api-client';
+import { normalizeAppError } from '@/lib/error-normalizer';
 
 const CLUSTER_OPTIONS_CACHE_KEY = '/api/v1/admin/clusters/options';
 const CLUSTER_OPTIONS_STALE_MS = 60_000;
@@ -40,19 +41,13 @@ export function useClusterOptions(): UseClusterOptionsResult {
       const list = await fetchWithCache<ClusterOptionItem[]>(
         CLUSTER_OPTIONS_CACHE_KEY,
         async () => {
-          const res = await fetch(CLUSTER_OPTIONS_CACHE_KEY);
-          const json = await res.json().catch(() => null);
-          if (!res.ok || !json?.success || !Array.isArray(json.data)) {
-            const parsed = notifyApiResponseError(
-              res.status,
-              json,
-              'Gagal memuat daftar cluster jaringan dari PostgreSQL.',
-              { category: 'database', source: CLUSTER_OPTIONS_CACHE_KEY },
-            );
-            throw new Error(parsed.message);
+          const json = await webApiClient.get<ClusterOptionItem[]>(CLUSTER_OPTIONS_CACHE_KEY);
+          if (!json.success || !Array.isArray(json.data)) {
+            throw normalizeAppError(!json.success ? json.error : null, {
+              fallbackMessage: 'Daftar cluster wilayah belum dapat dimuat saat ini.',
+            });
           }
-          clearServiceUnavailable('database');
-          return json.data as ClusterOptionItem[];
+          return json.data;
         },
         { force, staleTimeMs: CLUSTER_OPTIONS_STALE_MS },
       );
@@ -60,7 +55,10 @@ export function useClusterOptions(): UseClusterOptionsResult {
       setClusters(list);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gagal memuat daftar cluster.');
+      const normalized = normalizeAppError(err, {
+        fallbackMessage: 'Daftar cluster wilayah belum dapat dimuat saat ini.',
+      });
+      setError(normalized.message);
     } finally {
       setIsLoading(false);
     }

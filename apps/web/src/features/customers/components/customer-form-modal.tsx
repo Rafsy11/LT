@@ -3,9 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import type { CreateCustomerInput } from '@repo/shared';
 import { Icon } from '@/components/ui/Icon';
+import { FieldError } from '@/components/ui/FieldError';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
-import { notifyApiResponseError } from '@/lib/api-error';
+import { webApiClient } from '@/lib/api-client';
+import { isAppError, normalizeAppError } from '@/lib/error-normalizer';
 import { useToast } from '@/providers';
 
 export interface CustomerFormModalProps {
@@ -13,6 +15,14 @@ export interface CustomerFormModalProps {
   onClose: () => void;
   onCreated: () => Promise<void> | void;
 }
+
+type CustomerFieldKey =
+  | 'siaNumber'
+  | 'fullName'
+  | 'address'
+  | 'clusterCode'
+  | 'splitterCode'
+  | 'portNumber';
 
 export function CustomerFormModal({
   isOpen,
@@ -22,6 +32,7 @@ export function CustomerFormModal({
   const { showSuccess, showError } = useToast();
   const { clusters: dbClusters } = useClusterOptions();
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<CustomerFieldKey, string>>>({});
 
   const [siaNumber, setSiaNumber] = useState('');
   const [fullName, setFullName] = useState('');
@@ -40,6 +51,7 @@ export function CustomerFormModal({
     setSplitterCode('');
     setPortNumber('');
     setStatus('PENDING_INSTALL');
+    setFieldErrors({});
   }, [isOpen]);
 
   useEffect(() => {
@@ -49,19 +61,53 @@ export function CustomerFormModal({
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const clearField = (key: CustomerFieldKey) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const validateFields = (): { valid: boolean; parsedPort?: number } => {
+    const errors: Partial<Record<CustomerFieldKey, string>> = {};
+    if (!siaNumber.trim()) {
+      errors.siaNumber = 'Nomor SIA pelanggan perlu diisi.';
+    } else if (siaNumber.trim().length < 4) {
+      errors.siaNumber = 'Nomor SIA minimal 4 karakter (contoh: SIA-2026-0991).';
+    }
+
+    if (!fullName.trim()) {
+      errors.fullName = 'Nama lengkap atau perusahaan perlu diisi.';
+    }
+
+    if (!address.trim()) {
+      errors.address = 'Alamat pemasangan perlu diisi.';
+    }
+
+    if (!clusterCode.trim()) {
+      errors.clusterCode = 'Pilih cluster wilayah terlebih dahulu.';
+    }
+
+    const parsedPort = portNumber.trim() ? Number.parseInt(portNumber.trim(), 10) : undefined;
+    if (
+      parsedPort !== undefined &&
+      (Number.isNaN(parsedPort) || parsedPort < 1 || parsedPort > 32)
+    ) {
+      errors.portNumber = 'Nomor port harus di antara 1 hingga 32.';
+    }
+
+    setFieldErrors(errors);
+    return { valid: Object.keys(errors).length === 0, parsedPort };
+  };
+
+  const submitCustomer = async () => {
+    const { valid, parsedPort } = validateFields();
+    if (!valid) return;
+
     try {
       setSubmitting(true);
-      if (!clusterCode.trim()) {
-        throw new Error('Pilih cluster jaringan terlebih dahulu.');
-      }
-
-      const parsedPort = portNumber.trim() ? Number.parseInt(portNumber.trim(), 10) : undefined;
-      if (parsedPort !== undefined && (Number.isNaN(parsedPort) || parsedPort < 1 || parsedPort > 32)) {
-        throw new Error('Nomor port splitter harus antara 1 hingga 32.');
-      }
-
       const payload: CreateCustomerInput = {
         siaNumber: siaNumber.trim().toUpperCase(),
         fullName: fullName.trim(),
@@ -72,33 +118,40 @@ export function CustomerFormModal({
         ...(parsedPort !== undefined ? { portNumber: parsedPort } : {}),
       };
 
-      const res = await fetch('/api/v1/admin/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const json = (await res.json().catch(() => null)) as {
-        success?: boolean;
-        error?: { code?: string; message?: string };
-      } | null;
-      if (!res.ok || !json?.success) {
-        const parsed = notifyApiResponseError(
-          res.status,
-          json,
-          'Gagal mendaftarkan pelanggan baru',
-          { category: 'database', source: '/api/v1/admin/customers' },
-        );
-        throw new Error(parsed.message);
+      const res = await webApiClient.post('/api/v1/admin/customers', payload);
+      if (!res.success) {
+        throw normalizeAppError(res.error, {
+          fallbackMessage: 'Pelanggan baru belum dapat disimpan saat ini.',
+        });
       }
 
       showSuccess(`Pelanggan ${payload.fullName} (${payload.siaNumber}) berhasil didaftarkan.`);
       await onCreated();
       onClose();
     } catch (err: unknown) {
-      showError(err instanceof Error ? err.message : 'Gagal mendaftarkan pelanggan baru');
+      const normalized = normalizeAppError(err, {
+        fallbackMessage: 'Pelanggan baru belum dapat disimpan saat ini.',
+      });
+      if (isAppError(err) && err.fieldErrors) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          ...(err.fieldErrors as Partial<Record<CustomerFieldKey, string>>),
+        }));
+      }
+      showError(normalized, {
+        onRetry:
+          normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
+            ? () => void submitCustomer()
+            : undefined,
+      });
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitCustomer();
   };
 
   return (
@@ -127,7 +180,7 @@ export function CustomerFormModal({
           </button>
         </header>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="modal-body" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <label className="field">
@@ -135,10 +188,17 @@ export function CustomerFormModal({
                 <input
                   type="text"
                   required
+                  aria-invalid={Boolean(fieldErrors.siaNumber)}
+                  aria-describedby={fieldErrors.siaNumber ? 'cust-sia-err' : undefined}
+                  className={fieldErrors.siaNumber ? 'ui-input-invalid' : ''}
                   placeholder="SIA-2026-0991"
                   value={siaNumber}
-                  onChange={(e) => setSiaNumber(e.target.value)}
+                  onChange={(e) => {
+                    setSiaNumber(e.target.value);
+                    clearField('siaNumber');
+                  }}
                 />
+                <FieldError id="cust-sia-err" message={fieldErrors.siaNumber} />
               </label>
 
               <label className="field">
@@ -158,10 +218,17 @@ export function CustomerFormModal({
               <input
                 type="text"
                 required
+                aria-invalid={Boolean(fieldErrors.fullName)}
+                aria-describedby={fieldErrors.fullName ? 'cust-name-err' : undefined}
+                className={fieldErrors.fullName ? 'ui-input-invalid' : ''}
                 placeholder="PT Mitra Nusantara Jaya"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  clearField('fullName');
+                }}
               />
+              <FieldError id="cust-name-err" message={fieldErrors.fullName} />
             </label>
 
             <label className="field">
@@ -169,10 +236,17 @@ export function CustomerFormModal({
               <input
                 type="text"
                 required
+                aria-invalid={Boolean(fieldErrors.address)}
+                aria-describedby={fieldErrors.address ? 'cust-addr-err' : undefined}
+                className={fieldErrors.address ? 'ui-input-invalid' : ''}
                 placeholder="Jl. Angkatan 45 No. 12, Kec. Ilir Barat I, Palembang"
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                onChange={(e) => {
+                  setAddress(e.target.value);
+                  clearField('address');
+                }}
               />
+              <FieldError id="cust-addr-err" message={fieldErrors.address} />
             </label>
 
             <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
@@ -180,7 +254,13 @@ export function CustomerFormModal({
                 <span>Kode Cluster</span>
                 <select
                   value={clusterCode}
-                  onChange={(e) => setClusterCode(e.target.value)}
+                  aria-invalid={Boolean(fieldErrors.clusterCode)}
+                  aria-describedby={fieldErrors.clusterCode ? 'cust-cluster-err' : undefined}
+                  className={fieldErrors.clusterCode ? 'ui-input-invalid' : ''}
+                  onChange={(e) => {
+                    setClusterCode(e.target.value);
+                    clearField('clusterCode');
+                  }}
                   required
                   disabled={submitting || dbClusters.length === 0}
                 >
@@ -194,16 +274,23 @@ export function CustomerFormModal({
                     ))
                   )}
                 </select>
+                <FieldError id="cust-cluster-err" message={fieldErrors.clusterCode} />
               </label>
 
               <label className="field">
                 <span>Kode ODP (Opsional)</span>
                 <input
                   type="text"
+                  aria-invalid={Boolean(fieldErrors.splitterCode)}
+                  className={fieldErrors.splitterCode ? 'ui-input-invalid' : ''}
                   placeholder="ODP-PLB-001"
                   value={splitterCode}
-                  onChange={(e) => setSplitterCode(e.target.value)}
+                  onChange={(e) => {
+                    setSplitterCode(e.target.value);
+                    clearField('splitterCode');
+                  }}
                 />
+                <FieldError message={fieldErrors.splitterCode} />
               </label>
 
               <label className="field">
@@ -212,10 +299,17 @@ export function CustomerFormModal({
                   type="number"
                   min={1}
                   max={32}
+                  aria-invalid={Boolean(fieldErrors.portNumber)}
+                  aria-describedby={fieldErrors.portNumber ? 'cust-port-err' : undefined}
+                  className={fieldErrors.portNumber ? 'ui-input-invalid' : ''}
                   placeholder="1-32"
                   value={portNumber}
-                  onChange={(e) => setPortNumber(e.target.value)}
+                  onChange={(e) => {
+                    setPortNumber(e.target.value);
+                    clearField('portNumber');
+                  }}
                 />
+                <FieldError id="cust-port-err" message={fieldErrors.portNumber} />
               </label>
             </div>
           </div>

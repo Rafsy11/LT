@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { DraftActionCardData, sanitizeUiErrorMessage } from '@repo/shared';
-import { notifyApiResponseError } from '@/lib/api-error';
+import { DraftActionCardData } from '@repo/shared';
+import { useRateLimitCountdown } from '@/hooks/use-rate-limit-countdown';
+import { webApiClient } from '@/lib/api-client';
+import { normalizeAppError } from '@/lib/error-normalizer';
 import { useToast } from '@/providers';
 
 export interface ChatMessage {
@@ -53,6 +55,7 @@ export function useAiAssistant() {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { showError } = useToast();
+  const rateLimit = useRateLimitCountdown();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
@@ -66,7 +69,7 @@ export function useAiAssistant() {
   };
 
   const sendMessage = async (textToSend: string) => {
-    if (!textToSend.trim() || loading) return;
+    if (!textToSend.trim() || loading || rateLimit.isLimited) return;
 
     const userMsg: ChatMessage = {
       role: 'user',
@@ -81,52 +84,52 @@ export function useAiAssistant() {
     setTimeout(scrollToBottom, 50);
 
     try {
-      const res = await fetch('/api/v1/admin/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: textToSend }),
-      });
-      const json = await res.json().catch(() => null);
+      const json = await webApiClient.post<{ content: string; draftCard?: DraftActionCardData }>(
+        '/api/v1/admin/ai/chat',
+        { message: textToSend },
+        { timeoutMs: 45_000 },
+      );
 
-      if (res.ok && json?.success && json.data) {
+      if (json.success && json.data) {
         setMessages((prev) => [
           ...prev,
           {
             role: 'assistant',
-            text: json.data.content,
-            draft: json.data.draftCard,
+            text: json.data!.content,
+            draft: json.data!.draftCard,
             timestamp: formatTime(),
           },
         ]);
       } else {
-        const parsed = notifyApiResponseError(
-          res.status,
-          json,
-          'Asisten AI sedang tidak tersedia.',
-          { category: 'service', source: '/api/v1/admin/ai/chat' },
-        );
-        const sanitized = sanitizeUiErrorMessage(json?.error || { code: parsed.code, message: parsed.message });
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: 'assistant',
-            text: `Perhatian: ${sanitized.message}`,
-            timestamp: formatTime(),
-          },
-        ]);
-        showError(json?.error || new Error(parsed.message));
+        throw normalizeAppError(!json.success ? json.error : null, {
+          fallbackMessage: 'Asisten AI belum dapat merespons saat ini. Silakan coba kembali.',
+        });
       }
     } catch (e: unknown) {
-      const sanitized = sanitizeUiErrorMessage(e);
+      const normalized = normalizeAppError(e, {
+        fallbackMessage: 'Asisten AI belum dapat merespons saat ini. Silakan coba kembali.',
+      });
+      if (normalized.category === 'RATE_LIMITED' && normalized.retryAfterSeconds) {
+        rateLimit.startCooldown(normalized.retryAfterSeconds);
+      }
+      const refSuffix =
+        normalized.category === 'SERVER_ERROR' || normalized.statusCode >= 500
+          ? ` (Ref: ${normalized.refCode})`
+          : '';
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          text: `Perhatian: ${sanitized.message}`,
+          text: `${normalized.title}: ${normalized.message}${refSuffix}`,
           timestamp: formatTime(),
         },
       ]);
-      showError(e);
+      showError(normalized, {
+        onRetry:
+          normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
+            ? () => void sendMessage(textToSend)
+            : undefined,
+      });
     } finally {
       setLoading(false);
       setTimeout(scrollToBottom, 100);
@@ -141,6 +144,7 @@ export function useAiAssistant() {
     prompt,
     setPrompt,
     loading,
+    rateLimitSeconds: rateLimit.remainingSeconds,
     messages,
     messagesEndRef,
     suggestions: AI_SUGGESTIONS,

@@ -3,6 +3,8 @@
 import React from 'react';
 import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
+import { FieldError } from '@/components/ui/FieldError';
+import { formatRetryCountdownMessage } from '@/lib/error-dictionary';
 import { useLogin } from '../hooks/use-login';
 import { useMobileDevToolsGuard } from '../hooks/use-devtools-detector';
 import { MobileDevToolsGuard } from './mobile-devtools-guard';
@@ -35,9 +37,13 @@ export function LoginView() {
     isRequestingOtp,
     isSubmitting,
     errorMessage,
-    errorCode,
+    errorTitle,
+    errorRefCode,
+    canRetry,
+    fieldErrors,
     rateLimitSeconds,
     requestOtpCode,
+    retryLastAction,
     handleSubmit,
   } = useLogin();
 
@@ -69,19 +75,38 @@ export function LoginView() {
             className={`auth-alert ${rateLimitSeconds > 0 ? 'auth-alert-warning' : 'auth-alert-error'}`}
           >
             <span className="auth-alert-icon" aria-hidden="true">
-              <Icon name="alert" size={16} />
+              <Icon name={rateLimitSeconds > 0 ? 'clock' : 'alert'} size={16} />
             </span>
             <span className="auth-alert-content">
               <strong className="auth-alert-code">
                 {rateLimitSeconds > 0
-                  ? `PROTEKSI BRUTE-FORCE AKTIF (${rateLimitSeconds}d)`
-                  : errorCode || 'AUTENTIKASI GAGAL'}
+                  ? `Mohon Tunggu Sebentar (${rateLimitSeconds} detik)`
+                  : errorTitle || 'Autentikasi Belum Berhasil'}
               </strong>
               <span className="auth-alert-message">
                 {rateLimitSeconds > 0
-                  ? `${errorMessage || 'Batas percobaan terlampaui.'} Silakan coba kembali dalam ${rateLimitSeconds} detik.`
+                  ? formatRetryCountdownMessage(
+                      rateLimitSeconds,
+                      'Terlalu banyak percobaan masuk dalam waktu singkat',
+                    )
                   : errorMessage}
               </span>
+              {errorRefCode && (
+                <span className="connection-banner-ref">Ref: {errorRefCode}</span>
+              )}
+              {canRetry && rateLimitSeconds === 0 && (
+                <div className="toast-action-row">
+                  <button
+                    type="button"
+                    className="toast-action-btn"
+                    onClick={() => void retryLastAction()}
+                    disabled={isLocked || isRequestingOtp}
+                  >
+                    <Icon name="refresh" size={13} />
+                    <span>Coba Lagi</span>
+                  </button>
+                </div>
+              )}
             </span>
           </output>
         )}
@@ -102,12 +127,15 @@ export function LoginView() {
                   type="text"
                   autoComplete="username"
                   required
+                  aria-invalid={Boolean(fieldErrors.username)}
+                  aria-describedby={fieldErrors.username ? 'auth-username-error' : undefined}
                   placeholder="superadmin atau admin.noc"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="auth-input"
+                  className={`auth-input ${fieldErrors.username ? 'ui-input-invalid' : ''}`}
                 />
               </div>
+              <FieldError id="auth-username-error" message={fieldErrors.username} />
             </div>
 
             <div className="auth-field">
@@ -124,10 +152,12 @@ export function LoginView() {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   required
+                  aria-invalid={Boolean(fieldErrors.password)}
+                  aria-describedby={fieldErrors.password ? 'auth-password-error' : undefined}
                   placeholder="Masukkan kata sandi"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="auth-input auth-input-password"
+                  className={`auth-input auth-input-password ${fieldErrors.password ? 'ui-input-invalid' : ''}`}
                 />
                 <button
                   type="button"
@@ -139,6 +169,7 @@ export function LoginView() {
                   <Icon name={showPassword ? 'eyeOff' : 'eye'} size={17} />
                 </button>
               </div>
+              <FieldError id="auth-password-error" message={fieldErrors.password} />
             </div>
 
             <div className="auth-field">
@@ -167,10 +198,12 @@ export function LoginView() {
                     autoComplete="one-time-code"
                     maxLength={6}
                     pattern="\d{6}"
+                    aria-invalid={Boolean(fieldErrors.otpCode)}
+                    aria-describedby={fieldErrors.otpCode ? 'auth-otp-error' : undefined}
                     placeholder="6 digit OTP"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value)}
-                    className="auth-input auth-otp-inline-input"
+                    className={`auth-input auth-otp-inline-input ${fieldErrors.otpCode ? 'ui-input-invalid' : ''}`}
                   />
                 </div>
 
@@ -198,6 +231,7 @@ export function LoginView() {
                   </span>
                 </button>
               </div>
+              <FieldError id="auth-otp-error" message={fieldErrors.otpCode} />
 
               {deliveryStatus === 'SENT' && (
                 <p className="auth-otp-hint auth-otp-hint-sent">
@@ -229,7 +263,7 @@ export function LoginView() {
       </article>
 
       <footer className="auth-meta">
-        <span>2FA Telegram Bot OTP • JWT HttpOnly Session</span>
+        <span>Autentikasi 2FA Telegram • Sesi Aman Terenkripsi</span>
         <span className="auth-meta-divider" aria-hidden="true">
           |
         </span>

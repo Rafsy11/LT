@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { generateErrorRefCode } from '@/lib/error-normalizer';
 
 export default function GlobalErrorBoundary({
   error,
@@ -9,10 +10,7 @@ export default function GlobalErrorBoundary({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const cleanDigest = error?.digest
-    ? error.digest.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12).toUpperCase()
-    : 'INTERNAL';
-  const refCode = `INC-${cleanDigest}`;
+  const refCode = generateErrorRefCode(error?.digest);
 
   // Standalone fallback without external providers/stylesheets because RootLayout failed
   return (
@@ -38,7 +36,7 @@ export default function GlobalErrorBoundary({
             width: '100%',
             maxWidth: '480px',
             padding: '28px 22px',
-            borderRadius: '14px',
+            borderRadius: '8px',
             backgroundColor: '#0b1329',
             border: '1px solid #1e293b',
             boxShadow: '0 8px 28px rgba(2, 6, 23, 0.6)',
@@ -47,17 +45,17 @@ export default function GlobalErrorBoundary({
           }}
         >
           <h1 style={{ margin: '0 0 8px', fontSize: '17px', fontWeight: 700, color: '#f1f5f9' }}>
-            Sistem Sedang Mengalami Gangguan Sementara
+            Kendala Sementara pada Sistem
           </h1>
           <p style={{ margin: '0 0 16px', fontSize: '13px', lineHeight: 1.55, color: '#94a3b8' }}>
-            Halaman tidak dapat diproses saat ini demi keamanan sistem. Silakan muat ulang atau
-            hubungi tim Administrator NOC jika kendala berlanjut.
+            Maaf, aplikasi mengalami kendala sementara saat memproses halaman. Data Anda tetap aman,
+            silakan coba muat ulang atau hubungi tim dukungan operasional jika kendala berlanjut.
           </p>
           <div
             style={{
               display: 'inline-block',
               padding: '5px 10px',
-              borderRadius: '6px',
+              borderRadius: '4px',
               backgroundColor: '#060b18',
               border: '1px solid #1e293b',
               color: '#cbd5e1',
@@ -66,26 +64,46 @@ export default function GlobalErrorBoundary({
               marginBottom: '20px',
             }}
           >
-            Kode Referensi: {refCode}
+            Ref: {refCode}
           </div>
-          <div>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => reset()}
               style={{
                 minHeight: '44px',
                 padding: '10px 20px',
-                borderRadius: '8px',
-                border: '1px solid #0066ff',
-                backgroundColor: '#0066ff',
+                borderRadius: '6px',
+                border: '1px solid #0e5b92',
+                backgroundColor: '#0e5b92',
                 color: '#ffffff',
                 fontSize: '13px',
                 fontWeight: 600,
                 cursor: 'pointer',
               }}
             >
-              Muat Ulang Aplikasi
+              Coba Lagi
             </button>
+            <a
+              href="/"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '44px',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                border: '1px solid #334155',
+                backgroundColor: '#111e3f',
+                color: '#e2e8f0',
+                fontSize: '13px',
+                fontWeight: 600,
+                textDecoration: 'none',
+                boxSizing: 'border-box',
+              }}
+            >
+              Kembali ke Beranda
+            </a>
           </div>
         </section>
       </body>

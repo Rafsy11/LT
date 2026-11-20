@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
+import { AccessDeniedState } from '@/components/ui/AccessDeniedState';
+import { ErrorBanner } from '@/components/ui/ErrorBanner';
+import { RateLimitNotice } from '@/components/ui/RateLimitNotice';
 import { useRoles, UserAccessItem } from '../hooks/use-roles';
 import { RoleHeader } from './role-header';
 import { RoleStats } from './role-stats';
@@ -37,6 +40,9 @@ export function RolesView() {
     isLoading,
     isFetching,
     actionInProgress,
+    forbiddenError,
+    loadError,
+    rateLimitSeconds,
     user,
     fetchRoles,
     handleTogglePermission,
@@ -64,8 +70,34 @@ export function RolesView() {
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
   }, [fetchRoles]);
 
+  if (forbiddenError) {
+    return (
+      <main className="roles-page" id="main-content" style={{ paddingBottom: '32px' }}>
+        <AccessDeniedState
+          title="Akses Manajemen Peran Dibatasi"
+          description={forbiddenError}
+          requiredRole="Administrator Akses"
+          homeHref="/"
+          variant="panel"
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="roles-page" id="main-content" style={{ paddingBottom: '32px' }}>
+      {Boolean(loadError) && (
+        <div style={{ marginBottom: '16px' }}>
+          <ErrorBanner error={loadError} onRetry={() => void fetchRoles(true)} />
+        </div>
+      )}
+
+      {rateLimitSeconds > 0 && (
+        <div style={{ marginBottom: '16px' }}>
+          <RateLimitNotice remainingSeconds={rateLimitSeconds} />
+        </div>
+      )}
+
       {/* Overview Header */}
       <RoleHeader
         isFetching={isFetching}

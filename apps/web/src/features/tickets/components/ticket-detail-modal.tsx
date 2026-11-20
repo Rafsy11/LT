@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
+import { FieldError } from '@/components/ui/FieldError';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { useToast, useAuth } from '@/providers';
-import { formatSafeUiError } from '@/lib/api-error';
+import { webApiClient } from '@/lib/api-client';
+import { normalizeAppError } from '@/lib/error-normalizer';
 import { invalidateQueryCache } from '@/lib/query-cache';
 import type { TechnicianListItem } from '@repo/shared';
 import '@/styles/components/ticket-modal.css';
@@ -63,6 +65,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
   const [rejectReason, setRejectReason] = useState(
     'Data redaman atau bukti foto OPM belum memenuhi standar toleransi operasional (-22 dBm).',
   );
+  const [rejectReasonError, setRejectReasonError] = useState<string | null>(null);
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -96,11 +99,11 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
     setEditTargetLng(typeof ticket.targetLng === 'number' ? String(ticket.targetLng) : '');
 
     if (canCreateTicket) {
-      fetch('/api/v1/admin/technicians')
-        .then((r) => r.json())
+      webApiClient
+        .get<TechnicianListItem[]>('/api/v1/admin/technicians')
         .then((json) => {
           if (json?.success && Array.isArray(json.data)) {
-            setVendors(json.data as TechnicianListItem[]);
+            setVendors(json.data);
           }
         })
         .catch(() => {});
@@ -137,23 +140,22 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
   const handleApprove = async () => {
     try {
       setIsSubmitting(true);
-      const res = await fetch(`/api/v1/admin/tickets/${ticket.id}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const json = await res.json();
+      const json = await webApiClient.post(`/api/v1/admin/tickets/${ticket.id}/approve`, {});
       if (!json.success) {
-        throw new Error(json.error?.message || 'Gagal menyetujui laporan tiket');
+        throw normalizeAppError(json.error, {
+          fallbackMessage: 'Persetujuan laporan tiket belum dapat diproses saat ini.',
+        });
       }
+      const metaMessage = (json.meta as { message?: string } | undefined)?.message;
       showSuccess(
-        json.meta?.message ||
-          'Laporan teknisi berhasil disetujui (Accepted). Data Master Pelanggan telah diperbarui.',
+        metaMessage ||
+          'Laporan teknisi berhasil disetujui. Data Master Pelanggan telah diperbarui.',
       );
       invalidateQueryCache(...TICKET_MUTATION_CACHE_KEYS);
       if (onTicketUpdated) onTicketUpdated();
       onClose();
     } catch (err: unknown) {
-      showError(err instanceof Error ? err.message : 'Gagal menyetujui laporan tiket');
+      showError(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -161,28 +163,29 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
 
   const handleReject = async () => {
     if (!rejectReason.trim()) {
-      showError('Alasan penolakan wajib diisi untuk instruksi teknisi lapangan.');
+      setRejectReasonError('Alasan penolakan perlu diisi agar teknisi mengetahui perbaikan yang dibutuhkan.');
       return;
     }
+    setRejectReasonError(null);
     try {
       setIsSubmitting(true);
-      const res = await fetch(`/api/v1/admin/tickets/${ticket.id}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: rejectReason.trim() }),
+      const json = await webApiClient.post(`/api/v1/admin/tickets/${ticket.id}/reject`, {
+        reason: rejectReason.trim(),
       });
-      const json = await res.json();
       if (!json.success) {
-        throw new Error(json.error?.message || 'Gagal menolak laporan tiket');
+        throw normalizeAppError(json.error, {
+          fallbackMessage: 'Penolakan laporan tiket belum dapat diproses saat ini.',
+        });
       }
+      const metaMessage = (json.meta as { message?: string } | undefined)?.message;
       showSuccess(
-        json.meta?.message || 'Laporan telah ditolak dan dikembalikan ke teknisi untuk perbaikan.',
+        metaMessage || 'Laporan telah ditolak dan dikembalikan ke teknisi untuk perbaikan.',
       );
       invalidateQueryCache(...TICKET_MUTATION_CACHE_KEYS);
       if (onTicketUpdated) onTicketUpdated();
       onClose();
     } catch (err: unknown) {
-      showError(err instanceof Error ? err.message : 'Gagal menolak laporan tiket');
+      showError(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -191,24 +194,24 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
   const handleSimulateMobileSubmission = async () => {
     try {
       setIsSubmitting(true);
-      const res = await fetch('/api/v1/admin/tickets/simulate-submission', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticketId: ticket.id }),
+      const json = await webApiClient.post('/api/v1/admin/tickets/simulate-submission', {
+        ticketId: ticket.id,
       });
-      const json = await res.json();
       if (!json.success) {
-        throw new Error(json.error?.message || 'Gagal mensimulasikan kiriman data');
+        throw normalizeAppError(json.error, {
+          fallbackMessage: 'Simulasi kiriman data belum dapat diproses saat ini.',
+        });
       }
+      const metaMessage = (json.meta as { message?: string } | undefined)?.message;
       showSuccess(
-        json.meta?.message ||
-          'Laporan baru dari teknisi berhasil diterima. Siap diverifikasi dan disetujui (Accepted).',
+        metaMessage ||
+          'Laporan baru dari teknisi berhasil diterima dan siap diverifikasi.',
       );
       invalidateQueryCache(...TICKET_MUTATION_CACHE_KEYS);
       if (onTicketUpdated) onTicketUpdated();
       onClose();
     } catch (err: unknown) {
-      showError(err instanceof Error ? err.message : 'Gagal mensimulasikan kiriman data');
+      showError(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -225,25 +228,26 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
       setPhotoPreviewOpen(true);
       setPhotoLoading(true);
       setPhotoError(null);
-      const res = await fetch(
+      const json = await webApiClient.get<{ url?: string; isMockFallback?: boolean }>(
         `/api/v1/admin/media/presign?key=${encodeURIComponent(objectKey)}`,
       );
-      const json = (await res.json()) as {
-        success?: boolean;
-        data?: { url?: string; isMockFallback?: boolean };
-        error?: { message?: string };
-      };
-      if (!res.ok || !json.success || !json.data?.url) {
-        throw new Error('Gagal memuat URL foto bukti dari penyimpanan media.');
+      if (!json.success || !json.data?.url) {
+        throw normalizeAppError(!json.success ? json.error : null, {
+          fallbackMessage: 'Tautan pratinjau foto bukti belum dapat dimuat saat ini.',
+        });
       }
       setPhotoUrl(json.data.url);
       setPhotoIsMockFallback(Boolean(json.data.isMockFallback));
       setLoadedPhotoKey(objectKey);
     } catch (err: unknown) {
-      const safe = formatSafeUiError(err, {
-        fallbackMessage: 'Gagal memuat pratinjau foto bukti lapangan.',
+      const normalized = normalizeAppError(err, {
+        fallbackMessage: 'Pratinjau foto bukti lapangan belum dapat dimuat saat ini.',
       });
-      setPhotoError(`${safe.message} (${safe.refId})`);
+      const refSuffix =
+        normalized.category === 'SERVER_ERROR' || normalized.statusCode >= 500
+          ? ` (Ref: ${normalized.refCode})`
+          : '';
+      setPhotoError(`${normalized.message}${refSuffix}`);
     } finally {
       setPhotoLoading(false);
     }
@@ -255,29 +259,27 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
       setIsSubmitting(true);
       const latNum = editTargetLat.trim() !== '' ? Number(editTargetLat) : undefined;
       const lngNum = editTargetLng.trim() !== '' ? Number(editTargetLng) : undefined;
-      const res = await fetch(`/api/v1/admin/tickets/${ticket.id}/dispatch`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assignedTechUsername: editTechUsername || undefined,
-          vendorName: editVendorName.trim() || undefined,
-          locationPlace: editLocationPlace.trim() || undefined,
-          serviceAddress: editServiceAddress.trim() || undefined,
-          targetLat: latNum !== undefined && !Number.isNaN(latNum) ? latNum : undefined,
-          targetLng: lngNum !== undefined && !Number.isNaN(lngNum) ? lngNum : undefined,
-        }),
+      const json = await webApiClient.patch(`/api/v1/admin/tickets/${ticket.id}/dispatch`, {
+        assignedTechUsername: editTechUsername || undefined,
+        vendorName: editVendorName.trim() || undefined,
+        locationPlace: editLocationPlace.trim() || undefined,
+        serviceAddress: editServiceAddress.trim() || undefined,
+        targetLat: latNum !== undefined && !Number.isNaN(latNum) ? latNum : undefined,
+        targetLng: lngNum !== undefined && !Number.isNaN(lngNum) ? lngNum : undefined,
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || 'Gagal memperbarui disposisi vendor');
+      if (!json.success) {
+        throw normalizeAppError(json.error, {
+          fallbackMessage: 'Disposisi vendor belum dapat diperbarui saat ini.',
+        });
       }
-      showSuccess(json.meta?.message || 'Disposisi vendor & titik lokasi berhasil diperbarui.');
+      const metaMessage = (json.meta as { message?: string } | undefined)?.message;
+      showSuccess(metaMessage || 'Disposisi vendor & titik lokasi berhasil diperbarui.');
       invalidateQueryCache(...TICKET_MUTATION_CACHE_KEYS);
       setShowDispatchEdit(false);
       if (onTicketUpdated) onTicketUpdated();
       onClose();
     } catch (err: unknown) {
-      showError(err instanceof Error ? err.message : 'Gagal memperbarui disposisi');
+      showError(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -853,10 +855,16 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
               </label>
               <textarea
                 value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
+                aria-invalid={Boolean(rejectReasonError)}
+                aria-describedby={rejectReasonError ? 'ticket-reject-reason-err' : undefined}
+                onChange={(e) => {
+                  setRejectReason(e.target.value);
+                  if (rejectReasonError) setRejectReasonError(null);
+                }}
                 rows={2}
-                className="ticket-reject-textarea"
+                className={`ticket-reject-textarea ${rejectReasonError ? 'ui-input-invalid' : ''}`}
               />
+              <FieldError id="ticket-reject-reason-err" message={rejectReasonError} />
               <div
                 style={{
                   display: 'flex',

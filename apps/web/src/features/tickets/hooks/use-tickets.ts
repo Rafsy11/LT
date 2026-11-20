@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { CreateTicketInput, DbTicket } from '@repo/shared';
 import { STANDARD_ERROR_MESSAGES } from '@repo/shared';
-import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
+import { webApiClient } from '@/lib/api-client';
+import { normalizeAppError } from '@/lib/error-normalizer';
 import { useAuth, useToast } from '@/providers';
 import { fetchWithCache, getCachedData, invalidateQueryCache } from '@/lib/query-cache';
 
@@ -41,28 +42,28 @@ export function useTickets() {
         const data = await fetchWithCache<TicketItem[]>(
           TICKETS_CACHE_KEY,
           async () => {
-            const res = await fetch(TICKETS_CACHE_KEY);
-            const json = await res.json().catch(() => null);
-            if (!res.ok || !json?.success || !Array.isArray(json.data)) {
-              const parsed = notifyApiResponseError(
-                res.status,
-                json,
-                'Gagal memuat daftar tiket',
-                { category: 'database', source: TICKETS_CACHE_KEY },
-              );
-              throw new Error(parsed.message);
+            const json = await webApiClient.get<TicketItem[]>(TICKETS_CACHE_KEY);
+            if (!json.success || !Array.isArray(json.data)) {
+              throw normalizeAppError(!json.success ? json.error : null, {
+                fallbackMessage: STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
+              });
             }
-            clearServiceUnavailable('database');
-            return json.data as TicketItem[];
+            return json.data;
           },
           { force },
         );
         setTickets(data);
       } catch (err) {
-        setLoadError(
-          err instanceof Error ? err.message : STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
-        );
-        showError(err);
+        const normalized = normalizeAppError(err, {
+          fallbackMessage: STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
+        });
+        setLoadError(normalized.message);
+        showError(normalized, {
+          onRetry:
+            normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
+              ? () => void fetchTickets(true)
+              : undefined,
+        });
       } finally {
         setLoading(false);
       }
@@ -71,24 +72,15 @@ export function useTickets() {
   );
 
   useEffect(() => {
-    fetchTickets();
+    void fetchTickets();
   }, [fetchTickets]);
 
   const handleCreateTicket = async (data: CreateTicketInput) => {
-    const res = await fetch(TICKETS_CACHE_KEY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json().catch(() => null);
-    if (!res.ok || !json?.success) {
-      const parsed = notifyApiResponseError(
-        res.status,
-        json,
-        'Gagal membuat tiket gangguan baru',
-        { category: 'database', source: TICKETS_CACHE_KEY },
-      );
-      throw json?.error || new Error(parsed.message);
+    const json = await webApiClient.post(TICKETS_CACHE_KEY, data);
+    if (!json.success) {
+      throw normalizeAppError(json.error, {
+        fallbackMessage: 'Tiket gangguan baru belum dapat dibuat saat ini.',
+      });
     }
     showSuccess(`Tiket ${data.ticketType} untuk ${data.customerName} berhasil dibuat.`);
     invalidateQueryCache(TICKETS_CACHE_KEY, OVERVIEW_CACHE_KEY);
@@ -98,25 +90,16 @@ export function useTickets() {
   const handleSimulateSubmission = async () => {
     try {
       setSimulating(true);
-      const res = await fetch('/api/v1/admin/tickets/simulate-submission', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      const json = await res.json().catch(() => null);
-      if (res.ok && json?.success) {
+      const json = await webApiClient.post('/api/v1/admin/tickets/simulate-submission', {});
+      if (json.success) {
         showSuccess('Data hasil ukur teknisi mobile berhasil diterima untuk diverifikasi.');
         invalidateQueryCache(TICKETS_CACHE_KEY, OVERVIEW_CACHE_KEY);
         await fetchTickets(true);
         setTab('Semua');
       } else {
-        const parsed = notifyApiResponseError(
-          res.status,
-          json,
-          'Gagal mensimulasikan data teknisi.',
-          { category: 'database', source: '/api/v1/admin/tickets/simulate-submission' },
-        );
-        showError(json?.error || new Error(parsed.message));
+        showError(json.error, {
+          fallbackMessage: 'Simulasi laporan teknisi belum dapat diproses.',
+        });
       }
     } catch (err) {
       showError(err);

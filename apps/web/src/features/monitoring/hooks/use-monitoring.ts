@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { classifyDbm } from '@repo/shared';
-import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
+import { webApiClient } from '@/lib/api-client';
+import { normalizeAppError } from '@/lib/error-normalizer';
 import { fetchWithCache, getCachedData } from '@/lib/query-cache';
 import { useToast } from '@/providers';
 
@@ -67,19 +68,13 @@ export function useMonitoring() {
       const data = await fetchWithCache<LiveReportItem[]>(
         TICKETS_CACHE_KEY,
         async () => {
-          const res = await fetch(TICKETS_CACHE_KEY);
-          const json = await res.json().catch(() => null);
-          if (!res.ok || !json?.success || !Array.isArray(json.data)) {
-            const parsed = notifyApiResponseError(
-              res.status,
-              json,
-              'Gagal mengambil data tiket awal',
-              { category: 'database', source: TICKETS_CACHE_KEY },
-            );
-            throw new Error(parsed.message);
+          const json = await webApiClient.get<LiveReportItem[]>(TICKETS_CACHE_KEY);
+          if (!json.success || !Array.isArray(json.data)) {
+            throw normalizeAppError(!json.success ? json.error : null, {
+              fallbackMessage: 'Data pantauan tiket belum dapat dimuat saat ini.',
+            });
           }
-          clearServiceUnavailable('database');
-          return json.data as LiveReportItem[];
+          return json.data;
         },
         { force },
       );
@@ -89,7 +84,13 @@ export function useMonitoring() {
         setSelectedTicket((prev) => prev ?? pickInitialReport(data));
       }
     } catch (err) {
-      showError(err);
+      const normalized = normalizeAppError(err);
+      showError(normalized, {
+        onRetry:
+          normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
+            ? () => void fetchInitialReports(true)
+            : undefined,
+      });
     } finally {
       setLoading(false);
     }

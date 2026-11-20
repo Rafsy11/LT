@@ -6,7 +6,8 @@ import { useToast } from '@/providers/toast-provider';
 import type { TechnicianListItem } from '@repo/shared';
 import { STANDARD_ERROR_MESSAGES } from '@repo/shared';
 import type { TechnicianFilterTab } from '../components/technician-filters';
-import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
+import { webApiClient } from '@/lib/api-client';
+import { normalizeAppError } from '@/lib/error-normalizer';
 import { fetchWithCache, getCachedData, invalidateQueryCache } from '@/lib/query-cache';
 
 const TECHNICIANS_CACHE_KEY = '/api/v1/admin/technicians';
@@ -41,28 +42,28 @@ export function useTechnicians() {
         const data = await fetchWithCache<TechnicianListItem[]>(
           TECHNICIANS_CACHE_KEY,
           async () => {
-            const res = await fetch(TECHNICIANS_CACHE_KEY);
-            const json = await res.json().catch(() => null);
-            if (!res.ok || !json?.success || !Array.isArray(json.data)) {
-              const parsed = notifyApiResponseError(
-                res.status,
-                json,
-                'Gagal memuat daftar teknisi',
-                { category: 'database', source: TECHNICIANS_CACHE_KEY },
-              );
-              throw new Error(parsed.message);
+            const json = await webApiClient.get<TechnicianListItem[]>(TECHNICIANS_CACHE_KEY);
+            if (!json.success || !Array.isArray(json.data)) {
+              throw normalizeAppError(!json.success ? json.error : null, {
+                fallbackMessage: STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
+              });
             }
-            clearServiceUnavailable('database');
-            return json.data as TechnicianListItem[];
+            return json.data;
           },
           { force },
         );
         setTechnicians(data);
       } catch (err: unknown) {
-        setLoadError(
-          err instanceof Error ? err.message : STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
-        );
-        showError(err);
+        const normalized = normalizeAppError(err, {
+          fallbackMessage: STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
+        });
+        setLoadError(normalized.message);
+        showError(normalized, {
+          onRetry:
+            normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
+              ? () => void fetchTechs(true)
+              : undefined,
+        });
       } finally {
         setLoading(false);
       }
@@ -71,20 +72,18 @@ export function useTechnicians() {
   );
 
   useEffect(() => {
-    fetchTechs();
+    void fetchTechs();
   }, [fetchTechs]);
 
   /**
-   * Instant Session Revocation (Force Logout) - PRD Section 2.2 & agent.md Law 4.
-   * Debounced with 1-ms action lock & guarded by `tech:manage` permission.
+   * Instant Session Revocation (Force Logout) guarded by `tech:manage` permission.
    */
   const handleForceLogout = useCallback(
     async (usernameOrId: string) => {
       if (!canManageTech) {
         showError({
           code: 'FORBIDDEN',
-          message:
-            'Akses Ditolak: Anda tidak memiliki izin tech:manage untuk melakukan Force Logout teknisi.',
+          message: 'Akun Anda belum memiliki izin untuk mencabut sesi perangkat teknisi.',
         });
         return;
       }
@@ -94,19 +93,16 @@ export function useTechnicians() {
       setProcessingUser(usernameOrId);
 
       try {
-        const res = await fetch(`/api/v1/admin/technicians/${usernameOrId}/force-logout`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason: 'Admin Force Logout (Sesi Dicabut)' }),
-        });
-        const json = await res.json().catch(() => null);
+        const json = await webApiClient.post(
+          `/api/v1/admin/technicians/${encodeURIComponent(usernameOrId)}/force-logout`,
+          { reason: 'Admin Force Logout (Sesi Dicabut)' },
+        );
 
-        if (res.ok && json?.success) {
-          showSuccess(json.message || `Sesi perangkat teknisi ${usernameOrId} berhasil dicabut.`);
+        if (json.success) {
+          showSuccess(`Sesi perangkat teknisi ${usernameOrId} berhasil dicabut.`);
           invalidateQueryCache(TECHNICIANS_CACHE_KEY, OVERVIEW_CACHE_KEY);
           await fetchTechs(true);
 
-          // Update modal state if open
           if (
             selectedTech &&
             (selectedTech.username === usernameOrId || selectedTech.id === usernameOrId)
@@ -122,13 +118,7 @@ export function useTechnicians() {
             );
           }
         } else {
-          const parsed = notifyApiResponseError(
-            res.status,
-            json,
-            'Gagal mencabut sesi perangkat teknisi',
-            { category: 'database', source: `/api/v1/admin/technicians/${usernameOrId}/force-logout` },
-          );
-          showError(json?.error || new Error(parsed.message));
+          showError(json.error);
         }
       } catch (e: unknown) {
         showError(e);
@@ -148,8 +138,7 @@ export function useTechnicians() {
       if (!canManageTech) {
         showError({
           code: 'FORBIDDEN',
-          message:
-            'Akses Ditolak: Anda tidak memiliki izin tech:manage untuk mengubah status akun teknisi.',
+          message: 'Akun Anda belum memiliki izin untuk mengubah status akun teknisi.',
         });
         return;
       }
@@ -159,13 +148,13 @@ export function useTechnicians() {
       setProcessingUser(usernameOrId);
 
       try {
-        const res = await fetch(`/api/v1/admin/technicians/${usernameOrId}/toggle`, {
-          method: 'POST',
-        });
-        const json = await res.json().catch(() => null);
+        const json = await webApiClient.post(
+          `/api/v1/admin/technicians/${encodeURIComponent(usernameOrId)}/toggle`,
+          {},
+        );
 
-        if (res.ok && json?.success) {
-          showSuccess(json.message || `Status akun teknisi ${usernameOrId} berhasil diperbarui.`);
+        if (json.success) {
+          showSuccess(`Status akun teknisi ${usernameOrId} berhasil diperbarui.`);
           invalidateQueryCache(TECHNICIANS_CACHE_KEY, OVERVIEW_CACHE_KEY);
           await fetchTechs(true);
 
@@ -176,13 +165,7 @@ export function useTechnicians() {
             setSelectedTech((prev) => (prev ? { ...prev, isActive: !prev.isActive } : null));
           }
         } else {
-          const parsed = notifyApiResponseError(
-            res.status,
-            json,
-            'Gagal memperbarui status akun teknisi',
-            { category: 'database', source: `/api/v1/admin/technicians/${usernameOrId}/toggle` },
-          );
-          showError(json?.error || new Error(parsed.message));
+          showError(json.error);
         }
       } catch (e: unknown) {
         showError(e);

@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth, useToast } from '@/providers';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
-import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
+import { webApiClient } from '@/lib/api-client';
+import { normalizeAppError } from '@/lib/error-normalizer';
 import {
   PERMISSIONS,
   type ClusterListItem,
@@ -166,19 +167,13 @@ export function useOverview() {
         const data = await fetchWithCache<OverviewPayload>(
           OVERVIEW_CACHE_KEY,
           async () => {
-            const res = await fetch(OVERVIEW_CACHE_KEY);
-            const json = await res.json().catch(() => null);
-            if (!res.ok || !json?.success || !json.data) {
-              const parsed = notifyApiResponseError(
-                res.status,
-                json,
-                'Gagal memuat ringkasan operasional',
-                { category: 'database', source: OVERVIEW_CACHE_KEY },
-              );
-              throw new Error(parsed.message);
+            const json = await webApiClient.get<OverviewPayload>(OVERVIEW_CACHE_KEY);
+            if (!json.success || !json.data) {
+              throw normalizeAppError(!json.success ? json.error : null, {
+                fallbackMessage: 'Ringkasan operasional belum dapat dimuat saat ini.',
+              });
             }
-            clearServiceUnavailable('database');
-            return json.data as OverviewPayload;
+            return json.data;
           },
           { force },
         );
@@ -191,7 +186,13 @@ export function useOverview() {
         });
         setCachedData(TICKETS_CACHE_KEY, data.tickets);
       } catch (e: unknown) {
-        showError(e);
+        const normalized = normalizeAppError(e);
+        showError(normalized, {
+          onRetry:
+            normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
+              ? () => void fetchOverview(true)
+              : undefined,
+        });
       } finally {
         setLoading(false);
       }
@@ -212,26 +213,20 @@ export function useOverview() {
         const payload = await fetchWithCache<TopologyPayload>(
           CLUSTERS_MAP_CACHE_KEY,
           async () => {
-            const res = await fetch(CLUSTERS_MAP_CACHE_KEY);
-            const json = await res.json().catch(() => null);
-            if (!res.ok || !json?.success || !json.data) {
-              const parsed = notifyApiResponseError(
-                res.status,
-                json,
-                'Gagal memuat data topologi jaringan',
-                { category: 'database', source: CLUSTERS_MAP_CACHE_KEY },
-              );
-              throw new Error(parsed.message);
+            const json = await webApiClient.get<TopologyPayload>(CLUSTERS_MAP_CACHE_KEY);
+            if (!json.success || !json.data) {
+              throw normalizeAppError(!json.success ? json.error : null, {
+                fallbackMessage: 'Data topologi jaringan belum dapat dimuat saat ini.',
+              });
             }
-            clearServiceUnavailable('database');
-            return json.data as TopologyPayload;
+            return json.data;
           },
           { force },
         );
 
         setTopologyClusters(Array.isArray(payload.clusters) ? payload.clusters : []);
       } catch {
-        // Outage or permission state handled via ConnectionBanner / ClusterOption fallback
+        // Outage or permission state handled via GlobalNetworkBanner
       } finally {
         setMapLoading(false);
       }
@@ -262,20 +257,11 @@ export function useOverview() {
   }, [fetchOverview, fetchTopologyClusters]);
 
   const handleCreateTicket = async (data: import('@repo/shared').CreateTicketInput) => {
-    const res = await fetch(TICKETS_CACHE_KEY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json().catch(() => null);
-    if (!res.ok || !json?.success) {
-      const parsed = notifyApiResponseError(
-        res.status,
-        json,
-        'Gagal membuat tiket baru',
-        { category: 'database', source: TICKETS_CACHE_KEY },
-      );
-      throw json?.error || new Error(parsed.message);
+    const json = await webApiClient.post(TICKETS_CACHE_KEY, data);
+    if (!json.success) {
+      throw normalizeAppError(json.error, {
+        fallbackMessage: 'Tiket baru belum dapat dibuat saat ini.',
+      });
     }
     invalidateQueryCache(OVERVIEW_CACHE_KEY, TICKETS_CACHE_KEY);
     await fetchOverview(true);

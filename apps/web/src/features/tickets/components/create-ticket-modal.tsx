@@ -7,10 +7,21 @@ import type {
   TechnicianListItem,
 } from '@repo/shared';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
+import { FieldError } from '@/components/ui/FieldError';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
-import { notifyApiResponseError } from '@/lib/api-error';
+import { webApiClient } from '@/lib/api-client';
+import { isAppError, normalizeAppError } from '@/lib/error-normalizer';
 import { useToast, useAuth } from '@/providers';
 import '@/styles/components/ticket-modal.css';
+
+type TicketFieldKey =
+  | 'siaNumber'
+  | 'customerName'
+  | 'serviceAddress'
+  | 'clusterCode'
+  | 'assignedTechUsername'
+  | 'targetLat'
+  | 'targetLng';
 
 export interface CreateTicketModalProps {
   isOpen: boolean;
@@ -58,6 +69,16 @@ export function CreateTicketModal({
   const [vendorName, setVendorName] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
   const [lookupMatchedSia, setLookupMatchedSia] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<TicketFieldKey, string>>>({});
+
+  const clearField = (key: TicketFieldKey) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -81,37 +102,12 @@ export function CreateTicketModal({
     setVendorName(initialValues?.vendorName || '');
     setAdminNotes(initialValues?.adminNotes || '');
     setLookupMatchedSia(null);
+    setFieldErrors({});
     setLoadingVendors(true);
 
     Promise.all([
-      fetch('/api/v1/admin/customers')
-        .then(async (r) => {
-          const json = await r.json().catch(() => null);
-          if (!r.ok) {
-            notifyApiResponseError(
-              r.status,
-              json,
-              'Gagal memuat daftar pelanggan.',
-              { category: 'database', source: '/api/v1/admin/customers' },
-            );
-          }
-          return json;
-        })
-        .catch(() => null),
-      fetch('/api/v1/admin/technicians')
-        .then(async (r) => {
-          const json = await r.json().catch(() => null);
-          if (!r.ok) {
-            notifyApiResponseError(
-              r.status,
-              json,
-              'Gagal memuat daftar teknisi.',
-              { category: 'database', source: '/api/v1/admin/technicians' },
-            );
-          }
-          return json;
-        })
-        .catch(() => null),
+      webApiClient.get<CustomerListItem[]>('/api/v1/admin/customers').catch(() => null),
+      webApiClient.get<TechnicianListItem[]>('/api/v1/admin/technicians').catch(() => null),
     ]).then(([custJson, techJson]) => {
       if (!active) return;
 
@@ -234,16 +230,42 @@ export function CreateTicketModal({
     if (!canCreateTicket) {
       showError({
         code: 'FORBIDDEN',
-        message: 'Anda tidak memiliki hak akses (ticket:create) untuk membuat tiket baru.',
+        message: 'Akun Anda belum memiliki izin untuk membuat tiket baru.',
       });
       return;
     }
 
+    const errors: Partial<Record<TicketFieldKey, string>> = {};
+    if (!siaNumber.trim()) {
+      errors.siaNumber = 'Nomor SIA pelanggan perlu diisi.';
+    }
+    if (!customerName.trim()) {
+      errors.customerName = 'Nama pelanggan atau perusahaan perlu diisi.';
+    }
+    if (!clusterCode.trim()) {
+      errors.clusterCode = 'Pilih cluster wilayah terlebih dahulu.';
+    }
+    if (!serviceAddress.trim()) {
+      errors.serviceAddress = 'Alamat lengkap lokasi tugas perlu diisi.';
+    }
     if (!assignedTechUsername.trim()) {
-      showError({
-        code: 'VALIDATION_ERROR',
-        message: 'Pilih vendor atau teknisi lapangan penanggung jawab terlebih dahulu.',
-      });
+      errors.assignedTechUsername = 'Pilih vendor atau teknisi penanggung jawab terlebih dahulu.';
+    }
+    if (
+      targetLat.trim() !== '' &&
+      (parsedLat === undefined || Number.isNaN(parsedLat) || parsedLat < -90 || parsedLat > 90)
+    ) {
+      errors.targetLat = 'Nilai latitude harus berada di antara -90 hingga 90.';
+    }
+    if (
+      targetLng.trim() !== '' &&
+      (parsedLng === undefined || Number.isNaN(parsedLng) || parsedLng < -180 || parsedLng > 180)
+    ) {
+      errors.targetLng = 'Nilai longitude harus berada di antara -180 hingga 180.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
@@ -274,7 +296,14 @@ export function CreateTicketModal({
       );
       onClose();
     } catch (err: unknown) {
-      showError(err);
+      const normalized = normalizeAppError(err);
+      if (isAppError(err) && err.fieldErrors) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          ...(err.fieldErrors as Partial<Record<TicketFieldKey, string>>),
+        }));
+      }
+      showError(normalized);
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -297,12 +326,12 @@ export function CreateTicketModal({
 
         {!canCreateTicket && (
           <aside className="permission-lock-notice" role="alert">
-            <b>Akses Dibatasi:</b> Akun Anda tidak memiliki izin <code>ticket:create</code>. Tombol
-            pembuatan tiket dikunci demi keamanan.
+            <b>Akses Dibatasi:</b> Akun Anda belum memiliki izin untuk membuat tiket baru. Tombol
+            pembuatan tiket dinonaktifkan sementara.
           </aside>
         )}
 
-        <form className="modal-body" onSubmit={handleSubmit}>
+        <form className="modal-body" onSubmit={handleSubmit} noValidate>
           <div className="ticket-mode-tabs" role="tablist" aria-label="Sumber Data Pelanggan">
             <button
               type="button"
@@ -348,11 +377,17 @@ export function CreateTicketModal({
               <input
                 name="siaNumber"
                 required
+                aria-invalid={Boolean(fieldErrors.siaNumber)}
+                className={fieldErrors.siaNumber ? 'ui-input-invalid' : ''}
                 value={siaNumber}
-                onChange={(e) => handleSiaChange(e.target.value)}
+                onChange={(e) => {
+                  handleSiaChange(e.target.value);
+                  clearField('siaNumber');
+                }}
                 placeholder="Contoh: SLA-100244-001"
                 disabled={!canCreateTicket || submitting}
               />
+              <FieldError message={fieldErrors.siaNumber} />
             </label>
 
             <label>
@@ -360,11 +395,17 @@ export function CreateTicketModal({
               <input
                 name="customerName"
                 required
+                aria-invalid={Boolean(fieldErrors.customerName)}
+                className={fieldErrors.customerName ? 'ui-input-invalid' : ''}
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
+                onChange={(e) => {
+                  setCustomerName(e.target.value);
+                  clearField('customerName');
+                }}
                 placeholder="Nama perusahaan atau pelanggan"
                 disabled={!canCreateTicket || submitting}
               />
+              <FieldError message={fieldErrors.customerName} />
             </label>
 
             <label>
@@ -421,7 +462,12 @@ export function CreateTicketModal({
               <select
                 name="clusterCode"
                 value={clusterCode}
-                onChange={(e) => setClusterCode(e.target.value)}
+                aria-invalid={Boolean(fieldErrors.clusterCode)}
+                className={fieldErrors.clusterCode ? 'ui-input-invalid' : ''}
+                onChange={(e) => {
+                  setClusterCode(e.target.value);
+                  clearField('clusterCode');
+                }}
                 required
                 disabled={!canCreateTicket || submitting}
               >
@@ -442,6 +488,7 @@ export function CreateTicketModal({
                   </>
                 )}
               </select>
+              <FieldError message={fieldErrors.clusterCode} />
             </label>
           </div>
 
@@ -450,11 +497,17 @@ export function CreateTicketModal({
             <input
               name="serviceAddress"
               required
+              aria-invalid={Boolean(fieldErrors.serviceAddress)}
+              className={fieldErrors.serviceAddress ? 'ui-input-invalid' : ''}
               value={serviceAddress}
-              onChange={(e) => setServiceAddress(e.target.value)}
+              onChange={(e) => {
+                setServiceAddress(e.target.value);
+                clearField('serviceAddress');
+              }}
               placeholder="Contoh: Jl. Sudirman No. 88, Kec. Ilir Timur I, Palembang"
               disabled={!canCreateTicket || submitting}
             />
+            <FieldError message={fieldErrors.serviceAddress} />
           </label>
 
           <div className="ticket-form-grid">
@@ -464,11 +517,17 @@ export function CreateTicketModal({
                 name="targetLat"
                 type="number"
                 step="any"
+                aria-invalid={Boolean(fieldErrors.targetLat)}
+                className={fieldErrors.targetLat ? 'ui-input-invalid' : ''}
                 value={targetLat}
-                onChange={(e) => setTargetLat(e.target.value)}
+                onChange={(e) => {
+                  setTargetLat(e.target.value);
+                  clearField('targetLat');
+                }}
                 placeholder="-2.982000"
                 disabled={!canCreateTicket || submitting}
               />
+              <FieldError message={fieldErrors.targetLat} />
             </label>
 
             <label>
@@ -477,11 +536,17 @@ export function CreateTicketModal({
                 name="targetLng"
                 type="number"
                 step="any"
+                aria-invalid={Boolean(fieldErrors.targetLng)}
+                className={fieldErrors.targetLng ? 'ui-input-invalid' : ''}
                 value={targetLng}
-                onChange={(e) => setTargetLng(e.target.value)}
+                onChange={(e) => {
+                  setTargetLng(e.target.value);
+                  clearField('targetLng');
+                }}
                 placeholder="104.754000"
                 disabled={!canCreateTicket || submitting}
               />
+              <FieldError message={fieldErrors.targetLng} />
               {hasValidCoords && (
                 <a
                   href={`https://maps.google.com/?q=${parsedLat},${parsedLng}`}
@@ -502,8 +567,13 @@ export function CreateTicketModal({
               <select
                 name="assignedTechUsername"
                 required
+                aria-invalid={Boolean(fieldErrors.assignedTechUsername)}
+                className={fieldErrors.assignedTechUsername ? 'ui-input-invalid' : ''}
                 value={assignedTechUsername}
-                onChange={(e) => handleVendorChange(e.target.value)}
+                onChange={(e) => {
+                  handleVendorChange(e.target.value);
+                  clearField('assignedTechUsername');
+                }}
                 disabled={!canCreateTicket || submitting || loadingVendors}
               >
                 {loadingVendors ? (
@@ -519,6 +589,7 @@ export function CreateTicketModal({
                   ))
                 )}
               </select>
+              <FieldError message={fieldErrors.assignedTechUsername} />
             </label>
 
             <label>

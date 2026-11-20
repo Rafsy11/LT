@@ -8,7 +8,7 @@ import { Header, type HeaderNotificationItem } from '@/components/layout/Header'
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { ConnectionBanner } from '@/components/ui/connection-banner';
 import { AiChatWidget } from '@/features/ai';
-import { notifyApiResponseError } from '@/lib/api-error';
+import { webApiClient } from '@/lib/api-client';
 import {
   fetchWithCache,
   getCachedData,
@@ -124,18 +124,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       fetchWithCache<DbTicket[]>(
         activeCacheKey,
         async () => {
-          const res = await fetch(activeCacheKey);
-          const json = await res.json().catch(() => null);
-          if (!res.ok || !json?.success || !Array.isArray(json.data)) {
-            const parsed = notifyApiResponseError(
-              res.status,
-              json,
-              'Gagal memuat daftar tiket dari PostgreSQL.',
-              { category: 'database', source: activeCacheKey },
-            );
-            throw new Error(parsed.message);
+          const res = await webApiClient.get<DbTicket[]>(activeCacheKey);
+          if (!res.success || !Array.isArray(res.data)) {
+            throw new Error('Daftar tiket belum dapat dimuat saat ini.');
           }
-          return json.data as DbTicket[];
+          return res.data;
         },
         { force },
       )

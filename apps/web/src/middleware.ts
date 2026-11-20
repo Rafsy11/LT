@@ -299,8 +299,9 @@ export async function middleware(request: NextRequest) {
     if (isDashboardPage) {
       if (!validWebPayload || validWebPayload.userType === 'TECHNICIAN') {
         const loginUrl = new URL('/login', request.url);
-        if (pathname !== '/') {
-          loginUrl.searchParams.set('callbackUrl', pathname);
+        const targetPath = `${pathname}${request.nextUrl.search || ''}`;
+        if (targetPath !== '/') {
+          loginUrl.searchParams.set('next', targetPath);
         }
         const response = NextResponse.redirect(loginUrl);
         if (validWebPayload?.userType === 'TECHNICIAN') {

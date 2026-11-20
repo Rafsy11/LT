@@ -21,10 +21,10 @@ export default function DashboardErrorBoundary({
       <SafeErrorState
         error={null}
         digest={error.digest}
-        title="Halaman Tidak Dapat Ditampilkan Saat Ini"
-        description="Sistem menghentikan pemuatan tampilan demi menjaga stabilitas operasional. Silakan coba muat ulang halaman."
+        title="Halaman Belum Dapat Ditampilkan"
+        description="Terjadi kendala sementara saat memuat tampilan ini. Data operasional Anda tetap aman, silakan coba lagi."
         onRetry={reset}
-        retryLabel="Muat Ulang Tampilan"
+        retryLabel="Coba Lagi"
         homeHref="/"
         homeLabel="Kembali ke Ringkasan"
         variant="panel"

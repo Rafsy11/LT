@@ -3,8 +3,15 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
+import { RateLimitNotice } from '@/components/ui/RateLimitNotice';
+import { useRateLimitCountdown } from '@/hooks/use-rate-limit-countdown';
 import { useToast } from '@/providers';
-import { formatSafeUiError } from '@/lib/api-error';
+import { webApiClient } from '@/lib/api-client';
+import {
+  DATEK_UPLOAD_RULE,
+  normalizeAppError,
+  validateUploadFile,
+} from '@/lib/error-normalizer';
 import { invalidateQueryCache } from '@/lib/query-cache';
 
 export interface ImportSummary {
@@ -61,17 +68,25 @@ export interface DatekImportModalProps {
 
 type ImportStep = 'SELECT_FILE' | 'ANALYZING' | 'PREVIEW' | 'APPLYING' | 'SUCCESS';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_EXTENSIONS = ['.xlsx', '.xls', '.csv'];
+interface DatekImportApiResult {
+  summary: ImportSummary;
+  anomalies: ImportAnomalies;
+  counts?: ImportCounts;
+  durationMs?: number;
+}
 
 export function DatekImportModal({ isOpen, onClose, onSuccess }: DatekImportModalProps) {
   const { showError, showSuccess } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const rateLimit = useRateLimitCountdown();
 
   const [step, setStep] = useState<ImportStep>('SELECT_FILE');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [errorTitle, setErrorTitle] = useState<string>('Kendala Pemrosesan Berkas');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorRefCode, setErrorRefCode] = useState<string | null>(null);
+  const [canRetryUpload, setCanRetryUpload] = useState(false);
 
   // Preview & execution state
   const [summary, setSummary] = useState<ImportSummary | null>(null);
@@ -96,7 +111,10 @@ export function DatekImportModal({ isOpen, onClose, onSuccess }: DatekImportModa
     setStep('SELECT_FILE');
     setSelectedFile(null);
     setIsDragging(false);
+    setErrorTitle('Kendala Pemrosesan Berkas');
     setErrorMessage(null);
+    setErrorRefCode(null);
+    setCanRetryUpload(false);
     setSummary(null);
     setAnomalies(null);
     setCounts(null);
@@ -120,49 +138,64 @@ export function DatekImportModal({ isOpen, onClose, onSuccess }: DatekImportModa
 
   const processFile = useCallback(
     async (file: File) => {
-      const lowerName = file.name.toLowerCase();
-      const isAllowed = ALLOWED_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
-      if (!isAllowed) {
-        setErrorMessage('Format file tidak didukung. Harap unggah lembar kerja .xlsx, .xls, atau .csv.');
-        return;
-      }
+      if (rateLimit.isLimited) return;
 
-      if (file.size > MAX_FILE_SIZE) {
-        setErrorMessage('Ukuran file melebihi batas maksimum 10MB.');
+      const check = validateUploadFile(file, DATEK_UPLOAD_RULE);
+      if (!check.valid && check.error) {
+        setErrorTitle(check.error.title);
+        setErrorMessage(check.error.message);
+        setErrorRefCode(null);
+        setCanRetryUpload(false);
         return;
       }
 
       setSelectedFile(file);
       setErrorMessage(null);
+      setErrorRefCode(null);
+      setCanRetryUpload(false);
       setStep('ANALYZING');
 
       try {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch('/api/v1/admin/network/import?dryRun=true', {
-          method: 'POST',
-          body: formData,
-        });
+        const json = await webApiClient.post<DatekImportApiResult>(
+          '/api/v1/admin/network/import?dryRun=true',
+          formData,
+          { timeoutMs: 30_000 },
+        );
 
-        const json = await response.json();
-        if (!response.ok || !json.success) {
-          throw new Error(json.error?.message || 'Gagal memproses pratinjau lembar kerja datek.');
+        if (!json.success || !json.data) {
+          throw normalizeAppError(!json.success ? json.error : null, {
+            fallbackMessage: 'Pratinjau lembar kerja datek belum dapat diproses.',
+          });
         }
 
         setSummary(json.data.summary);
         setAnomalies(json.data.anomalies);
         setStep('PREVIEW');
       } catch (err: unknown) {
-        const safe = formatSafeUiError(err, {
-          fallbackMessage: 'Terjadi kesalahan saat menganalisis lembar kerja.',
+        const normalized = normalizeAppError(err, {
+          fallbackMessage: 'Lembar kerja belum dapat dianalisis saat ini. Silakan coba kembali.',
         });
-        setErrorMessage(`${safe.message} (${safe.refId})`);
+        if (normalized.category === 'RATE_LIMITED' && normalized.retryAfterSeconds) {
+          rateLimit.startCooldown(normalized.retryAfterSeconds);
+        }
+        setErrorTitle(normalized.title);
+        setErrorMessage(normalized.message);
+        setErrorRefCode(
+          normalized.category === 'SERVER_ERROR' || normalized.statusCode >= 500
+            ? normalized.refCode
+            : null,
+        );
+        setCanRetryUpload(
+          normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE',
+        );
         setStep('SELECT_FILE');
-        showError(err);
+        showError(normalized);
       }
     },
-    [showError],
+    [rateLimit, showError],
   );
 
   const handleDrop = useCallback(
@@ -206,27 +239,31 @@ export function DatekImportModal({ isOpen, onClose, onSuccess }: DatekImportModa
   );
 
   const handleConfirmImport = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || rateLimit.isLimited) return;
 
     setStep('APPLYING');
     setErrorMessage(null);
+    setErrorRefCode(null);
+    setCanRetryUpload(false);
 
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch('/api/v1/admin/network/import?dryRun=false', {
-        method: 'POST',
-        body: formData,
-      });
+      const json = await webApiClient.post<DatekImportApiResult>(
+        '/api/v1/admin/network/import?dryRun=false',
+        formData,
+        { timeoutMs: 45_000 },
+      );
 
-      const json = await response.json();
-      if (!response.ok || !json.success) {
-        throw new Error(json.error?.message || 'Gagal menerapkan sinkronisasi master data datek.');
+      if (!json.success || !json.data) {
+        throw normalizeAppError(!json.success ? json.error : null, {
+          fallbackMessage: 'Sinkronisasi master data datek belum dapat diterapkan.',
+        });
       }
 
-      setCounts(json.data.counts);
-      setDurationMs(json.data.durationMs);
+      setCounts(json.data.counts ?? null);
+      setDurationMs(json.data.durationMs ?? null);
       setSummary(json.data.summary);
       setAnomalies(json.data.anomalies);
       setStep('SUCCESS');
@@ -244,14 +281,26 @@ export function DatekImportModal({ isOpen, onClose, onSuccess }: DatekImportModa
         window.dispatchEvent(new Event('app:refresh-data'));
       }
 
-      showSuccess('Master data Palembang GPON & ODP berhasil disinkronisasi ke PostgreSQL!');
+      showSuccess('Master data Palembang GPON & ODP berhasil disinkronisasi ke sistem.');
     } catch (err: unknown) {
-      const safe = formatSafeUiError(err, {
-        fallbackMessage: 'Gagal menyimpan master data ke sistem. Silakan coba kembali.',
+      const normalized = normalizeAppError(err, {
+        fallbackMessage: 'Master data belum dapat disimpan ke sistem. Silakan coba kembali.',
       });
-      setErrorMessage(`${safe.message} (${safe.refId})`);
+      if (normalized.category === 'RATE_LIMITED' && normalized.retryAfterSeconds) {
+        rateLimit.startCooldown(normalized.retryAfterSeconds);
+      }
+      setErrorTitle(normalized.title);
+      setErrorMessage(normalized.message);
+      setErrorRefCode(
+        normalized.category === 'SERVER_ERROR' || normalized.statusCode >= 500
+          ? normalized.refCode
+          : null,
+      );
+      setCanRetryUpload(
+        normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE',
+      );
       setStep('PREVIEW');
-      showError(err);
+      showError(normalized);
     }
   };
 
@@ -293,14 +342,37 @@ export function DatekImportModal({ isOpen, onClose, onSuccess }: DatekImportModa
 
         {/* Modal Body */}
         <div className="modal-body datek-import-body">
-          {errorMessage && (
+          {rateLimit.isLimited && (
+            <RateLimitNotice remainingSeconds={rateLimit.remainingSeconds} />
+          )}
+
+          {errorMessage && !rateLimit.isLimited && (
             <div className="datek-alert-box is-error" role="alert">
               <div className="datek-alert-icon">
                 <Icon name="alert" size={16} />
               </div>
               <div className="datek-alert-content">
-                <span className="datek-alert-title">Kesalahan Pemrosesan</span>
+                <span className="datek-alert-title">{errorTitle}</span>
                 <p className="datek-alert-text">{errorMessage}</p>
+                {errorRefCode && (
+                  <span className="connection-banner-ref">Ref: {errorRefCode}</span>
+                )}
+                {canRetryUpload && selectedFile && (
+                  <div className="toast-action-row">
+                    <button
+                      type="button"
+                      className="toast-action-btn"
+                      onClick={() =>
+                        step === 'PREVIEW'
+                          ? void handleConfirmImport()
+                          : void processFile(selectedFile)
+                      }
+                    >
+                      <Icon name="refresh" size={13} />
+                      <span>Coba Lagi</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -611,9 +683,9 @@ export function DatekImportModal({ isOpen, onClose, onSuccess }: DatekImportModa
           {step === 'APPLYING' && (
             <div className="datek-loading-state">
               <div className="datek-spinner" />
-              <span className="datek-loading-title">Menyimpan Master Data ke PostgreSQL...</span>
+              <span className="datek-loading-title">Menyimpan Master Data ke Sistem...</span>
               <p className="datek-loading-subtitle">
-                Mengeksekusi upsert transaksional untuk 4 cluster, {summary?.uniqueSplitters || '~90'} splitter ODP, dan {summary?.uniqueSias || '401'} pelanggan dengan audit log.
+                Menerapkan pembaruan data untuk 4 cluster, {summary?.uniqueSplitters || '~90'} splitter ODP, dan {summary?.uniqueSias || '401'} pelanggan secara aman.
               </p>
             </div>
           )}
@@ -626,7 +698,7 @@ export function DatekImportModal({ isOpen, onClose, onSuccess }: DatekImportModa
               </div>
               <h3 className="datek-success-title">Sinkronisasi Master Data Palembang Berhasil</h3>
               <p className="datek-success-subtitle">
-                Data master topologi FTTH GPON & ODP Palembang telah berhasil disimpan ke database PostgreSQL.
+                Data master topologi FTTH GPON &amp; ODP Palembang telah berhasil disimpan ke sistem pusat.
               </p>
 
               <div className="datek-success-grid">

@@ -4,7 +4,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { AdminUserItem } from '@repo/shared';
 import { useAuth, useToast } from '@/providers';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
-import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
+import { useRateLimitCountdown } from '@/hooks/use-rate-limit-countdown';
+import { webApiClient } from '@/lib/api-client';
+import { isAppError, normalizeAppError } from '@/lib/error-normalizer';
 import { fetchWithCache, getCachedData, invalidateQueryCache, setCachedData } from '@/lib/query-cache';
 
 const ROLES_CACHE_KEY = '/api/v1/admin/roles';
@@ -114,7 +116,7 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     code: 'tech:manage',
     label: 'Kendali Teknisi & Force Logout',
     description:
-      'Mengubah status akun teknisi dan mencabut sesi mobile JWT/Redis seketika (PRD 2.2).',
+      'Mengubah status akun teknisi dan mencabut sesi perangkat lapangan seketika.',
     category: 'Manajemen Teknisi & Sesi',
   },
 
@@ -158,14 +160,19 @@ export function useRoles() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [forbiddenError, setForbiddenError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<unknown>(null);
 
   const { canEditRole, user } = useAuth();
   const { showSuccess, showError } = useToast();
   const { clusters: clusterOptions } = useClusterOptions();
+  const rateLimit = useRateLimitCountdown();
 
   const fetchRoles = useCallback(
     async (force = false) => {
       try {
+        setLoadError(null);
+        setForbiddenError(null);
         if (!getCachedData<RoleApiItem[]>(ROLES_CACHE_KEY) || !getCachedData<UserAccessItem[]>(USERS_CACHE_KEY)) {
           setIsFetching(true);
         }
@@ -174,38 +181,26 @@ export function useRoles() {
           fetchWithCache<RoleApiItem[]>(
             ROLES_CACHE_KEY,
             async () => {
-              const res = await fetch(ROLES_CACHE_KEY);
-              const json = await res.json().catch(() => null);
-              if (!res.ok || !json?.success || !Array.isArray(json.data)) {
-                const parsed = notifyApiResponseError(
-                  res.status,
-                  json,
-                  'Gagal memuat daftar peran RBAC',
-                  { category: 'database', source: ROLES_CACHE_KEY },
-                );
-                throw new Error(parsed.message);
+              const json = await webApiClient.get<RoleApiItem[]>(ROLES_CACHE_KEY);
+              if (!json.success || !Array.isArray(json.data)) {
+                throw normalizeAppError(!json.success ? json.error : null, {
+                  fallbackMessage: 'Daftar peran akses belum dapat dimuat.',
+                });
               }
-              clearServiceUnavailable('database');
-              return json.data as RoleApiItem[];
+              return json.data;
             },
             { force },
           ),
           fetchWithCache<UserAccessItem[]>(
             USERS_CACHE_KEY,
             async () => {
-              const res = await fetch(USERS_CACHE_KEY);
-              const json = await res.json().catch(() => null);
-              if (!res.ok || !json?.success || !Array.isArray(json.data)) {
-                const parsed = notifyApiResponseError(
-                  res.status,
-                  json,
-                  'Gagal memuat daftar pengguna dari PostgreSQL',
-                  { category: 'database', source: USERS_CACHE_KEY },
-                );
-                throw new Error(parsed.message);
+              const json = await webApiClient.get<AdminUserItem[]>(USERS_CACHE_KEY);
+              if (!json.success || !Array.isArray(json.data)) {
+                throw normalizeAppError(!json.success ? json.error : null, {
+                  fallbackMessage: 'Daftar pengguna belum dapat dimuat.',
+                });
               }
-              clearServiceUnavailable('database');
-              return (json.data as AdminUserItem[]).map(mapAdminUserToAccessItem);
+              return json.data.map(mapAdminUserToAccessItem);
             },
             { force },
           ),
@@ -214,7 +209,18 @@ export function useRoles() {
         setRoleList(rolesData);
         setUserList(usersData);
       } catch (err) {
-        showError(err);
+        const normalized = normalizeAppError(err);
+        if (normalized.category === 'FORBIDDEN') {
+          setForbiddenError(normalized.message);
+        } else {
+          setLoadError(normalized);
+          showError(normalized, {
+            onRetry:
+              normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
+                ? () => void fetchRoles(true)
+                : undefined,
+          });
+        }
       } finally {
         setIsFetching(false);
       }
@@ -272,28 +278,19 @@ export function useRoles() {
 
   // Save permissions
   const handleSavePermissions = async () => {
-    if (!selectedRole || !isEditable) return;
+    if (!selectedRole || !isEditable || rateLimit.isLimited) return;
 
     try {
       setIsLoading(true);
-      const res = await fetch('/api/v1/admin/roles', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          roleId: selectedRole.id,
-          permissions: Array.from(activePermissions),
-        }),
+      const json = await webApiClient.patch('/api/v1/admin/roles', {
+        roleId: selectedRole.id,
+        permissions: Array.from(activePermissions),
       });
 
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json?.success) {
-        const parsed = notifyApiResponseError(
-          res.status,
-          json,
-          'Gagal menyimpan perubahan hak akses',
-          { category: 'database', source: ROLES_CACHE_KEY },
-        );
-        throw new Error(parsed.message);
+      if (!json.success) {
+        throw normalizeAppError(json.error, {
+          fallbackMessage: 'Perubahan hak akses belum dapat disimpan.',
+        });
       }
 
       setRoleList((prev) => {
@@ -306,9 +303,10 @@ export function useRoles() {
 
       showSuccess(`Matriks izin untuk ${selectedRole.name} berhasil diperbarui.`);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan hak akses';
-      showError(message);
+      if (isAppError(err) && err.category === 'RATE_LIMITED' && err.retryAfterSeconds) {
+        rateLimit.startCooldown(err.retryAfterSeconds);
+      }
+      showError(err);
     } finally {
       setIsLoading(false);
     }
@@ -316,29 +314,23 @@ export function useRoles() {
 
   // Toggle user active status via PATCH /api/v1/admin/users/[id]
   const handleToggleUserStatus = async (targetUser: UserAccessItem) => {
-    if (actionInProgress) return;
+    if (actionInProgress || rateLimit.isLimited) return;
     setActionInProgress(targetUser.id);
 
     const updatedStatus = !targetUser.isActive;
     try {
-      const res = await fetch(`/api/v1/admin/users/${encodeURIComponent(targetUser.id)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: updatedStatus }),
-      });
+      const json = await webApiClient.patch<AdminUserItem>(
+        `/api/v1/admin/users/${encodeURIComponent(targetUser.id)}`,
+        { isActive: updatedStatus },
+      );
 
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json?.success || !json.data) {
-        const parsed = notifyApiResponseError(
-          res.status,
-          json,
-          'Gagal memperbarui status akun pengguna',
-          { category: 'database', source: USERS_CACHE_KEY },
-        );
-        throw new Error(parsed.message);
+      if (!json.success || !json.data) {
+        throw normalizeAppError(!json.success ? json.error : null, {
+          fallbackMessage: 'Status akun pengguna belum dapat diperbarui.',
+        });
       }
 
-      const mapped = mapAdminUserToAccessItem(json.data as AdminUserItem);
+      const mapped = mapAdminUserToAccessItem(json.data);
       setUserList((prev) => {
         const next = prev.map((u) => (u.id === targetUser.id ? mapped : u));
         setCachedData(USERS_CACHE_KEY, next);
@@ -349,7 +341,10 @@ export function useRoles() {
         `Akun ${targetUser.name} berhasil ${updatedStatus ? 'diaktifkan' : 'dinonaktifkan'}.`,
       );
     } catch (err: unknown) {
-      showError(err instanceof Error ? err.message : 'Gagal memperbarui status akun');
+      if (isAppError(err) && err.category === 'RATE_LIMITED' && err.retryAfterSeconds) {
+        rateLimit.startCooldown(err.retryAfterSeconds);
+      }
+      showError(err);
     } finally {
       setActionInProgress(null);
     }
@@ -357,31 +352,25 @@ export function useRoles() {
 
   // Reassign user role via PATCH /api/v1/admin/users/[id]
   const handleReassignUserRole = async () => {
-    if (!editingUser || !targetRoleId) return;
+    if (!editingUser || !targetRoleId || rateLimit.isLimited) return;
 
     const chosenRole = roleList.find((r) => r.id === targetRoleId || r.name === targetRoleId);
     if (!chosenRole) return;
 
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/v1/admin/users/${encodeURIComponent(editingUser.id)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roleName: chosenRole.name }),
-      });
+      const json = await webApiClient.patch<AdminUserItem>(
+        `/api/v1/admin/users/${encodeURIComponent(editingUser.id)}`,
+        { roleName: chosenRole.name },
+      );
 
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json?.success || !json.data) {
-        const parsed = notifyApiResponseError(
-          res.status,
-          json,
-          'Gagal mengubah peran pengguna',
-          { category: 'database', source: USERS_CACHE_KEY },
-        );
-        throw new Error(parsed.message);
+      if (!json.success || !json.data) {
+        throw normalizeAppError(!json.success ? json.error : null, {
+          fallbackMessage: 'Peran pengguna belum dapat diperbarui.',
+        });
       }
 
-      const mapped = mapAdminUserToAccessItem(json.data as AdminUserItem);
+      const mapped = mapAdminUserToAccessItem(json.data);
       setUserList((prev) => {
         const next = prev.map((u) => (u.id === editingUser.id ? mapped : u));
         setCachedData(USERS_CACHE_KEY, next);
@@ -391,8 +380,10 @@ export function useRoles() {
       showSuccess(`Peran ${editingUser.name} berhasil diubah menjadi ${chosenRole.name}.`);
       setEditingUser(null);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Gagal mengubah peran pengguna';
-      showError(message);
+      if (isAppError(err) && err.category === 'RATE_LIMITED' && err.retryAfterSeconds) {
+        rateLimit.startCooldown(err.retryAfterSeconds);
+      }
+      showError(err);
     } finally {
       setIsLoading(false);
     }
@@ -508,39 +499,30 @@ export function useRoles() {
           ? [newUserData.cluster]
           : [];
 
-      const res = await fetch('/api/v1/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: newUserData.name.trim(),
-          nik: newUserData.nik.trim(),
-          username: newUserData.username.trim().toLowerCase(),
-          roleName: newUserData.role,
-          vendorCompany: newUserData.vendorCompany?.trim() || undefined,
-          password: newUserData.password?.trim() || undefined,
-          assignedClusters,
-        }),
+      const json = await webApiClient.post<AdminUserItem>('/api/v1/admin/users', {
+        fullName: newUserData.name.trim(),
+        nik: newUserData.nik.trim(),
+        username: newUserData.username.trim().toLowerCase(),
+        roleName: newUserData.role,
+        vendorCompany: newUserData.vendorCompany?.trim() || undefined,
+        password: newUserData.password?.trim() || undefined,
+        assignedClusters,
       });
 
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json?.success || !json.data) {
-        const parsed = notifyApiResponseError(
-          res.status,
-          json,
-          'Gagal mendaftarkan pengguna baru ke PostgreSQL',
-          { category: 'database', source: USERS_CACHE_KEY },
-        );
-        throw new Error(parsed.message);
+      if (!json.success || !json.data) {
+        throw normalizeAppError(!json.success ? json.error : null, {
+          fallbackMessage: 'Pengguna baru belum dapat disimpan saat ini.',
+        });
       }
 
-      const mapped = mapAdminUserToAccessItem(json.data as AdminUserItem);
+      const mapped = mapAdminUserToAccessItem(json.data);
       setUserList((prev) => {
         const next = [mapped, ...prev];
         setCachedData(USERS_CACHE_KEY, next);
         return next;
       });
       invalidateQueryCache(ROLES_CACHE_KEY, '/api/v1/admin/technicians');
-      showSuccess(`Pengguna baru ${mapped.name} (NIK: ${mapped.nik || '-'}) berhasil disimpan ke PostgreSQL.`);
+      showSuccess(`Pengguna baru ${mapped.name} (NIK: ${mapped.nik || '-'}) berhasil disimpan.`);
     },
     [showSuccess],
   );
@@ -548,24 +530,18 @@ export function useRoles() {
   const handleUnlinkTelegram = useCallback(
     async (targetUser: UserAccessItem) => {
       try {
-        const res = await fetch(`/api/v1/admin/users/${encodeURIComponent(targetUser.id)}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ unlinkTelegram: true }),
-        });
+        const json = await webApiClient.patch<AdminUserItem>(
+          `/api/v1/admin/users/${encodeURIComponent(targetUser.id)}`,
+          { unlinkTelegram: true },
+        );
 
-        const json = await res.json().catch(() => null);
-        if (!res.ok || !json?.success || !json.data) {
-          const parsed = notifyApiResponseError(
-            res.status,
-            json,
-            'Gagal melepas ikatan Telegram 2FA',
-            { category: 'database', source: USERS_CACHE_KEY },
-          );
-          throw new Error(parsed.message);
+        if (!json.success || !json.data) {
+          throw normalizeAppError(!json.success ? json.error : null, {
+            fallbackMessage: 'Ikatan Telegram 2FA belum dapat dilepas saat ini.',
+          });
         }
 
-        const mapped = mapAdminUserToAccessItem(json.data as AdminUserItem);
+        const mapped = mapAdminUserToAccessItem(json.data);
         setUserList((prev) => {
           const next = prev.map((u) => (u.id === targetUser.id ? mapped : u));
           setCachedData(USERS_CACHE_KEY, next);
@@ -575,7 +551,7 @@ export function useRoles() {
           `Ikatan Telegram 2FA untuk ${targetUser.name} (NIK: ${targetUser.nik || '-'}) berhasil dilepas.`,
         );
       } catch (err: unknown) {
-        showError(err instanceof Error ? err.message : 'Gagal melepas ikatan Telegram');
+        showError(err);
       }
     },
     [showError, showSuccess],
@@ -607,6 +583,9 @@ export function useRoles() {
     isLoading,
     isFetching,
     actionInProgress,
+    forbiddenError,
+    loadError,
+    rateLimitSeconds: rateLimit.remainingSeconds,
     user,
     fetchRoles,
     handleTogglePermission,

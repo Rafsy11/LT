@@ -13,7 +13,8 @@ import type {
 import { STANDARD_ERROR_MESSAGES } from '@repo/shared';
 import { useToast, useAuth } from '@/providers';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
-import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
+import { webApiClient } from '@/lib/api-client';
+import { normalizeAppError } from '@/lib/error-normalizer';
 import { fetchWithCache, getCachedData, invalidateQueryCache } from '@/lib/query-cache';
 
 const CLUSTERS_CACHE_KEY = '/api/v1/admin/clusters';
@@ -101,28 +102,30 @@ export function useNetwork() {
         const data = await fetchWithCache<ClusterListItem[]>(
           CLUSTERS_CACHE_KEY,
           async () => {
-            const res = await fetch(CLUSTERS_CACHE_KEY);
-            const json = await res.json().catch(() => null);
-            if (!res.ok || !json?.success || !json.data?.clusters) {
-              const parsed = notifyApiResponseError(
-                res.status,
-                json,
-                'Gagal mengambil data cluster jaringan dari PostgreSQL',
-                { category: 'database', source: CLUSTERS_CACHE_KEY },
-              );
-              throw new Error(parsed.message);
+            const json = await webApiClient.get<{ clusters?: ClusterListItem[] }>(
+              CLUSTERS_CACHE_KEY,
+            );
+            if (!json.success || !json.data?.clusters) {
+              throw normalizeAppError(!json.success ? json.error : null, {
+                fallbackMessage: 'Data topologi jaringan belum dapat dimuat saat ini.',
+              });
             }
-            clearServiceUnavailable('database');
-            return json.data.clusters as ClusterListItem[];
+            return json.data.clusters;
           },
           { force },
         );
         setNetworkData(data);
       } catch (err) {
-        setLoadError(
-          err instanceof Error ? err.message : STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
-        );
-        showError(err);
+        const normalized = normalizeAppError(err, {
+          fallbackMessage: STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
+        });
+        setLoadError(normalized.message);
+        showError(normalized, {
+          onRetry:
+            normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
+              ? () => void fetchClusters(true)
+              : undefined,
+        });
       } finally {
         setLoading(false);
       }
@@ -135,14 +138,11 @@ export function useNetwork() {
   }, [fetchClusters]);
 
   const handleCreateTicketSubmit = async (data: CreateTicketInput) => {
-    const res = await fetch(TICKETS_CACHE_KEY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json();
+    const json = await webApiClient.post(TICKETS_CACHE_KEY, data);
     if (!json.success) {
-      throw json.error;
+      throw normalizeAppError(json.error, {
+        fallbackMessage: 'Tiket baru belum dapat dibuat saat ini.',
+      });
     }
     invalidateQueryCache(CLUSTERS_CACHE_KEY, TICKETS_CACHE_KEY, OVERVIEW_CACHE_KEY);
     await fetchClusters(true);
@@ -317,22 +317,17 @@ export function useNetwork() {
           cluster: activeSplitterClusterCode,
           splitter: activeSplitterKey,
         });
-        const res = await fetch(`/api/v1/admin/clusters/history?${query.toString()}`);
-        const json = await res.json().catch(() => null);
+        const json = await webApiClient.get<OdpHistoryEntry[]>(
+          `/api/v1/admin/clusters/history?${query.toString()}`,
+        );
         if (cancelled) return;
 
-        if (!res.ok || !json?.success || !Array.isArray(json.data)) {
-          notifyApiResponseError(
-            res.status,
-            json,
-            'Gagal memuat riwayat ODP dari PostgreSQL',
-            { category: 'database', source: '/api/v1/admin/clusters/history' },
-          );
+        if (!json.success || !Array.isArray(json.data)) {
           setOdpHistoryLogs([]);
           return;
         }
 
-        const mapped: OdpHistoryLogItem[] = (json.data as OdpHistoryEntry[]).map((entry) => {
+        const mapped: OdpHistoryLogItem[] = json.data.map((entry) => {
           const mappedType: OdpHistoryLogItem['type'] =
             entry.actionType === 'PENARIKAN'
               ? 'PENARIKAN'
@@ -360,7 +355,7 @@ export function useNetwork() {
             ticketNumber: entry.ticketNumber,
             customerName: entry.customerName,
             attenuationDelta: delta,
-            notes: entry.notes || 'Pengukuran redaman optik tercatat atomik di PostgreSQL.',
+            notes: entry.notes || 'Pengukuran redaman optik tercatat pada riwayat jaringan.',
           };
         });
 
@@ -386,19 +381,18 @@ export function useNetwork() {
     if (auditRunning) return;
     setAuditRunning(true);
     try {
-      const res = await fetch('/api/v1/admin/clusters/audit', { method: 'POST' });
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json?.success || !json.data) {
-        const parsed = notifyApiResponseError(
-          res.status,
-          json,
-          'Gagal menjalankan audit integritas jaringan di PostgreSQL',
-          { category: 'database', source: '/api/v1/admin/clusters/audit' },
-        );
-        throw new Error(parsed.message);
+      const json = await webApiClient.post<NetworkAuditResult>(
+        '/api/v1/admin/clusters/audit',
+        {},
+        { timeoutMs: 30_000 },
+      );
+      if (!json.success || !json.data) {
+        throw normalizeAppError(!json.success ? json.error : null, {
+          fallbackMessage: 'Audit integritas jaringan belum dapat dijalankan saat ini.',
+        });
       }
 
-      const result = json.data as NetworkAuditResult;
+      const result = json.data;
       setAuditResult(result);
       setAuditTimestamp(
         new Date(result.auditedAt).toLocaleTimeString('id-ID', {
@@ -410,7 +404,7 @@ export function useNetwork() {
 
       if (result.findings.length === 0) {
         showSuccess(
-          `Audit selesai: ${result.totalSplitters} ODP tervalidasi sehat (${result.usedPorts}/${result.totalPorts} port terisi, 0 collision).`,
+          `Audit selesai: ${result.totalSplitters} ODP tervalidasi sehat (${result.usedPorts}/${result.totalPorts} port terisi, 0 bentrok).`,
         );
       } else {
         showSuccess(
@@ -427,23 +421,14 @@ export function useNetwork() {
   const handleCreateCluster = async (
     payload: import('@repo/shared').CreateClusterInput,
   ) => {
-    const res = await fetch('/api/v1/admin/clusters', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...payload, entityType: 'CLUSTER' }),
+    const json = await webApiClient.post('/api/v1/admin/clusters', {
+      ...payload,
+      entityType: 'CLUSTER',
     });
-    const json = (await res.json().catch(() => null)) as {
-      success?: boolean;
-      error?: { message?: string };
-    } | null;
-    if (!res.ok || !json?.success) {
-      const parsed = notifyApiResponseError(
-        res.status,
-        json,
-        'Gagal menambahkan wilayah cluster',
-        { category: 'database', source: CLUSTERS_CACHE_KEY },
-      );
-      throw new Error(parsed.message);
+    if (!json.success) {
+      throw normalizeAppError(json.error, {
+        fallbackMessage: 'Wilayah cluster baru belum dapat ditambahkan.',
+      });
     }
     invalidateQueryCache(CLUSTERS_CACHE_KEY, CLUSTER_OPTIONS_CACHE_KEY);
     showSuccess(`Cluster ${payload.name} (${payload.clusterCode}) berhasil ditambahkan.`);
@@ -453,23 +438,14 @@ export function useNetwork() {
   const handleCreateSplitter = async (
     payload: import('@repo/shared').CreateSplitterInput,
   ) => {
-    const res = await fetch('/api/v1/admin/clusters', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...payload, entityType: 'SPLITTER' }),
+    const json = await webApiClient.post('/api/v1/admin/clusters', {
+      ...payload,
+      entityType: 'SPLITTER',
     });
-    const json = (await res.json().catch(() => null)) as {
-      success?: boolean;
-      error?: { message?: string };
-    } | null;
-    if (!res.ok || !json?.success) {
-      const parsed = notifyApiResponseError(
-        res.status,
-        json,
-        'Gagal menambahkan ODP splitter',
-        { category: 'database', source: CLUSTERS_CACHE_KEY },
-      );
-      throw new Error(parsed.message);
+    if (!json.success) {
+      throw normalizeAppError(json.error, {
+        fallbackMessage: 'Titik ODP splitter baru belum dapat ditambahkan.',
+      });
     }
     invalidateQueryCache(CLUSTERS_CACHE_KEY, CLUSTER_OPTIONS_CACHE_KEY);
     showSuccess(`ODP ${payload.splitterCode} (${payload.maxPorts} port) berhasil ditambahkan.`);
@@ -480,23 +456,11 @@ export function useNetwork() {
   const handleUpdateSplitter = async (
     payload: import('@repo/shared').UpdateSplitterInput,
   ) => {
-    const res = await fetch('/api/v1/admin/clusters', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const json = (await res.json().catch(() => null)) as {
-      success?: boolean;
-      error?: { message?: string };
-    } | null;
-    if (!res.ok || !json?.success) {
-      const parsed = notifyApiResponseError(
-        res.status,
-        json,
-        'Gagal memperbarui ODP splitter',
-        { category: 'database', source: CLUSTERS_CACHE_KEY },
-      );
-      throw new Error(parsed.message);
+    const json = await webApiClient.patch('/api/v1/admin/clusters', payload);
+    if (!json.success) {
+      throw normalizeAppError(json.error, {
+        fallbackMessage: 'Data ODP splitter belum dapat diperbarui.',
+      });
     }
     invalidateQueryCache(CLUSTERS_CACHE_KEY, CLUSTER_OPTIONS_CACHE_KEY);
     showSuccess(`Data ODP ${payload.splitterCode} berhasil diperbarui.`);

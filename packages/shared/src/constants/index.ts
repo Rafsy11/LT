@@ -225,6 +225,10 @@ export const ERROR_CODES = {
   OTP_COOLDOWN_ACTIVE: 'OTP_COOLDOWN_ACTIVE',
   TELEGRAM_DELIVERY_FAILED: 'TELEGRAM_DELIVERY_FAILED',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
+  UNSUPPORTED_MEDIA_TYPE: 'UNSUPPORTED_MEDIA_TYPE',
+  REQUEST_TIMEOUT: 'REQUEST_TIMEOUT',
+  NETWORK_OFFLINE: 'NETWORK_OFFLINE',
 } as const;
 
 export const OTP_CONFIG = {
@@ -302,7 +306,16 @@ export const ERROR_MESSAGES_MAP: Record<ErrorCode | string, string> = {
     'Harap tunggu jeda waktu sebelum meminta pengiriman ulang kode OTP.',
   [ERROR_CODES.TELEGRAM_DELIVERY_FAILED]:
     'Belum dapat mengirim kode OTP ke Telegram. Pastikan Anda telah menekan /start pada Bot Telegram NOC.',
-  [ERROR_CODES.SERVICE_UNAVAILABLE]: STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
+  [ERROR_CODES.SERVICE_UNAVAILABLE]:
+    'Layanan sedang dalam pemeliharaan singkat atau menerima beban tinggi. Silakan coba beberapa saat lagi.',
+  [ERROR_CODES.PAYLOAD_TOO_LARGE]:
+    'Ukuran berkas melebihi batas maksimal yang diizinkan sistem. Perkecil ukuran berkas lalu unggah kembali.',
+  [ERROR_CODES.UNSUPPORTED_MEDIA_TYPE]:
+    'Format berkas belum didukung. Gunakan format berkas yang sesuai dengan ketentuan formulir.',
+  [ERROR_CODES.REQUEST_TIMEOUT]:
+    'Permintaan membutuhkan waktu terlalu lama untuk merespons. Periksa koneksi Anda lalu coba lagi.',
+  [ERROR_CODES.NETWORK_OFFLINE]:
+    'Koneksi internet terputus. Isian Anda tetap aman di halaman ini dan siap dikirim saat jaringan kembali normal.',
 };
 
 const TECHNICAL_ERROR_CODE_RE =

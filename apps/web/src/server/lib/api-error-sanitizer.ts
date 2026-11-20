@@ -22,8 +22,8 @@ interface ErrorLike {
   message?: unknown;
   stack?: unknown;
   retryAfter?: unknown;
-  errors?: Array<{ message?: unknown }>;
-  issues?: Array<{ message?: unknown }>;
+  errors?: Array<{ message?: unknown; path?: Array<string | number> }>;
+  issues?: Array<{ message?: unknown; path?: Array<string | number> }>;
 }
 
 const PRISMA_ERROR_NAMES = new Set([
@@ -60,8 +60,12 @@ function buildErrorResponse(
   status: number,
   code: string,
   message: string,
-  extra?: { retryAfter?: number },
+  extra?: { retryAfter?: number; fieldErrors?: Record<string, string> },
 ): NextResponse {
+  const headers: Record<string, string> = {};
+  if (extra?.retryAfter !== undefined && extra.retryAfter > 0) {
+    headers['Retry-After'] = String(Math.ceil(extra.retryAfter));
+  }
   return NextResponse.json(
     {
       success: false,
@@ -69,9 +73,12 @@ function buildErrorResponse(
         code,
         message,
         ...(extra?.retryAfter !== undefined ? { retryAfter: extra.retryAfter } : {}),
+        ...(extra?.fieldErrors && Object.keys(extra.fieldErrors).length > 0
+          ? { fieldErrors: extra.fieldErrors }
+          : {}),
       },
     },
-    { status },
+    { status, headers },
   );
 }
 
@@ -97,9 +104,12 @@ const CODE_TO_STATUS_MAP: Record<string, number> = {
   [ERROR_CODES.TECH_NOT_FOUND]: 404,
   [ERROR_CODES.TICKET_NOT_FOUND]: 404,
   [ERROR_CODES.CLUSTER_NOT_FOUND]: 404,
+  [ERROR_CODES.REQUEST_TIMEOUT]: 408,
   [ERROR_CODES.PORT_OCCUPIED]: 409,
   [ERROR_CODES.TICKET_ALREADY_CLOSED]: 409,
   [ERROR_CODES.ACTION_TOKEN_REPLAYED]: 409,
+  [ERROR_CODES.PAYLOAD_TOO_LARGE]: 413,
+  [ERROR_CODES.UNSUPPORTED_MEDIA_TYPE]: 415,
   [ERROR_CODES.VALIDATION_ERROR]: 400,
   [ERROR_CODES.INVALID_ACTION_TOKEN]: 400,
   [ERROR_CODES.AI_ACTION_EXPIRED]: 400,
@@ -151,15 +161,25 @@ export function sanitizeAndLogServerError(
     return buildErrorResponse(status, code, safeMsg);
   }
 
-  // 3. Zod validation error -> 400 VALIDATION_ERROR (omit raw Zod details array)
+  // 3. Zod validation error -> 400 VALIDATION_ERROR with safe fieldErrors map (omit raw internals)
   if (errObj?.name === 'ZodError') {
-    const firstIssue = errObj.errors?.[0]?.message ?? errObj.issues?.[0]?.message;
+    const rawIssues = errObj.errors ?? errObj.issues ?? [];
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of rawIssues) {
+      const key =
+        Array.isArray(issue.path) && issue.path.length > 0 ? String(issue.path[0]) : '';
+      const msg = typeof issue.message === 'string' ? issue.message.trim() : '';
+      if (key && msg && !fieldErrors[key] && !isPrismaOrSystemLeak(error, null, msg)) {
+        fieldErrors[key] = msg;
+      }
+    }
+    const firstIssue = rawIssues[0]?.message;
     const candidate = typeof firstIssue === 'string' ? firstIssue.trim() : '';
     const safeMsg =
       candidate && !isPrismaOrSystemLeak(error, null, candidate)
         ? candidate
-        : 'Validasi input gagal.';
-    return buildErrorResponse(400, ERROR_CODES.VALIDATION_ERROR, safeMsg);
+        : 'Periksa kembali data yang Anda masukkan.';
+    return buildErrorResponse(400, ERROR_CODES.VALIDATION_ERROR, safeMsg, { fieldErrors });
   }
 
   // 4. Malformed JSON request body -> 400 VALIDATION_ERROR

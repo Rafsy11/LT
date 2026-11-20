@@ -1,4 +1,10 @@
 import { ERROR_CODES, STANDARD_ERROR_MESSAGES, sanitizeUiErrorMessage } from '@repo/shared';
+import {
+  extractFieldErrors,
+  generateErrorRefCode,
+  parseRetryAfterSeconds,
+} from './error-normalizer';
+import { ERROR_CATEGORY_DICTIONARY } from './error-dictionary';
 
 export type OutageCategory = 'database' | 'service';
 
@@ -14,6 +20,10 @@ export interface ParsedApiError {
   isServiceUnavailable: boolean;
   code: string;
   message: string;
+  statusCode?: number;
+  refCode?: string;
+  retryAfterSeconds?: number;
+  fieldErrors?: Record<string, string>;
 }
 
 export interface SafeUiErrorDetails {
@@ -146,10 +156,7 @@ export function formatSafeUiError(
       ? safeFallback
       : sanitized.message;
 
-  const cleanDigest = options.digest
-    ? options.digest.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12).toUpperCase()
-    : '';
-  const refId = cleanDigest ? `INC-${cleanDigest}` : `REF-${sanitized.code}`;
+  const refId = generateErrorRefCode(options.digest);
 
   return {
     code: sanitized.code,
@@ -164,14 +171,28 @@ export function formatSafeUiError(
  * @param status - HTTP response status code.
  * @param json - Parsed JSON envelope (if available).
  * @param fallbackMessage - Message to surface when no safe server error message is present.
+ * @param retryAfterHeader - Optional HTTP `Retry-After` header string.
  */
 export function extractApiError(
   status: number,
   json: unknown,
   fallbackMessage: string,
+  retryAfterHeader?: string | null,
 ): ParsedApiError {
   const payload =
-    json && typeof json === 'object' ? (json as { error?: { code?: string; message?: string } }) : null;
+    json && typeof json === 'object'
+      ? (json as {
+          error?: {
+            code?: string;
+            message?: string;
+            retryAfter?: number;
+            fieldErrors?: Record<string, string>;
+          };
+          meta?: { retryAfterMs?: number };
+        })
+      : null;
+
+  const fieldErrors = extractFieldErrors(payload);
   const code =
     payload?.error?.code ||
     (status === 503
@@ -180,15 +201,44 @@ export function extractApiError(
         ? ERROR_CODES.INTERNAL_ERROR
         : status === 401
           ? ERROR_CODES.UNAUTHORIZED
-          : status === 409
-            ? 'CONFLICT'
-            : 'HTTP_ERROR');
+          : status === 403
+            ? ERROR_CODES.FORBIDDEN
+            : status === 408
+              ? ERROR_CODES.REQUEST_TIMEOUT
+              : status === 409
+                ? 'CONFLICT'
+                : status === 413
+                  ? ERROR_CODES.PAYLOAD_TOO_LARGE
+                  : status === 415
+                    ? ERROR_CODES.UNSUPPORTED_MEDIA_TYPE
+                    : status === 429
+                      ? ERROR_CODES.RATE_LIMIT_EXCEEDED
+                      : 'HTTP_ERROR');
 
   if (status === 503 || code === ERROR_CODES.SERVICE_UNAVAILABLE) {
     return {
       isServiceUnavailable: true,
+      statusCode: 503,
       code: ERROR_CODES.SERVICE_UNAVAILABLE,
-      message: STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
+      refCode: generateErrorRefCode(),
+      message: ERROR_CATEGORY_DICTIONARY.SERVICE_UNAVAILABLE.message,
+    };
+  }
+
+  if (status === 429 || code === ERROR_CODES.RATE_LIMITED || code === ERROR_CODES.RATE_LIMIT_EXCEEDED) {
+    const retrySeconds =
+      typeof payload?.error?.retryAfter === 'number' && payload.error.retryAfter > 0
+        ? payload.error.retryAfter
+        : typeof payload?.meta?.retryAfterMs === 'number' && payload.meta.retryAfterMs > 0
+          ? Math.ceil(payload.meta.retryAfterMs / 1000)
+          : parseRetryAfterSeconds(retryAfterHeader, 60);
+
+    return {
+      isServiceUnavailable: false,
+      statusCode: 429,
+      code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
+      retryAfterSeconds: retrySeconds,
+      message: `Terlalu banyak permintaan dalam waktu singkat. Mohon tunggu ${retrySeconds} detik sebelum mencoba kembali.`,
     };
   }
 
@@ -196,7 +246,9 @@ export function extractApiError(
   if (status >= 500) {
     return {
       isServiceUnavailable: false,
+      statusCode: status,
       code: ERROR_CODES.INTERNAL_ERROR,
+      refCode: generateErrorRefCode(),
       message: STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
     };
   }
@@ -208,8 +260,13 @@ export function extractApiError(
 
   return {
     isServiceUnavailable: false,
-    code: sanitized.code === ERROR_CODES.INTERNAL_ERROR && code !== ERROR_CODES.INTERNAL_ERROR ? code : sanitized.code,
+    statusCode: status,
+    code:
+      sanitized.code === ERROR_CODES.INTERNAL_ERROR && code !== ERROR_CODES.INTERNAL_ERROR
+        ? code
+        : sanitized.code,
     message: sanitized.message,
+    fieldErrors,
   };
 }
 

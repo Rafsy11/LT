@@ -208,6 +208,9 @@ export async function POST(request: NextRequest) {
     const contentType = request.headers.get('content-type') || '';
 
     if (contentType.includes('multipart/form-data')) {
+      const MAX_DATEK_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+      const ALLOWED_DATEK_EXTS = ['.xlsx', '.xls', '.csv'];
+
       const formData = await request.formData();
       const file = (formData.get('file') || formData.get('datekFile')) as File | null;
       if (!file) {
@@ -216,10 +219,52 @@ export async function POST(request: NextRequest) {
             success: false,
             error: {
               code: ERROR_CODES.VALIDATION_ERROR,
-              message: 'File datek (.xlsx, .xls, .csv) wajib diunggah pada field "file".',
+              message: 'Berkas datek (.xlsx, .xls, atau .csv) wajib dipilih sebelum mengunggah.',
             },
           },
           { status: 400 },
+        );
+      }
+
+      const lowerName = (file.name || '').toLowerCase();
+      if (!ALLOWED_DATEK_EXTS.some((ext) => lowerName.endsWith(ext))) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: ERROR_CODES.UNSUPPORTED_MEDIA_TYPE,
+              message:
+                'Format berkas belum didukung. Unggah berkas berformat .xlsx, .xls, atau .csv dengan ukuran maksimal 10 MB.',
+            },
+          },
+          { status: 415 },
+        );
+      }
+
+      if (file.size <= 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: ERROR_CODES.VALIDATION_ERROR,
+              message: 'Berkas yang diunggah kosong. Pilih berkas berisi data jaringan lalu coba kembali.',
+            },
+          },
+          { status: 400 },
+        );
+      }
+
+      if (file.size > MAX_DATEK_FILE_BYTES) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: ERROR_CODES.PAYLOAD_TOO_LARGE,
+              message:
+                'Ukuran berkas melebihi batas maksimal 10 MB. Perkecil berkas (.xlsx, .xls, atau .csv) lalu unggah kembali.',
+            },
+          },
+          { status: 413 },
         );
       }
 

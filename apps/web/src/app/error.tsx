@@ -21,8 +21,8 @@ export default function RootErrorBoundary({
       <SafeErrorState
         error={null}
         digest={error.digest}
-        title="Layanan Aplikasi Mengalami Gangguan Sementara"
-        description="Terjadi kendala saat memproses halaman ini. Silakan coba muat ulang atau kembali ke beranda operasional."
+        title="Kendala Sementara pada Sistem"
+        description="Maaf, halaman ini belum dapat dimuat karena kendala sementara. Data Anda tetap aman, silakan coba lagi atau kembali ke beranda."
         onRetry={reset}
         retryLabel="Coba Lagi"
         homeHref="/"

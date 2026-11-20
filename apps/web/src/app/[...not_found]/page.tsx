@@ -1,5 +1,5 @@
-import { NotFoundView } from '@/components/layout/NotFoundView';
+import { notFound } from 'next/navigation';
 
 export default function CatchAllNotFound() {
-  return <NotFoundView />;
+  notFound();
 }

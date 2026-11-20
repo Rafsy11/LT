@@ -2,10 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { FieldError } from '@/components/ui/FieldError';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
-import { formatSafeUiError } from '@/lib/api-error';
+import { isAppError, normalizeAppError } from '@/lib/error-normalizer';
 import { RoleApiItem } from '../hooks/use-roles';
+
+type CreateUserFieldKey = 'name' | 'nik' | 'username' | 'password';
 
 export interface CreateUserModalProps {
   isOpen: boolean;
@@ -33,6 +36,17 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
   const [cluster, setCluster] = useState('Global Scope');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorRefCode, setErrorRefCode] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<CreateUserFieldKey, string>>>({});
+
+  const clearField = (key: CreateUserFieldKey) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (roleList.length > 0 && !roleList.some((r) => r.name === role)) {
@@ -44,24 +58,31 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const nextFieldErrors: Partial<Record<CreateUserFieldKey, string>> = {};
+
     if (!name.trim()) {
-      setError('Nama lengkap wajib diisi');
-      return;
+      nextFieldErrors.name = 'Nama lengkap karyawan perlu diisi.';
     }
     if (nik.trim().length < 3) {
-      setError('Nomor Induk Karyawan (NIK) minimal 3 karakter');
-      return;
+      nextFieldErrors.nik = 'Nomor Induk Karyawan (NIK) minimal 3 karakter.';
     }
     if (!/^[a-z0-9._-]{3,50}$/.test(username.trim().toLowerCase())) {
-      setError('Username minimal 3 karakter (huruf kecil, angka, titik, _ atau -)');
-      return;
+      nextFieldErrors.username = 'Username minimal 3 karakter (huruf kecil, angka, titik, _ atau -).';
     }
     if (password.trim() && password.trim().length < 8) {
-      setError('Kata sandi awal minimal 8 karakter (atau kosongkan untuk default sistem)');
+      nextFieldErrors.password = 'Kata sandi awal minimal 8 karakter atau biarkan kosong untuk default.';
+    }
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      setError(null);
+      setErrorRefCode(null);
       return;
     }
 
+    setFieldErrors({});
     setError(null);
+    setErrorRefCode(null);
     setIsSubmitting(true);
     try {
       await onSubmit({
@@ -80,10 +101,27 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
       setPassword('');
       onClose();
     } catch (err: unknown) {
-      const safe = formatSafeUiError(err, {
-        fallbackMessage: 'Gagal menyimpan akun pengguna baru. Silakan coba kembali.',
+      const normalized = normalizeAppError(err, {
+        fallbackMessage: 'Akun pengguna baru belum dapat disimpan saat ini. Silakan coba kembali.',
       });
-      setError(`${safe.message} (${safe.refId})`);
+      if (isAppError(err) && err.fieldErrors) {
+        const mapped: Partial<Record<CreateUserFieldKey, string>> = {};
+        if (err.fieldErrors.name || err.fieldErrors.fullName) {
+          mapped.name = err.fieldErrors.name || err.fieldErrors.fullName;
+        }
+        if (err.fieldErrors.nik) mapped.nik = err.fieldErrors.nik;
+        if (err.fieldErrors.username) mapped.username = err.fieldErrors.username;
+        if (err.fieldErrors.password) mapped.password = err.fieldErrors.password;
+        if (Object.keys(mapped).length > 0) {
+          setFieldErrors(mapped);
+        }
+      }
+      setError(normalized.message);
+      setErrorRefCode(
+        normalized.category === 'SERVER_ERROR' || normalized.statusCode >= 500
+          ? normalized.refCode
+          : null,
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -121,17 +159,21 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
           </button>
         </header>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {error && (
               <div
+                role="alert"
                 className="ui-alert-banner ui-alert-banner--error"
                 style={{
                   padding: '8px 12px',
                   fontSize: '12px',
                 }}
               >
-                {error}
+                <div>{error}</div>
+                {errorRefCode && (
+                  <span className="connection-banner-ref">Ref: {errorRefCode}</span>
+                )}
               </div>
             )}
 
@@ -146,9 +188,15 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                 id="add-user-name"
                 type="text"
                 required
+                aria-invalid={Boolean(fieldErrors.name)}
+                aria-describedby={fieldErrors.name ? 'add-user-name-err' : undefined}
+                className={fieldErrors.name ? 'ui-input-invalid' : ''}
                 placeholder="Contoh: Budi Hartono"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  clearField('name');
+                }}
                 style={{
                   width: '100%',
                   marginTop: 0,
@@ -159,6 +207,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                   boxSizing: 'border-box',
                 }}
               />
+              <FieldError id="add-user-name-err" message={fieldErrors.name} />
             </div>
 
             <div className="modal-two-col-grid">
@@ -173,9 +222,15 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                   id="add-user-nik"
                   type="text"
                   required
+                  aria-invalid={Boolean(fieldErrors.nik)}
+                  aria-describedby={fieldErrors.nik ? 'add-user-nik-err' : undefined}
+                  className={fieldErrors.nik ? 'ui-input-invalid' : ''}
                   placeholder="Contoh: 882048"
                   value={nik}
-                  onChange={(e) => setNik(e.target.value)}
+                  onChange={(e) => {
+                    setNik(e.target.value);
+                    clearField('nik');
+                  }}
                   style={{
                     width: '100%',
                     marginTop: 0,
@@ -187,6 +242,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                     fontFamily: 'var(--font-mono)',
                   }}
                 />
+                <FieldError id="add-user-nik-err" message={fieldErrors.nik} />
               </div>
 
               <div>
@@ -200,9 +256,15 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                   id="add-user-username"
                   type="text"
                   required
+                  aria-invalid={Boolean(fieldErrors.username)}
+                  aria-describedby={fieldErrors.username ? 'add-user-username-err' : undefined}
+                  className={fieldErrors.username ? 'ui-input-invalid' : ''}
                   placeholder="budi.ops"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    clearField('username');
+                  }}
                   style={{
                     width: '100%',
                     marginTop: 0,
@@ -213,6 +275,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                     boxSizing: 'border-box',
                   }}
                 />
+                <FieldError id="add-user-username-err" message={fieldErrors.username} />
               </div>
             </div>
 
@@ -252,9 +315,15 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                 <input
                   id="add-user-password"
                   type="password"
+                  aria-invalid={Boolean(fieldErrors.password)}
+                  aria-describedby={fieldErrors.password ? 'add-user-pass-err' : undefined}
+                  className={fieldErrors.password ? 'ui-input-invalid' : ''}
                   placeholder="Min. 8 karakter"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    clearField('password');
+                  }}
                   style={{
                     width: '100%',
                     marginTop: 0,
@@ -265,6 +334,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                     boxSizing: 'border-box',
                   }}
                 />
+                <FieldError id="add-user-pass-err" message={fieldErrors.password} />
               </div>
             </div>
 

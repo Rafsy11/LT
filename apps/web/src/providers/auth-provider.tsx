@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        if (res.status === 401 || res.status === 403) {
+        if (res.status === 401) {
           setSessionUser(null);
           try {
             window.localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -108,9 +108,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-            const currentPath = window.location.pathname;
-            window.location.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
+            const currentPath = `${window.location.pathname}${window.location.search}`;
+            window.location.replace(`/login?next=${encodeURIComponent(currentPath)}`);
           }
+          return;
+        }
+
+        if (res.status === 403) {
+          // Preserve session on 403 Forbidden so views can display AccessDeniedState instead of kicking out
           return;
         }
 

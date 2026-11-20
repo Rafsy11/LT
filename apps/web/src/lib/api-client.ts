@@ -2,51 +2,96 @@ import {
   ERROR_CODES,
   STANDARD_ERROR_MESSAGES,
   ApiResponse,
-  sanitizeUiErrorMessage,
 } from '@repo/shared';
 import { clearServiceUnavailable, reportServiceUnavailable } from '@/lib/api-error';
+import {
+  normalizeAppError,
+  parseRetryAfterSeconds,
+  extractFieldErrors,
+  type AppError,
+} from '@/lib/error-normalizer';
+import { ERROR_CATEGORY_DICTIONARY } from '@/lib/error-dictionary';
 
-export interface ApiClientError extends Error {
-  code: string;
-  statusCode: number;
-  retryAfterSeconds?: number;
-  details?: unknown;
-}
+export type ApiClientError = AppError;
 
 export interface RequestOptions extends RequestInit {
   onConflict?: () => void | Promise<void>;
   skipAuthRedirect?: boolean;
+  /** Request timeout in milliseconds using AbortController. Defaults to 15000ms. */
+  timeoutMs?: number;
 }
+
+const DEFAULT_TIMEOUT_MS = 15_000;
 
 class WebApiClient {
   private isRedirecting = false;
 
   /**
-   * Centralized HTTP fetch wrapper with response state interceptors:
-   * - 401 Unauthorized: Clears local session and redirects to /login.
-   * - 403 Forbidden: Returns user-friendly message without leaking Prisma/system traces.
-   * - 409 Conflict: Triggers refetch callback and provides clear conflict explanation.
-   * - 429 Too Many Requests: Extracts Retry-After and informs user about cooldown.
+   * Centralized HTTP fetch wrapper with strict TypeScript `AppError` normalization:
+   * - Offline detection (`navigator.onLine === false`) -> OFFLINE
+   * - Request Timeout (`AbortController`) -> 408 TIMEOUT
+   * - 401 Unauthorized -> Clears local session and redirects to `/login?next=<path+search>`
+   * - 403 Forbidden -> Throws FORBIDDEN without logging the user out
+   * - 409 Conflict -> Triggers `onConflict` refetch callback
+   * - 413 Payload Too Large / 415 Unsupported File -> Explicit file limit/format guidance
+   * - 429 Too Many Requests -> Extracts `Retry-After` cooldown seconds
+   * - 503 Service Unavailable -> Emits maintenance/overload state to GlobalNetworkBanner
+   * - 5xx Server Error -> Masks internals and attaches `Ref: #ERR-XXXX`
    */
   public async request<T = unknown>(
     endpoint: string,
     options: RequestOptions = {},
   ): Promise<ApiResponse<T>> {
-    const { onConflict, skipAuthRedirect = false, ...fetchOptions } = options;
+    const {
+      onConflict,
+      skipAuthRedirect = false,
+      timeoutMs = DEFAULT_TIMEOUT_MS,
+      signal: externalSignal,
+      ...fetchOptions
+    } = options;
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      throw normalizeAppError(null, {
+        statusCode: 0,
+        code: ERROR_CODES.NETWORK_OFFLINE,
+      });
+    }
 
     const headers = new Headers(fetchOptions.headers || {});
     if (!headers.has('Content-Type') && !(fetchOptions.body instanceof FormData)) {
       headers.set('Content-Type', 'application/json');
     }
 
+    const controller = new AbortController();
+    let didTimeout = false;
+
+    const handleExternalAbort = () => {
+      controller.abort();
+    };
+    if (externalSignal) {
+      if (externalSignal.aborted) {
+        controller.abort();
+      } else {
+        externalSignal.addEventListener('abort', handleExternalAbort, { once: true });
+      }
+    }
+
+    const timerId =
+      timeoutMs > 0
+        ? globalThis.setTimeout(() => {
+            didTimeout = true;
+            controller.abort();
+          }, timeoutMs)
+        : null;
+
     try {
       const response = await fetch(endpoint, {
         ...fetchOptions,
         headers,
+        signal: controller.signal,
       });
 
       const retryAfterHeader = response.headers.get('Retry-After');
-      const retryAfterSeconds = retryAfterHeader ? parseInt(retryAfterHeader, 10) : undefined;
 
       let json: ApiResponse<T>;
       try {
@@ -62,12 +107,12 @@ class WebApiClient {
       }
 
       const errPayload = !json.success ? json.error : undefined;
+      const fieldErrors = extractFieldErrors(json);
 
       // 1. HTTP 401 Unauthorized Interceptor
       if (response.status === 401) {
         if (typeof window !== 'undefined' && !skipAuthRedirect && !this.isRedirecting) {
           this.isRedirecting = true;
-          // Clear any client stored session
           try {
             localStorage.removeItem('fiberops_user');
             localStorage.removeItem('fiberops_auth_user');
@@ -75,39 +120,45 @@ class WebApiClient {
             sessionStorage.clear();
             document.cookie = 'fiberops_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
           } catch {
-            // Storage access error safeguard
+            // Storage access safeguard
           }
 
-          const currentPath = window.location.pathname;
-          if (currentPath !== '/login') {
-            window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+          const currentPath = `${window.location.pathname}${window.location.search}`;
+          if (window.location.pathname !== '/login') {
+            window.location.href = `/login?next=${encodeURIComponent(currentPath)}`;
+          } else {
+            this.isRedirecting = false;
           }
+
+          globalThis.setTimeout(() => {
+            this.isRedirecting = false;
+          }, 4000);
         }
 
-        const sanitized401 = sanitizeUiErrorMessage({
+        throw normalizeAppError(errPayload, {
+          statusCode: 401,
           code: errPayload?.code || ERROR_CODES.UNAUTHORIZED,
-          message: errPayload?.message,
         });
-        const err: ApiClientError = new Error(sanitized401.message) as ApiClientError;
-        err.code = errPayload?.code || ERROR_CODES.UNAUTHORIZED;
-        err.statusCode = 401;
-        throw err;
       }
 
-      // 2. HTTP 403 Forbidden Interceptor (Anti-Information Leakage)
+      // 2. HTTP 403 Forbidden Interceptor (Never log out; surface access restriction)
       if (response.status === 403) {
-        const sanitized = sanitizeUiErrorMessage({
+        throw normalizeAppError(errPayload, {
+          statusCode: 403,
           code: errPayload?.code || ERROR_CODES.FORBIDDEN,
-          message: errPayload?.message,
+          details: errPayload?.details,
         });
-        const err: ApiClientError = new Error(sanitized.message) as ApiClientError;
-        err.code = errPayload?.code || ERROR_CODES.FORBIDDEN;
-        err.statusCode = 403;
-        err.details = errPayload?.details;
-        throw err;
       }
 
-      // 3. HTTP 409 Conflict Interceptor (Port Occupied / Ticket Closed / Action Token Replayed)
+      // 3. HTTP 408 Request Timeout from Gateway/Server
+      if (response.status === 408 || response.status === 504) {
+        throw normalizeAppError(errPayload, {
+          statusCode: 408,
+          code: ERROR_CODES.REQUEST_TIMEOUT,
+        });
+      }
+
+      // 4. HTTP 409 Conflict Interceptor
       if (response.status === 409) {
         if (typeof onConflict === 'function') {
           try {
@@ -117,67 +168,70 @@ class WebApiClient {
           }
         }
 
-        const sanitized409 = sanitizeUiErrorMessage({
-          code: errPayload?.code,
-          message:
-            errPayload?.message ||
-            'Konflik mutasi: Data telah berubah di server. Halaman telah diperbarui.',
+        throw normalizeAppError(errPayload, {
+          statusCode: 409,
+          code: errPayload?.code || 'CONFLICT',
+          fallbackMessage: ERROR_CATEGORY_DICTIONARY.CONFLICT.message,
+          details: errPayload?.details,
         });
-        const err: ApiClientError = new Error(sanitized409.message) as ApiClientError;
-        err.code = errPayload?.code || 'CONFLICT';
-        err.statusCode = 409;
-        err.details = errPayload?.details;
-        throw err;
       }
 
-      // 4. HTTP 429 Too Many Requests Interceptor (Rate Limit Cooldown)
+      // 5. HTTP 413 Payload Too Large & 415 Unsupported Media Type
+      if (response.status === 413) {
+        throw normalizeAppError(errPayload, {
+          statusCode: 413,
+          code: ERROR_CODES.PAYLOAD_TOO_LARGE,
+          fallbackMessage: ERROR_CATEGORY_DICTIONARY.PAYLOAD_TOO_LARGE.message,
+        });
+      }
+
+      if (response.status === 415) {
+        throw normalizeAppError(errPayload, {
+          statusCode: 415,
+          code: ERROR_CODES.UNSUPPORTED_MEDIA_TYPE,
+          fallbackMessage: ERROR_CATEGORY_DICTIONARY.UNSUPPORTED_FILE.message,
+        });
+      }
+
+      // 6. HTTP 429 Too Many Requests Interceptor
       if (response.status === 429) {
-        const cooldownMsg = retryAfterSeconds
-          ? `Terlalu banyak permintaan. Silakan tunggu ${retryAfterSeconds} detik sebelum mencoba lagi.`
-          : sanitizeUiErrorMessage({
-              code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
-              message: errPayload?.message,
-            }).message;
+        const rawJsonMeta = json as { meta?: { retryAfterMs?: number }; error?: { retryAfter?: number } };
+        const payloadRetry =
+          typeof rawJsonMeta.error?.retryAfter === 'number' && rawJsonMeta.error.retryAfter > 0
+            ? rawJsonMeta.error.retryAfter
+            : typeof rawJsonMeta.meta?.retryAfterMs === 'number' && rawJsonMeta.meta.retryAfterMs > 0
+              ? Math.ceil(rawJsonMeta.meta.retryAfterMs / 1000)
+              : undefined;
+        const retryAfterSeconds = payloadRetry ?? parseRetryAfterSeconds(retryAfterHeader, 60);
 
-        const err: ApiClientError = new Error(cooldownMsg) as ApiClientError;
-        err.code = ERROR_CODES.RATE_LIMIT_EXCEEDED;
-        err.statusCode = 429;
-        err.retryAfterSeconds = retryAfterSeconds;
-        throw err;
+        throw normalizeAppError(errPayload, {
+          statusCode: 429,
+          code: errPayload?.code || ERROR_CODES.RATE_LIMIT_EXCEEDED,
+          retryAfterSeconds,
+        });
       }
 
-      // 5. HTTP 503 Service Unavailable Interceptor (Strict Live Mode Fail-Fast)
+      // 7. HTTP 503 Service Unavailable Interceptor
       if (response.status === 503 || errPayload?.code === ERROR_CODES.SERVICE_UNAVAILABLE) {
-        const sanitizedUnavailable = sanitizeUiErrorMessage({
-          code: ERROR_CODES.SERVICE_UNAVAILABLE,
-        });
+        const maintenanceMessage = ERROR_CATEGORY_DICTIONARY.SERVICE_UNAVAILABLE.message;
         const category = endpoint.includes('/admin/ai/') ? 'service' : 'database';
-        reportServiceUnavailable(sanitizedUnavailable.message, category, endpoint);
+        reportServiceUnavailable(maintenanceMessage, category, endpoint);
 
-        const err: ApiClientError = new Error(sanitizedUnavailable.message) as ApiClientError;
-        err.code = ERROR_CODES.SERVICE_UNAVAILABLE;
-        err.statusCode = 503;
-        err.details = errPayload?.details;
-        throw err;
+        throw normalizeAppError(errPayload, {
+          statusCode: 503,
+          code: ERROR_CODES.SERVICE_UNAVAILABLE,
+          fallbackMessage: maintenanceMessage,
+          details: errPayload?.details,
+        });
       }
 
       if (!response.ok) {
-        const isServerError = response.status >= 500;
-        const sanitized = sanitizeUiErrorMessage(
-          isServerError
-            ? { code: ERROR_CODES.INTERNAL_ERROR }
-            : {
-                code: errPayload?.code,
-                message: errPayload?.message || STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
-              },
-        );
-        const err: ApiClientError = new Error(sanitized.message) as ApiClientError;
-        err.code = isServerError
-          ? ERROR_CODES.INTERNAL_ERROR
-          : errPayload?.code || sanitized.code || 'HTTP_ERROR';
-        err.statusCode = response.status;
-        err.details = errPayload?.details;
-        throw err;
+        throw normalizeAppError(errPayload, {
+          statusCode: response.status,
+          code: response.status >= 500 ? ERROR_CODES.INTERNAL_ERROR : errPayload?.code,
+          fieldErrors,
+          details: errPayload?.details,
+        });
       }
 
       if (!endpoint.includes('/admin/ai/')) {
@@ -185,23 +239,40 @@ class WebApiClient {
       }
       return json;
     } catch (err: unknown) {
-      if ((err as ApiClientError).statusCode) {
+      if (didTimeout) {
+        throw normalizeAppError(err, {
+          statusCode: 408,
+          code: ERROR_CODES.REQUEST_TIMEOUT,
+        });
+      }
+
+      if (err && typeof err === 'object' && (err as Partial<AppError>).isAppError) {
         throw err;
       }
 
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        throw normalizeAppError(err, {
+          statusCode: 0,
+          code: ERROR_CODES.NETWORK_OFFLINE,
+        });
+      }
+
       const method = (fetchOptions.method || 'GET').toUpperCase();
-      const safeNet = sanitizeUiErrorMessage(err);
-      const networkMsg =
-        safeNet.code === ERROR_CODES.INTERNAL_ERROR &&
-        safeNet.message === STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR
-          ? method === 'GET'
+      throw normalizeAppError(err, {
+        statusCode: 0,
+        code: 'NETWORK_ERROR',
+        fallbackMessage:
+          method === 'GET'
             ? STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED
-            : STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR
-          : safeNet.message;
-      const networkErr: ApiClientError = new Error(networkMsg) as ApiClientError;
-      networkErr.code = 'NETWORK_ERROR';
-      networkErr.statusCode = 0;
-      throw networkErr;
+            : STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
+      });
+    } finally {
+      if (timerId !== null) {
+        globalThis.clearTimeout(timerId);
+      }
+      if (externalSignal) {
+        externalSignal.removeEventListener('abort', handleExternalAbort);
+      }
     }
   }
 

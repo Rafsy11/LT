@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { DraftActionCardData, sanitizeUiErrorMessage, ERROR_CODES } from '@repo/shared';
+import { DraftActionCardData, ERROR_CODES } from '@repo/shared';
 import { useToast } from '@/providers';
 import { Icon } from '@/components/ui/Icon';
-import { webApiClient, ApiClientError } from '@/lib/api-client';
+import { webApiClient } from '@/lib/api-client';
+import { normalizeAppError } from '@/lib/error-normalizer';
 import { invalidateQueryCache } from '@/lib/query-cache';
 
 const AI_MUTATION_CACHE_KEYS = [
@@ -101,33 +102,39 @@ export function DraftActionCard({
       if (res.success) {
         setState('EXECUTED');
         invalidateQueryCache(...AI_MUTATION_CACHE_KEYS);
-        const successMsg = `Aksi "${draft.title}" berhasil disetujui & dieksekusi secara aman ke database.`;
+        const successMsg = `Aksi "${draft.title}" berhasil disetujui dan diterapkan.`;
         showSuccess(successMsg);
         if (onExecutedSuccess) {
           onExecutedSuccess();
         }
       } else {
         setState('FAILED_REPLAY_BLOCKED');
-        const sanitized = sanitizeUiErrorMessage(res.error);
-        setErrorMessage(sanitized.message);
-        showError(res.error);
+        const normalized = normalizeAppError(res.error);
+        setErrorMessage(normalized.message);
+        showError(normalized);
       }
     } catch (err: unknown) {
-      setState('FAILED_REPLAY_BLOCKED');
-      const apiErr = err as ApiClientError;
-      const isReplay = apiErr.code === ERROR_CODES.ACTION_TOKEN_REPLAYED;
-      const isPortOccupied = apiErr.code === ERROR_CODES.PORT_OCCUPIED;
+      const normalized = normalizeAppError(err, {
+        fallbackMessage: 'Eksekusi aksi belum dapat diproses saat ini.',
+      });
+      const isTransient =
+        normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE';
+      setState(isTransient ? 'PENDING' : 'FAILED_REPLAY_BLOCKED');
+      const isReplay = normalized.code === ERROR_CODES.ACTION_TOKEN_REPLAYED;
+      const isPortOccupied = normalized.code === ERROR_CODES.PORT_OCCUPIED;
 
-      let msg = apiErr.message || 'Eksekusi aksi gagal diproses server.';
+      let msg = normalized.message;
       if (isReplay) {
         msg =
-          'Token aksi ini sudah pernah dieksekusi sebelumnya (Replay Blocked). Silakan minta draf baru.';
+          'Aksi ini sudah pernah dijalankan sebelumnya. Silakan minta draf baru dari Asisten AI.';
       } else if (isPortOccupied) {
         msg = 'Port splitter telah terisi oleh pelanggan aktif lain. Mutasi dibatalkan.';
       }
 
       setErrorMessage(msg);
-      showError(msg);
+      showError(normalized, {
+        onRetry: isTransient ? () => void handleApprove() : undefined,
+      });
     } finally {
       executionLockRef.current = false;
     }
@@ -276,16 +283,16 @@ export function DraftActionCard({
               gap: '6px',
             }}
           >
-            <span>✓ Mutasi telah tervalidasi dan tercatat permanen pada activity_logs.</span>
+            <span>✓ Perubahan telah tervalidasi dan tercatat permanen pada riwayat audit.</span>
           </div>
         ) : state === 'CANCELLED' ? (
           <div className="ui-text-muted" style={{ fontSize: '12px' }}>
-            Aksi dibatalkan. Tidak ada mutasi yang diterapkan pada database.
+            Aksi dibatalkan. Tidak ada perubahan yang diterapkan pada sistem.
           </div>
         ) : state === 'EXPIRED' ? (
           <div className="ui-text-danger" style={{ fontSize: '12px' }}>
-            Masa aktif 5 menit telah habis. Token HMAC ini tidak dapat dieksekusi lagi demi
-            keamanan. Silakan minta AI membuat draf baru.
+            Masa berlaku draf 5 menit telah habis demi keamanan. Silakan minta Asisten AI membuat
+            draf baru.
           </div>
         ) : (
           <div

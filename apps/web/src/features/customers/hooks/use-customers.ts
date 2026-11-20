@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { classifyDbm, type CustomerListItem, STANDARD_ERROR_MESSAGES } from '@repo/shared';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
-import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
+import { webApiClient } from '@/lib/api-client';
+import { normalizeAppError } from '@/lib/error-normalizer';
 import { useToast } from '@/providers';
 import type { CustomerStatusTab } from '../components/customer-filters';
 import { fetchWithCache, getCachedData } from '@/lib/query-cache';
@@ -40,28 +41,28 @@ export function useCustomers() {
       const data = await fetchWithCache<CustomerListItem[]>(
         CUSTOMERS_CACHE_KEY,
         async () => {
-          const res = await fetch(CUSTOMERS_CACHE_KEY);
-          const json = await res.json().catch(() => null);
-          if (!res.ok || !json?.success || !Array.isArray(json.data)) {
-            const parsed = notifyApiResponseError(
-              res.status,
-              json,
-              'Gagal mengambil data pelanggan',
-              { category: 'database', source: CUSTOMERS_CACHE_KEY },
-            );
-            throw new Error(parsed.message);
+          const json = await webApiClient.get<CustomerListItem[]>(CUSTOMERS_CACHE_KEY);
+          if (!json.success || !Array.isArray(json.data)) {
+            throw normalizeAppError(!json.success ? json.error : null, {
+              fallbackMessage: STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
+            });
           }
-          clearServiceUnavailable('database');
-          return json.data as CustomerListItem[];
+          return json.data;
         },
         { force },
       );
       setCustomers(data);
     } catch (err) {
-      setLoadError(
-        err instanceof Error ? err.message : STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
-      );
-      showError(err);
+      const normalized = normalizeAppError(err, {
+        fallbackMessage: STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
+      });
+      setLoadError(normalized.message);
+      showError(normalized, {
+        onRetry:
+          normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
+            ? () => void fetchCustomers(true)
+            : undefined,
+      });
     } finally {
       setLoading(false);
     }

@@ -4,6 +4,8 @@ import React from 'react';
 import { STANDARD_ERROR_MESSAGES, STANDARD_ACTION_LABELS } from '@repo/shared';
 import { Icon } from './Icon';
 import { formatSafeUiError } from '@/lib/api-error';
+import { isAppError } from '@/lib/error-normalizer';
+import '@/styles/components/error-ux.css';
 
 export interface ErrorBannerProps {
   /** Raw error object or string; sanitized to prevent data leakage */
@@ -24,34 +26,56 @@ export interface ErrorBannerProps {
 
 export function ErrorBanner({
   error,
-  title = 'Gagal Memuat Data Operasional',
+  title,
   message,
   onRetry,
-  retryLabel = STANDARD_ACTION_LABELS.RETRY,
+  retryLabel,
   onDismiss,
   className = '',
 }: ErrorBannerProps) {
+  const normalizedAppErr = isAppError(error) ? error : null;
   const safeError = formatSafeUiError(error, {
     fallbackMessage: message || STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
   });
 
+  const resolvedTitle =
+    title || normalizedAppErr?.title || 'Gagal Memuat Data Operasional';
+
   const displayMessage = message
     ? formatSafeUiError(message, { fallbackMessage: safeError.message }).message
-    : safeError.message;
+    : normalizedAppErr?.message || safeError.message;
+
+  const isWarningCategory =
+    normalizedAppErr?.category === 'TIMEOUT' ||
+    normalizedAppErr?.category === 'OFFLINE' ||
+    normalizedAppErr?.category === 'RATE_LIMITED';
+
+  const showRefCode =
+    normalizedAppErr?.category === 'SERVER_ERROR' || (normalizedAppErr?.statusCode ?? 0) >= 500;
+
+  const iconName =
+    normalizedAppErr?.category === 'OFFLINE'
+      ? 'wifiOff'
+      : normalizedAppErr?.category === 'TIMEOUT' || normalizedAppErr?.category === 'RATE_LIMITED'
+        ? 'clock'
+        : 'alert';
 
   return (
     <div
-      className={`connection-banner ${className}`.trim()}
+      className={`connection-banner ${isWarningCategory ? 'connection-banner--warning' : ''} ${className}`.trim()}
       role="alert"
       aria-live="assertive"
     >
       <div className="connection-banner-icon" aria-hidden="true">
-        <Icon name="alert" size={18} />
+        <Icon name={iconName} size={18} />
       </div>
 
       <div className="connection-banner-copy">
-        <strong className="connection-banner-title">{title}</strong>
+        <strong className="connection-banner-title">{resolvedTitle}</strong>
         <p className="connection-banner-message">{displayMessage}</p>
+        {showRefCode && normalizedAppErr?.refCode && (
+          <span className="connection-banner-ref">Ref: {normalizedAppErr.refCode}</span>
+        )}
       </div>
 
       {(onRetry || onDismiss) && (
@@ -63,7 +87,7 @@ export function ErrorBanner({
               className="connection-banner-retry"
             >
               <Icon name="refresh" size={13} />
-              <span>{retryLabel}</span>
+              <span>{retryLabel || normalizedAppErr?.actionLabel || STANDARD_ACTION_LABELS.RETRY}</span>
             </button>
           )}
           {onDismiss && (

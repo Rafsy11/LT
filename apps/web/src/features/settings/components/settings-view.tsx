@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { AccessDeniedState } from '@/components/ui/AccessDeniedState';
+import { RateLimitNotice } from '@/components/ui/RateLimitNotice';
 import { SafeErrorState } from '@/components/ui/SafeErrorState';
 import { SettingsSkeleton } from '@/components/ui/PageSkeleton';
 import { useSettings } from '../hooks/use-settings';
@@ -21,8 +23,10 @@ export function SettingsView() {
     telemetry,
     loading,
     loadError,
+    forbiddenError,
     isSaving,
     isBackingUp,
+    backupCooldownSeconds,
     hasChanges,
     isSuperAdmin,
     user,
@@ -40,6 +44,20 @@ export function SettingsView() {
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
   }, [fetchSettings]);
 
+  if (forbiddenError) {
+    return (
+      <main id="main-content" className="settings-page">
+        <AccessDeniedState
+          title="Akses Pengaturan Sistem Dibatasi"
+          description={forbiddenError}
+          requiredRole="Super Admin"
+          homeHref="/"
+          variant="panel"
+        />
+      </main>
+    );
+  }
+
   if (loading && !settings && !loadError) {
     return <SettingsSkeleton />;
   }
@@ -49,10 +67,10 @@ export function SettingsView() {
       <main id="main-content" className="settings-page">
         <SafeErrorState
           error={loadError}
-          title="Konfigurasi Sistem Tidak Tersedia"
-          description="Konfigurasi sistem sementara tidak dapat dimuat dari server operasional. Silakan muat ulang beberapa saat lagi."
+          title="Konfigurasi Sistem Belum Tersedia"
+          description="Konfigurasi sistem sementara belum dapat dimuat. Data Anda tetap aman, silakan coba lagi beberapa saat lagi."
           onRetry={() => void fetchSettings(true)}
-          retryLabel="Muat Ulang Konfigurasi"
+          retryLabel="Coba Lagi"
           homeHref="/"
           variant="panel"
         />
@@ -99,14 +117,24 @@ export function SettingsView() {
 
         {/* Tab 3: Disaster Recovery & Backup 3-2-1 */}
         {activeTab === 'backup' && (
-          <BackupPanel
-            settings={settings}
-            telemetry={telemetry}
-            isBackingUp={isBackingUp}
-            isSuperAdmin={isSuperAdmin}
-            onTriggerBackup={handleTriggerBackup}
-            handleChange={handleChange}
-          />
+          <>
+            {backupCooldownSeconds > 0 && (
+              <div style={{ marginBottom: '14px' }}>
+                <RateLimitNotice
+                  remainingSeconds={backupCooldownSeconds}
+                  message="Permintaan pencadangan data sedang dibatasi sementara"
+                />
+              </div>
+            )}
+            <BackupPanel
+              settings={settings}
+              telemetry={telemetry}
+              isBackingUp={isBackingUp || backupCooldownSeconds > 0}
+              isSuperAdmin={isSuperAdmin}
+              onTriggerBackup={handleTriggerBackup}
+              handleChange={handleChange}
+            />
+          </>
         )}
 
         {/* Tab 4: Jaringan & Distribusi APK */}
@@ -129,7 +157,7 @@ export function SettingsView() {
               </span>
             ) : (
               <span className="settings-footer-text">
-                Konfigurasi tersinkronisasi penuh dengan server on-premise PostgreSQL &amp; Docker.
+                Konfigurasi tersinkronisasi penuh dengan server operasional pusat.
               </span>
             )}
           </div>

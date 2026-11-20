@@ -129,24 +129,37 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         {
           success: false,
           error: {
+            code: ERROR_CODES.UNSUPPORTED_MEDIA_TYPE,
+            message: 'Format berkas foto belum didukung. Gunakan gambar berformat JPG, PNG, atau WEBP (maksimal 5 MB).',
+          },
+        },
+        { status: 415 },
+      );
+    }
+
+    if (fileEntry.size <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
             code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Tipe file harus berupa gambar JPG, PNG, atau WEBP.',
+            message: 'Berkas foto kosong. Ambil ulang foto pengukuran OPM lalu unggah kembali.',
           },
         },
         { status: 400 },
       );
     }
 
-    if (fileEntry.size <= 0 || fileEntry.size > MAX_UPLOAD_BYTES) {
+    if (fileEntry.size > MAX_UPLOAD_BYTES) {
       return NextResponse.json(
         {
           success: false,
           error: {
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Ukuran foto maksimal 5 MB.',
+            code: ERROR_CODES.PAYLOAD_TOO_LARGE,
+            message: 'Ukuran foto melebihi batas maksimal 5 MB. Perkecil ukuran foto (JPG, PNG, atau WEBP) lalu coba kembali.',
           },
         },
-        { status: 400 },
+        { status: 413 },
       );
     }
 

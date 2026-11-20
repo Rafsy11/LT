@@ -1,0 +1,521 @@
+/* FiberOps Modular Stylesheet: components/error-ux.css */
+
+/* 1. Global Network & Maintenance Status Banner (Offline / Reconnected / 503) */
+.global-network-banner {
+  position: sticky;
+  top: 0;
+  z-index: 65;
+  width: 100%;
+  border-bottom: 1px solid var(--color-border-strong);
+  box-sizing: border-box;
+}
+
+.global-network-banner--offline {
+  background: var(--color-warning-bg);
+  border-bottom-color: var(--color-warning-border);
+  color: var(--color-warning-text);
+}
+
+.global-network-banner--reconnected {
+  background: var(--color-success-bg);
+  border-bottom-color: var(--color-success-border);
+  color: var(--color-success-text);
+}
+
+.global-network-banner--maintenance {
+  background: var(--color-critical-bg);
+  border-bottom-color: var(--color-critical-border);
+  color: var(--color-critical-text);
+}
+
+.global-network-banner-inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.global-network-banner-leading {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.global-network-banner-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.global-network-banner-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.global-network-banner-title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.global-network-banner-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: inherit;
+  opacity: 0.92;
+}
+
+.global-network-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.global-network-banner-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid currentColor;
+  background: rgba(255, 255, 255, 0.72);
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 150ms ease, opacity 150ms ease;
+}
+
+html.dark .global-network-banner-btn,
+[data-theme='dark'] .global-network-banner-btn {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.global-network-banner-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.global-network-banner-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .global-network-banner-inner {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px 12px;
+  }
+
+  .global-network-banner-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .global-network-banner-btn,
+  .global-network-banner-dismiss {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* 2. Inline Field Validation Error */
+.ui-field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 5px 0 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--color-critical-text);
+}
+
+.ui-field-error-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--color-danger);
+}
+
+.ui-input-invalid,
+input.ui-input-invalid,
+select.ui-input-invalid,
+textarea.ui-input-invalid {
+  border-color: var(--color-danger) !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.14);
+}
+
+html.dark .ui-input-invalid,
+[data-theme='dark'] .ui-input-invalid {
+  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.22);
+}
+
+/* 3. HTTP 429 Rate Limit Countdown Notice */
+.ui-rate-limit-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  color: var(--color-warning-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ui-rate-limit-notice-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.ui-rate-limit-notice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ui-rate-limit-notice-title {
+  font-weight: 700;
+  font-size: 12.5px;
+}
+
+.ui-rate-limit-notice-text {
+  margin: 0;
+  color: var(--color-warning-body);
+}
+
+/* 4. HTTP 403 Access Denied State */
+.ui-access-denied-shell {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.ui-access-denied-shell--full {
+  min-height: 100dvh;
+  padding: 24px 16px;
+  background: var(--color-surface);
+}
+
+.ui-access-denied-shell--panel {
+  padding: 28px 16px;
+}
+
+.ui-access-denied-card {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px 24px;
+  border-radius: 8px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+  box-sizing: border-box;
+}
+
+.ui-access-denied-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  color: var(--color-warning-text);
+  margin-bottom: 14px;
+}
+
+.ui-access-denied-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.ui-access-denied-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.35;
+}
+
+.ui-access-denied-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.55;
+  max-width: 420px;
+}
+
+.ui-access-denied-actions {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.ui-access-denied-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.ui-access-denied-btn--primary {
+  background: var(--color-primary-solid-bg);
+  border: 1px solid var(--color-primary-solid-bg);
+  color: #ffffff;
+}
+
+.ui-access-denied-btn--secondary {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-access-denied-btn--primary:hover {
+    background: #0b4a78;
+    border-color: #0b4a78;
+  }
+
+  .ui-access-denied-btn--secondary:hover {
+    background: var(--color-surface-muted);
+  }
+}
+
+@media (max-width: 640px) {
+  .ui-access-denied-actions {
+    flex-direction: column;
+  }
+
+  .ui-access-denied-btn {
+    width: 100%;
+  }
+}
+
+/* 5. Brand-Aligned 404 Not Found View */
+.not-found-main--dashboard {
+  min-height: calc(100dvh - 120px) !important;
+  padding: 28px 16px 48px !important;
+  background-color: transparent !important;
+}
+
+.not-found-actions {
+  margin-top: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.not-found-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.not-found-btn--primary {
+  background: #0e5b92;
+  border: 1px solid #0e5b92;
+  color: #ffffff;
+}
+
+.not-found-btn--secondary {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .not-found-btn--primary:hover {
+    background: #0b4a78;
+    border-color: #0b4a78;
+  }
+
+  .not-found-btn--secondary:hover {
+    background: var(--color-surface-muted);
+  }
+}
+
+html.dark .not-found-btn--primary,
+[data-theme='dark'] .not-found-btn--primary {
+  background: #0369a1;
+  border-color: #0369a1;
+  color: #ffffff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html.dark .not-found-btn--primary:hover,
+  [data-theme='dark'] .not-found-btn--primary:hover {
+    background: #0284c7;
+    border-color: #0284c7;
+  }
+}
+
+.not-found-quick-links {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.not-found-quick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-body);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .not-found-quick-link:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary-text);
+  }
+}
+
+@media (max-width: 640px) {
+  .not-found-actions {
+    flex-direction: column;
+  }
+
+  .not-found-btn {
+    width: 100%;
+  }
+}
+
+/* 6. Toast Reference Code & Retry Action */
+.toast-ref {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+.toast-action-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toast-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-card);
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .toast-action-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary-text);
+  }
+}
+
+/* 7. ErrorBanner Semantic Variants (Timeout / Maintenance / Rate Limit) */
+.connection-banner--warning {
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+  color: var(--color-warning-text);
+}
+
+.connection-banner--warning .connection-banner-title {
+  color: var(--color-warning-text);
+}
+
+.connection-banner--warning .connection-banner-message {
+  color: var(--color-warning-body);
+}
+
+.connection-banner-ref {
+  display: inline-block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.85;
+}

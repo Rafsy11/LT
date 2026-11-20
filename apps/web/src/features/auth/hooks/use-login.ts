@@ -5,12 +5,55 @@ import { useRouter } from 'next/navigation';
 import {
   ERROR_CODES,
   STANDARD_ERROR_MESSAGES,
-  sanitizeUiErrorMessage,
   UserTypeEnum,
 } from '@repo/shared';
+import { useRateLimitCountdown } from '@/hooks/use-rate-limit-countdown';
+import { webApiClient } from '@/lib/api-client';
+import { ERROR_CODE_FRIENDLY_TITLES } from '@/lib/error-dictionary';
+import { normalizeAppError, type AppError } from '@/lib/error-normalizer';
 import { useAuth, useToast } from '@/providers';
 
 export type OtpDeliveryStatus = 'IDLE' | 'SENT';
+export type LoginFieldKey = 'username' | 'password' | 'otpCode';
+
+interface OtpChallengeResponse {
+  preAuthToken: string;
+  expiresIn?: number;
+  resendCooldown?: number;
+  maskedChatId?: string | null;
+  botUsername?: string;
+  user?: { nik?: string | null };
+}
+
+interface VerifiedSessionResponse {
+  accessToken?: string;
+  user: {
+    id: string;
+    username: string;
+    fullName: string;
+    userType: string;
+    role?: string;
+    roleName?: string;
+    hierarchyLevel: number;
+    permissions: string[];
+    assignedClusters: string[];
+  };
+}
+
+function resolveSafeRedirectTarget(search: string): string {
+  const params = new URLSearchParams(search);
+  const candidate =
+    params.get('next') || params.get('redirect') || params.get('callbackUrl') || '';
+  if (
+    candidate &&
+    candidate.startsWith('/') &&
+    !candidate.startsWith('//') &&
+    !candidate.startsWith('/login')
+  ) {
+    return candidate;
+  }
+  return '/';
+}
 
 export function useLogin() {
   const router = useRouter();
@@ -25,7 +68,6 @@ export function useLogin() {
   const [preAuthToken, setPreAuthToken] = useState<string | null>(null);
   const [otpCode, setOtpCodeState] = useState<string>('');
   const [otpExpiresSeconds, setOtpExpiresSeconds] = useState<number>(0);
-  const [resendCooldownSeconds, setResendCooldownSeconds] = useState<number>(0);
   const [deliveryStatus, setDeliveryStatus] = useState<OtpDeliveryStatus>('IDLE');
   const [maskedChatId, setMaskedChatId] = useState<string | null>(null);
   const [botUsername, setBotUsername] = useState<string>('FiberOpsNOCBot');
@@ -34,19 +76,14 @@ export function useLogin() {
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorTitle, setErrorTitle] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
-  const [rateLimitSeconds, setRateLimitSeconds] = useState<number>(0);
+  const [errorRefCode, setErrorRefCode] = useState<string | null>(null);
+  const [canRetry, setCanRetry] = useState<boolean>(false);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<LoginFieldKey, string>>>({});
 
-  // Brute-force rate limit countdown
-  useEffect(() => {
-    if (rateLimitSeconds <= 0) return;
-
-    const timer = window.setInterval(() => {
-      setRateLimitSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [rateLimitSeconds]);
+  const rateLimit = useRateLimitCountdown();
+  const resendCooldown = useRateLimitCountdown();
 
   // 5-minute OTP challenge expiry countdown
   useEffect(() => {
@@ -56,7 +93,10 @@ export function useLogin() {
       setOtpExpiresSeconds((prev) => {
         if (prev <= 1) {
           setErrorCode(ERROR_CODES.OTP_EXPIRED);
-          setErrorMessage('Batas waktu kode OTP (5 menit) telah habis. Klik "Kirim OTP" kembali.');
+          setErrorTitle(ERROR_CODE_FRIENDLY_TITLES[ERROR_CODES.OTP_EXPIRED] || 'Masa Berlaku Kode OTP Habis');
+          setErrorMessage('Masa berlaku kode OTP telah habis. Pilih "Kirim OTP" untuk meminta kode baru.');
+          setErrorRefCode(null);
+          setCanRetry(false);
           setPreAuthToken(null);
           setDeliveryStatus('IDLE');
           return 0;
@@ -68,55 +108,109 @@ export function useLogin() {
     return () => window.clearInterval(timer);
   }, [otpExpiresSeconds]);
 
-  // 60-second OTP resend cooldown countdown
-  useEffect(() => {
-    if (resendCooldownSeconds <= 0) return;
-
-    const timer = window.setInterval(() => {
-      setResendCooldownSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [resendCooldownSeconds]);
-
-  const setUsername = useCallback((val: string) => {
-    setUsernameState(val);
-    setPreAuthToken(null);
-    setDeliveryStatus('IDLE');
-    setOtpExpiresSeconds(0);
+  const clearErrors = useCallback(() => {
+    setErrorMessage(null);
+    setErrorTitle(null);
+    setErrorCode(null);
+    setErrorRefCode(null);
+    setCanRetry(false);
   }, []);
 
-  const setPassword = useCallback((val: string) => {
-    setPasswordState(val);
-    setPreAuthToken(null);
-    setDeliveryStatus('IDLE');
-    setOtpExpiresSeconds(0);
+  const clearFieldError = useCallback((field: LoginFieldKey) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   }, []);
+
+  const applyAppError = useCallback(
+    (err: unknown, options: { isResend?: boolean } = {}) => {
+      const appErr: AppError = normalizeAppError(err);
+
+      if (appErr.fieldErrors) {
+        const mapped: Partial<Record<LoginFieldKey, string>> = {};
+        if (appErr.fieldErrors.username) mapped.username = appErr.fieldErrors.username;
+        if (appErr.fieldErrors.password) mapped.password = appErr.fieldErrors.password;
+        if (appErr.fieldErrors.otpCode) mapped.otpCode = appErr.fieldErrors.otpCode;
+        if (Object.keys(mapped).length > 0) {
+          setFieldErrors((prev) => ({ ...prev, ...mapped }));
+        }
+      }
+
+      if (appErr.category === 'RATE_LIMITED') {
+        const waitSec = appErr.retryAfterSeconds || 60;
+        if (options.isResend || appErr.code === ERROR_CODES.OTP_COOLDOWN_ACTIVE) {
+          resendCooldown.startCooldown(waitSec);
+        } else {
+          rateLimit.startCooldown(waitSec);
+        }
+      }
+
+      if (
+        appErr.code === ERROR_CODES.OTP_MAX_ATTEMPTS ||
+        appErr.code === ERROR_CODES.OTP_EXPIRED
+      ) {
+        setPreAuthToken(null);
+        setOtpCodeState('');
+        setDeliveryStatus('IDLE');
+        setOtpExpiresSeconds(0);
+      }
+
+      const resolvedMessage =
+        appErr.statusCode === 401 && appErr.code === ERROR_CODES.INVALID_CREDENTIALS
+          ? STANDARD_ERROR_MESSAGES.INVALID_CREDENTIALS
+          : appErr.message;
+
+      setErrorCode(appErr.code);
+      setErrorTitle(appErr.title);
+      setErrorMessage(resolvedMessage);
+      setErrorRefCode(
+        appErr.category === 'SERVER_ERROR' || appErr.statusCode >= 500 ? appErr.refCode : null,
+      );
+      setCanRetry(appErr.category === 'TIMEOUT' || appErr.category === 'OFFLINE');
+    },
+    [rateLimit, resendCooldown],
+  );
+
+  const setUsername = useCallback(
+    (val: string) => {
+      setUsernameState(val);
+      clearFieldError('username');
+      setPreAuthToken(null);
+      setDeliveryStatus('IDLE');
+      setOtpExpiresSeconds(0);
+    },
+    [clearFieldError],
+  );
+
+  const setPassword = useCallback(
+    (val: string) => {
+      setPasswordState(val);
+      clearFieldError('password');
+      setPreAuthToken(null);
+      setDeliveryStatus('IDLE');
+      setOtpExpiresSeconds(0);
+    },
+    [clearFieldError],
+  );
 
   const toggleShowPassword = useCallback(() => {
     setShowPassword((prev) => !prev);
   }, []);
 
-  const setOtpCode = useCallback((raw: string) => {
-    const digitsOnly = raw.replace(/\D/g, '').slice(0, 6);
-    setOtpCodeState(digitsOnly);
-  }, []);
+  const setOtpCode = useCallback(
+    (raw: string) => {
+      const digitsOnly = raw.replace(/\D/g, '').slice(0, 6);
+      setOtpCodeState(digitsOnly);
+      clearFieldError('otpCode');
+    },
+    [clearFieldError],
+  );
 
   const completeWebSession = useCallback(
-    (authData: {
-      accessToken?: string;
-      user: {
-        id: string;
-        username: string;
-        fullName: string;
-        userType: string;
-        role?: string;
-        roleName?: string;
-        hierarchyLevel: number;
-        permissions: string[];
-        assignedClusters: string[];
-      };
-    }) => {
+    (authData: VerifiedSessionResponse) => {
       const userPayload = authData.user;
 
       loginUser({
@@ -142,14 +236,10 @@ export function useLogin() {
         `Verifikasi 2FA Berhasil: Selamat bertugas, ${userPayload.fullName || userPayload.username}.`,
       );
 
-      let targetUrl = '/';
-      if (typeof window !== 'undefined') {
-        const params = new URLSearchParams(window.location.search);
-        const callbackUrl = params.get('callbackUrl');
-        if (callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')) {
-          targetUrl = callbackUrl;
-        }
-      }
+      const targetUrl =
+        typeof window !== 'undefined'
+          ? resolveSafeRedirectTarget(window.location.search)
+          : '/';
 
       router.push(targetUrl);
       router.refresh();
@@ -157,60 +247,52 @@ export function useLogin() {
     [loginUser, router, showSuccess],
   );
 
+  const validateCredentials = useCallback((): boolean => {
+    const nextErrors: Partial<Record<LoginFieldKey, string>> = {};
+    if (!username.trim()) {
+      nextErrors.username = 'Username operator perlu diisi.';
+    }
+    if (!password) {
+      nextErrors.password = 'Kata sandi perlu diisi.';
+    }
+    setFieldErrors((prev) => ({ ...prev, ...nextErrors }));
+    return Object.keys(nextErrors).length === 0;
+  }, [username, password]);
+
   /**
    * Requests or resends a 6-digit OTP to the operator's server-bound Telegram Chat ID.
    */
   const requestOtpCode = useCallback(async (): Promise<string | null> => {
-    if (isRequestingOtp || rateLimitSeconds > 0 || resendCooldownSeconds > 0) {
+    if (isRequestingOtp || rateLimit.isLimited || resendCooldown.isLimited) {
       return preAuthToken;
     }
 
-    const trimmedUsername = username.trim();
-    if (!trimmedUsername || !password) {
+    if (!validateCredentials()) {
       setErrorCode(ERROR_CODES.VALIDATION_ERROR);
-      setErrorMessage('Isi Username Operator dan Kata Sandi terlebih dahulu untuk meminta OTP.');
+      setErrorTitle('Periksa Kembali Isian');
+      setErrorMessage('Lengkapi username operator dan kata sandi terlebih dahulu untuk meminta kode OTP.');
+      setErrorRefCode(null);
+      setCanRetry(false);
       return null;
     }
 
+    const trimmedUsername = username.trim();
     setIsRequestingOtp(true);
-    setErrorMessage(null);
-    setErrorCode(null);
+    clearErrors();
 
     try {
       if (preAuthToken) {
-        const res = await fetch('/api/v1/auth/resend-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ preAuthToken }),
-        });
+        const res = await webApiClient.post<OtpChallengeResponse>(
+          '/api/v1/auth/resend-otp',
+          { preAuthToken },
+          { skipAuthRedirect: true, timeoutMs: 15_000 },
+        );
 
-        const json = await res.json().catch(() => null);
-
-        if (res.status === 429) {
-          const retryAfter = json?.error?.retryAfter || 60;
-          const cooldownCode = json?.error?.code || ERROR_CODES.OTP_COOLDOWN_ACTIVE;
-          const msgCheck =
-            typeof json?.error?.message === 'string'
-              ? sanitizeUiErrorMessage(new Error(json.error.message))
-              : null;
-          const safeMessage =
-            msgCheck && msgCheck.message !== STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR
-              ? msgCheck.message
-              : sanitizeUiErrorMessage({
-                  code: cooldownCode,
-                  message: `Harap tunggu ${retryAfter} detik sebelum meminta OTP baru.`,
-                }).message;
-          setResendCooldownSeconds(retryAfter);
-          setErrorCode(cooldownCode);
-          setErrorMessage(safeMessage);
-          return preAuthToken;
-        }
-
-        if (res.ok && json?.success) {
-          const data = json.data;
+        if (res.success && res.data) {
+          const data = res.data;
           setPreAuthToken(data.preAuthToken);
           setOtpExpiresSeconds(data.expiresIn || 300);
-          setResendCooldownSeconds(data.resendCooldown ?? 60);
+          resendCooldown.startCooldown(data.resendCooldown ?? 60);
           setDeliveryStatus('SENT');
           setMaskedChatId(data.maskedChatId || null);
           setBotUsername(data.botUsername || 'FiberOpsNOCBot');
@@ -218,248 +300,130 @@ export function useLogin() {
           showSuccess(
             `Kode OTP 6-digit baru telah dikirim ke Telegram terdaftar (${data.maskedChatId || '@FiberOpsNOCBot'}).`,
           );
-          return data.preAuthToken as string;
+          return data.preAuthToken;
         }
-
-        if (res.status === 503 || json?.error?.code === ERROR_CODES.SERVICE_UNAVAILABLE) {
-          setErrorCode(ERROR_CODES.SERVICE_UNAVAILABLE);
-          setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
-          return null;
-        }
-
-        if (res.status >= 500) {
-          setErrorCode(ERROR_CODES.INTERNAL_ERROR);
-          setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
-          return null;
-        }
-
-        const resendCode = json?.error?.code || ERROR_CODES.OTP_EXPIRED;
-        const safeResendErr = sanitizeUiErrorMessage({
-          code: resendCode,
-          message: json?.error?.message,
-        });
-        if (
-          resendCode === ERROR_CODES.OTP_EXPIRED ||
-          resendCode === ERROR_CODES.OTP_MAX_ATTEMPTS
-        ) {
-          setPreAuthToken(null);
-          setOtpCodeState('');
-          setDeliveryStatus('IDLE');
-          setOtpExpiresSeconds(0);
-        }
-        setErrorCode(resendCode);
-        setErrorMessage(safeResendErr.message);
         return null;
       }
 
-      const res = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: trimmedUsername,
-          password,
-        }),
-      });
-
-      const json = await res.json().catch(() => null);
-
-      if (res.status === 429) {
-        const retryHeader = res.headers.get('Retry-After');
-        const parsedHeader = retryHeader ? parseInt(retryHeader, 10) : NaN;
-        const fallbackSeconds =
-          json?.error?.retryAfter ||
-          (json?.meta?.retryAfterMs ? Math.ceil(json.meta.retryAfterMs / 1000) : 60);
-        const cooldown =
-          !Number.isNaN(parsedHeader) && parsedHeader > 0 ? parsedHeader : fallbackSeconds;
-
-        setRateLimitSeconds(cooldown);
-        setErrorCode(ERROR_CODES.RATE_LIMIT_EXCEEDED);
-        setErrorMessage(
-          'Terlalu banyak percobaan login gagal. Akses dikunci sementara demi keamanan.',
-        );
-        return null;
-      }
-
-      if (res.status === 401) {
-        setErrorCode(ERROR_CODES.INVALID_CREDENTIALS);
-        setErrorMessage(STANDARD_ERROR_MESSAGES.INVALID_CREDENTIALS);
-        return null;
-      }
-
-      if (res.status === 403) {
-        const safeErr = sanitizeUiErrorMessage({
-          code: json?.error?.code || ERROR_CODES.FORBIDDEN,
-          message: json?.error?.message,
-        });
-        setErrorCode(json?.error?.code || ERROR_CODES.FORBIDDEN);
-        setErrorMessage(safeErr.message);
-        return null;
-      }
-
-      if (res.status === 503 || json?.error?.code === ERROR_CODES.SERVICE_UNAVAILABLE) {
-        setErrorCode(ERROR_CODES.SERVICE_UNAVAILABLE);
-        setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
-        return null;
-      }
-
-      if (!res.ok || !json?.success) {
-        const isServerError = res.status >= 500;
-        const resolvedCode = isServerError
-          ? ERROR_CODES.INTERNAL_ERROR
-          : json?.error?.code || ERROR_CODES.VALIDATION_ERROR;
-        const safeErr = sanitizeUiErrorMessage({
-          code: resolvedCode,
-          message: isServerError
-            ? undefined
-            : json?.error?.message || STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
-        });
-        setErrorCode(resolvedCode);
-        setErrorMessage(safeErr.message);
-        return null;
-      }
-
-      const authData = json.data;
-      setPreAuthToken(authData.preAuthToken);
-      setOtpExpiresSeconds(authData.expiresIn || 300);
-      setResendCooldownSeconds(authData.resendCooldown ?? 60);
-      setDeliveryStatus('SENT');
-      setMaskedChatId(authData.maskedChatId || null);
-      setBotUsername(authData.botUsername || 'FiberOpsNOCBot');
-      setUserNik(authData.user?.nik || null);
-
-      showSuccess(
-        `Kode OTP 6-digit telah dikirim ke Telegram terdaftar (${authData.maskedChatId || '@FiberOpsNOCBot'}).`,
+      const res = await webApiClient.post<OtpChallengeResponse>(
+        '/api/v1/auth/login',
+        { username: trimmedUsername, password },
+        { skipAuthRedirect: true, timeoutMs: 15_000 },
       );
 
-      return authData.preAuthToken as string;
-    } catch {
-      setErrorCode(ERROR_CODES.INTERNAL_ERROR);
-      setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
+      if (res.success && res.data) {
+        const authData = res.data;
+        setPreAuthToken(authData.preAuthToken);
+        setOtpExpiresSeconds(authData.expiresIn || 300);
+        resendCooldown.startCooldown(authData.resendCooldown ?? 60);
+        setDeliveryStatus('SENT');
+        setMaskedChatId(authData.maskedChatId || null);
+        setBotUsername(authData.botUsername || 'FiberOpsNOCBot');
+        setUserNik(authData.user?.nik || null);
+
+        showSuccess(
+          `Kode OTP 6-digit telah dikirim ke Telegram terdaftar (${authData.maskedChatId || '@FiberOpsNOCBot'}).`,
+        );
+
+        return authData.preAuthToken;
+      }
+
+      return null;
+    } catch (err: unknown) {
+      applyAppError(err, { isResend: Boolean(preAuthToken) });
       return null;
     } finally {
       setIsRequestingOtp(false);
     }
   }, [
     isRequestingOtp,
-    rateLimitSeconds,
-    resendCooldownSeconds,
+    rateLimit.isLimited,
+    resendCooldown,
+    preAuthToken,
+    validateCredentials,
     username,
     password,
-    preAuthToken,
+    clearErrors,
     showSuccess,
+    applyAppError,
+  ]);
+
+  const verifyOtpSubmission = useCallback(async () => {
+    if (isSubmitting || isRequestingOtp || rateLimit.isLimited) return;
+
+    if (!validateCredentials()) {
+      setErrorCode(ERROR_CODES.VALIDATION_ERROR);
+      setErrorTitle('Periksa Kembali Isian');
+      setErrorMessage('Lengkapi username operator dan kata sandi terlebih dahulu.');
+      setErrorRefCode(null);
+      setCanRetry(false);
+      return;
+    }
+
+    const cleanOtp = otpCode.trim();
+    if (!preAuthToken) {
+      await requestOtpCode();
+      return;
+    }
+
+    if (!/^\d{6}$/.test(cleanOtp)) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        otpCode: 'Kode OTP harus terdiri dari 6 digit angka dari Telegram.',
+      }));
+      setErrorCode(ERROR_CODES.VALIDATION_ERROR);
+      setErrorTitle('Format Kode OTP Belum Sesuai');
+      setErrorMessage('Masukkan 6 digit angka kode OTP yang dikirim ke Telegram Anda.');
+      setErrorRefCode(null);
+      setCanRetry(false);
+      return;
+    }
+
+    setIsSubmitting(true);
+    clearErrors();
+
+    try {
+      const res = await webApiClient.post<VerifiedSessionResponse>(
+        '/api/v1/auth/verify-otp',
+        { preAuthToken, otpCode: cleanOtp },
+        { skipAuthRedirect: true, timeoutMs: 15_000 },
+      );
+
+      if (res.success && res.data) {
+        completeWebSession(res.data);
+      }
+    } catch (err: unknown) {
+      applyAppError(err);
+      setIsSubmitting(false);
+    }
+  }, [
+    isSubmitting,
+    isRequestingOtp,
+    rateLimit.isLimited,
+    validateCredentials,
+    otpCode,
+    preAuthToken,
+    requestOtpCode,
+    clearErrors,
+    completeWebSession,
+    applyAppError,
   ]);
 
   const handleSubmit = useCallback(
     async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      if (isSubmitting || isRequestingOtp || rateLimitSeconds > 0) return;
-
-      const trimmedUsername = username.trim();
-      if (!trimmedUsername || !password) {
-        setErrorCode(ERROR_CODES.VALIDATION_ERROR);
-        setErrorMessage('Username dan kata sandi wajib diisi.');
-        return;
-      }
-
-      const cleanOtp = otpCode.trim();
-
-      if (!preAuthToken) {
-        await requestOtpCode();
-        return;
-      }
-
-      if (!/^\d{6}$/.test(cleanOtp)) {
-        setErrorCode(ERROR_CODES.VALIDATION_ERROR);
-        setErrorMessage('Masukkan 6 digit angka Kode OTP dari Bot Telegram Anda.');
-        return;
-      }
-
-      setIsSubmitting(true);
-      setErrorMessage(null);
-      setErrorCode(null);
-
-      try {
-        const res = await fetch('/api/v1/auth/verify-otp', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            preAuthToken,
-            otpCode: cleanOtp,
-          }),
-        });
-
-        const json = await res.json().catch(() => null);
-
-        if (res.status === 429) {
-          const fallbackSeconds = json?.error?.retryAfter || 60;
-          const msgCheck =
-            typeof json?.error?.message === 'string'
-              ? sanitizeUiErrorMessage(new Error(json.error.message))
-              : null;
-          const safeMessage =
-            msgCheck && msgCheck.message !== STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR
-              ? msgCheck.message
-              : sanitizeUiErrorMessage({
-                  code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
-                  message: 'Terlalu banyak percobaan verifikasi OTP. Akses dikunci sementara.',
-                }).message;
-          setRateLimitSeconds(fallbackSeconds);
-          setErrorCode(ERROR_CODES.RATE_LIMIT_EXCEEDED);
-          setErrorMessage(safeMessage);
-          setIsSubmitting(false);
-          return;
-        }
-
-        if (!res.ok || !json?.success) {
-          const isUnavailable =
-            res.status === 503 || json?.error?.code === ERROR_CODES.SERVICE_UNAVAILABLE;
-          const isServerError = res.status >= 500;
-          const code = isUnavailable
-            ? ERROR_CODES.SERVICE_UNAVAILABLE
-            : isServerError
-              ? ERROR_CODES.INTERNAL_ERROR
-              : json?.error?.code || ERROR_CODES.OTP_INVALID;
-          const safeErr = sanitizeUiErrorMessage({
-            code,
-            message: isServerError
-              ? undefined
-              : json?.error?.message || 'Kode OTP tidak sesuai atau telah kedaluwarsa.',
-          });
-
-          if (code === ERROR_CODES.OTP_MAX_ATTEMPTS || code === ERROR_CODES.OTP_EXPIRED) {
-            setPreAuthToken(null);
-            setOtpCodeState('');
-            setDeliveryStatus('IDLE');
-            setOtpExpiresSeconds(0);
-          }
-
-          setErrorCode(code);
-          setErrorMessage(safeErr.message);
-          setIsSubmitting(false);
-          return;
-        }
-
-        completeWebSession(json.data);
-      } catch {
-        setErrorCode(ERROR_CODES.INTERNAL_ERROR);
-        setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
-        setIsSubmitting(false);
-      }
+      await verifyOtpSubmission();
     },
-    [
-      isSubmitting,
-      isRequestingOtp,
-      rateLimitSeconds,
-      username,
-      password,
-      otpCode,
-      preAuthToken,
-      requestOtpCode,
-      completeWebSession,
-    ],
+    [verifyOtpSubmission],
   );
+
+  const retryLastAction = useCallback(async () => {
+    if (preAuthToken && /^\d{6}$/.test(otpCode.trim())) {
+      await verifyOtpSubmission();
+    } else {
+      await requestOtpCode();
+    }
+  }, [preAuthToken, otpCode, verifyOtpSubmission, requestOtpCode]);
 
   return {
     username,
@@ -472,7 +436,7 @@ export function useLogin() {
     otpCode,
     setOtpCode,
     otpExpiresSeconds,
-    resendCooldownSeconds,
+    resendCooldownSeconds: resendCooldown.remainingSeconds,
     deliveryStatus,
     maskedChatId,
     botUsername,
@@ -480,9 +444,14 @@ export function useLogin() {
     isRequestingOtp,
     isSubmitting,
     errorMessage,
+    errorTitle,
     errorCode,
-    rateLimitSeconds,
+    errorRefCode,
+    canRetry,
+    fieldErrors,
+    rateLimitSeconds: rateLimit.remainingSeconds,
     requestOtpCode,
+    retryLastAction,
     handleSubmit,
   };
 }

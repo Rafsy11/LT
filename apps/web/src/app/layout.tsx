@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
-import { AuthProvider, ToastProvider, ThemeProvider } from '@/providers';
+import { AuthProvider, ToastProvider, ThemeProvider, NetworkStatusProvider } from '@/providers';
+import { GlobalNetworkBanner } from '@/components/ui/GlobalNetworkBanner';
 import './globals.css';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -38,9 +39,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={plusJakartaSans.className} suppressHydrationWarning>
         <ThemeProvider>
-          <AuthProvider>
-            <ToastProvider>{children}</ToastProvider>
-          </AuthProvider>
+          <NetworkStatusProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <GlobalNetworkBanner />
+                {children}
+              </ToastProvider>
+            </AuthProvider>
+          </NetworkStatusProvider>
         </ThemeProvider>
       </body>
     </html>

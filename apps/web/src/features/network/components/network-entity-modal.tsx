@@ -7,8 +7,20 @@ import type {
   UpdateSplitterInput,
 } from '@repo/shared';
 import { Icon } from '@/components/ui/Icon';
+import { FieldError } from '@/components/ui/FieldError';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
+import { isAppError, normalizeAppError } from '@/lib/error-normalizer';
 import { useToast } from '@/providers';
+
+type NetworkFieldKey =
+  | 'clusterCode'
+  | 'clusterName'
+  | 'centerLat'
+  | 'centerLng'
+  | 'selectedClusterCode'
+  | 'splitterCode'
+  | 'lat'
+  | 'lng';
 
 export type NetworkEntityModalMode = 'CREATE_CLUSTER' | 'CREATE_SPLITTER' | 'EDIT_SPLITTER';
 
@@ -50,6 +62,16 @@ export function NetworkEntityModal({
 }: NetworkEntityModalProps) {
   const { showError } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<NetworkFieldKey, string>>>({});
+
+  const clearField = (key: NetworkFieldKey) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
 
   // Cluster fields
   const [clusterCode, setClusterCode] = useState('');
@@ -67,6 +89,7 @@ export function NetworkEntityModal({
 
   useEffect(() => {
     if (!isOpen) return;
+    setFieldErrors({});
     if (mode === 'CREATE_CLUSTER') {
       setClusterCode('');
       setClusterName('');
@@ -105,50 +128,80 @@ export function NetworkEntityModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const errors: Partial<Record<NetworkFieldKey, string>> = {};
+
+    if (mode === 'CREATE_CLUSTER') {
+      if (!clusterCode.trim()) errors.clusterCode = 'Kode cluster perlu diisi.';
+      if (!clusterName.trim()) errors.clusterName = 'Nama wilayah perlu diisi.';
+      const parsedLat = Number.parseFloat(centerLat);
+      const parsedLng = Number.parseFloat(centerLng);
+      if (Number.isNaN(parsedLat) || parsedLat < -90 || parsedLat > 90) {
+        errors.centerLat = 'Latitude harus berupa angka antara -90 hingga 90.';
+      }
+      if (Number.isNaN(parsedLng) || parsedLng < -180 || parsedLng > 180) {
+        errors.centerLng = 'Longitude harus berupa angka antara -180 hingga 180.';
+      }
+    } else {
+      if (mode === 'CREATE_SPLITTER' && !selectedClusterCode.trim()) {
+        errors.selectedClusterCode = 'Wilayah cluster perlu dipilih.';
+      }
+      if (!splitterCode.trim()) {
+        errors.splitterCode = 'Kode ODP splitter perlu diisi.';
+      }
+      const parsedLat = Number.parseFloat(lat);
+      const parsedLng = Number.parseFloat(lng);
+      if (Number.isNaN(parsedLat) || parsedLat < -90 || parsedLat > 90) {
+        errors.lat = 'Latitude harus berupa angka antara -90 hingga 90.';
+      }
+      if (Number.isNaN(parsedLng) || parsedLng < -180 || parsedLng > 180) {
+        errors.lng = 'Longitude harus berupa angka antara -180 hingga 180.';
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
     try {
       setSubmitting(true);
       if (mode === 'CREATE_CLUSTER') {
-        const parsedLat = Number.parseFloat(centerLat);
-        const parsedLng = Number.parseFloat(centerLng);
-        if (Number.isNaN(parsedLat) || Number.isNaN(parsedLng)) {
-          throw new Error('Koordinat pusat cluster tidak valid.');
-        }
         await onCreateCluster({
           clusterCode: clusterCode.trim().toUpperCase(),
           name: clusterName.trim(),
-          centerLat: parsedLat,
-          centerLng: parsedLng,
+          centerLat: Number.parseFloat(centerLat),
+          centerLng: Number.parseFloat(centerLng),
         });
       } else if (mode === 'CREATE_SPLITTER') {
-        const parsedLat = Number.parseFloat(lat);
-        const parsedLng = Number.parseFloat(lng);
-        if (Number.isNaN(parsedLat) || Number.isNaN(parsedLng)) {
-          throw new Error('Koordinat tiang ODP tidak valid.');
-        }
         await onCreateSplitter({
           clusterCode: selectedClusterCode.trim().toUpperCase(),
           splitterCode: splitterCode.trim().toUpperCase(),
           maxPorts,
-          lat: parsedLat,
-          lng: parsedLng,
+          lat: Number.parseFloat(lat),
+          lng: Number.parseFloat(lng),
         });
       } else {
-        const parsedLat = Number.parseFloat(lat);
-        const parsedLng = Number.parseFloat(lng);
-        if (Number.isNaN(parsedLat) || Number.isNaN(parsedLng)) {
-          throw new Error('Koordinat tiang ODP tidak valid.');
-        }
         await onUpdateSplitter({
           splitterCode: splitterCode.trim().toUpperCase(),
           maxPorts,
-          lat: parsedLat,
-          lng: parsedLng,
+          lat: Number.parseFloat(lat),
+          lng: Number.parseFloat(lng),
           isActive,
         });
       }
       onClose();
     } catch (err: unknown) {
-      showError(err instanceof Error ? err.message : 'Gagal menyimpan master data jaringan');
+      const normalized = normalizeAppError(err, {
+        fallbackMessage: 'Master data jaringan belum dapat disimpan saat ini.',
+      });
+      if (isAppError(err) && err.fieldErrors) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          ...(err.fieldErrors as Partial<Record<NetworkFieldKey, string>>),
+        }));
+      }
+      showError(normalized);
     } finally {
       setSubmitting(false);
     }
@@ -180,7 +233,7 @@ export function NetworkEntityModal({
           </button>
         </header>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="modal-body" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {mode === 'CREATE_CLUSTER' ? (
               <>
@@ -190,20 +243,32 @@ export function NetworkEntityModal({
                     <input
                       type="text"
                       required
+                      aria-invalid={Boolean(fieldErrors.clusterCode)}
+                      className={fieldErrors.clusterCode ? 'ui-input-invalid' : ''}
                       placeholder="PLBHRAGA01"
                       value={clusterCode}
-                      onChange={(e) => setClusterCode(e.target.value)}
+                      onChange={(e) => {
+                        setClusterCode(e.target.value);
+                        clearField('clusterCode');
+                      }}
                     />
+                    <FieldError message={fieldErrors.clusterCode} />
                   </label>
                   <label className="field">
                     <span>Nama Wilayah</span>
                     <input
                       type="text"
                       required
+                      aria-invalid={Boolean(fieldErrors.clusterName)}
+                      className={fieldErrors.clusterName ? 'ui-input-invalid' : ''}
                       placeholder="Palembang Olahraga"
                       value={clusterName}
-                      onChange={(e) => setClusterName(e.target.value)}
+                      onChange={(e) => {
+                        setClusterName(e.target.value);
+                        clearField('clusterName');
+                      }}
                     />
+                    <FieldError message={fieldErrors.clusterName} />
                   </label>
                 </div>
 
@@ -215,9 +280,15 @@ export function NetworkEntityModal({
                       step="0.000001"
                       placeholder="-2.980000"
                       required
+                      aria-invalid={Boolean(fieldErrors.centerLat)}
+                      className={fieldErrors.centerLat ? 'ui-input-invalid' : ''}
                       value={centerLat}
-                      onChange={(e) => setCenterLat(e.target.value)}
+                      onChange={(e) => {
+                        setCenterLat(e.target.value);
+                        clearField('centerLat');
+                      }}
                     />
+                    <FieldError message={fieldErrors.centerLat} />
                   </label>
                   <label className="field">
                     <span>Longitude Pusat</span>
@@ -226,9 +297,15 @@ export function NetworkEntityModal({
                       step="0.000001"
                       placeholder="104.750000"
                       required
+                      aria-invalid={Boolean(fieldErrors.centerLng)}
+                      className={fieldErrors.centerLng ? 'ui-input-invalid' : ''}
                       value={centerLng}
-                      onChange={(e) => setCenterLng(e.target.value)}
+                      onChange={(e) => {
+                        setCenterLng(e.target.value);
+                        clearField('centerLng');
+                      }}
                     />
+                    <FieldError message={fieldErrors.centerLng} />
                   </label>
                 </div>
               </>
@@ -242,7 +319,12 @@ export function NetworkEntityModal({
                     ) : clusters.length > 0 ? (
                       <select
                         value={selectedClusterCode}
-                        onChange={(e) => setSelectedClusterCode(e.target.value)}
+                        aria-invalid={Boolean(fieldErrors.selectedClusterCode)}
+                        className={fieldErrors.selectedClusterCode ? 'ui-input-invalid' : ''}
+                        onChange={(e) => {
+                          setSelectedClusterCode(e.target.value);
+                          clearField('selectedClusterCode');
+                        }}
                         required
                       >
                         {clusters.map((c) => (
@@ -255,11 +337,17 @@ export function NetworkEntityModal({
                       <input
                         type="text"
                         required
+                        aria-invalid={Boolean(fieldErrors.selectedClusterCode)}
+                        className={fieldErrors.selectedClusterCode ? 'ui-input-invalid' : ''}
                         placeholder="PLBHRAGA01"
                         value={selectedClusterCode}
-                        onChange={(e) => setSelectedClusterCode(e.target.value)}
+                        onChange={(e) => {
+                          setSelectedClusterCode(e.target.value);
+                          clearField('selectedClusterCode');
+                        }}
                       />
                     )}
+                    <FieldError message={fieldErrors.selectedClusterCode} />
                   </label>
 
                   <label className="field">
@@ -267,11 +355,17 @@ export function NetworkEntityModal({
                     <input
                       type="text"
                       required
+                      aria-invalid={Boolean(fieldErrors.splitterCode)}
+                      className={fieldErrors.splitterCode ? 'ui-input-invalid' : ''}
                       placeholder="ODP-PLB-001"
                       value={splitterCode}
                       disabled={mode === 'EDIT_SPLITTER'}
-                      onChange={(e) => setSplitterCode(e.target.value)}
+                      onChange={(e) => {
+                        setSplitterCode(e.target.value);
+                        clearField('splitterCode');
+                      }}
                     />
+                    <FieldError message={fieldErrors.splitterCode} />
                   </label>
                 </div>
 
@@ -295,9 +389,15 @@ export function NetworkEntityModal({
                       step="0.000001"
                       placeholder="-2.980000"
                       required
+                      aria-invalid={Boolean(fieldErrors.lat)}
+                      className={fieldErrors.lat ? 'ui-input-invalid' : ''}
                       value={lat}
-                      onChange={(e) => setLat(e.target.value)}
+                      onChange={(e) => {
+                        setLat(e.target.value);
+                        clearField('lat');
+                      }}
                     />
+                    <FieldError message={fieldErrors.lat} />
                   </label>
 
                   <label className="field">
@@ -307,9 +407,15 @@ export function NetworkEntityModal({
                       step="0.000001"
                       placeholder="104.750000"
                       required
+                      aria-invalid={Boolean(fieldErrors.lng)}
+                      className={fieldErrors.lng ? 'ui-input-invalid' : ''}
                       value={lng}
-                      onChange={(e) => setLng(e.target.value)}
+                      onChange={(e) => {
+                        setLng(e.target.value);
+                        clearField('lng');
+                      }}
                     />
+                    <FieldError message={fieldErrors.lng} />
                   </label>
                 </div>
 
