@@ -158,7 +158,10 @@ export function TelemetryInspectorHud({
             <span>Lihat Rincian Lengkap Tiket</span>
           </button>
 
-          <Link href="/network" className="hud-btn-secondary">
+          <Link
+            href={`/network?search=${encodeURIComponent(activeReport.cluster)}`}
+            className="hud-btn-secondary"
+          >
             <span>Buka di Master Jaringan</span>
           </Link>
         </nav>

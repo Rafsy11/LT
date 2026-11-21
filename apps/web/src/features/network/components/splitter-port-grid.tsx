@@ -1,30 +1,70 @@
 import React from 'react';
+import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 import { EmptyState } from '@/components/ui/EmptyState';
-import type {
-  ClusterListItem,
-  SplitterPortState,
-  CustomerListItem,
-  CreateTicketInput,
+import {
+  ATTENUATION_THRESHOLDS,
+  isAttenuationBad,
+  type ClusterListItem,
+  type SplitterPortState,
+  type CreateTicketInput,
 } from '@repo/shared';
 import { SignalStrengthBars } from '@/features/customers';
-import type { AttenuationMeta } from '../hooks/use-network';
+import type {
+  AttenuationMeta,
+  OdpHistoryLogItem,
+  PortAllocationFilter,
+} from '../hooks/use-network';
 
 export interface SplitterPortGridProps {
   activeSplitter: ClusterListItem;
   activeSplitterFilteredPorts: SplitterPortState[];
-  portFilter: 'ALL' | 'OCCUPIED' | 'AVAILABLE';
-  setPortFilter: (filter: 'ALL' | 'OCCUPIED' | 'AVAILABLE') => void;
+  portFilter: PortAllocationFilter;
+  setPortFilter: (filter: PortAllocationFilter) => void;
   expandedPortNum: number | null;
   setExpandedPortNum: React.Dispatch<React.SetStateAction<number | null>>;
   getAttenuationMeta: (att: number | undefined) => AttenuationMeta;
-  handlePortClick: (c: ClusterListItem, port: SplitterPortState) => void;
-  setSelectedCustomerForModal: (cust: CustomerListItem | null) => void;
+  latestHistory: OdpHistoryLogItem | null;
+  showSuccess: (msg: string) => void;
   setTicketModalInitial: (initial: Partial<CreateTicketInput>) => void;
   setTicketModalOpen: (open: boolean) => void;
   canCreateTicket: boolean;
 }
 
+function formatPortCode(portNumber: number): string {
+  return `P${String(portNumber).padStart(2, '0')}`;
+}
+
+function resolveInspectionSummary(
+  port: SplitterPortState,
+  attMeta: AttenuationMeta,
+  goodLimitDb: number,
+): { label: string; cls: string } {
+  if (!port.isOccupied) {
+    return { label: 'Port Siap Alokasi PSB', cls: 'is-info' };
+  }
+  if (attMeta.status === 'critical') {
+    return { label: `Redaman Buruk (> ${goodLimitDb} dB)`, cls: 'is-critical' };
+  }
+  if (attMeta.status === 'warning') {
+    return { label: `Mendekati Batas (<= ${goodLimitDb} dB)`, cls: 'is-warning' };
+  }
+  if (attMeta.status === 'normal') {
+    return { label: `Normal (<= ${goodLimitDb} dB)`, cls: 'is-ok' };
+  }
+  return { label: 'Belum Diukur OPM/OLT', cls: 'is-muted' };
+}
+
+/**
+ * Consolidated Port & Inspection workspace for an active ODP splitter.
+ * Combines a clickable visual port strip (P01..P16/P32), telemetry summary + CSV export,
+ * desktop port table, and mobile reflow card list with direct links to `/customers/[sia]`.
+ *
+ * @param props - Active splitter data, filtered ports, filter controls, and ticket modal callbacks.
+ * @returns Rendered Port & Inspection panel.
+ * @example
+ * <SplitterPortGrid activeSplitter={activeSplitter} ... />
+ */
 export function SplitterPortGrid({
   activeSplitter,
   activeSplitterFilteredPorts,
@@ -33,196 +73,400 @@ export function SplitterPortGrid({
   expandedPortNum,
   setExpandedPortNum,
   getAttenuationMeta,
-  handlePortClick,
-  setSelectedCustomerForModal,
+  latestHistory,
+  showSuccess,
   setTicketModalInitial,
   setTicketModalOpen,
   canCreateTicket,
 }: SplitterPortGridProps) {
-  return (
-    <section className="odp-table-wrapper" aria-label="Daftar Port Splitter">
-      <header className="odp-port-filter-bar">
-        <span className="odp-port-filter-label">
-          Filter Port:
-        </span>
-        <nav aria-label="Filter status port" className="odp-port-filter-nav">
-          <button
-            type="button"
-            onClick={() => setPortFilter('ALL')}
-            className={`odp-port-filter-btn ${portFilter === 'ALL' ? 'active' : ''}`}
-          >
-            Semua Port ({activeSplitter.ports.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setPortFilter('OCCUPIED')}
-            className={`odp-port-filter-btn ${portFilter === 'OCCUPIED' ? 'active' : ''}`}
-          >
-            Terpakai ({activeSplitter.ports.filter((p) => p.isOccupied).length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setPortFilter('AVAILABLE')}
-            className={`odp-port-filter-btn ${portFilter === 'AVAILABLE' ? 'active' : ''}`}
-          >
-            Tersedia ({activeSplitter.ports.filter((p) => !p.isOccupied).length})
-          </button>
-        </nav>
-      </header>
-      <div tabIndex={0} role="region" aria-label="Tabel port splitter" style={{ overflowX: 'auto' }}>
-        <table className="odp-clean-table">
-          <thead>
-            <tr>
-              <th scope="col" style={{ width: '36px' }}><span className="sr-only">Navigasi</span></th>
-              <th scope="col">PORT</th>
-              <th scope="col">ALOKASI</th>
-              <th scope="col">PELANGGAN / SIA</th>
-              <th scope="col">REDAMAN (dBm)</th>
-              <th scope="col">STATUS</th>
-              <th scope="col">AKTIVITAS TERAKHIR</th>
-              <th scope="col" style={{ textAlign: 'right', paddingRight: '18px' }}>AKSI</th>
-            </tr>
-          </thead>
-          <tbody>
-            {activeSplitterFilteredPorts.length === 0 ? (
-              <tr>
-                <td colSpan={8} style={{ padding: '16px' }}>
-                  <EmptyState
-                    icon="network"
-                    title="Tidak ada port pada kategori ini"
-                    description="Tidak ada port splitter yang sesuai dengan status alokasi yang Anda pilih."
-                    actionLabel={portFilter !== 'ALL' ? 'Tampilkan Semua Port' : undefined}
-                    actionIcon="refresh"
-                    onAction={portFilter !== 'ALL' ? () => setPortFilter('ALL') : undefined}
-                    size="compact"
-                  />
-                </td>
-              </tr>
-            ) : (
-              activeSplitterFilteredPorts.map((port) => {
-                const isExpanded = expandedPortNum === port.portNumber;
-                const isOccupied = port.isOccupied;
-                const attMeta = getAttenuationMeta(port.attenuation);
+  const goodLimitDb = ATTENUATION_THRESHOLDS.GOOD_MAX_LOSS_DB;
 
-                return (
-                  <React.Fragment key={port.portNumber}>
-                    <tr
-                      className={`odp-table-data-row ${isExpanded ? 'is-row-selected' : ''}`}
-                      tabIndex={0}
-                      role="button"
-                      aria-expanded={isExpanded}
-                      aria-label={`Port P${port.portNumber < 10 ? `0${port.portNumber}` : port.portNumber}, ${isOccupied ? port.customerName || 'Terisi' : 'Siap PSB'}`}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
+  const occupiedPorts = activeSplitter.ports.filter((p) => p.isOccupied);
+  const availablePortsCount = activeSplitter.ports.length - occupiedPorts.length;
+  const measuredPorts = occupiedPorts.filter(
+    (p) => typeof p.attenuation === 'number' && p.attenuation !== 0,
+  );
+  const criticalPortsCount = measuredPorts.filter((p) => isAttenuationBad(p.attenuation)).length;
+  const avgAttenuation =
+    measuredPorts.length > 0
+      ? measuredPorts.reduce((sum, p) => sum + (p.attenuation ?? 0), 0) / measuredPorts.length
+      : null;
+
+  const handleDownloadInspectionCsv = () => {
+    const header = 'ODP,Port,Status,Pelanggan,SIA,Redaman (dBm),Terakhir Dicek,Teknisi,Catatan\n';
+    const rows = activeSplitter.ports
+      .map((port) =>
+        [
+          activeSplitter.splitterCode,
+          port.portNumber,
+          port.isOccupied ? 'Terisi' : 'Siap PSB',
+          `"${port.customerName || '-'}"`,
+          port.siaNumber || '-',
+          port.attenuation != null ? port.attenuation.toFixed(1) : '-',
+          `"${port.lastActivity?.date || '-'}"`,
+          `"${port.lastActivity?.technician || '-'}"`,
+          `"${(port.lastActivity?.notes || '-').replace(/"/g, '""')}"`,
+        ].join(','),
+      )
+      .join('\n');
+
+    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `inspeksi-${activeSplitter.splitterCode}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showSuccess(`Laporan inspeksi teknis ${activeSplitter.splitterCode} diunduh (CSV).`);
+  };
+
+  const handleSelectPortTile = (portNumber: number) => {
+    const isVisibleInFilter = activeSplitterFilteredPorts.some((p) => p.portNumber === portNumber);
+    if (!isVisibleInFilter) {
+      setPortFilter('ALL');
+    }
+    setExpandedPortNum((prev) => (prev === portNumber ? null : portNumber));
+  };
+
+  const openTicketForPort = (port: SplitterPortState) => {
+    setTicketModalInitial({
+      ticketType: port.isOccupied ? 'MAINTENANCE' : 'PSB',
+      clusterCode: activeSplitter.name,
+      customerName: port.customerName || '',
+      siaNumber: port.siaNumber || '',
+      adminNotes: port.isOccupied
+        ? `Maintenance redaman pada ${activeSplitter.splitterCode} Port ${port.portNumber} (${port.attenuation ?? 'belum diukur'} dBm)`
+        : `Penugasan Pasang Baru pada ${activeSplitter.splitterCode} Port ${port.portNumber}`,
+    });
+    setTicketModalOpen(true);
+  };
+
+  return (
+    <section className="odp-ports-workspace" aria-label="Daftar Port dan Inspeksi ODP">
+      {/* Compact Inspection Telemetry & Action Strip */}
+      <div className="odp-inspection-strip">
+        <div className="odp-inspection-metrics">
+          <div className="odp-insp-metric">
+            <span className="odp-insp-metric-label">Rata-rata Redaman</span>
+            <strong className="odp-insp-metric-val">
+              {avgAttenuation !== null ? `${avgAttenuation.toFixed(1)} dBm` : '-'}
+            </strong>
+          </div>
+          <div className="odp-insp-metric">
+            <span className="odp-insp-metric-label">Port &gt; {goodLimitDb} dB</span>
+            <strong
+              className={`odp-insp-metric-val ${criticalPortsCount > 0 ? 'is-danger' : 'is-ok'}`}
+            >
+              {criticalPortsCount} port
+            </strong>
+          </div>
+          <div className="odp-insp-metric odp-insp-metric-wide">
+            <span className="odp-insp-metric-label">Aktivitas Terakhir</span>
+            <span className="odp-insp-metric-sub">
+              {latestHistory
+                ? `${latestHistory.date} · ${latestHistory.technician} (${latestHistory.ticketNumber})`
+                : 'Belum ada catatan inspeksi tersimpan'}
+            </span>
+          </div>
+        </div>
+
+        <div className="odp-inspection-actions">
+          <button
+            type="button"
+            className="btn-inspect-detail-action"
+            onClick={handleDownloadInspectionCsv}
+          >
+            <Icon name="download" size={13} />
+            <span>Unduh CSV</span>
+          </button>
+
+          {canCreateTicket && (
+            <button
+              type="button"
+              className="btn-inspect-ticket-action"
+              onClick={() => {
+                setTicketModalInitial({
+                  ticketType: 'MAINTENANCE',
+                  clusterCode: activeSplitter.name,
+                  adminNotes: `Inspeksi berkala dan pengukuran redaman pada ${activeSplitter.splitterCode}`,
+                });
+                setTicketModalOpen(true);
+              }}
+            >
+              <Icon name="plus" size={13} />
+              <span>Jadwalkan Inspeksi</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Interactive Visual Port Strip (P01..P16 / P32) */}
+      <div className="odp-visual-strip-box">
+        <div className="odp-visual-strip-head">
+          <span className="odp-visual-strip-title">Peta Slot Port Splitter</span>
+          <div className="odp-visual-strip-legend" aria-hidden="true">
+            <span className="odp-legend-key">
+              <i className="odp-slot-dot is-available" /> Siap PSB
+            </span>
+            <span className="odp-legend-key">
+              <i className="odp-slot-dot is-normal" /> Normal
+            </span>
+            <span className="odp-legend-key">
+              <i className="odp-slot-dot is-warning" /> Batas
+            </span>
+            <span className="odp-legend-key">
+              <i className="odp-slot-dot is-critical" /> &gt;{goodLimitDb} dB
+            </span>
+          </div>
+        </div>
+        <div className="odp-visual-port-strip" role="group" aria-label="Pilih slot port ODP">
+          {activeSplitter.ports.map((port) => {
+            const attMeta = getAttenuationMeta(port.attenuation);
+            const isSelected = expandedPortNum === port.portNumber;
+            const slotTone = !port.isOccupied
+              ? 'is-available'
+              : attMeta.status === 'critical'
+                ? 'is-critical'
+                : attMeta.status === 'warning'
+                  ? 'is-warning'
+                  : attMeta.status === 'normal'
+                    ? 'is-normal'
+                    : 'is-occupied';
+
+            return (
+              <button
+                key={port.portNumber}
+                type="button"
+                aria-pressed={isSelected}
+                className={`odp-port-slot-chip ${slotTone} ${isSelected ? 'is-selected' : ''}`}
+                onClick={() => handleSelectPortTile(port.portNumber)}
+                title={`${formatPortCode(port.portNumber)}: ${
+                  port.isOccupied
+                    ? `${port.customerName || 'Terisi'}${
+                        port.attenuation != null ? ` (${port.attenuation.toFixed(1)} dBm)` : ''
+                      }`
+                    : 'Siap PSB'
+                }`}
+              >
+                <span className="odp-port-slot-num">{formatPortCode(port.portNumber)}</span>
+                <span className="odp-port-slot-sub">
+                  {port.isOccupied
+                    ? port.attenuation != null && port.attenuation !== 0
+                      ? `${port.attenuation.toFixed(0)}dB`
+                      : 'Aktif'
+                    : 'PSB'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Port Table + Mobile Cards Container */}
+      <div className="odp-table-wrapper">
+        <header className="odp-port-filter-bar">
+          <span className="odp-port-filter-label">Filter Port:</span>
+          <nav aria-label="Filter status port" className="odp-port-filter-nav">
+            <button
+              type="button"
+              onClick={() => setPortFilter('ALL')}
+              className={`odp-port-filter-btn ${portFilter === 'ALL' ? 'active' : ''}`}
+            >
+              Semua ({activeSplitter.ports.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setPortFilter('OCCUPIED')}
+              className={`odp-port-filter-btn ${portFilter === 'OCCUPIED' ? 'active' : ''}`}
+            >
+              Terpakai ({occupiedPorts.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setPortFilter('AVAILABLE')}
+              className={`odp-port-filter-btn ${portFilter === 'AVAILABLE' ? 'active' : ''}`}
+            >
+              Siap PSB ({availablePortsCount})
+            </button>
+            {criticalPortsCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setPortFilter('CRITICAL')}
+                className={`odp-port-filter-btn is-crit-filter ${portFilter === 'CRITICAL' ? 'active' : ''}`}
+              >
+                Kritis &gt; {goodLimitDb} dB ({criticalPortsCount})
+              </button>
+            )}
+          </nav>
+        </header>
+
+        {/* Desktop Table */}
+        <div
+          className="odp-desktop-table-wrap"
+          tabIndex={0}
+          role="region"
+          aria-label="Tabel port splitter"
+        >
+          <table className="odp-clean-table">
+            <thead>
+              <tr>
+                <th scope="col" style={{ width: '36px' }}>
+                  <span className="sr-only">Perluas</span>
+                </th>
+                <th scope="col">PORT</th>
+                <th scope="col">ALOKASI</th>
+                <th scope="col">PELANGGAN / SIA</th>
+                <th scope="col">REDAMAN (dBm)</th>
+                <th scope="col">STATUS</th>
+                <th scope="col">AKTIVITAS TERAKHIR</th>
+                <th scope="col" style={{ textAlign: 'right', paddingRight: '16px' }}>
+                  AKSI
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeSplitterFilteredPorts.length === 0 ? (
+                <tr>
+                  <td colSpan={8} style={{ padding: '16px' }}>
+                    <EmptyState
+                      icon="network"
+                      title="Tidak ada port pada kategori ini"
+                      description="Tidak ada port splitter yang sesuai dengan status alokasi atau redaman yang dipilih."
+                      actionLabel={portFilter !== 'ALL' ? 'Tampilkan Semua Port' : undefined}
+                      actionIcon="refresh"
+                      onAction={portFilter !== 'ALL' ? () => setPortFilter('ALL') : undefined}
+                      size="compact"
+                    />
+                  </td>
+                </tr>
+              ) : (
+                activeSplitterFilteredPorts.map((port) => {
+                  const isExpanded = expandedPortNum === port.portNumber;
+                  const isOccupied = port.isOccupied;
+                  const attMeta = getAttenuationMeta(port.attenuation);
+                  const inspSummary = resolveInspectionSummary(port, attMeta, goodLimitDb);
+
+                  return (
+                    <React.Fragment key={port.portNumber}>
+                      <tr
+                        className={`odp-table-data-row ${isExpanded ? 'is-row-selected' : ''}`}
+                        tabIndex={0}
+                        role="button"
+                        aria-expanded={isExpanded}
+                        aria-label={`Port ${formatPortCode(port.portNumber)}, ${isOccupied ? port.customerName || 'Terisi' : 'Siap PSB'}`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setExpandedPortNum((prev) =>
+                              prev === port.portNumber ? null : port.portNumber,
+                            );
+                          }
+                        }}
+                        onClick={() =>
                           setExpandedPortNum((prev) =>
                             prev === port.portNumber ? null : port.portNumber,
-                          );
+                          )
                         }
-                      }}
-                      onClick={() =>
-                        setExpandedPortNum((prev) =>
-                          prev === port.portNumber ? null : port.portNumber,
-                        )
-                      }
-                      style={{ cursor: 'pointer' }}
-                    >
-                      {/* Chevron Expand */}
-                      <td className="ui-text-muted" style={{ textAlign: 'center', fontSize: '13px' }}>
-                        <span>{isExpanded ? '⌄' : '›'}</span>
-                      </td>
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <td className="ui-text-muted" style={{ textAlign: 'center', fontSize: '13px' }}>
+                          <span aria-hidden="true">{isExpanded ? '⌄' : '›'}</span>
+                        </td>
 
-                      {/* Port */}
-                      <td>
-                        <span className="port-id-chip-clean">
-                          P{port.portNumber < 10 ? `0${port.portNumber}` : port.portNumber}
-                        </span>
-                      </td>
+                        <td>
+                          <span className="port-id-chip-clean">
+                            {formatPortCode(port.portNumber)}
+                          </span>
+                        </td>
 
-                      {/* Alokasi */}
-                      <td>
-                        <span
-                          className={`port-alokasi-dot-label ${isOccupied ? 'occupied' : 'available'}`}
-                        >
-                          {isOccupied ? 'Terisi' : 'Siap PSB'}
-                        </span>
-                      </td>
+                        <td>
+                          <span
+                            className={`port-alokasi-dot-label ${isOccupied ? 'occupied' : 'available'}`}
+                          >
+                            {isOccupied ? 'Terisi' : 'Siap PSB'}
+                          </span>
+                        </td>
 
-                      {/* Pelanggan / SIA */}
-                      <td>
-                        {isOccupied ? (
-                          <div>
-                            <div className="customer-name-bold">
-                              {port.customerName || 'Pelanggan'}
+                        <td>
+                          {isOccupied ? (
+                            <div>
+                              <div className="customer-name-bold">
+                                {port.customerName || 'Pelanggan'}
+                              </div>
+                              <div className="customer-sia-code">{port.siaNumber || '-'}</div>
                             </div>
-                            <div className="customer-sia-code">{port.siaNumber || '-'}</div>
-                          </div>
-                        ) : (
-                          <span className="ui-text-muted">-</span>
-                        )}
-                      </td>
+                          ) : (
+                            <span className="ui-text-muted">-</span>
+                          )}
+                        </td>
 
-                      {/* Redaman (dBm) */}
-                      <td>
-                        {isOccupied && port.attenuation != null ? (
-                          <span className="redaman-value-clean">
-                            <span>{port.attenuation.toFixed(1)} dBm</span>
-                            <SignalStrengthBars status={attMeta.status} />
-                          </span>
-                        ) : (
-                          <span className="ui-text-muted">-</span>
-                        )}
-                      </td>
-
-                      {/* Status */}
-                      <td>
-                        {isOccupied ? (
-                          <span className={`status-badge-clean-${attMeta.status}`}>
-                            <span>✓</span>
-                            <span>
-                              {attMeta.status === 'normal'
-                                ? 'Normal'
-                                : attMeta.status === 'warning'
-                                  ? 'Waspada'
-                                  : 'Kritis'}
+                        <td>
+                          {isOccupied && port.attenuation != null && port.attenuation !== 0 ? (
+                            <span className="redaman-value-clean">
+                              <span>{port.attenuation.toFixed(1)} dBm</span>
+                              <SignalStrengthBars status={attMeta.status} />
                             </span>
-                          </span>
-                        ) : (
-                          <span className="status-badge-clean-psb">
-                            <span>✓</span>
-                            <span>Siap PSB</span>
-                          </span>
-                        )}
-                      </td>
+                          ) : (
+                            <span className="ui-text-muted">-</span>
+                          )}
+                        </td>
 
-                      {/* Aktivitas Terakhir */}
-                      <td>
-                        {port.lastActivity ? (
-                          <div className="activity-cell-clean">
-                            <span className="activity-title-clean">
-                              <Icon name="network" size={12} style={{ color: 'var(--color-text-muted)' }} />
+                        <td>
+                          {isOccupied ? (
+                            <span
+                              className={`odp-port-status-badge is-${attMeta.status}`}
+                            >
+                              <Icon
+                                name={
+                                  attMeta.status === 'critical' || attMeta.status === 'warning'
+                                    ? 'alert'
+                                    : attMeta.status === 'normal'
+                                      ? 'check'
+                                      : 'clock'
+                                }
+                                size={11}
+                              />
                               <span>
+                                {attMeta.status === 'normal'
+                                  ? 'Normal'
+                                  : attMeta.status === 'warning'
+                                    ? 'Batas'
+                                    : attMeta.status === 'critical'
+                                      ? 'Kritis'
+                                      : 'Belum diukur'}
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="odp-port-status-badge is-psb">
+                              <Icon name="check" size={11} />
+                              <span>Siap PSB</span>
+                            </span>
+                          )}
+                        </td>
+
+                        <td>
+                          {port.lastActivity ? (
+                            <div className="activity-cell-clean">
+                              <span className="activity-title-clean">
                                 {port.lastActivity.type === 'MAINTENANCE'
                                   ? 'Maintenance'
                                   : port.lastActivity.type === 'PEMASANGAN'
                                     ? 'Pemasangan'
                                     : 'Penarikan'}
                               </span>
-                            </span>
-                            <span className="activity-sub-clean">{port.lastActivity.technician}</span>
-                            <span className="activity-sub-clean">{port.lastActivity.date}</span>
-                          </div>
-                        ) : (
-                          <span className="ui-text-muted">-</span>
-                        )}
-                      </td>
+                              <span className="activity-sub-clean">
+                                {port.lastActivity.technician} · {port.lastActivity.date}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="ui-text-muted">-</span>
+                          )}
+                        </td>
 
-                      {/* Aksi */}
-                      <td
-                        style={{ textAlign: 'right', paddingRight: '18px' }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                        <td
+                          style={{ textAlign: 'right', paddingRight: '16px' }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <button
                             type="button"
                             className="action-detail-link"
@@ -232,138 +476,200 @@ export function SplitterPortGrid({
                               )
                             }
                           >
-                            Detail
+                            {isExpanded ? 'Tutup' : 'Detail'}
                           </button>
-                          <button
-                            type="button"
-                            className="odp-more-menu-btn"
-                            style={{ padding: '2px 6px' }}
-                            title="Opsi Port"
-                            aria-label={`Opsi Port P${port.portNumber}`}
-                            onClick={() => handlePortClick(activeSplitter, port)}
-                          >
-                            ⋮
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-
-                    {/* Expanded Detail Inspeksi Row */}
-                    {isExpanded && (
-                      <tr className="odp-table-expanded-row">
-                        <td colSpan={8} style={{ padding: '8px 16px 14px 16px' }}>
-                          <article className="inline-inspect-box-reference">
-                            <header className="inline-inspect-box-title">
-                              Detail Inspeksi Port P
-                              {port.portNumber < 10 ? `0${port.portNumber}` : port.portNumber}
-                            </header>
-
-                            <div className="inline-inspect-ref-grid">
-                              <div className="inline-inspect-col">
-                                <span className="inline-inspect-col-label">Hasil Inspeksi</span>
-                                <span
-                                  className={`inline-inspect-col-val ${isOccupied ? 'is-ok' : 'is-info'}`}
-                                >
-                                  {isOccupied ? 'Normal' : 'Port Siap Alokasi PSB'}
-                                </span>
-                              </div>
-
-                              <div className="inline-inspect-col">
-                                <span className="inline-inspect-col-label">Foto</span>
-                                <span
-                                  className="inline-inspect-col-val"
-                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                                >
-                                  <Icon name="camera" size={13} style={{ color: 'var(--color-text-muted)' }} />
-                                  <span>{isOccupied ? '2 foto' : 'Tidak ada foto'}</span>
-                                </span>
-                              </div>
-
-                              <div className="inline-inspect-col">
-                                <span className="inline-inspect-col-label">Catatan</span>
-                                <span
-                                  className="inline-inspect-col-val"
-                                  style={{ fontWeight: 400, color: 'var(--color-text-body)' }}
-                                >
-                                  {port.lastActivity?.notes ||
-                                    (isOccupied
-                                      ? 'Tidak ada kendala, sinyal stabil.'
-                                      : 'Port bebas untuk aktivasi pelanggan baru.')}
-                                </span>
-                              </div>
-
-                              <div
-                                className="inline-inspect-col"
-                                style={{ alignItems: 'flex-end', gap: '8px' }}
-                              >
-                                <nav
-                                  aria-label="Aksi inspeksi port"
-                                  style={{
-                                    display: 'flex',
-                                    gap: '8px',
-                                    flexWrap: 'wrap',
-                                    justifyContent: 'flex-end',
-                                  }}
-                                >
-                                  {isOccupied && port.customerName ? (
-                                    <button
-                                      type="button"
-                                      className="btn-inspect-detail-action"
-                                      onClick={() => {
-                                        setSelectedCustomerForModal({
-                                          id: port.siaNumber || `CUST-${port.portNumber}`,
-                                          fullName: port.customerName || 'Pelanggan',
-                                          siaNumber: port.siaNumber || '-',
-                                          address: `Area ${activeSplitter.name}`,
-                                          cluster: activeSplitter.name,
-                                          clusterCode: activeSplitter.clusterCode,
-                                          splitterCode: activeSplitter.splitterCode,
-                                          portNumber: port.portNumber,
-                                          currentAttenuation: port.attenuation ?? 0,
-                                          status: 'ACTIVE',
-                                          updatedAt: new Date().toISOString(),
-                                        });
-                                      }}
-                                    >
-                                      <Icon name="link" size={12} />
-                                      <span>Lihat Detail</span>
-                                    </button>
-                                  ) : null}
-
-                                  {canCreateTicket && (
-                                    <button
-                                      type="button"
-                                      className="btn-inspect-ticket-action"
-                                      onClick={() => {
-                                        setTicketModalInitial({
-                                          ticketType: isOccupied ? 'MAINTENANCE' : 'PSB',
-                                          clusterCode: activeSplitter.name,
-                                          customerName: port.customerName || '',
-                                          siaNumber: port.siaNumber || '',
-                                          adminNotes: isOccupied
-                                            ? `Maintenance redaman pada ${activeSplitter.splitterCode} Port ${port.portNumber} (${port.attenuation || 'N/A'} dBm)`
-                                            : `Penugasan Pasang Baru pada ${activeSplitter.splitterCode} Port ${port.portNumber}`,
-                                        });
-                                        setTicketModalOpen(true);
-                                      }}
-                                    >
-                                      <Icon name="plus" size={12} />
-                                      <span>Buat Tiket</span>
-                                    </button>
-                                  )}
-                                </nav>
-                              </div>
-                            </div>
-                          </article>
                         </td>
                       </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+
+                      {isExpanded && (
+                        <tr className="odp-table-expanded-row">
+                          <td colSpan={8} style={{ padding: '8px 16px 14px 16px' }}>
+                            <article className="inline-inspect-box-reference">
+                              <header className="inline-inspect-box-title">
+                                Detail Inspeksi Port {formatPortCode(port.portNumber)}
+                              </header>
+
+                              <div className="inline-inspect-ref-grid">
+                                <div className="inline-inspect-col">
+                                  <span className="inline-inspect-col-label">Status Redaman</span>
+                                  <span className={`inline-inspect-col-val ${inspSummary.cls}`}>
+                                    {inspSummary.label}
+                                  </span>
+                                </div>
+
+                                <div className="inline-inspect-col">
+                                  <span className="inline-inspect-col-label">Dokumentasi Tiket</span>
+                                  <span className="inline-inspect-col-val inline-inspect-doc">
+                                    <Icon name="image" size={13} />
+                                    <span>
+                                      {port.lastActivity?.ticketNumber
+                                        ? `Tiket ${port.lastActivity.ticketNumber}`
+                                        : port.lastActivity
+                                          ? 'Tercatat di riwayat'
+                                          : 'Belum tercatat'}
+                                    </span>
+                                  </span>
+                                </div>
+
+                                <div className="inline-inspect-col">
+                                  <span className="inline-inspect-col-label">Catatan Lapangan</span>
+                                  <span className="inline-inspect-col-val is-body-note">
+                                    {port.lastActivity?.notes ||
+                                      (isOccupied
+                                        ? 'Port aktif teralokasi pada pelanggan.'
+                                        : 'Port kosong, siap untuk aktivasi PSB baru.')}
+                                  </span>
+                                </div>
+
+                                <div className="inline-inspect-col inline-inspect-actions-col">
+                                  <nav
+                                    aria-label={`Aksi port ${formatPortCode(port.portNumber)}`}
+                                    className="inline-inspect-actions-nav"
+                                  >
+                                    {isOccupied && port.siaNumber ? (
+                                      <Link
+                                        href={`/customers/${encodeURIComponent(port.siaNumber)}`}
+                                        className="btn-inspect-detail-action"
+                                      >
+                                        <Icon name="externalLink" size={12} />
+                                        <span>Profil Pelanggan</span>
+                                      </Link>
+                                    ) : null}
+
+                                    {canCreateTicket && (
+                                      <button
+                                        type="button"
+                                        className="btn-inspect-ticket-action"
+                                        onClick={() => openTicketForPort(port)}
+                                      >
+                                        <Icon name="plus" size={12} />
+                                        <span>
+                                          {isOccupied ? 'Tiket Maintenance' : 'Tiket PSB'}
+                                        </span>
+                                      </button>
+                                    )}
+                                  </nav>
+                                </div>
+                              </div>
+                            </article>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Reflow Card List (< 768px, zero horizontal scroll) */}
+        <div className="odp-mobile-port-cards" role="list" aria-label="Daftar port splitter mobile">
+          {activeSplitterFilteredPorts.length === 0 ? (
+            <EmptyState
+              icon="network"
+              title="Tidak ada port pada kategori ini"
+              description="Tidak ada port splitter yang sesuai dengan status alokasi atau redaman yang dipilih."
+              actionLabel={portFilter !== 'ALL' ? 'Tampilkan Semua Port' : undefined}
+              actionIcon="refresh"
+              onAction={portFilter !== 'ALL' ? () => setPortFilter('ALL') : undefined}
+              size="compact"
+            />
+          ) : (
+            activeSplitterFilteredPorts.map((port) => {
+              const isExpanded = expandedPortNum === port.portNumber;
+              const isOccupied = port.isOccupied;
+              const attMeta = getAttenuationMeta(port.attenuation);
+              const inspSummary = resolveInspectionSummary(port, attMeta, goodLimitDb);
+
+              return (
+                <article
+                  key={port.portNumber}
+                  role="listitem"
+                  className={`odp-mobile-port-card ${isExpanded ? 'is-expanded' : ''} ${
+                    attMeta.status === 'critical' ? 'is-critical' : ''
+                  }`}
+                >
+                  <button
+                    type="button"
+                    className="odp-mobile-port-head"
+                    aria-expanded={isExpanded}
+                    onClick={() =>
+                      setExpandedPortNum((prev) =>
+                        prev === port.portNumber ? null : port.portNumber,
+                      )
+                    }
+                  >
+                    <div className="odp-mobile-port-left">
+                      <span className="port-id-chip-clean">
+                        {formatPortCode(port.portNumber)}
+                      </span>
+                      <div className="odp-mobile-port-identity">
+                        <strong>
+                          {isOccupied ? port.customerName || 'Pelanggan' : 'Port Siap PSB'}
+                        </strong>
+                        <span>
+                          {isOccupied ? `SIA ${port.siaNumber || '-'}` : 'Kosong · Siap alokasi'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="odp-mobile-port-right">
+                      {isOccupied && port.attenuation != null && port.attenuation !== 0 && (
+                        <span
+                          className={`odp-mobile-dbm-chip is-${attMeta.status}`}
+                        >
+                          {port.attenuation.toFixed(1)} dB
+                        </span>
+                      )}
+                      <span className="odp-mobile-expand-glyph" aria-hidden="true">
+                        {isExpanded ? '⌄' : '›'}
+                      </span>
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="odp-mobile-port-detail">
+                      <div className="odp-mobile-port-meta-line">
+                        <span>Status:</span>
+                        <strong className={`inline-inspect-col-val ${inspSummary.cls}`}>
+                          {inspSummary.label}
+                        </strong>
+                      </div>
+                      <p className="odp-mobile-port-note">
+                        {port.lastActivity?.notes ||
+                          (isOccupied
+                            ? 'Port aktif teralokasi pada pelanggan.'
+                            : 'Port kosong, siap untuk aktivasi PSB baru.')}
+                      </p>
+                      <div className="odp-mobile-port-actions">
+                        {isOccupied && port.siaNumber && (
+                          <Link
+                            href={`/customers/${encodeURIComponent(port.siaNumber)}`}
+                            className="btn-inspect-detail-action"
+                          >
+                            <Icon name="externalLink" size={13} />
+                            <span>Profil Pelanggan</span>
+                          </Link>
+                        )}
+                        {canCreateTicket && (
+                          <button
+                            type="button"
+                            className="btn-inspect-ticket-action"
+                            onClick={() => openTicketForPort(port)}
+                          >
+                            <Icon name="plus" size={13} />
+                            <span>{isOccupied ? 'Tiket Maintenance' : 'Tiket PSB'}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </article>
+              );
+            })
+          )}
+        </div>
       </div>
     </section>
   );

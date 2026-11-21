@@ -1,16 +1,20 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type {
   ClusterListItem,
-  SplitterPortState,
   NetworkStats,
-  CustomerListItem,
   CreateTicketInput,
   OdpHistoryEntry,
   NetworkAuditResult,
 } from '@repo/shared';
-import { classifyDbm, STANDARD_ERROR_MESSAGES } from '@repo/shared';
+import {
+  ATTENUATION_THRESHOLDS,
+  classifyDbm,
+  isAttenuationBad,
+  STANDARD_ERROR_MESSAGES,
+} from '@repo/shared';
 import { useToast, useAuth } from '@/providers';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
 import { webApiClient } from '@/lib/api-client';
@@ -19,17 +23,15 @@ import { fetchWithCache, getCachedData, invalidateQueryCache } from '@/lib/query
 
 const CLUSTERS_CACHE_KEY = '/api/v1/admin/clusters';
 const CLUSTER_OPTIONS_CACHE_KEY = '/api/v1/admin/clusters/options';
+const ODP_MAPS_CACHE_KEY = '/api/v1/admin/maps/odp';
 const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
 const OVERVIEW_CACHE_KEY = '/api/v1/admin/overview';
+const AUDIT_TIMEOUT_MS = 30_000;
 
-export interface SelectedPortContext {
-  clusterCode: string;
-  clusterName: string;
-  splitterCode: string;
-  lat: number;
-  lng: number;
-  port: SplitterPortState;
-}
+export type OdpQuickFilter = 'ALL' | 'ABNORMAL' | 'AVAILABLE' | 'FULL';
+export type PortAllocationFilter = 'ALL' | 'OCCUPIED' | 'AVAILABLE' | 'CRITICAL';
+export type NetworkDetailTab = 'ports' | 'riwayat' | 'audit';
+export type SplitterHealthState = 'abnormal' | 'full' | 'normal' | 'unmeasured';
 
 export interface ClusterGroup {
   clusterCode: string;
@@ -37,6 +39,7 @@ export interface ClusterGroup {
   splitters: ClusterListItem[];
   totalUsed: number;
   totalPorts: number;
+  abnormalCount: number;
 }
 
 export interface AttenuationMeta {
@@ -57,11 +60,89 @@ export interface OdpHistoryLogItem {
   notes: string;
 }
 
+/**
+ * Classifies an ODP splitter's operational health under the 28 dB optical attenuation standard.
+ *
+ * @param splitter - Splitter record containing its port measurements and occupancy.
+ * @returns Health category prioritizing bad attenuation (> 28 dB) before capacity fullness.
+ * @example
+ * const health = getSplitterHealth(activeSplitter);
+ */
+export function getSplitterHealth(splitter: ClusterListItem): {
+  state: SplitterHealthState;
+  badPortCount: number;
+  measuredPortCount: number;
+  worstAttenuation: number | null;
+} {
+  const occupied = splitter.ports.filter((p) => p.isOccupied);
+  const measured = occupied.filter(
+    (p) => typeof p.attenuation === 'number' && p.attenuation !== 0,
+  );
+  const badPorts = measured.filter((p) => isAttenuationBad(p.attenuation));
+  const worstAttenuation =
+    measured.length > 0
+      ? measured.reduce(
+          (worst, p) => Math.min(worst, p.attenuation as number),
+          measured[0].attenuation as number,
+        )
+      : null;
+
+  if (badPorts.length > 0) {
+    return {
+      state: 'abnormal',
+      badPortCount: badPorts.length,
+      measuredPortCount: measured.length,
+      worstAttenuation,
+    };
+  }
+  if (splitter.maxPorts > 0 && splitter.usedPorts >= splitter.maxPorts) {
+    return {
+      state: 'full',
+      badPortCount: 0,
+      measuredPortCount: measured.length,
+      worstAttenuation,
+    };
+  }
+  if (measured.length > 0) {
+    return {
+      state: 'normal',
+      badPortCount: 0,
+      measuredPortCount: measured.length,
+      worstAttenuation,
+    };
+  }
+  return {
+    state: 'unmeasured',
+    badPortCount: 0,
+    measuredPortCount: 0,
+    worstAttenuation: null,
+  };
+}
+
+/**
+ * Formats the PLC optical splitter ratio label from port capacity.
+ *
+ * @param maxPorts - Maximum splitter port count (8, 16, or 32).
+ * @returns Human-readable PLC splitter ratio label.
+ * @example
+ * formatSplitterRatio(16); // "1x16 PLC"
+ */
+export function formatSplitterRatio(maxPorts: number): string {
+  if (maxPorts === 8) return '1x8 PLC';
+  if (maxPorts === 16) return '1x16 PLC';
+  if (maxPorts === 32) return '1x32 PLC';
+  return `1x${maxPorts} PLC`;
+}
+
 export function useNetwork() {
-  const [search, setSearch] = useState('');
-  const [clusterFilter, setClusterFilter] = useState('Semua cluster');
-  const [portStatusFilter, setPortStatusFilter] = useState('Semua');
-  const [activeSplitterCode, setActiveSplitterCode] = useState<string>('');
+  const searchParams = useSearchParams();
+  const initialOdpParam = searchParams.get('odp') || '';
+  const initialSearchParam = searchParams.get('search') || '';
+  const initialClusterParam = searchParams.get('cluster') || '';
+
+  const [search, setSearch] = useState(() => initialSearchParam || initialClusterParam);
+  const [odpQuickFilter, setOdpQuickFilter] = useState<OdpQuickFilter>('ALL');
+  const [activeSplitterCode, setActiveSplitterCode] = useState<string>(() => initialOdpParam);
   const [expandedClusters, setExpandedClusters] = useState<Record<string, boolean>>({});
   const [networkData, setNetworkData] = useState<ClusterListItem[]>(
     () => getCachedData<ClusterListItem[]>(CLUSTERS_CACHE_KEY) ?? [],
@@ -70,13 +151,9 @@ export function useNetwork() {
     () => !getCachedData<ClusterListItem[]>(CLUSTERS_CACHE_KEY),
   );
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [selectedPort, setSelectedPort] = useState<SelectedPortContext | null>(null);
-  const [portFilter, setPortFilter] = useState<'ALL' | 'OCCUPIED' | 'AVAILABLE'>('ALL');
-  const [activeTab, setActiveTab] = useState<'ports' | 'inspeksi' | 'riwayat' | 'audit'>('ports');
-  const [expandedPortNum, setExpandedPortNum] = useState<number | null>(1);
-  const [selectedCustomerForModal, setSelectedCustomerForModal] = useState<CustomerListItem | null>(
-    null,
-  );
+  const [portFilter, setPortFilter] = useState<PortAllocationFilter>('ALL');
+  const [activeTab, setActiveTab] = useState<NetworkDetailTab>('ports');
+  const [expandedPortNum, setExpandedPortNum] = useState<number | null>(null);
   const [historyTypeFilter, setHistoryTypeFilter] = useState<
     'ALL' | 'MAINTENANCE' | 'PEMASANGAN' | 'PENARIKAN'
   >('ALL');
@@ -137,6 +214,21 @@ export function useNetwork() {
     void fetchClusters();
   }, [fetchClusters]);
 
+  // Honor deep-link ?odp= param when data arrives or URL query updates
+  useEffect(() => {
+    if (!initialOdpParam || networkData.length === 0) return;
+    const matched = networkData.find(
+      (c) => c.splitterCode.toLowerCase() === initialOdpParam.toLowerCase(),
+    );
+    if (matched) {
+      setActiveSplitterCode(matched.splitterCode);
+      setExpandedClusters((prev) => ({
+        ...prev,
+        [matched.clusterCode]: true,
+      }));
+    }
+  }, [initialOdpParam, networkData]);
+
   const handleCreateTicketSubmit = async (data: CreateTicketInput) => {
     const json = await webApiClient.post(TICKETS_CACHE_KEY, data);
     if (!json.success) {
@@ -144,90 +236,93 @@ export function useNetwork() {
         fallbackMessage: 'Tiket baru belum dapat dibuat saat ini.',
       });
     }
-    invalidateQueryCache(CLUSTERS_CACHE_KEY, TICKETS_CACHE_KEY, OVERVIEW_CACHE_KEY);
+    invalidateQueryCache(
+      CLUSTERS_CACHE_KEY,
+      TICKETS_CACHE_KEY,
+      OVERVIEW_CACHE_KEY,
+      ODP_MAPS_CACHE_KEY,
+    );
     await fetchClusters(true);
   };
 
-  const handlePortClick = (c: ClusterListItem, port: SplitterPortState) => {
-    if (
-      selectedPort &&
-      selectedPort.splitterCode === c.splitterCode &&
-      selectedPort.port.portNumber === port.portNumber
-    ) {
-      setSelectedPort(null);
-    } else {
-      setSelectedPort({
-        clusterCode: c.clusterCode,
-        clusterName: c.name,
-        splitterCode: c.splitterCode,
-        lat: c.lat,
-        lng: c.lng,
-        port,
-      });
-    }
-  };
-
-  const toggleClusterExpand = (clusterCode: string) => {
+  const toggleClusterExpand = useCallback((clusterCode: string) => {
     setExpandedClusters((prev) => ({
       ...prev,
       [clusterCode]: !prev[clusterCode],
     }));
-  };
+  }, []);
 
-  const networkStats: NetworkStats = useMemo(() => {
-    const totalClusters = new Set(networkData.map((c) => c.clusterCode)).size;
-    const totalSplitters = networkData.length;
-    let totalCapacity = 0;
-    let usedCapacity = 0;
+  const networkStats: NetworkStats & { abnormalOdpCount: number; abnormalPortCount: number } =
+    useMemo(() => {
+      const totalClusters = new Set(networkData.map((c) => c.clusterCode)).size;
+      const totalSplitters = networkData.length;
+      let totalCapacity = 0;
+      let usedCapacity = 0;
+      let abnormalOdpCount = 0;
+      let abnormalPortCount = 0;
 
-    networkData.forEach((item) => {
-      totalCapacity += item.maxPorts || 0;
-      usedCapacity += item.usedPorts || 0;
-    });
+      networkData.forEach((item) => {
+        totalCapacity += item.maxPorts || 0;
+        usedCapacity += item.usedPorts || 0;
+        const health = getSplitterHealth(item);
+        if (health.badPortCount > 0) {
+          abnormalOdpCount += 1;
+          abnormalPortCount += health.badPortCount;
+        }
+      });
 
-    return {
-      totalClusters,
-      totalSplitters,
-      totalCapacity,
-      usedCapacity,
-      availableCapacity: Math.max(0, totalCapacity - usedCapacity),
-    };
-  }, [networkData]);
+      return {
+        totalClusters,
+        totalSplitters,
+        totalCapacity,
+        usedCapacity,
+        availableCapacity: Math.max(0, totalCapacity - usedCapacity),
+        abnormalOdpCount,
+        abnormalPortCount,
+      };
+    }, [networkData]);
 
   const filteredClusters = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return networkData.filter((c) => {
-      const matchesCluster =
-        clusterFilter === 'Semua cluster' ||
-        c.name.toLowerCase().includes(clusterFilter.replace('Bandung ', '').toLowerCase());
       const matchesSearch =
-        search.trim() === '' ||
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.clusterCode.toLowerCase().includes(search.toLowerCase()) ||
-        c.splitterCode.toLowerCase().includes(search.toLowerCase()) ||
+        q === '' ||
+        c.name.toLowerCase().includes(q) ||
+        c.clusterCode.toLowerCase().includes(q) ||
+        c.splitterCode.toLowerCase().includes(q) ||
+        (c.locationName && c.locationName.toLowerCase().includes(q)) ||
         c.ports.some(
           (p) =>
-            (p.customerName && p.customerName.toLowerCase().includes(search.toLowerCase())) ||
-            (p.siaNumber && p.siaNumber.toLowerCase().includes(search.toLowerCase())),
+            (p.customerName && p.customerName.toLowerCase().includes(q)) ||
+            (p.siaNumber && p.siaNumber.toLowerCase().includes(q)),
         );
 
-      const matchesPortStatus =
-        portStatusFilter === 'Semua' ||
-        (portStatusFilter === 'Tersedia' && c.usedPorts < c.maxPorts) ||
-        (portStatusFilter === 'Penuh' && c.usedPorts >= c.maxPorts);
+      if (!matchesSearch) return false;
 
-      return matchesCluster && matchesSearch && matchesPortStatus;
+      if (odpQuickFilter === 'ABNORMAL') {
+        return getSplitterHealth(c).badPortCount > 0;
+      }
+      if (odpQuickFilter === 'AVAILABLE') {
+        return c.usedPorts < c.maxPorts;
+      }
+      if (odpQuickFilter === 'FULL') {
+        return c.maxPorts > 0 && c.usedPorts >= c.maxPorts;
+      }
+      return true;
     });
-  }, [networkData, clusterFilter, search, portStatusFilter]);
+  }, [networkData, search, odpQuickFilter]);
 
   const clusterGroups: ClusterGroup[] = useMemo(() => {
     const map = new Map<string, ClusterGroup>();
 
     for (const item of filteredClusters) {
+      const isAbnormal = getSplitterHealth(item).badPortCount > 0;
       const existing = map.get(item.clusterCode);
       if (existing) {
         existing.splitters.push(item);
         existing.totalUsed += item.usedPorts;
         existing.totalPorts += item.maxPorts;
+        if (isAbnormal) existing.abnormalCount += 1;
       } else {
         map.set(item.clusterCode, {
           clusterCode: item.clusterCode,
@@ -235,6 +330,7 @@ export function useNetwork() {
           splitters: [item],
           totalUsed: item.usedPorts,
           totalPorts: item.maxPorts,
+          abnormalCount: isAbnormal ? 1 : 0,
         });
       }
     }
@@ -246,9 +342,16 @@ export function useNetwork() {
     if (activeSplitterCode) {
       const found = filteredClusters.find((c) => c.splitterCode === activeSplitterCode);
       if (found) return found;
+      const fallbackGlobal = networkData.find((c) => c.splitterCode === activeSplitterCode);
+      if (fallbackGlobal && filteredClusters.length === 0) return fallbackGlobal;
     }
-    return filteredClusters[0] || null;
-  }, [filteredClusters, activeSplitterCode]);
+    return filteredClusters[0] || networkData[0] || null;
+  }, [filteredClusters, networkData, activeSplitterCode]);
+
+  const activeSplitterHealth = useMemo(
+    () => (activeSplitter ? getSplitterHealth(activeSplitter) : null),
+    [activeSplitter],
+  );
 
   const activeSplitterFilteredPorts = useMemo(() => {
     if (!activeSplitter) return [];
@@ -258,22 +361,42 @@ export function useNetwork() {
     if (portFilter === 'AVAILABLE') {
       return activeSplitter.ports.filter((p) => !p.isOccupied);
     }
+    if (portFilter === 'CRITICAL') {
+      return activeSplitter.ports.filter(
+        (p) => p.isOccupied && typeof p.attenuation === 'number' && isAttenuationBad(p.attenuation),
+      );
+    }
     return activeSplitter.ports;
   }, [activeSplitter, portFilter]);
 
+  // Keep active splitter valid and ensure only the active cluster expands by default
   useEffect(() => {
     if (filteredClusters.length > 0) {
-      if (
-        !activeSplitterCode ||
-        !filteredClusters.some((c) => c.splitterCode === activeSplitterCode)
-      ) {
-        setActiveSplitterCode(filteredClusters[0].splitterCode);
+      const target =
+        filteredClusters.find((c) => c.splitterCode === activeSplitterCode) ?? filteredClusters[0];
+      if (target.splitterCode !== activeSplitterCode) {
+        setActiveSplitterCode(target.splitterCode);
       }
+      setExpandedClusters((prev) => {
+        if (Object.keys(prev).length === 0) {
+          return { [target.clusterCode]: true };
+        }
+        return prev;
+      });
     }
   }, [filteredClusters, activeSplitterCode]);
 
+  const selectSplitter = useCallback((splitterCode: string, clusterCode?: string) => {
+    setActiveSplitterCode(splitterCode);
+    setExpandedPortNum(null);
+    setPortFilter('ALL');
+    if (clusterCode) {
+      setExpandedClusters((prev) => ({ ...prev, [clusterCode]: true }));
+    }
+  }, []);
+
   const getAttenuationMeta = useCallback((att: number | undefined): AttenuationMeta => {
-    if (att === undefined || att === null) {
+    if (att === undefined || att === null || att === 0) {
       return { label: 'Belum diukur', tone: 'neutral', badge: 'badge gray', status: 'neutral' };
     }
     const status = classifyDbm(att);
@@ -287,14 +410,14 @@ export function useNetwork() {
     }
     if (status === 'Warning') {
       return {
-        label: `${att.toFixed(1)} dBm (Layak ≤ 28 dB)`,
+        label: `${att.toFixed(1)} dBm (Layak <= ${ATTENUATION_THRESHOLDS.GOOD_MAX_LOSS_DB} dB)`,
         tone: 'warning',
         badge: 'badge yellow',
         status: 'warning',
       };
     }
     return {
-      label: `${att.toFixed(1)} dBm (Jelek > 28 dB)`,
+      label: `${att.toFixed(1)} dBm (Jelek > ${ATTENUATION_THRESHOLDS.GOOD_MAX_LOSS_DB} dB)`,
       tone: 'critical',
       badge: 'badge red',
       status: 'critical',
@@ -385,7 +508,7 @@ export function useNetwork() {
       const json = await webApiClient.post<NetworkAuditResult>(
         '/api/v1/admin/clusters/audit',
         {},
-        { timeoutMs: 30_000 },
+        { timeoutMs: AUDIT_TIMEOUT_MS },
       );
       if (!json.success || !json.data) {
         throw normalizeAppError(!json.success ? json.error : null, {
@@ -409,7 +532,7 @@ export function useNetwork() {
         );
       } else {
         showSuccess(
-          `Audit selesai: ditemukan ${result.findings.length} temuan kapasitas/redaman/geofence dari ${result.totalSplitters} ODP.`,
+          `Audit selesai: ditemukan ${result.findings.length} temuan kapasitas, redaman, atau koordinat dari ${result.totalSplitters} ODP.`,
         );
       }
     } catch (err) {
@@ -431,7 +554,7 @@ export function useNetwork() {
         fallbackMessage: 'Wilayah cluster baru belum dapat ditambahkan.',
       });
     }
-    invalidateQueryCache(CLUSTERS_CACHE_KEY, CLUSTER_OPTIONS_CACHE_KEY);
+    invalidateQueryCache(CLUSTERS_CACHE_KEY, CLUSTER_OPTIONS_CACHE_KEY, ODP_MAPS_CACHE_KEY);
     showSuccess(`Cluster ${payload.name} (${payload.clusterCode}) berhasil ditambahkan.`);
     await fetchClusters(true);
   };
@@ -448,9 +571,9 @@ export function useNetwork() {
         fallbackMessage: 'Titik ODP splitter baru belum dapat ditambahkan.',
       });
     }
-    invalidateQueryCache(CLUSTERS_CACHE_KEY, CLUSTER_OPTIONS_CACHE_KEY);
+    invalidateQueryCache(CLUSTERS_CACHE_KEY, CLUSTER_OPTIONS_CACHE_KEY, ODP_MAPS_CACHE_KEY);
     showSuccess(`ODP ${payload.splitterCode} (${payload.maxPorts} port) berhasil ditambahkan.`);
-    setActiveSplitterCode(payload.splitterCode);
+    selectSplitter(payload.splitterCode, payload.clusterCode);
     await fetchClusters(true);
   };
 
@@ -463,35 +586,35 @@ export function useNetwork() {
         fallbackMessage: 'Data ODP splitter belum dapat diperbarui.',
       });
     }
-    invalidateQueryCache(CLUSTERS_CACHE_KEY, CLUSTER_OPTIONS_CACHE_KEY);
+    invalidateQueryCache(CLUSTERS_CACHE_KEY, CLUSTER_OPTIONS_CACHE_KEY, ODP_MAPS_CACHE_KEY);
     showSuccess(`Data ODP ${payload.splitterCode} berhasil diperbarui.`);
     await fetchClusters(true);
   };
 
+  const resetTreeFilters = useCallback(() => {
+    setSearch('');
+    setOdpQuickFilter('ALL');
+  }, []);
+
   return {
     search,
     setSearch,
-    clusterFilter,
-    setClusterFilter,
-    portStatusFilter,
-    setPortStatusFilter,
+    odpQuickFilter,
+    setOdpQuickFilter,
+    resetTreeFilters,
     activeSplitterCode,
-    setActiveSplitterCode,
+    setActiveSplitterCode: selectSplitter,
     expandedClusters,
     toggleClusterExpand,
     networkData,
     loading,
     loadError,
-    selectedPort,
-    handlePortClick,
     portFilter,
     setPortFilter,
     activeTab,
     setActiveTab,
     expandedPortNum,
     setExpandedPortNum,
-    selectedCustomerForModal,
-    setSelectedCustomerForModal,
     historyTypeFilter,
     setHistoryTypeFilter,
     historyLoading,
@@ -507,6 +630,7 @@ export function useNetwork() {
     filteredClusters,
     clusterGroups,
     activeSplitter,
+    activeSplitterHealth,
     activeSplitterFilteredPorts,
     getAttenuationMeta,
     odpHistoryLogs,

@@ -341,24 +341,35 @@ export function NetworkConsoleSkeleton() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="odp-title-status-row" style={{ marginBottom: '6px' }}>
                 <Skeleton width="min(100%, 220px)" height={20} />
-                <Skeleton width={44} height={20} borderRadius={9999} />
+                <Skeleton width={96} height={20} borderRadius={4} />
               </div>
               <Skeleton width="min(100%, 280px)" height={13} />
             </div>
           </div>
 
           <div className="odp-header-right-stats">
-            <Skeleton width={200} height={26} borderRadius={6} />
-            <Skeleton width={28} height={28} borderRadius={6} />
+            <Skeleton width={200} height={28} borderRadius={6} />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Skeleton width={108} height={34} borderRadius={6} />
+              <Skeleton width={88} height={34} borderRadius={6} />
+            </div>
           </div>
         </header>
 
         <nav className="odp-navigation-tabs-bar" aria-hidden="true" style={{ gap: '16px', paddingBottom: '10px' }}>
           <Skeleton width={118} height={18} />
           <Skeleton width={64} height={18} />
-          <Skeleton width={62} height={18} />
-          <Skeleton width={48} height={18} />
+          <Skeleton width={96} height={18} />
         </nav>
+
+        <div className="odp-visual-strip-box" style={{ marginBottom: '14px' }}>
+          <Skeleton width={150} height={13} />
+          <div className="odp-visual-port-strip">
+            {Array.from({ length: 8 }).map((_, idx) => (
+              <Skeleton key={idx} width="100%" height={44} borderRadius={6} />
+            ))}
+          </div>
+        </div>
 
         <section className="odp-table-wrapper">
           <header className="odp-port-filter-bar" style={{ flexWrap: 'wrap' }}>
@@ -407,7 +418,7 @@ export function NetworkConsoleSkeleton() {
                         <Skeleton width={76} height={14} />
                       </td>
                       <td>
-                        <Skeleton width={68} height={22} borderRadius={9999} />
+                        <Skeleton width={68} height={22} borderRadius={4} />
                       </td>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>

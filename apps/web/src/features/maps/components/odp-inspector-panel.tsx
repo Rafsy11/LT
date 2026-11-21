@@ -158,7 +158,7 @@ export function OdpInspectorPanel({ odp, highlightedSia }: OdpInspectorPanelProp
             Pelanggan Terhubung ({odp.customers.length})
           </span>
           <Link
-            href={`/network`}
+            href={`/network?odp=${encodeURIComponent(odp.splitterCode)}`}
             style={{ fontSize: '11.5px', fontWeight: 600, color: '#0e5b92', textDecoration: 'none' }}
           >
             Buka Master ODP →
