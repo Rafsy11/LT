@@ -7,6 +7,9 @@ export interface OverviewStatsProps {
   waitingTicketsCount: number;
   techStats: { total: number; active: number } | null;
   networkHealthPct: number | null;
+  normalOdpCount?: number;
+  measuredOdpCount?: number;
+  abnormalOdpCount?: number;
 }
 
 export function OverviewStats({
@@ -15,7 +18,17 @@ export function OverviewStats({
   waitingTicketsCount,
   techStats,
   networkHealthPct,
+  normalOdpCount = 0,
+  measuredOdpCount = 0,
+  abnormalOdpCount = 0,
 }: OverviewStatsProps) {
+  const healthStatusClass =
+    networkHealthPct === null
+      ? 'muted'
+      : abnormalOdpCount > 0 || networkHealthPct < 80
+        ? 'warning'
+        : 'positive';
+
   return (
     <section className="overview-stats-grid" aria-label="Ringkasan Operasional Utama">
       {/* Metric 1: Pelanggan Aktif */}
@@ -31,10 +44,7 @@ export function OverviewStats({
             <div className="stat-card-value">{customerCount ?? '-'}</div>
           </div>
           <div className="stat-card-footer">
-            <span className="stat-trend positive" aria-label="Kenaikan 2.5 persen">
-              <span className="trend-arrow">↑</span> +2.5%
-            </span>
-            <span className="caption desktop-caption">Total pelanggan terdaftar</span>
+            <span className="stat-meta-note">Total pelanggan terdaftar (SIA)</span>
           </div>
         </div>
       </article>
@@ -52,11 +62,10 @@ export function OverviewStats({
             <div className="stat-card-value">{activeTicketsCount}</div>
           </div>
           <div className="stat-card-footer">
-            <span className="stat-trend neutral" aria-label="Tren netral">
-              <span className="trend-arrow">↓</span> -0.0%
-            </span>
-            <span className="caption desktop-caption">
-              {waitingTicketsCount} menunggu verifikasi
+            <span
+              className={`stat-trend ${waitingTicketsCount > 0 ? 'warning' : 'positive'}`}
+            >
+              {waitingTicketsCount > 0 ? `${waitingTicketsCount} perlu tindak lanjut` : 'Antrean terkendali'}
             </span>
           </div>
         </div>
@@ -75,11 +84,8 @@ export function OverviewStats({
             <div className="stat-card-value">{techStats ? techStats.active : '-'}</div>
           </div>
           <div className="stat-card-footer">
-            <span className="stat-trend positive" aria-label="Kenaikan stabil">
-              <span className="trend-arrow">↑</span> +0.0%
-            </span>
-            <span className="caption desktop-caption">
-              {techStats ? `dari ${techStats.total} terdaftar` : 'Memuat teknisi'}
+            <span className="stat-meta-note">
+              {techStats ? `dari ${techStats.total} teknisi terdaftar` : 'Memuat data teknisi'}
             </span>
           </div>
         </div>
@@ -100,14 +106,11 @@ export function OverviewStats({
             </div>
           </div>
           <div className="stat-card-footer">
-            <span
-              className={`stat-trend ${(networkHealthPct ?? 0) >= 50 ? 'positive' : 'warning'}`}
-              aria-label="Status rasio sistem"
-            >
-              <span className="trend-arrow">{(networkHealthPct ?? 0) >= 50 ? '↑' : '•'}</span>{' '}
-              {(networkHealthPct ?? 0) >= 50 ? '+0.0%' : 'Pantauan'}
+            <span className={`stat-trend ${healthStatusClass}`}>
+              {measuredOdpCount > 0
+                ? `${normalOdpCount}/${measuredOdpCount} ODP <= 28 dB`
+                : 'Rasio redaman normal'}
             </span>
-            <span className="caption desktop-caption">rasio redaman normal</span>
           </div>
         </div>
       </article>

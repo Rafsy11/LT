@@ -195,8 +195,34 @@ export function OverviewTicketQueue({
                       </td>
                       <td>
                         <div className="dbm-cell">
-                          <b>{typeof r.currentAttenuation === 'number' ? `${r.currentAttenuation} dBm` : '-'}</b>
-                          <span className="dbm-status ok">Normal</span>
+                          {(() => {
+                            const hasValue =
+                              typeof r.currentAttenuation === 'number' &&
+                              r.currentAttenuation !== 0;
+                            const level = hasValue ? classifyDbm(r.currentAttenuation) : 'Neutral';
+                            const statusCls =
+                              level === 'Critical'
+                                ? 'crit'
+                                : level === 'Warning'
+                                  ? 'warn'
+                                  : level === 'Normal'
+                                    ? 'ok'
+                                    : 'muted';
+                            const statusLabel =
+                              level === 'Critical'
+                                ? 'Kritis (> 28 dB)'
+                                : level === 'Warning'
+                                  ? 'Batas'
+                                  : level === 'Normal'
+                                    ? 'Normal'
+                                    : 'Belum diukur';
+                            return (
+                              <>
+                                <b>{hasValue ? `${r.currentAttenuation} dBm` : '-'}</b>
+                                <span className={`dbm-status ${statusCls}`}>{statusLabel}</span>
+                              </>
+                            );
+                          })()}
                         </div>
                       </td>
                       <td>

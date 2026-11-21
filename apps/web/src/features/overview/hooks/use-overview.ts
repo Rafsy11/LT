@@ -9,9 +9,9 @@ import {
   classifyDbm,
   isAttenuationBad,
   PERMISSIONS,
-  type ClusterListItem,
   type DbTicket,
-  type NetworkStats,
+  type OdpMapRadarItem,
+  type OdpRadarSummary,
 } from '@repo/shared';
 import {
   fetchWithCache,
@@ -22,7 +22,7 @@ import {
 
 const OVERVIEW_CACHE_KEY = '/api/v1/admin/overview';
 const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
-const CLUSTERS_MAP_CACHE_KEY = '/api/v1/admin/clusters';
+const ODP_RADAR_CACHE_KEY = '/api/v1/admin/maps/odp';
 
 interface OverviewPayload {
   tickets: DbTicket[];
@@ -33,9 +33,9 @@ interface OverviewPayload {
   };
 }
 
-interface TopologyPayload {
-  clusters: ClusterListItem[];
-  stats: NetworkStats;
+interface OdpRadarPayload {
+  items: OdpMapRadarItem[];
+  summary: OdpRadarSummary;
 }
 
 export interface OverviewFeedItem {
@@ -80,12 +80,13 @@ export function useOverview() {
   });
   const [currentDateTime, setCurrentDateTime] = useState({ date: '', time: '' });
   const [statusFilter, setStatusFilter] = useState('Semua');
-  const [topologyClusters, setTopologyClusters] = useState<ClusterListItem[]>(
-    () => getCachedData<TopologyPayload>(CLUSTERS_MAP_CACHE_KEY)?.clusters ?? [],
+  const [rawRadarItems, setRawRadarItems] = useState<OdpMapRadarItem[]>(
+    () => getCachedData<OdpRadarPayload>(ODP_RADAR_CACHE_KEY)?.items ?? [],
   );
-  const [mapLoading, setMapLoading] = useState<boolean>(
-    () => !getCachedData<TopologyPayload>(CLUSTERS_MAP_CACHE_KEY),
+  const [radarLoading, setRadarLoading] = useState<boolean>(
+    () => !getCachedData<OdpRadarPayload>(ODP_RADAR_CACHE_KEY),
   );
+  const [radarError, setRadarError] = useState<string | null>(null);
 
   const { canCreateTicket, hasPermission, user } = useAuth();
   const { showError } = useToast();
@@ -202,23 +203,24 @@ export function useOverview() {
     [showError],
   );
 
-  const fetchTopologyClusters = useCallback(
+  const fetchOdpRadar = useCallback(
     async (force = false) => {
       if (!canReadNetwork) {
-        setMapLoading(false);
+        setRadarLoading(false);
         return;
       }
       try {
-        if (!getCachedData<TopologyPayload>(CLUSTERS_MAP_CACHE_KEY)) {
-          setMapLoading(true);
+        setRadarError(null);
+        if (!getCachedData<OdpRadarPayload>(ODP_RADAR_CACHE_KEY)) {
+          setRadarLoading(true);
         }
-        const payload = await fetchWithCache<TopologyPayload>(
-          CLUSTERS_MAP_CACHE_KEY,
+        const payload = await fetchWithCache<OdpRadarPayload>(
+          ODP_RADAR_CACHE_KEY,
           async () => {
-            const json = await webApiClient.get<TopologyPayload>(CLUSTERS_MAP_CACHE_KEY);
+            const json = await webApiClient.get<OdpRadarPayload>(ODP_RADAR_CACHE_KEY);
             if (!json.success || !json.data) {
               throw normalizeAppError(!json.success ? json.error : null, {
-                fallbackMessage: 'Data topologi jaringan belum dapat dimuat saat ini.',
+                fallbackMessage: 'Status radar ODP belum dapat dimuat saat ini.',
               });
             }
             return json.data;
@@ -226,11 +228,14 @@ export function useOverview() {
           { force },
         );
 
-        setTopologyClusters(Array.isArray(payload.clusters) ? payload.clusters : []);
-      } catch {
-        // Outage or permission state handled via GlobalNetworkBanner
+        setRawRadarItems(Array.isArray(payload.items) ? payload.items : []);
+      } catch (err: unknown) {
+        const normalized = normalizeAppError(err, {
+          fallbackMessage: 'Status radar ODP belum dapat dimuat saat ini.',
+        });
+        setRadarError(normalized.message);
       } finally {
-        setMapLoading(false);
+        setRadarLoading(false);
       }
     },
     [canReadNetwork],
@@ -238,7 +243,7 @@ export function useOverview() {
 
   useEffect(() => {
     void fetchOverview();
-    void fetchTopologyClusters();
+    void fetchOdpRadar();
 
     const updateClock = () => {
       const now = new Date();
@@ -256,7 +261,7 @@ export function useOverview() {
     const interval = setInterval(updateClock, 60000);
 
     return () => clearInterval(interval);
-  }, [fetchOverview, fetchTopologyClusters]);
+  }, [fetchOverview, fetchOdpRadar]);
 
   const handleCreateTicket = async (data: import('@repo/shared').CreateTicketInput) => {
     const json = await webApiClient.post(TICKETS_CACHE_KEY, data);
@@ -265,15 +270,15 @@ export function useOverview() {
         fallbackMessage: 'Tiket baru belum dapat dibuat saat ini.',
       });
     }
-    invalidateQueryCache(OVERVIEW_CACHE_KEY, TICKETS_CACHE_KEY);
-    await fetchOverview(true);
+    invalidateQueryCache(OVERVIEW_CACHE_KEY, TICKETS_CACHE_KEY, ODP_RADAR_CACHE_KEY);
+    await Promise.all([fetchOverview(true), fetchOdpRadar(true)]);
   };
 
   const refreshAllOverview = useCallback(
     async (force = false) => {
-      await Promise.all([fetchOverview(force), fetchTopologyClusters(force)]);
+      await Promise.all([fetchOverview(force), fetchOdpRadar(force)]);
     },
-    [fetchOverview, fetchTopologyClusters],
+    [fetchOverview, fetchOdpRadar],
   );
 
   const filteredTickets = tickets.filter((t) => {
@@ -324,6 +329,35 @@ export function useOverview() {
     URL.revokeObjectURL(url);
   };
 
+  const selectedClusterCode = useMemo(() => {
+    if (cluster === 'Semua cluster') return null;
+    const matched = clusterOptions.find(
+      (opt) => opt.name === cluster || opt.clusterCode === cluster,
+    );
+    return matched?.clusterCode ?? cluster;
+  }, [cluster, clusterOptions]);
+
+  const scopedRadarItems = useMemo(() => {
+    if (cluster === 'Semua cluster') return rawRadarItems;
+    return rawRadarItems.filter(
+      (item) =>
+        item.clusterName === cluster ||
+        item.clusterCode === cluster ||
+        (selectedClusterCode !== null && item.clusterCode === selectedClusterCode),
+    );
+  }, [rawRadarItems, cluster, selectedClusterCode]);
+
+  const scopedRadarSummary = useMemo<OdpRadarSummary>(() => {
+    return {
+      totalOdps: scopedRadarItems.length,
+      normalCount: scopedRadarItems.filter((i) => i.radarStatus === 'NORMAL').length,
+      abnormalCount: scopedRadarItems.filter((i) => i.radarStatus === 'ABNORMAL').length,
+      unmeasuredCount: scopedRadarItems.filter((i) => i.radarStatus === 'UNMEASURED').length,
+      badAttenuationCustomers: scopedRadarItems.reduce((sum, i) => sum + i.badPortCount, 0),
+      mappedCustomers: scopedRadarItems.reduce((sum, i) => sum + i.customers.length, 0),
+    };
+  }, [scopedRadarItems]);
+
   const activeTicketsCount = tickets.filter(
     (t) => t.status !== 'Selesai' && t.status !== 'Dibatalkan',
   ).length;
@@ -336,15 +370,26 @@ export function useOverview() {
       t.currentAttenuation !== 0 &&
       !isAttenuationBad(t.currentAttenuation),
   ).length;
+  const measuredOdpCount = scopedRadarSummary.normalCount + scopedRadarSummary.abnormalCount;
   const networkHealthPct: number | null =
-    tickets.length > 0 ? Math.round((normalAttenuationCount / tickets.length) * 100) : null;
+    measuredOdpCount > 0
+      ? Math.round((scopedRadarSummary.normalCount / measuredOdpCount) * 100)
+      : tickets.length > 0
+        ? Math.round((normalAttenuationCount / tickets.length) * 100)
+        : null;
 
   return {
     cluster,
     setCluster,
+    selectedClusterCode,
     clusterOptions,
-    topologyClusters,
-    mapLoading,
+    odpRadarItems: scopedRadarItems,
+    odpRadarSummary: scopedRadarSummary,
+    measuredOdpCount,
+    radarLoading,
+    radarError,
+    canReadNetwork,
+    refetchRadar: () => fetchOdpRadar(true),
     query,
     setQuery,
     tickets,

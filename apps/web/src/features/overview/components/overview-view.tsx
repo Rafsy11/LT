@@ -5,7 +5,7 @@ import { Icon } from '@/components/ui/Icon';
 import { CreateTicketModal, TicketDetailModal } from '@/features/tickets';
 import { useOverview } from '../hooks/use-overview';
 import { OverviewStats } from './overview-stats';
-import { OverviewNetworkMap } from './overview-network-map';
+import { OverviewOdpHealthPanel } from './overview-odp-health-panel';
 import { OverviewTelemetryFeed } from './overview-telemetry-feed';
 import { OverviewTicketQueue } from './overview-ticket-queue';
 import { OverviewSkeleton } from '@/components/ui/PageSkeleton';
@@ -15,9 +15,15 @@ export function OverviewView() {
   const {
     cluster,
     setCluster,
+    selectedClusterCode,
     clusterOptions,
-    topologyClusters,
-    mapLoading,
+    odpRadarItems,
+    odpRadarSummary,
+    measuredOdpCount,
+    radarLoading,
+    radarError,
+    canReadNetwork,
+    refetchRadar,
     query,
     setQuery,
     tickets,
@@ -197,15 +203,23 @@ export function OverviewView() {
         waitingTicketsCount={waitingTicketsCount}
         techStats={techStats}
         networkHealthPct={networkHealthPct}
+        normalOdpCount={odpRadarSummary.normalCount}
+        measuredOdpCount={measuredOdpCount}
+        abnormalOdpCount={odpRadarSummary.abnormalCount}
       />
 
-      {/* Middle Grid: Sebaran Jaringan & Aktivitas Terbaru */}
-      <section className="overview-middle-grid" aria-label="Peta Topologi & Telemetri">
-        <OverviewNetworkMap
-          clusters={topologyClusters}
-          clusterOptions={clusterOptions}
+      {/* Middle Grid: Kesehatan Cluster & Radar ODP + Aktivitas Terbaru */}
+      <section className="overview-middle-grid" aria-label="Kesehatan ODP & Aktivitas Telemetri">
+        <OverviewOdpHealthPanel
+          items={odpRadarItems}
+          summary={odpRadarSummary}
           selectedCluster={cluster}
-          isLoading={mapLoading}
+          selectedClusterCode={selectedClusterCode}
+          isLoading={radarLoading}
+          errorMessage={radarError}
+          onRetry={() => void refetchRadar()}
+          onResetCluster={() => setCluster('Semua cluster')}
+          canReadNetwork={canReadNetwork}
         />
         <OverviewTelemetryFeed feedItems={feedItems} />
       </section>

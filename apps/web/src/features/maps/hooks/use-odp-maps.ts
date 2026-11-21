@@ -10,10 +10,14 @@ import {
 } from '@repo/shared';
 import { webApiClient } from '@/lib/api-client';
 import { normalizeAppError } from '@/lib/error-normalizer';
+import { fetchWithCache, getCachedData } from '@/lib/query-cache';
 import { useToast } from '@/providers';
 
 export type MapStatusFilter = 'ALL' | OdpRadarStatus;
 export type MapLayerStyle = 'street' | 'satellite';
+
+const ODP_MAPS_CACHE_KEY = '/api/v1/admin/maps/odp';
+const VALID_STATUS_FILTERS = new Set<MapStatusFilter>(['ALL', 'NORMAL', 'ABNORMAL', 'UNMEASURED']);
 
 interface OdpRadarApiResponse {
   items: OdpMapRadarItem[];
@@ -29,41 +33,54 @@ const EMPTY_SUMMARY: OdpRadarSummary = {
   mappedCustomers: 0,
 };
 
+function parseStatusParam(raw: string | null): MapStatusFilter {
+  if (!raw) return 'ALL';
+  const normalized = raw.trim().toUpperCase() as MapStatusFilter;
+  return VALID_STATUS_FILTERS.has(normalized) ? normalized : 'ALL';
+}
+
 export function useOdpMaps() {
   const searchParams = useSearchParams();
   const { showError } = useToast();
 
   const initialOdpParam = searchParams.get('odp') || '';
   const initialSiaParam = searchParams.get('sia') || '';
+  const initialClusterParam = searchParams.get('cluster') || '';
+  const initialStatusParam = parseStatusParam(searchParams.get('status'));
 
-  const [items, setItems] = useState<OdpMapRadarItem[]>([]);
-  const [summary, setSummary] = useState<OdpRadarSummary>(EMPTY_SUMMARY);
-  const [loading, setLoading] = useState(true);
+  const cachedPayload = getCachedData<OdpRadarApiResponse>(ODP_MAPS_CACHE_KEY);
+
+  const [items, setItems] = useState<OdpMapRadarItem[]>(() => cachedPayload?.items ?? []);
+  const [summary, setSummary] = useState<OdpRadarSummary>(
+    () => cachedPayload?.summary ?? EMPTY_SUMMARY,
+  );
+  const [loading, setLoading] = useState(() => !cachedPayload);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [statusFilter, setStatusFilter] = useState<MapStatusFilter>('ALL');
-  const [clusterFilter, setClusterFilter] = useState<string>('Semua cluster');
+  const [statusFilter, setStatusFilter] = useState<MapStatusFilter>(initialStatusParam);
+  const [clusterFilter, setClusterFilter] = useState<string>(
+    initialClusterParam || 'Semua cluster',
+  );
   const [search, setSearch] = useState<string>('');
   const [mapLayer, setMapLayer] = useState<MapLayerStyle>('street');
   const [showCustomerLinks, setShowCustomerLinks] = useState<boolean>(true);
   const [selectedOdpId, setSelectedOdpId] = useState<string | null>(null);
 
-  const fetchRadarData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setLoadError(null);
-      const res = await webApiClient.get<OdpRadarApiResponse>('/api/v1/admin/maps/odp');
-      if (!res.success || !res.data) {
-        throw normalizeAppError(!res.success ? res.error : null, {
-          fallbackMessage: STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
-        });
+  const applyInitialSelection = useCallback(
+    (radarItems: OdpMapRadarItem[]) => {
+      if (initialClusterParam) {
+        const matchedCluster = radarItems.find(
+          (item) =>
+            item.clusterCode.toLowerCase() === initialClusterParam.toLowerCase() ||
+            item.clusterName.toLowerCase() === initialClusterParam.toLowerCase(),
+        );
+        if (matchedCluster) {
+          setClusterFilter(matchedCluster.clusterCode);
+        }
       }
-      setItems(res.data.items);
-      setSummary(res.data.summary);
 
-      // Focus deep-linked ODP or SIA if provided in URL query
       if (initialOdpParam || initialSiaParam) {
-        const matched = res.data.items.find(
+        const matched = radarItems.find(
           (item) =>
             (initialOdpParam &&
               (item.splitterCode.toLowerCase() === initialOdpParam.toLowerCase() ||
@@ -80,23 +97,52 @@ export function useOdpMaps() {
       }
 
       setSelectedOdpId((prev) => {
-        if (prev && res.data!.items.some((i) => i.id === prev)) return prev;
-        const firstAbnormal = res.data!.items.find((i) => i.radarStatus === 'ABNORMAL');
-        return firstAbnormal?.id ?? res.data!.items[0]?.id ?? null;
+        if (prev && radarItems.some((i) => i.id === prev)) return prev;
+        const firstAbnormal = radarItems.find((i) => i.radarStatus === 'ABNORMAL');
+        return firstAbnormal?.id ?? radarItems[0]?.id ?? null;
       });
-    } catch (err: unknown) {
-      const normalized = normalizeAppError(err, {
-        fallbackMessage: STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
-      });
-      setLoadError(normalized.message);
-      showError(normalized);
-    } finally {
-      setLoading(false);
-    }
-  }, [initialOdpParam, initialSiaParam, showError]);
+    },
+    [initialClusterParam, initialOdpParam, initialSiaParam],
+  );
+
+  const fetchRadarData = useCallback(
+    async (force = false) => {
+      try {
+        if (force || !getCachedData<OdpRadarApiResponse>(ODP_MAPS_CACHE_KEY)) {
+          setLoading(true);
+        }
+        setLoadError(null);
+        const data = await fetchWithCache<OdpRadarApiResponse>(
+          ODP_MAPS_CACHE_KEY,
+          async () => {
+            const res = await webApiClient.get<OdpRadarApiResponse>(ODP_MAPS_CACHE_KEY);
+            if (!res.success || !res.data) {
+              throw normalizeAppError(!res.success ? res.error : null, {
+                fallbackMessage: STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
+              });
+            }
+            return res.data;
+          },
+          { force },
+        );
+        setItems(data.items);
+        setSummary(data.summary);
+        applyInitialSelection(data.items);
+      } catch (err: unknown) {
+        const normalized = normalizeAppError(err, {
+          fallbackMessage: STANDARD_ERROR_MESSAGES.DATA_LOAD_FAILED,
+        });
+        setLoadError(normalized.message);
+        showError(normalized);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [applyInitialSelection, showError],
+  );
 
   useEffect(() => {
-    void fetchRadarData();
+    void fetchRadarData(false);
   }, [fetchRadarData]);
 
   const availableClusters = useMemo(() => {
@@ -204,6 +250,6 @@ export function useOdpMaps() {
     selectedOdp,
     setSelectedOdpId,
     highlightedSia: initialSiaParam,
-    refetch: fetchRadarData,
+    refetch: () => fetchRadarData(true),
   };
 }

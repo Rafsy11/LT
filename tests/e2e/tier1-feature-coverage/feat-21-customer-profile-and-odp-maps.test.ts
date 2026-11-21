@@ -113,4 +113,32 @@ describe('Tier 1: Feature 21 - Customer Profile, Building Photo & ODP Radar Maps
     assert.match(sidebar, /href:\s*'\/maps'/);
     assert.match(middleware, /'\/maps'/);
   });
+
+  it('replaces redundant SVG map on Overview ("/") with OverviewOdpHealthPanel deep-linked to /maps', () => {
+    const legacyMapPath = path.join(WEB_ROOT, 'features/overview/components/overview-network-map.tsx');
+    const healthPanelPath = path.join(WEB_ROOT, 'features/overview/components/overview-odp-health-panel.tsx');
+    const overviewViewPath = path.join(WEB_ROOT, 'features/overview/components/overview-view.tsx');
+    const useOdpMapsPath = path.join(WEB_ROOT, 'features/maps/hooks/use-odp-maps.ts');
+
+    assert.strictEqual(fs.existsSync(legacyMapPath), false, 'Legacy overview-network-map.tsx should be removed');
+    assert.ok(fs.existsSync(healthPanelPath), 'OverviewOdpHealthPanel must exist');
+
+    const panelContent = fs.readFileSync(healthPanelPath, 'utf8');
+    const overviewContent = fs.readFileSync(overviewViewPath, 'utf8');
+    const mapsHookContent = fs.readFileSync(useOdpMapsPath, 'utf8');
+
+    assert.match(overviewContent, /OverviewOdpHealthPanel/);
+    assert.doesNotMatch(overviewContent, /OverviewNetworkMap/);
+    assert.match(panelContent, /ATTENUATION_THRESHOLDS\.GOOD_MAX_LOSS_DB/);
+    assert.match(panelContent, /qs\.set\('odp'/);
+    assert.match(panelContent, /qs\.set\('cluster'/);
+    assert.match(panelContent, /qs\.set\('status'/);
+    assert.match(panelContent, /\/maps/);
+    assert.strictEqual(/\u2014|—/.test(panelContent), false, 'OverviewOdpHealthPanel must not contain em-dashes');
+    assert.strictEqual(panelContent.includes('9999px'), false, 'OverviewOdpHealthPanel must not use 9999px pills');
+
+    assert.match(mapsHookContent, /searchParams\.get\('cluster'\)/);
+    assert.match(mapsHookContent, /searchParams\.get\('status'\)/);
+    assert.match(mapsHookContent, /fetchWithCache/);
+  });
 });

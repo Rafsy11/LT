@@ -468,17 +468,27 @@ export function OverviewSkeleton() {
       </section>
 
       <section className="overview-middle-grid">
-        <article className="panel overview-map-panel skeleton-card">
+        <article className="panel odp-health-panel skeleton-card">
           <div className="panel-inner">
             <header className="panel-heading">
               <div style={{ flex: 1, minWidth: 0 }}>
-                <Skeleton width={145} height={18} style={{ marginBottom: '6px' }} />
-                <Skeleton width="min(100%, 220px)" height={13} />
+                <Skeleton width={210} height={18} style={{ marginBottom: '6px' }} />
+                <Skeleton width="min(100%, 260px)" height={13} />
               </div>
-              <Skeleton width={92} height={14} />
+              <Skeleton width={128} height={32} borderRadius={6} />
             </header>
-            <div className="clean-map-container" style={{ border: 'none' }}>
-              <Skeleton width="100%" height="100%" borderRadius={10} />
+            <div className="odp-health-body">
+              <Skeleton width="100%" height={8} borderRadius={4} />
+              <div className="odp-summary-tiles">
+                <Skeleton width="100%" height={56} borderRadius={6} />
+                <Skeleton width="100%" height={56} borderRadius={6} />
+                <Skeleton width="100%" height={56} borderRadius={6} />
+              </div>
+              <div className="odp-health-skel-rows">
+                {Array.from({ length: DEFAULT_TABLE_ROWS }).map((_, idx) => (
+                  <Skeleton key={idx} width="100%" height={46} borderRadius={6} />
+                ))}
+              </div>
             </div>
           </div>
         </article>
@@ -488,7 +498,7 @@ export function OverviewSkeleton() {
             <header className="panel-heading">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Skeleton width={132} height={18} />
-                <Skeleton width={48} height={18} borderRadius={9999} />
+                <Skeleton width={48} height={18} borderRadius={4} />
               </div>
               <Skeleton width={76} height={14} />
             </header>
