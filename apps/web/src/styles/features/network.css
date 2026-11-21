@@ -163,6 +163,10 @@
   border-radius: 8px !important;
   padding: 14px !important;
   gap: 10px !important;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 @media (min-width: 1024px) {
@@ -178,6 +182,7 @@
   justify-content: space-between;
   gap: 12px;
   width: 100%;
+  min-width: 0;
   min-height: 48px;
   padding: 10px 12px;
   border-radius: 6px;
@@ -187,6 +192,7 @@
   text-align: left;
   cursor: pointer;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .mobile-odp-picker-trigger:focus-visible {
@@ -200,17 +206,25 @@
   gap: 1px;
   min-width: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .mobile-odp-picker-eyebrow {
+  display: block;
+  max-width: 100%;
   font-size: 10.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mobile-odp-picker-code {
+  display: block;
+  max-width: 100%;
   font-family: var(--font-mono, monospace);
   font-size: 13px;
   font-weight: 700;
@@ -221,6 +235,8 @@
 }
 
 .mobile-odp-picker-meta {
+  display: block;
+  max-width: 100%;
   font-size: 11.5px;
   color: #475569;
   white-space: nowrap;
@@ -254,6 +270,75 @@
   display: none;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.network-tree-sticky .tree-sidebar-header {
+  gap: 8px;
+  min-width: 0;
+}
+
+.network-tree-sticky .tree-sidebar-title {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-tree-sticky .tree-sidebar-counter {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.network-tree-sticky .tree-clusters-accordion,
+.network-tree-sticky .tree-cluster-node,
+.network-tree-sticky .tree-odp-branches-clean {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.network-tree-sticky .tree-cluster-head-btn {
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.network-tree-sticky .tree-cluster-left-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.network-tree-sticky .tree-cluster-title-text {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-tree-sticky .tree-cluster-port-count {
+  white-space: nowrap;
+}
+
+.network-tree-sticky .tree-odp-item-clean {
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.network-tree-sticky .tree-odp-leaf-left {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  align-items: flex-start;
+}
+
+.network-tree-sticky .tree-odp-leaf-right {
+  white-space: nowrap;
 }
 
 .network-tree-sticky.is-mobile-open .tree-collapsible-body {
@@ -343,7 +428,9 @@
 .tree-scroll-viewport {
   max-height: min(56vh, 460px);
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 2px;
+  min-width: 0;
 }
 
 @media (min-width: 1024px) {
@@ -415,10 +502,14 @@
 .tree-odp-leaf-copy {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .tree-odp-leaf-code {
+  display: block;
+  max-width: 100%;
   font-family: var(--font-mono, monospace);
   font-size: 11.5px;
   font-weight: 600;
@@ -428,6 +519,8 @@
 }
 
 .tree-odp-leaf-loc {
+  display: block;
+  max-width: 100%;
   font-size: 10.5px;
   color: #64748b;
   white-space: nowrap;
