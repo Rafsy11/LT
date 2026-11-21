@@ -1,0 +1,141 @@
+/* FiberOps Global Custom Scrollbar System (DESIGN.md: 4px radius, zero OS arrows, instant theme switch) */
+
+:root {
+  --scrollbar-size: 10px;
+  --scrollbar-size-compact: 8px;
+  --scrollbar-radius: 4px;
+  --scrollbar-track: transparent;
+  --scrollbar-track-root: #f2f8fb;
+  --scrollbar-thumb: rgba(100, 116, 139, 0.38);
+  --scrollbar-thumb-hover: rgba(14, 91, 146, 0.68);
+  --scrollbar-thumb-active: #0e5b92;
+  --scrollbar-corner: transparent;
+}
+
+html.dark,
+[data-theme='dark'] {
+  --scrollbar-track: transparent;
+  --scrollbar-track-root: #020617;
+  --scrollbar-thumb: rgba(148, 163, 184, 0.3);
+  --scrollbar-thumb-hover: rgba(56, 189, 248, 0.58);
+  --scrollbar-thumb-active: #38bdf8;
+  --scrollbar-corner: transparent;
+}
+
+/* Scoped theme tokens for /mobile simulator viewport */
+.mobile-shell-viewport:not([data-mobile-theme='dark']) {
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(100, 116, 139, 0.38);
+  --scrollbar-thumb-hover: rgba(14, 91, 146, 0.68);
+  --scrollbar-thumb-active: #0e5b92;
+}
+
+.mobile-shell-viewport[data-mobile-theme='dark'] {
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(148, 163, 184, 0.3);
+  --scrollbar-thumb-hover: rgba(56, 189, 248, 0.58);
+  --scrollbar-thumb-active: #38bdf8;
+}
+
+/* Chromium, Edge, Safari & WebKit Custom Scrollbar */
+::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+html::-webkit-scrollbar-track {
+  background: var(--scrollbar-track-root);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  background-clip: content-box;
+  border: 2px solid transparent;
+  border-radius: var(--scrollbar-radius);
+  min-height: 32px;
+  min-width: 32px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--scrollbar-thumb-active);
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--scrollbar-corner);
+}
+
+/* Compact Variant (8px slot / 4px floating visual thumb) for dense inner scrollable panels */
+.sidebar::-webkit-scrollbar,
+.notification-list::-webkit-scrollbar,
+.modal .modal-body::-webkit-scrollbar,
+.modal-table-wrap::-webkit-scrollbar,
+.tree-scroll-viewport::-webkit-scrollbar,
+.odp-desktop-table-wrap::-webkit-scrollbar,
+.datek-import-body::-webkit-scrollbar,
+.datek-anomaly-detail-table-wrap::-webkit-scrollbar,
+.maps-inspector::-webkit-scrollbar,
+.chat-body::-webkit-scrollbar,
+.ai-message-list-section::-webkit-scrollbar,
+.table-scroll::-webkit-scrollbar,
+.mobile-shell-viewport::-webkit-scrollbar,
+.scrollbar-compact::-webkit-scrollbar {
+  width: var(--scrollbar-size-compact);
+  height: var(--scrollbar-size-compact);
+}
+
+.sidebar::-webkit-scrollbar-thumb,
+.notification-list::-webkit-scrollbar-thumb,
+.modal .modal-body::-webkit-scrollbar-thumb,
+.modal-table-wrap::-webkit-scrollbar-thumb,
+.tree-scroll-viewport::-webkit-scrollbar-thumb,
+.odp-desktop-table-wrap::-webkit-scrollbar-thumb,
+.datek-import-body::-webkit-scrollbar-thumb,
+.datek-anomaly-detail-table-wrap::-webkit-scrollbar-thumb,
+.maps-inspector::-webkit-scrollbar-thumb,
+.chat-body::-webkit-scrollbar-thumb,
+.ai-message-list-section::-webkit-scrollbar-thumb,
+.table-scroll::-webkit-scrollbar-thumb,
+.mobile-shell-viewport::-webkit-scrollbar-thumb,
+.scrollbar-compact::-webkit-scrollbar-thumb {
+  border-width: 2px;
+  min-height: 24px;
+  min-width: 24px;
+}
+
+/* Explicit utility for intentionally hidden scrollbars (e.g. horizontal swipe tabs) */
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Firefox & Non-WebKit fallback guarded so Chromium 121+ never disables ::-webkit-scrollbar */
+@supports not selector(::-webkit-scrollbar) {
+  html,
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  html {
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track-root);
+  }
+}

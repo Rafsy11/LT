@@ -48,19 +48,6 @@ export default function MobileFieldAppPage() {
           box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.35);
         }
 
-        .mobile-shell-viewport::-webkit-scrollbar {
-          width: 4px;
-        }
-
-        .mobile-shell-viewport::-webkit-scrollbar-thumb {
-          background: #CBD5E1;
-          border-radius: 4px;
-        }
-
-        .mobile-shell-viewport[data-mobile-theme='dark']::-webkit-scrollbar-thumb {
-          background: #334155;
-        }
-
         @media (max-width: 768px) {
           .mobile-shell-root {
             padding: 0 !important;

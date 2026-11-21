@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from 'next/font/google';
 import { AuthProvider, ToastProvider, ThemeProvider, NetworkStatusProvider } from '@/providers';
 import { GlobalNetworkBanner } from '@/components/ui/GlobalNetworkBanner';
 import './globals.css';
+import '@/styles/components/scrollbar.css';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
