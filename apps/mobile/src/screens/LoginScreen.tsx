@@ -597,7 +597,7 @@ export function LoginScreen({
                     focusedInput === 'username'
                       ? `1.5px solid ${isDark ? '#38BDF8' : '#1B5CA2'}`
                       : `1px solid ${isDark ? '#334155' : '#CBD5E1'}`,
-                  borderRadius: '24px',
+                  borderRadius: '6px',
                   boxSizing: 'border-box',
                   outline: 'none',
                   colorScheme: isDark ? 'dark' : 'light',
@@ -650,7 +650,7 @@ export function LoginScreen({
                     focusedInput === 'password'
                       ? `1.5px solid ${isDark ? '#38BDF8' : '#1B5CA2'}`
                       : `1px solid ${isDark ? '#334155' : '#CBD5E1'}`,
-                  borderRadius: '24px',
+                  borderRadius: '6px',
                   boxSizing: 'border-box',
                   outline: 'none',
                   colorScheme: isDark ? 'dark' : 'light',
@@ -682,7 +682,7 @@ export function LoginScreen({
                   border: 'none',
                   color: showPassword ? '#1B5CA2' : '#64748B',
                   cursor: 'pointer',
-                  borderRadius: '50%',
+                  borderRadius: '6px',
                 }}
               >
                 {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
@@ -753,7 +753,7 @@ export function LoginScreen({
                         focusedInput === 'otp'
                           ? `1.5px solid ${isDark ? '#38BDF8' : '#1B5CA2'}`
                           : `1px solid ${isDark ? '#334155' : '#CBD5E1'}`,
-                      borderRadius: '24px',
+                      borderRadius: '6px',
                       boxSizing: 'border-box',
                       outline: 'none',
                       colorScheme: isDark ? 'dark' : 'light',
@@ -782,7 +782,7 @@ export function LoginScreen({
                   style={{
                     minHeight: '48px',
                     padding: '0 14px',
-                    borderRadius: '24px',
+                    borderRadius: '6px',
                     background:
                       isLocked ||
                       isRequestingOtp ||
@@ -854,7 +854,7 @@ export function LoginScreen({
                   style={{
                     marginTop: '10px',
                     padding: '8px 12px',
-                    borderRadius: '12px',
+                    borderRadius: '8px',
                     background: isDark ? '#0F2942' : '#F0F9FF',
                     border: `1px solid ${isDark ? '#0369A1' : '#BAE6FD'}`,
                     display: 'flex',
@@ -902,7 +902,7 @@ export function LoginScreen({
               )}
             </div>
 
-            {/* Primary Action Button: Lintasarta Cobalt Blue pill style */}
+            {/* Primary Action Button: Lintasarta Cobalt Blue */}
             <button
               type="submit"
               className="fiberops-action-btn"
@@ -916,7 +916,7 @@ export function LoginScreen({
                 fontSize: '14px',
                 fontWeight: 700,
                 border: 'none',
-                borderRadius: '24px',
+                borderRadius: '6px',
                 cursor: isLocked || isRequestingOtp ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',

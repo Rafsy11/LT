@@ -20,7 +20,6 @@ export default function MobileFieldAppPage() {
           padding: 20px 16px;
           box-sizing: border-box;
           overflow-x: clip;
-          transition: background-color 0.2s ease;
         }
 
         .mobile-shell-root[data-mobile-theme='dark'] {
@@ -41,7 +40,6 @@ export default function MobileFieldAppPage() {
           overflow-x: clip;
           position: relative;
           -webkit-overflow-scrolling: touch;
-          transition: background-color 0.2s ease, border-color 0.2s ease;
         }
 
         .mobile-shell-viewport[data-mobile-theme='dark'] {

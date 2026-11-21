@@ -1236,7 +1236,7 @@ export function TicketListView(props: TicketListScreenProps) {
             icon="search"
             title="Tidak Ada Tiket yang Sesuai"
             description="Tidak ditemukan tiket yang sesuai dengan pencarian atau opsi filter yang dipilih."
-            actionLabel="Reset Semua Filter"
+            actionLabel="Reset Filter"
             onAction={() => actions.resetAllFilters()}
             actionVariant="secondary"
             themeMode={props.themeMode || 'light'}
@@ -1245,8 +1245,8 @@ export function TicketListView(props: TicketListScreenProps) {
           <EmptyState
             icon="ticket"
             title="Belum Ada Tiket Ditugaskan"
-            description="Saat ini belum ada tiket kerja lapangan aktif untuk Anda. Tekan tombol sinkron untuk memuat data terbaru."
-            actionLabel="Sinkronkan Data"
+            description="Saat ini belum ada tiket kerja lapangan aktif untuk Anda. Tekan tombol muat ulang untuk mengambil data terbaru."
+            actionLabel="Muat Ulang Data"
             onAction={() => void actions.refresh()}
             actionVariant="primary"
             themeMode={props.themeMode || 'light'}
