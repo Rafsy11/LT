@@ -2,7 +2,17 @@ import type { ErrorCode, UserTypeEnum } from '../constants/index';
 
 export type ApiResponse<T> =
   | { success: true; data: T; meta?: Record<string, unknown> }
-  | { success: false; error: { code: ErrorCode | string; message: string; details?: unknown } };
+  | {
+      success: false;
+      error: {
+        code: ErrorCode | string;
+        message: string;
+        details?: unknown;
+        retryAfter?: number;
+        fieldErrors?: Record<string, string>;
+      };
+      meta?: Record<string, unknown>;
+    };
 
 export interface UserSessionContext {
   userId: string;

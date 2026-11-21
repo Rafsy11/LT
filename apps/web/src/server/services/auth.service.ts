@@ -627,16 +627,25 @@ export class AuthService {
 
   /**
    * Generates a short-lived (5-minute) isolated token representing a pending 2FA OTP challenge.
+   * Embeds channel & optional mobile device metadata to prevent cross-channel/device replay.
    */
   public static async generatePreAuthToken(params: {
     userId: string;
     username: string;
     challengeId: string;
+    channel?: 'web' | 'mobile';
+    deviceId?: string;
+    deviceModel?: string;
+    appVersion?: string;
   }): Promise<string> {
     return await new SignJWT({
       username: params.username,
       challengeId: params.challengeId,
       purpose: '2fa_pending',
+      channel: params.channel ?? 'web',
+      ...(params.deviceId ? { deviceId: params.deviceId } : {}),
+      ...(params.deviceModel ? { deviceModel: params.deviceModel } : {}),
+      ...(params.appVersion ? { appVersion: params.appVersion } : {}),
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(params.userId)
@@ -652,6 +661,10 @@ export class AuthService {
     userId: string;
     username: string;
     challengeId: string;
+    channel: 'web' | 'mobile';
+    deviceId?: string;
+    deviceModel?: string;
+    appVersion?: string;
   }> {
     try {
       const { payload } = await jwtVerify(preAuthToken, JWT_SECRET);
@@ -664,10 +677,15 @@ export class AuthService {
         throw new Error(ERROR_CODES.OTP_EXPIRED);
       }
 
+      const channel = payload.channel === 'mobile' ? 'mobile' : 'web';
       return {
         userId: payload.sub,
         username: payload.username,
         challengeId: payload.challengeId,
+        channel,
+        deviceId: typeof payload.deviceId === 'string' ? payload.deviceId : undefined,
+        deviceModel: typeof payload.deviceModel === 'string' ? payload.deviceModel : undefined,
+        appVersion: typeof payload.appVersion === 'string' ? payload.appVersion : undefined,
       };
     } catch {
       const err = new Error(
@@ -801,6 +819,15 @@ export class AuthService {
    */
   public static async verifyWebOtp(preAuthToken: string, otpCode: string, clientIp?: string) {
     const preAuth = await this.verifyPreAuthToken(preAuthToken);
+    if (preAuth.channel === 'mobile') {
+      const forbiddenErr = new Error(
+        'Token tantangan OTP mobile tidak dapat digunakan untuk sesi dasbor web.',
+      );
+      (forbiddenErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
+      (forbiddenErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+      throw forbiddenErr;
+    }
+
     await verifyAndConsumeOtpChallenge(preAuth.challengeId, otpCode);
 
     const user = await this.resolveAccountByUsername(preAuth.username);
@@ -924,6 +951,10 @@ export class AuthService {
       userId: user.id,
       username: user.username,
       challengeId: record.challengeId,
+      channel: preAuth.channel,
+      deviceId: preAuth.deviceId,
+      deviceModel: preAuth.deviceModel,
+      appVersion: preAuth.appVersion,
     });
 
     return {
@@ -938,7 +969,8 @@ export class AuthService {
   }
 
   /**
-   * Authenticates field technician via Mobile App with mandatory Device ID binding.
+   * Step 1 of Mobile App 2FA Authentication:
+   * Verifies credentials, binds device metadata into preAuthToken, and dispatches 6-digit OTP via Telegram Bot.
    */
   public static async loginMobile(
     username: string,
@@ -946,6 +978,7 @@ export class AuthService {
     deviceId: string,
     deviceModel?: string,
     appVersion?: string,
+    clientIp?: string,
   ) {
     if (!(await isDatabaseAvailable())) {
       throw new ServiceUnavailableError('Database PostgreSQL tidak tersedia untuk autentikasi perangkat mobile');
@@ -976,11 +1009,162 @@ export class AuthService {
         throw authErr;
       }
 
+      // Mandatory 2FA OTP via Telegram Bot (same resolution & dev fallback as Web NOC login)
+      let resolvedChatId = resolveTelegramChatId({
+        dbChatId: user.telegramChatId,
+      });
+
+      if (!resolvedChatId) {
+        if (process.env.NODE_ENV === 'development') {
+          resolvedChatId = 'DEV_LOCAL_FALLBACK';
+        } else {
+          const bindErr = new Error(
+            'Akun ini belum memiliki ikatan Telegram Chat ID resmi di server. Hubungi Super Admin NOC.',
+          );
+          (bindErr as Error & { code?: string; statusCode?: number }).code =
+            ERROR_CODES.TELEGRAM_DELIVERY_FAILED;
+          (bindErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+          throw bindErr;
+        }
+      }
+
+      const { otpCode, record } = await createOtpChallenge({
+        userId: user.id,
+        username: user.username,
+        telegramChatId: resolvedChatId,
+        deliveryStatus: 'PENDING_BOT_START',
+      });
+
+      const delivery = await sendTelegramOtpMessage({
+        chatId: resolvedChatId,
+        otpCode,
+        username: user.username,
+        fullName: user.fullName,
+        nik: user.nik,
+        clientIp,
+      });
+
+      if (!delivery.sent) {
+        const sendErr = new Error(
+          'Gagal mengirimkan kode OTP ke akun Telegram terdaftar. Pastikan layanan Telegram dapat dijangkau.',
+        );
+        (sendErr as Error & { code?: string; statusCode?: number }).code =
+          ERROR_CODES.TELEGRAM_DELIVERY_FAILED;
+        (sendErr as Error & { code?: string; statusCode?: number }).statusCode = 502;
+        throw sendErr;
+      }
+
+      await updateOtpChallengeDelivery(record.challengeId, {
+        deliveryStatus: 'SENT',
+        telegramChatId: resolvedChatId,
+      });
+
+      const preAuthToken = await this.generatePreAuthToken({
+        userId: user.id,
+        username: user.username,
+        challengeId: record.challengeId,
+        channel: 'mobile',
+        deviceId: deviceId.trim(),
+        deviceModel: deviceModel?.trim() || undefined,
+        appVersion: appVersion?.trim() || undefined,
+      });
+
+      return {
+        requiresTwoFactor: true as const,
+        preAuthToken,
+        expiresIn: OTP_CONFIG.EXPIRY_SECONDS,
+        resendCooldown: OTP_CONFIG.RESEND_COOLDOWN_SECONDS,
+        deliveryStatus: 'SENT' as const,
+        maskedChatId: delivery.maskedChatId,
+        botUsername: delivery.botUsername,
+        user: {
+          id: user.id,
+          nik: user.nik || null,
+          username: user.username,
+          fullName: user.fullName,
+          vendorCompany: user.vendorCompany || null,
+          role: user.role.name,
+          roleName: user.role.name,
+          userType: user.userType as UserTypeEnum,
+          hierarchyLevel: user.role.hierarchyLevel,
+          permissions: Array.isArray(user.role.permissions)
+            ? user.role.permissions.map(String)
+            : [],
+          assignedClusters: user.assignedClusters,
+          isActive: user.isActive,
+        },
+      };
+    } catch (err) {
+      rethrowIfStrictDatabaseError(
+        err,
+        'Database PostgreSQL tidak tersedia untuk autentikasi perangkat mobile',
+      );
+      throw err;
+    }
+  }
+
+  /**
+   * Step 2 of Mobile App 2FA Authentication:
+   * Verifies the 6-digit OTP code, enforces device binding, creates UserSession, and issues access & refresh tokens.
+   */
+  public static async verifyMobileOtp(
+    preAuthToken: string,
+    otpCode: string,
+    options?: {
+      deviceId?: string;
+      deviceModel?: string;
+      appVersion?: string;
+      clientIp?: string;
+    },
+  ) {
+    const preAuth = await this.verifyPreAuthToken(preAuthToken);
+    if (preAuth.channel !== 'mobile' || !preAuth.deviceId) {
+      const forbiddenErr = new Error(
+        'Token tantangan OTP ini tidak valid untuk autentikasi perangkat mobile.',
+      );
+      (forbiddenErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
+      (forbiddenErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+      throw forbiddenErr;
+    }
+
+    const submittedDeviceId = options?.deviceId?.trim();
+    if (submittedDeviceId && submittedDeviceId !== preAuth.deviceId) {
+      const mismatchErr = new Error(
+        'Identitas perangkat tidak sesuai dengan sesi verifikasi OTP. Silakan minta OTP ulang.',
+      );
+      (mismatchErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
+      (mismatchErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+      throw mismatchErr;
+    }
+
+    await verifyAndConsumeOtpChallenge(preAuth.challengeId, otpCode);
+
+    if (!(await isDatabaseAvailable())) {
+      throw new ServiceUnavailableError('Database PostgreSQL tidak tersedia untuk autentikasi perangkat mobile');
+    }
+
+    const resolvedDeviceId = preAuth.deviceId;
+    const resolvedDeviceModel = options?.deviceModel?.trim() || preAuth.deviceModel;
+    const resolvedAppVersion = options?.appVersion?.trim() || preAuth.appVersion;
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: preAuth.userId },
+        include: { role: true },
+      });
+
+      if (!user || !user.isActive) {
+        const forbiddenErr = new Error('Akun tidak ditemukan atau telah dinonaktifkan.');
+        (forbiddenErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
+        (forbiddenErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+        throw forbiddenErr;
+      }
+
       // Revoke previous sessions on the same device
       await prisma.userSession.updateMany({
         where: {
           userId: user.id,
-          deviceId,
+          deviceId: resolvedDeviceId,
           revokedAt: null,
         },
         data: {
@@ -995,9 +1179,9 @@ export class AuthService {
       const session = await prisma.userSession.create({
         data: {
           userId: user.id,
-          deviceId,
-          deviceModel,
-          appVersion,
+          deviceId: resolvedDeviceId,
+          deviceModel: resolvedDeviceModel,
+          appVersion: resolvedAppVersion,
           refreshTokenHash: 'pending',
           expiresAt,
         },
@@ -1010,10 +1194,10 @@ export class AuthService {
         userType: user.userType as UserTypeEnum,
         hierarchyLevel: user.role.hierarchyLevel,
         assignedClusters: user.assignedClusters,
-        deviceId,
+        deviceId: resolvedDeviceId,
       });
 
-      const refreshToken = await this.generateRefreshToken(user.id, session.id, deviceId);
+      const refreshToken = await this.generateRefreshToken(user.id, session.id, resolvedDeviceId);
 
       // Save refresh token hash
       const refreshHash = await this.hashPassword(refreshToken);
@@ -1022,17 +1206,40 @@ export class AuthService {
         data: { refreshTokenHash: refreshHash },
       });
 
+      void prisma.activityLog
+        .create({
+          data: {
+            actorUserId: user.id,
+            actorRole: user.role.name,
+            actionType: 'MOBILE_2FA_LOGIN_SUCCESS',
+            targetEntity: 'user_session',
+            targetId: session.id,
+            ipAddress: options?.clientIp || null,
+            newPayload: {
+              username: user.username,
+              deviceId: resolvedDeviceId,
+              deviceModel: resolvedDeviceModel || null,
+              appVersion: resolvedAppVersion || null,
+              twoFactorMethod: 'TELEGRAM_BOT_OTP',
+              authenticatedAt: new Date().toISOString(),
+            },
+          },
+        })
+        .catch((err) => markDatabaseUnavailable(err));
+
       return {
         accessToken,
         refreshToken,
         user: {
           id: user.id,
+          nik: user.nik || null,
           username: user.username,
           fullName: user.fullName,
           role: user.role.name,
-          userType: user.userType,
+          userType: user.userType as UserTypeEnum,
           hierarchyLevel: user.role.hierarchyLevel,
           assignedClusters: user.assignedClusters,
+          isActive: user.isActive,
         },
       };
     } catch (err) {

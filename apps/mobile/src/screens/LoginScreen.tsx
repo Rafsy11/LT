@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ApiClient, MobileSessionTokens } from '../api/client';
 import {
   CURRENT_MOBILE_APP_VERSION,
+  ERROR_CODES,
+  OTP_CONFIG,
   UserProfile,
   STANDARD_ERROR_MESSAGES,
   sanitizeUiErrorMessage,
@@ -18,6 +20,30 @@ export interface LoginScreenProps {
   defaultDeviceId?: string;
   sessionRevokedReason?: string | null;
   themeMode?: 'light' | 'dark' | 'outdoorSunlight';
+}
+
+interface MobileOtpChallengeResponse {
+  requiresTwoFactor?: boolean;
+  preAuthToken: string;
+  expiresIn?: number;
+  resendCooldown?: number;
+  deliveryStatus?: 'SENT' | 'PENDING_BOT_START';
+  maskedChatId?: string | null;
+  botUsername?: string;
+  user?: { nik?: string | null };
+}
+
+interface MobileVerifiedSessionResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: UserProfile;
+}
+
+function formatCountdown(seconds: number): string {
+  const safe = Math.max(0, seconds);
+  const mins = Math.floor(safe / 60);
+  const secs = safe % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
 function EyeIcon({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) {
@@ -58,6 +84,33 @@ function LockIcon({ size = 18, color = 'currentColor' }: { size?: number; color?
   );
 }
 
+function ShieldIcon({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+function SendIcon({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m22 2-7 20-4-9-9-4Z" />
+      <path d="M22 2 11 13" />
+    </svg>
+  );
+}
+
+function ClockIcon({ size = 12, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
 function CloseIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
   return (
     <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -74,9 +127,22 @@ export function LoginScreen({
   sessionRevokedReason = null,
   themeMode = 'light',
 }: LoginScreenProps) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsernameState] = useState('');
+  const [password, setPasswordState] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // 2FA Telegram OTP states (parity with web LoginView / useLogin)
+  const [preAuthToken, setPreAuthToken] = useState<string | null>(null);
+  const [otpCode, setOtpCodeState] = useState('');
+  const [otpExpiresSeconds, setOtpExpiresSeconds] = useState(0);
+  const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0);
+  const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
+  const [deliveryStatus, setDeliveryStatus] = useState<'IDLE' | 'SENT'>('IDLE');
+  const [maskedChatId, setMaskedChatId] = useState<string | null>(null);
+  const [botUsername, setBotUsername] = useState('FiberOpsNOCBot');
+  const [userNik, setUserNik] = useState<string | null>(null);
+  const [isRequestingOtp, setIsRequestingOtp] = useState(false);
+
   const [deviceId] = useState(defaultDeviceId);
   const [deviceModel] = useState('Samsung Galaxy A54 5G');
   const [serverUrl, setServerUrl] = useState(apiClient.getBaseUrl() || 'http://localhost:3000');
@@ -85,10 +151,12 @@ export function LoginScreen({
   const [showServerModal, setShowServerModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [focusedInput, setFocusedInput] = useState<'username' | 'password' | null>(null);
+  const [focusedInput, setFocusedInput] = useState<'username' | 'password' | 'otp' | null>(null);
 
+  const otpInputRef = useRef<HTMLInputElement | null>(null);
   const theme = getThemeTokens(themeMode);
   const isDark = themeMode === 'dark';
+  const isLocked = isLoading || rateLimitSeconds > 0;
 
   useEffect(() => {
     let isMounted = true;
@@ -102,6 +170,118 @@ export function LoginScreen({
       isMounted = false;
     };
   }, [apiClient]);
+
+  // 5-minute OTP challenge expiry countdown
+  useEffect(() => {
+    if (otpExpiresSeconds <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setOtpExpiresSeconds((prev) => {
+        if (prev <= 1) {
+          setPreAuthToken(null);
+          setDeliveryStatus('IDLE');
+          setErrorMessage('Masa berlaku kode OTP habis. Pilih Kirim OTP untuk kode baru.');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [otpExpiresSeconds]);
+
+  // 60-second resend OTP cooldown countdown
+  useEffect(() => {
+    if (resendCooldownSeconds <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setResendCooldownSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [resendCooldownSeconds]);
+
+  // Rate limit countdown (HTTP 429)
+  useEffect(() => {
+    if (rateLimitSeconds <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setRateLimitSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [rateLimitSeconds]);
+
+  const setUsername = (val: string) => {
+    setUsernameState(val);
+    setPreAuthToken(null);
+    setDeliveryStatus('IDLE');
+    setOtpExpiresSeconds(0);
+  };
+
+  const setPassword = (val: string) => {
+    setPasswordState(val);
+    setPreAuthToken(null);
+    setDeliveryStatus('IDLE');
+    setOtpExpiresSeconds(0);
+  };
+
+  const setOtpCode = (raw: string) => {
+    const digitsOnly = raw.replace(/\D/g, '').slice(0, OTP_CONFIG.CODE_LENGTH);
+    setOtpCodeState(digitsOnly);
+  };
+
+  const applyAuthApiError = (
+    error?: { code?: string; message?: string; retryAfter?: number },
+    meta?: Record<string, unknown>,
+    options: { isResend?: boolean } = {},
+  ) => {
+    const code = error?.code?.toUpperCase() || '';
+    const msg = error?.message || '';
+    const retrySec =
+      typeof error?.retryAfter === 'number' && error.retryAfter > 0
+        ? Math.ceil(error.retryAfter)
+        : typeof meta?.retryAfter === 'number' && meta.retryAfter > 0
+          ? Math.ceil(meta.retryAfter)
+          : 0;
+
+    if (code === ERROR_CODES.OTP_COOLDOWN_ACTIVE || (code === ERROR_CODES.RATE_LIMIT_EXCEEDED && options.isResend)) {
+      setResendCooldownSeconds(retrySec || OTP_CONFIG.RESEND_COOLDOWN_SECONDS);
+    } else if (code === ERROR_CODES.RATE_LIMIT_EXCEEDED || code === ERROR_CODES.RATE_LIMITED) {
+      setRateLimitSeconds(retrySec || 60);
+    }
+
+    if (code === ERROR_CODES.OTP_MAX_ATTEMPTS || code === ERROR_CODES.OTP_EXPIRED) {
+      setPreAuthToken(null);
+      setOtpCodeState('');
+      setDeliveryStatus('IDLE');
+      setOtpExpiresSeconds(0);
+    }
+
+    if (
+      code === ERROR_CODES.INVALID_CREDENTIALS ||
+      code === ERROR_CODES.UNAUTHORIZED ||
+      msg.toLowerCase().includes('kredensial') ||
+      msg.toLowerCase().includes('password') ||
+      msg.toLowerCase().includes('username')
+    ) {
+      setErrorMessage(STANDARD_ERROR_MESSAGES.INVALID_CREDENTIALS);
+      return;
+    }
+
+    if (code === ERROR_CODES.INTERNAL_ERROR || code === ERROR_CODES.SERVICE_UNAVAILABLE) {
+      setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
+      return;
+    }
+
+    if (code === ERROR_CODES.OTP_INVALID && msg && msg.length < 120) {
+      setErrorMessage(msg);
+      return;
+    }
+
+    const sanitized = sanitizeUiErrorMessage(error);
+    setErrorMessage(sanitized.message);
+  };
 
   const handleTestConnection = async () => {
     try {
@@ -125,26 +305,44 @@ export function LoginScreen({
     }
   };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleRequestOtp = async () => {
+    if (isRequestingOtp || isLocked || resendCooldownSeconds > 0) return;
+
     if (!username.trim() || !password) {
       setErrorMessage('Username dan password wajib diisi.');
       return;
     }
 
     try {
-      setIsLoading(true);
+      setIsRequestingOtp(true);
       setErrorMessage(null);
 
       const cleanUrl = serverUrl.trim();
       apiClient.setBaseUrl(cleanUrl);
       await persistentStorage.setItem(SERVER_URL_STORAGE_KEY, cleanUrl);
 
-      const res = await apiClient.request<{
-        accessToken: string;
-        refreshToken: string;
-        user: UserProfile;
-      }>('/api/v1/auth/login', {
+      if (preAuthToken) {
+        const res = await apiClient.request<MobileOtpChallengeResponse>('/api/v1/auth/resend-otp', {
+          method: 'POST',
+          body: JSON.stringify({ preAuthToken }),
+        });
+
+        if (!res.success) {
+          applyAuthApiError(res.error, res.meta, { isResend: true });
+          return;
+        }
+
+        setPreAuthToken(res.data.preAuthToken);
+        setOtpExpiresSeconds(res.data.expiresIn || OTP_CONFIG.EXPIRY_SECONDS);
+        setResendCooldownSeconds(res.data.resendCooldown ?? OTP_CONFIG.RESEND_COOLDOWN_SECONDS);
+        setDeliveryStatus('SENT');
+        setMaskedChatId(res.data.maskedChatId || null);
+        setBotUsername(res.data.botUsername || 'FiberOpsNOCBot');
+        window.setTimeout(() => otpInputRef.current?.focus(), 40);
+        return;
+      }
+
+      const res = await apiClient.request<MobileOtpChallengeResponse>('/api/v1/auth/login', {
         method: 'POST',
         body: JSON.stringify({
           username: username.trim(),
@@ -156,23 +354,67 @@ export function LoginScreen({
       });
 
       if (!res.success) {
-        if (
-          res.error?.code === 'INVALID_CREDENTIALS' ||
-          res.error?.code === 'UNAUTHORIZED' ||
-          res.error?.message?.toLowerCase().includes('kredensial') ||
-          res.error?.message?.toLowerCase().includes('password') ||
-          res.error?.message?.toLowerCase().includes('username')
-        ) {
-          setErrorMessage(STANDARD_ERROR_MESSAGES.INVALID_CREDENTIALS);
-        } else if (
-          res.error?.code === 'INTERNAL_ERROR' ||
-          res.error?.code === 'SERVICE_UNAVAILABLE'
-        ) {
-          setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
-        } else {
-          const sanitized = sanitizeUiErrorMessage(res.error);
-          setErrorMessage(sanitized.message);
-        }
+        applyAuthApiError(res.error, res.meta, { isResend: false });
+        return;
+      }
+
+      setPreAuthToken(res.data.preAuthToken);
+      setOtpExpiresSeconds(res.data.expiresIn || OTP_CONFIG.EXPIRY_SECONDS);
+      setResendCooldownSeconds(res.data.resendCooldown ?? OTP_CONFIG.RESEND_COOLDOWN_SECONDS);
+      setDeliveryStatus('SENT');
+      setMaskedChatId(res.data.maskedChatId || null);
+      setBotUsername(res.data.botUsername || 'FiberOpsNOCBot');
+      setUserNik(res.data.user?.nik || null);
+      window.setTimeout(() => otpInputRef.current?.focus(), 40);
+    } catch {
+      setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
+    } finally {
+      setIsRequestingOtp(false);
+    }
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (isLocked || isRequestingOtp) return;
+
+    if (!username.trim() || !password) {
+      setErrorMessage('Username dan password wajib diisi.');
+      return;
+    }
+
+    if (!preAuthToken) {
+      await handleRequestOtp();
+      return;
+    }
+
+    const cleanOtp = otpCode.trim();
+    if (!/^\d{6}$/.test(cleanOtp)) {
+      setErrorMessage('Masukkan 6 digit angka kode OTP dari Telegram.');
+      otpInputRef.current?.focus();
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      const cleanUrl = serverUrl.trim();
+      apiClient.setBaseUrl(cleanUrl);
+      await persistentStorage.setItem(SERVER_URL_STORAGE_KEY, cleanUrl);
+
+      const res = await apiClient.request<MobileVerifiedSessionResponse>('/api/v1/auth/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({
+          preAuthToken,
+          otpCode: cleanOtp,
+          deviceId: deviceId.trim(),
+          deviceModel: deviceModel.trim(),
+          appVersion: CURRENT_MOBILE_APP_VERSION,
+        }),
+      });
+
+      if (!res.success) {
+        applyAuthApiError(res.error, res.meta);
         return;
       }
 
@@ -220,18 +462,18 @@ export function LoginScreen({
           cursor: not-allowed;
         }
         .fiberops-input {
-          background-color: #FFFFFF !important;
-          color: #0F172A !important;
-          color-scheme: light;
+          background-color: ${isDark ? '#10192D' : '#FFFFFF'} !important;
+          color: ${isDark ? '#F8FAFC' : '#0F172A'} !important;
+          color-scheme: ${isDark ? 'dark' : 'light'};
         }
         .fiberops-input:-webkit-autofill,
         .fiberops-input:-webkit-autofill:hover,
         .fiberops-input:-webkit-autofill:focus,
         .fiberops-input:-webkit-autofill:active {
-          -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
-          -webkit-text-fill-color: #0F172A !important;
-          caret-color: #0F172A !important;
-          color: #0F172A !important;
+          -webkit-box-shadow: 0 0 0 1000px ${isDark ? '#10192D' : '#FFFFFF'} inset !important;
+          -webkit-text-fill-color: ${isDark ? '#F8FAFC' : '#0F172A'} !important;
+          caret-color: ${isDark ? '#F8FAFC' : '#0F172A'} !important;
+          color: ${isDark ? '#F8FAFC' : '#0F172A'} !important;
         }
       `}</style>
 
@@ -300,20 +542,24 @@ export function LoginScreen({
             </div>
           )}
 
-          {errorMessage && (
+          {(errorMessage || rateLimitSeconds > 0) && (
             <div style={{ marginBottom: '16px' }}>
               <ErrorBanner
-                message={errorMessage}
-                onDismiss={() => setErrorMessage(null)}
+                message={
+                  rateLimitSeconds > 0
+                    ? `Terlalu banyak percobaan login. Silakan tunggu ${rateLimitSeconds} detik.`
+                    : errorMessage
+                }
+                onDismiss={rateLimitSeconds > 0 ? undefined : () => setErrorMessage(null)}
                 themeMode={themeMode}
               />
             </div>
           )}
 
-          {/* Clean Login Form */}
+          {/* Clean Login Form with 2FA Telegram OTP */}
           <form onSubmit={handleSubmit} style={{ width: '100%' }}>
             {/* Username Field with User Icon */}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
               <span
                 style={{
                   position: 'absolute',
@@ -335,7 +581,7 @@ export function LoginScreen({
                 onChange={(e) => setUsername(e.target.value)}
                 onFocus={() => setFocusedInput('username')}
                 onBlur={() => setFocusedInput(null)}
-                disabled={isLoading}
+                disabled={isLocked}
                 placeholder="Username Teknisi"
                 aria-label="Username Teknisi"
                 autoComplete="username"
@@ -345,21 +591,29 @@ export function LoginScreen({
                   minHeight: '48px',
                   padding: '12px 18px 12px 46px',
                   fontSize: '14px',
-                  background: '#FFFFFF',
-                  color: '#0F172A',
-                  border: focusedInput === 'username' ? '1.5px solid #1B5CA2' : '1px solid #CBD5E1',
+                  background: isDark ? '#10192D' : '#FFFFFF',
+                  color: isDark ? '#F8FAFC' : '#0F172A',
+                  border:
+                    focusedInput === 'username'
+                      ? `1.5px solid ${isDark ? '#38BDF8' : '#1B5CA2'}`
+                      : `1px solid ${isDark ? '#334155' : '#CBD5E1'}`,
                   borderRadius: '24px',
                   boxSizing: 'border-box',
                   outline: 'none',
-                  colorScheme: 'light',
-                  boxShadow: focusedInput === 'username' ? '0 0 0 3px rgba(27, 92, 162, 0.15)' : 'none',
+                  colorScheme: isDark ? 'dark' : 'light',
+                  boxShadow:
+                    focusedInput === 'username'
+                      ? isDark
+                        ? '0 0 0 3px rgba(56, 189, 248, 0.18)'
+                        : '0 0 0 3px rgba(27, 92, 162, 0.15)'
+                      : 'none',
                   transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                 }}
               />
             </div>
 
             {/* Password Field with Lock Icon and Eye Toggle */}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
               <span
                 style={{
                   position: 'absolute',
@@ -381,7 +635,7 @@ export function LoginScreen({
                 onChange={(e) => setPassword(e.target.value)}
                 onFocus={() => setFocusedInput('password')}
                 onBlur={() => setFocusedInput(null)}
-                disabled={isLoading}
+                disabled={isLocked}
                 placeholder="Kata Sandi"
                 aria-label="Kata Sandi"
                 autoComplete="current-password"
@@ -390,14 +644,22 @@ export function LoginScreen({
                   minHeight: '48px',
                   padding: '12px 48px 12px 46px',
                   fontSize: '14px',
-                  background: '#FFFFFF',
-                  color: '#0F172A',
-                  border: focusedInput === 'password' ? '1.5px solid #1B5CA2' : '1px solid #CBD5E1',
+                  background: isDark ? '#10192D' : '#FFFFFF',
+                  color: isDark ? '#F8FAFC' : '#0F172A',
+                  border:
+                    focusedInput === 'password'
+                      ? `1.5px solid ${isDark ? '#38BDF8' : '#1B5CA2'}`
+                      : `1px solid ${isDark ? '#334155' : '#CBD5E1'}`,
                   borderRadius: '24px',
                   boxSizing: 'border-box',
                   outline: 'none',
-                  colorScheme: 'light',
-                  boxShadow: focusedInput === 'password' ? '0 0 0 3px rgba(27, 92, 162, 0.15)' : 'none',
+                  colorScheme: isDark ? 'dark' : 'light',
+                  boxShadow:
+                    focusedInput === 'password'
+                      ? isDark
+                        ? '0 0 0 3px rgba(56, 189, 248, 0.18)'
+                        : '0 0 0 3px rgba(27, 92, 162, 0.15)'
+                      : 'none',
                   transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                 }}
               />
@@ -405,19 +667,20 @@ export function LoginScreen({
                 type="button"
                 className="fiberops-action-btn"
                 onClick={() => setShowPassword(!showPassword)}
+                disabled={isLocked}
                 aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
                 style={{
                   position: 'absolute',
-                  right: '4px',
-                  width: '42px',
-                  height: '42px',
-                  minHeight: '42px',
+                  right: '2px',
+                  width: '44px',
+                  height: '44px',
+                  minHeight: '44px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   background: 'transparent',
                   border: 'none',
-                  color: showPassword ? '#1B5CA2' : '#94A3B8',
+                  color: showPassword ? '#1B5CA2' : '#64748B',
                   cursor: 'pointer',
                   borderRadius: '50%',
                 }}
@@ -426,31 +689,253 @@ export function LoginScreen({
               </button>
             </div>
 
+            {/* 2FA Telegram OTP Inline Row (6-digit input + Kirim OTP / Kirim Ulang button) */}
+            <div style={{ marginBottom: '20px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'stretch',
+                  gap: '8px',
+                  width: '100%',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: '15px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: focusedInput === 'otp' ? '#1B5CA2' : '#94A3B8',
+                      pointerEvents: 'none',
+                      transition: 'color 0.15s ease',
+                    }}
+                  >
+                    <ShieldIcon size={18} />
+                  </span>
+                  <input
+                    ref={otpInputRef}
+                    id="field-otp"
+                    name="otpCode"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={OTP_CONFIG.CODE_LENGTH}
+                    pattern="\d{6}"
+                    className="fiberops-input"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    onFocus={() => setFocusedInput('otp')}
+                    onBlur={() => setFocusedInput(null)}
+                    disabled={isLocked}
+                    placeholder="6 digit OTP"
+                    aria-label="Kode OTP Telegram (6 Digit)"
+                    style={{
+                      width: '100%',
+                      minWidth: 0,
+                      minHeight: '48px',
+                      padding: '12px 14px 12px 42px',
+                      fontSize: otpCode ? '15px' : '14px',
+                      fontWeight: otpCode ? 700 : 400,
+                      fontFamily: otpCode ? theme.typography.fontFamily.mono : theme.typography.fontFamily.sans,
+                      letterSpacing: otpCode ? '0.18em' : 'normal',
+                      background: isDark ? '#10192D' : '#FFFFFF',
+                      color: isDark ? '#F8FAFC' : '#0F172A',
+                      border:
+                        focusedInput === 'otp'
+                          ? `1.5px solid ${isDark ? '#38BDF8' : '#1B5CA2'}`
+                          : `1px solid ${isDark ? '#334155' : '#CBD5E1'}`,
+                      borderRadius: '24px',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      colorScheme: isDark ? 'dark' : 'light',
+                      boxShadow:
+                        focusedInput === 'otp'
+                          ? isDark
+                            ? '0 0 0 3px rgba(56, 189, 248, 0.18)'
+                            : '0 0 0 3px rgba(27, 92, 162, 0.15)'
+                          : 'none',
+                      transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                    }}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  className="fiberops-action-btn"
+                  onClick={() => void handleRequestOtp()}
+                  disabled={
+                    isLocked ||
+                    isRequestingOtp ||
+                    resendCooldownSeconds > 0 ||
+                    !username.trim() ||
+                    !password
+                  }
+                  style={{
+                    minHeight: '48px',
+                    padding: '0 14px',
+                    borderRadius: '24px',
+                    background:
+                      isLocked ||
+                      isRequestingOtp ||
+                      resendCooldownSeconds > 0 ||
+                      !username.trim() ||
+                      !password
+                        ? isDark
+                          ? '#1E293B'
+                          : '#F1F5F9'
+                        : isDark
+                          ? '#0F2942'
+                          : '#F0F9FF',
+                    border:
+                      isLocked ||
+                      isRequestingOtp ||
+                      resendCooldownSeconds > 0 ||
+                      !username.trim() ||
+                      !password
+                        ? `1px solid ${isDark ? '#334155' : '#CBD5E1'}`
+                        : `1px solid ${isDark ? '#0369A1' : '#7DD3FC'}`,
+                    color:
+                      isLocked ||
+                      isRequestingOtp ||
+                      resendCooldownSeconds > 0 ||
+                      !username.trim() ||
+                      !password
+                        ? isDark
+                          ? '#94A3B8'
+                          : '#475569'
+                        : isDark
+                          ? '#38BDF8'
+                          : '#0369A1',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    cursor:
+                      isLocked ||
+                      isRequestingOtp ||
+                      resendCooldownSeconds > 0 ||
+                      !username.trim() ||
+                      !password
+                        ? 'not-allowed'
+                        : 'pointer',
+                    transition: 'background-color 0.15s ease, border-color 0.15s ease',
+                  }}
+                >
+                  <SendIcon size={14} />
+                  <span>
+                    {isRequestingOtp
+                      ? 'Mengirim...'
+                      : resendCooldownSeconds > 0
+                        ? `Tunggu (${resendCooldownSeconds}d)`
+                        : preAuthToken
+                          ? 'Kirim Ulang'
+                          : 'Kirim OTP'}
+                  </span>
+                </button>
+              </div>
+
+              {deliveryStatus === 'SENT' && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  style={{
+                    marginTop: '10px',
+                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    background: isDark ? '#0F2942' : '#F0F9FF',
+                    border: `1px solid ${isDark ? '#0369A1' : '#BAE6FD'}`,
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '11.5px',
+                      lineHeight: 1.45,
+                      color: isDark ? '#7DD3FC' : '#0369A1',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Kode OTP telah dikirim oleh <strong>@{botUsername}</strong> ke Telegram terdaftar
+                    {maskedChatId ? ` (${maskedChatId})` : ''}
+                    {userNik ? ` untuk NIK: ${userNik}` : ''}.
+                  </p>
+                  {otpExpiresSeconds > 0 && (
+                    <span
+                      title="Masa berlaku kode OTP"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '2px 7px',
+                        borderRadius: '6px',
+                        background: isDark ? '#10192D' : '#FFFFFF',
+                        border: `1px solid ${isDark ? '#0369A1' : '#BAE6FD'}`,
+                        color: isDark ? '#F8FAFC' : '#0F172A',
+                        fontFamily: theme.typography.fontFamily.mono,
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <ClockIcon size={11} />
+                      <span>{formatCountdown(otpExpiresSeconds)}</span>
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Primary Action Button: Lintasarta Cobalt Blue pill style */}
             <button
               type="submit"
               className="fiberops-action-btn"
-              disabled={isLoading}
+              disabled={isLocked || isRequestingOtp}
               style={{
                 width: '100%',
                 minHeight: '48px',
                 padding: '12px 16px',
-                background: '#1B5CA2',
+                background: isLocked || isRequestingOtp ? '#64748B' : '#1B5CA2',
                 color: '#FFFFFF',
                 fontSize: '14px',
                 fontWeight: 700,
                 border: 'none',
                 borderRadius: '24px',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                opacity: isLoading ? 0.7 : 1,
+                cursor: isLocked || isRequestingOtp ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 14px rgba(27, 92, 162, 0.28)',
+                gap: '8px',
+                boxShadow: isLocked || isRequestingOtp ? 'none' : '0 4px 14px rgba(27, 92, 162, 0.28)',
                 transition: 'background-color 0.15s ease, transform 0.1s ease',
               }}
             >
-              {isLoading ? 'Memverifikasi...' : 'Masuk Aplikasi'}
+              <ShieldIcon size={16} />
+              <span>
+                {rateLimitSeconds > 0
+                  ? `Terkunci Sementara (${rateLimitSeconds}d)`
+                  : isLoading
+                    ? 'Memverifikasi OTP & Sesi...'
+                    : isRequestingOtp
+                      ? 'Mengirim OTP ke Telegram...'
+                      : 'Masuk Aplikasi'}
+              </span>
             </button>
           </form>
         </div>

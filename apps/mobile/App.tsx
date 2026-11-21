@@ -38,6 +38,16 @@ export type AppSecurityState =
 export type AppScreen = 'LOGIN' | 'TICKET_LIST' | 'TICKET_SUBMIT';
 
 export type ThemeMode = 'light' | 'dark' | 'outdoorSunlight';
+export type ThemePreference = 'light' | 'dark' | 'system';
+
+export const MOBILE_THEME_STORAGE_KEY = '@fiberops_mobile_theme_v1';
+
+function resolveSystemThemeMode(): 'light' | 'dark' {
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return 'light';
+}
 
 function formatViolationLabel(violation: string): string {
   switch (violation) {
@@ -62,9 +72,15 @@ function formatViolationLabel(violation: string): string {
 
 export interface AppProps {
   initialThemeMode?: ThemeMode;
+  themePreference?: ThemePreference;
+  onThemePreferenceChange?: (preference: ThemePreference) => void;
 }
 
-export default function App({ initialThemeMode = 'light' }: AppProps = {}) {
+export default function App({
+  initialThemeMode,
+  themePreference: controlledThemePreference,
+  onThemePreferenceChange,
+}: AppProps = {}) {
   const [securityState, setSecurityState] = useState<AppSecurityState>('CHECKING_INTEGRITY');
   const [integrityReport, setIntegrityReport] = useState<DeviceIntegrityReport | null>(null);
   const [upgradeLock, setUpgradeLock] = useState<UpgradeRequiredDetails | null>(null);
@@ -75,7 +91,82 @@ export default function App({ initialThemeMode = 'light' }: AppProps = {}) {
   const [selectedTicket, setSelectedTicket] = useState<MobileTicketItem | null>(null);
   const [availableSplitters, setAvailableSplitters] = useState<SplitterItem[]>(PALEMBANG_ODP_LIST);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [themeMode, setThemeMode] = useState<ThemeMode>(initialThemeMode);
+  const [internalThemePreference, setInternalThemePreference] = useState<ThemePreference>(() => {
+    if (controlledThemePreference) return controlledThemePreference;
+    if (initialThemeMode === 'dark') return 'dark';
+    if (initialThemeMode === 'light') return 'light';
+    return 'system';
+  });
+  const [systemThemeMode, setSystemThemeMode] = useState<'light' | 'dark'>(resolveSystemThemeMode);
+
+  // Track OS prefers-color-scheme changes for automatic 'system' theme mode
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const syncSystemMode = () => {
+      setSystemThemeMode(mediaQuery.matches ? 'dark' : 'light');
+    };
+
+    syncSystemMode();
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', syncSystemMode);
+      return () => mediaQuery.removeEventListener('change', syncSystemMode);
+    }
+    mediaQuery.addListener(syncSystemMode);
+    return () => mediaQuery.removeListener(syncSystemMode);
+  }, []);
+
+  // Load saved mobile preference when App runs standalone without parent control
+  useEffect(() => {
+    if (controlledThemePreference || initialThemeMode) return undefined;
+    let active = true;
+    void (async () => {
+      try {
+        const stored = await persistentStorage.getItem(MOBILE_THEME_STORAGE_KEY);
+        if (active && (stored === 'light' || stored === 'dark' || stored === 'system')) {
+          setInternalThemePreference(stored);
+        }
+      } catch {
+        // Ignore storage failure and retain default preference
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [controlledThemePreference, initialThemeMode]);
+
+  useEffect(() => {
+    if (!controlledThemePreference && (initialThemeMode === 'light' || initialThemeMode === 'dark')) {
+      setInternalThemePreference(initialThemeMode);
+    }
+  }, [controlledThemePreference, initialThemeMode]);
+
+  const activeThemePreference: ThemePreference =
+    controlledThemePreference ?? internalThemePreference;
+
+  const handleThemePreferenceChange = useCallback(
+    (nextPreference: ThemePreference) => {
+      setInternalThemePreference(nextPreference);
+      if (!controlledThemePreference) {
+        void persistentStorage.setItem(MOBILE_THEME_STORAGE_KEY, nextPreference);
+      }
+      onThemePreferenceChange?.(nextPreference);
+    },
+    [controlledThemePreference, onThemePreferenceChange]
+  );
+
+  const themeMode: ThemeMode =
+    initialThemeMode === 'outdoorSunlight' && !controlledThemePreference
+      ? 'outdoorSunlight'
+      : controlledThemePreference
+        ? initialThemeMode ??
+          (controlledThemePreference === 'system' ? systemThemeMode : controlledThemePreference)
+        : activeThemePreference === 'system'
+          ? systemThemeMode
+          : activeThemePreference;
 
   const theme = getThemeTokens(themeMode);
 
@@ -135,12 +226,12 @@ export default function App({ initialThemeMode = 'light' }: AppProps = {}) {
     };
   }, [securityState, performIntegrityRecheck]);
 
-  // Enforce consistent light/dark themeMode as designated by initialThemeMode
-  useEffect(() => {
-    if (initialThemeMode) {
-      setThemeMode(initialThemeMode);
-    }
-  }, [initialThemeMode]);
+  // Enforce consistent controlled preference synchronization
+  const appThemeMeta = useMemo(
+    () => ({ activeThemePreference, handleThemePreferenceChange }),
+    [activeThemePreference, handleThemePreferenceChange]
+  );
+  void appThemeMeta;
 
   // Initialize singleton mobile API client with security interceptors
   const apiClient = useMemo(() => {
@@ -652,6 +743,8 @@ export default function App({ initialThemeMode = 'light' }: AppProps = {}) {
           apiClient={apiClient}
           technicianName={currentUser?.fullName}
           themeMode={themeMode}
+          themePreference={activeThemePreference}
+          onChangeThemePreference={handleThemePreferenceChange}
           onSelectTicket={(ticket, splitters) => {
             setSelectedTicket(ticket);
             if (splitters && splitters.length > 0) {

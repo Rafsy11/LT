@@ -51,6 +51,9 @@ export const verifyOtpRequestSchema = z.object({
     .string()
     .trim()
     .regex(/^\d{6}$/, 'Kode OTP harus terdiri dari 6 digit angka'),
+  deviceId: z.string().min(1).optional(),
+  deviceModel: z.string().max(100).optional(),
+  appVersion: z.string().max(20).optional(),
 });
 
 export type VerifyOtpRequest = z.infer<typeof verifyOtpRequestSchema>;

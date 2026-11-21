@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Mobile Technician Login (requires deviceId)
+    // 1. Mobile Technician Login (Step 1: Password Verification + Telegram 2FA OTP Dispatch)
     if (validated.deviceId) {
       const result = await AuthService.loginMobile(
         validated.username,
@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
         validated.deviceId,
         validated.deviceModel,
         validated.appVersion,
+        clientIp,
       );
 
       return NextResponse.json({

@@ -1,11 +1,14 @@
 'use client';
 
 import React from 'react';
+import { useTheme } from '@/providers';
 import App from '../../../../mobile/App';
 
 export default function MobileFieldAppPage() {
+  const { theme, resolvedTheme, setTheme } = useTheme();
+
   return (
-    <main className="mobile-shell-root">
+    <main className="mobile-shell-root" data-mobile-theme={resolvedTheme}>
       <style>{`
         .mobile-shell-root {
           min-height: 100vh;
@@ -17,6 +20,11 @@ export default function MobileFieldAppPage() {
           padding: 20px 16px;
           box-sizing: border-box;
           overflow-x: clip;
+          transition: background-color 0.2s ease;
+        }
+
+        .mobile-shell-root[data-mobile-theme='dark'] {
+          background: #020617;
         }
 
         .mobile-shell-viewport {
@@ -33,6 +41,13 @@ export default function MobileFieldAppPage() {
           overflow-x: clip;
           position: relative;
           -webkit-overflow-scrolling: touch;
+          transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .mobile-shell-viewport[data-mobile-theme='dark'] {
+          background: #080E1A;
+          border-color: #1E293B;
+          box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.35);
         }
 
         .mobile-shell-viewport::-webkit-scrollbar {
@@ -44,6 +59,10 @@ export default function MobileFieldAppPage() {
           border-radius: 4px;
         }
 
+        .mobile-shell-viewport[data-mobile-theme='dark']::-webkit-scrollbar-thumb {
+          background: #334155;
+        }
+
         @media (max-width: 768px) {
           .mobile-shell-root {
             padding: 0 !important;
@@ -51,6 +70,9 @@ export default function MobileFieldAppPage() {
             display: block !important;
             min-height: 100vh !important;
             overflow-x: clip !important;
+          }
+          .mobile-shell-root[data-mobile-theme='dark'] {
+            background: #080E1A !important;
           }
           .mobile-shell-viewport {
             max-width: 100% !important;
@@ -65,8 +87,12 @@ export default function MobileFieldAppPage() {
         }
       `}</style>
 
-      <div className="mobile-shell-viewport">
-        <App initialThemeMode="light" />
+      <div className="mobile-shell-viewport" data-mobile-theme={resolvedTheme}>
+        <App
+          initialThemeMode={resolvedTheme}
+          themePreference={theme}
+          onThemePreferenceChange={setTheme}
+        />
       </div>
     </main>
   );

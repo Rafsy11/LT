@@ -37,6 +37,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const preAuth = await AuthService.verifyPreAuthToken(validated.preAuthToken);
+
+    // Mobile 2FA OTP verification: binds UserSession + issues Bearer accessToken & refreshToken
+    // without overwriting the Web Admin Dashboard HttpOnly session cookie.
+    if (preAuth.channel === 'mobile' || Boolean(validated.deviceId)) {
+      const mobileResult = await AuthService.verifyMobileOtp(
+        validated.preAuthToken,
+        validated.otpCode,
+        {
+          deviceId: validated.deviceId,
+          deviceModel: validated.deviceModel,
+          appVersion: validated.appVersion,
+          clientIp,
+        },
+      );
+
+      return NextResponse.json({
+        success: true,
+        data: mobileResult,
+      });
+    }
+
     const result = await AuthService.verifyWebOtp(
       validated.preAuthToken,
       validated.otpCode,

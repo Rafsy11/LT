@@ -476,13 +476,13 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
           outline-offset: 1px;
         }
         .fiberops-input {
-          background-color: #FFFFFF !important;
-          color: #0F172A !important;
-          color-scheme: light;
+          background-color: ${isDark ? '#10192D' : '#FFFFFF'} !important;
+          color: ${isDark ? '#F8FAFC' : '#0F172A'} !important;
+          color-scheme: ${isDark ? 'dark' : 'light'};
         }
         .fiberops-input:-webkit-autofill {
-          -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
-          -webkit-text-fill-color: #0F172A !important;
+          -webkit-box-shadow: 0 0 0 1000px ${isDark ? '#10192D' : '#FFFFFF'} inset !important;
+          -webkit-text-fill-color: ${isDark ? '#F8FAFC' : '#0F172A'} !important;
         }
         .fiberops-action-btn:active {
           transform: scale(0.98);

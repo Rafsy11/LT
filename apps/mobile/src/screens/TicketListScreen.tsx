@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   PALEMBANG_ODP_LIST,
   STANDARD_ERROR_MESSAGES,
@@ -60,12 +60,26 @@ export interface SplitterItem {
   availablePorts: number[];
 }
 
+export type MobileThemePreference = 'light' | 'dark' | 'system';
+
+const THEME_OPTIONS: Array<{
+  value: MobileThemePreference;
+  label: string;
+  icon: 'sun' | 'moon' | 'monitor';
+}> = [
+  { value: 'light', label: 'Terang (Light)', icon: 'sun' },
+  { value: 'dark', label: 'Gelap (Dark)', icon: 'moon' },
+  { value: 'system', label: 'Sistem (Otomatis)', icon: 'monitor' },
+];
+
 export interface TicketListScreenProps {
   apiClient: ApiClient;
   onSelectTicket: (ticket: MobileTicketItem, splitters: SplitterItem[]) => void;
   onLogout: () => void;
   technicianName?: string;
   themeMode?: 'light' | 'dark' | 'outdoorSunlight';
+  themePreference?: MobileThemePreference;
+  onChangeThemePreference?: (preference: MobileThemePreference) => void;
 }
 
 export function TicketListScreen({ apiClient, onSelectTicket, onLogout }: TicketListScreenProps) {
@@ -251,6 +265,44 @@ export function TicketListScreen({ apiClient, onSelectTicket, onLogout }: Ticket
   };
 }
 
+function SunIcon({ size = 17, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v1 M12 20v1 M4.22 4.22l.7.7 M18.36 18.36l.7.7 M1 12h2 M21 12h2 M4.22 19.78l.7-.7 M18.36 5.64l.7-.7 M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z" />
+    </svg>
+  );
+}
+
+function MoonIcon({ size = 17, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+
+function MonitorIcon({ size = 17, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z M12 17v4 M8 21h8" />
+    </svg>
+  );
+}
+
+function ThemeOptionIcon({
+  icon,
+  size = 16,
+  color = 'currentColor',
+}: {
+  icon: 'sun' | 'moon' | 'monitor';
+  size?: number;
+  color?: string;
+}) {
+  if (icon === 'moon') return <MoonIcon size={size} color={color} />;
+  if (icon === 'monitor') return <MonitorIcon size={size} color={color} />;
+  return <SunIcon size={size} color={color} />;
+}
+
 function SyncIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
   return (
     <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -381,6 +433,31 @@ export function TicketListView(props: TicketListScreenProps) {
   const isDark = props.themeMode === 'dark';
   const [copiedSia, setCopiedSia] = useState<string | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isThemeOpen, setIsThemeOpen] = useState(false);
+  const themeWrapRef = useRef<HTMLDivElement>(null);
+
+  const currentThemePreference: MobileThemePreference =
+    props.themePreference ?? (props.themeMode === 'dark' ? 'dark' : 'light');
+
+  useEffect(() => {
+    if (!isThemeOpen || typeof document === 'undefined') return undefined;
+    function handleClickOutside(e: MouseEvent) {
+      if (themeWrapRef.current && !themeWrapRef.current.contains(e.target as Node)) {
+        setIsThemeOpen(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setIsThemeOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isThemeOpen]);
 
   // Extract unique ODP codes from current ticket set
   const availableOdps = useMemo(() => {
@@ -434,6 +511,8 @@ export function TicketListView(props: TicketListScreenProps) {
     <div
       style={{
         width: '100%',
+        minHeight: '100%',
+        flex: 1,
         boxSizing: 'border-box',
         padding: '16px 16px 36px',
         color: theme.textPrimary,
@@ -448,13 +527,21 @@ export function TicketListView(props: TicketListScreenProps) {
           outline-offset: 1px;
         }
         .fiberops-input {
-          background-color: #FFFFFF !important;
-          color: #0F172A !important;
-          color-scheme: light;
+          background-color: ${isDark ? '#10192D' : '#FFFFFF'} !important;
+          color: ${isDark ? '#F8FAFC' : '#0F172A'} !important;
+          color-scheme: ${isDark ? 'dark' : 'light'};
         }
         .fiberops-input:-webkit-autofill {
-          -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
-          -webkit-text-fill-color: #0F172A !important;
+          -webkit-box-shadow: 0 0 0 1000px ${isDark ? '#10192D' : '#FFFFFF'} inset !important;
+          -webkit-text-fill-color: ${isDark ? '#F8FAFC' : '#0F172A'} !important;
+        }
+        .fiberops-theme-option:hover:not(.selected) {
+          background: ${isDark ? '#1E293B' : '#F1F5F9'} !important;
+          color: ${isDark ? '#F8FAFC' : '#0F172A'} !important;
+        }
+        .fiberops-theme-option:focus-visible {
+          outline: 2px solid #1B5CA2;
+          outline-offset: -2px;
         }
         .fiberops-action-btn:active {
           transform: scale(0.98);
@@ -530,8 +617,153 @@ export function TicketListView(props: TicketListScreenProps) {
           </div>
         </div>
 
-        {/* Header Right Action Buttons (Sync reload only + Logout icon only) */}
+        {/* Header Right Action Buttons (Theme Switcher + Sync reload + Logout) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div
+            ref={themeWrapRef}
+            style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+          >
+            <button
+              type="button"
+              className="fiberops-action-btn"
+              onClick={() => setIsThemeOpen((prev) => !prev)}
+              title={`Tema saat ini: ${
+                currentThemePreference === 'system'
+                  ? 'Sistem'
+                  : currentThemePreference === 'dark'
+                    ? 'Gelap'
+                    : 'Terang'
+              }. Klik untuk memilih tema.`}
+              aria-label={`Pilih Tema Antarmuka (Aktif: ${
+                currentThemePreference === 'system'
+                  ? 'Sistem'
+                  : currentThemePreference === 'dark'
+                    ? 'Gelap'
+                    : 'Terang'
+              })`}
+              aria-expanded={isThemeOpen}
+              aria-haspopup="listbox"
+              style={{
+                width: '40px',
+                height: '40px',
+                minHeight: '40px',
+                padding: 0,
+                background: isDark ? (isThemeOpen ? '#1E293B' : '#020617') : '#FFFFFF',
+                border: `1px solid ${
+                  isThemeOpen ? '#2585D0' : isDark ? '#1E293B' : theme.border
+                }`,
+                borderRadius: '6px',
+                color: isDark
+                  ? isThemeOpen
+                    ? '#FDE047'
+                    : '#F59E0B'
+                  : isThemeOpen
+                    ? '#0E5B92'
+                    : theme.textSecondary,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ThemeOptionIcon
+                icon={
+                  currentThemePreference === 'system'
+                    ? 'monitor'
+                    : currentThemePreference === 'dark'
+                      ? 'moon'
+                      : 'sun'
+                }
+                size={17}
+              />
+            </button>
+
+            {isThemeOpen && (
+              <div
+                role="listbox"
+                aria-label="Pilihan Tema Antarmuka"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  minWidth: '184px',
+                  background: isDark ? '#0F172A' : '#FFFFFF',
+                  border: `1px solid ${isDark ? '#1E293B' : '#DCE7F0'}`,
+                  borderRadius: '8px',
+                  boxShadow: isDark
+                    ? '0 10px 25px -5px rgba(0, 0, 0, 0.6)'
+                    : '0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.08)',
+                  padding: '4px',
+                  zIndex: 50,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px',
+                }}
+              >
+                {THEME_OPTIONS.map((opt) => {
+                  const isSelected = currentThemePreference === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      className={`fiberops-theme-option ${isSelected ? 'selected' : ''}`}
+                      onClick={() => {
+                        props.onChangeThemePreference?.(opt.value);
+                        setIsThemeOpen(false);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        padding: '8px 10px',
+                        border: 'none',
+                        background: isSelected
+                          ? isDark
+                            ? '#1E3A5F'
+                            : '#E0F2FE'
+                          : 'transparent',
+                        borderRadius: '6px',
+                        color: isSelected
+                          ? isDark
+                            ? '#38BDF8'
+                            : '#0369A1'
+                          : isDark
+                            ? '#CBD5E1'
+                            : '#334155',
+                        fontSize: '13px',
+                        fontWeight: isSelected ? 600 : 500,
+                        fontFamily: 'inherit',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <ThemeOptionIcon icon={opt.icon} size={15} />
+                        <span>{opt.label}</span>
+                      </span>
+                      {isSelected && (
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            color: isDark ? '#38BDF8' : '#0284C7',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <CheckIcon size={13} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             className="fiberops-action-btn"
@@ -1208,7 +1440,7 @@ export function TicketListView(props: TicketListScreenProps) {
                       background: copiedSia === ticket.customer.siaNumber ? '#10B981' : isDark ? '#1E293B' : '#F1F5F9',
                       color: copiedSia === ticket.customer.siaNumber ? '#FFFFFF' : theme.textPrimary,
                       border: 'none',
-                      borderRadius: '3px',
+                      borderRadius: '4px',
                       fontSize: '10px',
                       fontWeight: 600,
                       cursor: 'pointer',

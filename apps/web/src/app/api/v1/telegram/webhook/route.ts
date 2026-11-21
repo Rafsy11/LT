@@ -768,7 +768,7 @@ async function handleNikRegistration(chatId: string, candidateNik: string, _send
     `• <b>Peran:</b> ${escapeHtml(user.role.name)}`,
     ``,
     user.userType === 'TECHNICIAN'
-      ? `Ketik /tugas untuk melihat daftar tugas lapangan, atau gunakan Aplikasi Mobile FiberOps.`
+      ? `Ketik /tugas untuk melihat daftar tugas lapangan, atau gunakan akun ini untuk menerima kode OTP 2FA Aplikasi Mobile FiberOps.`
       : `Gunakan akun ini untuk menerima kode OTP 2FA saat login di Dasbor NOC Lintasarta.`,
   ].join('\n');
 
