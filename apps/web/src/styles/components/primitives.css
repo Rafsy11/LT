@@ -477,8 +477,12 @@ p {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .cluster-select:hover {
+  .cluster-select:hover:not(:disabled) {
+    background-color: #f0f7ff;
     border-color: #0e5b92;
+    color: #0e5b92;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230e5b92' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    box-shadow: 0 2px 6px rgba(14, 91, 146, 0.12);
   }
 }
 
@@ -4378,15 +4382,18 @@ html.dark .cluster-select,
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 10px center !important;
-  border: 1px solid #1e293b !important;
+  border: 1px solid #334155 !important;
   color: #f1f5f9 !important;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  html.dark .cluster-select:hover,
-  [data-theme='dark'] .cluster-select:hover {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f1f5f9' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
-    border-color: #2585d0 !important;
+  html.dark .cluster-select:hover:not(:disabled),
+  [data-theme='dark'] .cluster-select:hover:not(:disabled) {
+    background-color: #1e293b !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+    border-color: #38bdf8 !important;
+    color: #f8fafc !important;
+    box-shadow: 0 2px 8px rgba(56, 189, 248, 0.16) !important;
   }
 }
 
@@ -4394,8 +4401,8 @@ html.dark .cluster-select:focus-visible,
 [data-theme='dark'] .cluster-select:focus-visible {
   outline: 2px solid #38bdf8;
   outline-offset: 2px;
-  border-color: #2585d0 !important;
-  box-shadow: 0 0 0 3px rgba(37, 133, 208, 0.25) !important;
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25) !important;
 }
 
 html.dark .overview-action-trigger,

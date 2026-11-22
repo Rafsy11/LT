@@ -450,11 +450,8 @@ html.dark .tickets-tabs-bar,
   .tickets-select-row .cluster-select {
     width: 100% !important;
     font-size: 12px !important;
-    padding: 8px 10px !important;
-    border-radius: 8px !important;
-    background: #0b1329 !important;
-    border-color: rgba(255, 255, 255, 0.1) !important;
-    color: #f1f5f9 !important;
+    padding: 8px 30px 8px 10px !important;
+    border-radius: 6px !important;
   }
 
   /* Segmented Status Tabs Bar (Full Width, Swipeable) */

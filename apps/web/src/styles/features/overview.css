@@ -1484,10 +1484,26 @@ html.dark .overview-time-title,
 
 html.dark .overview-cluster-select-wrap .cluster-select,
 [data-theme='dark'] .overview-cluster-select-wrap .cluster-select {
-  background-color: #0b1329 !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
   color: #f8fafc !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html.dark .overview-cluster-select-wrap .cluster-select:hover:not(:disabled),
+  [data-theme='dark'] .overview-cluster-select-wrap .cluster-select:hover:not(:disabled) {
+    background-color: #1e293b !important;
+    border-color: #38bdf8 !important;
+    color: #f8fafc !important;
+    box-shadow: 0 2px 8px rgba(56, 189, 248, 0.16) !important;
+  }
+}
+
+html.dark .overview-cluster-select-wrap .cluster-select:focus-visible,
+[data-theme='dark'] .overview-cluster-select-wrap .cluster-select:focus-visible {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25) !important;
 }
 
 html.dark .overview-action-trigger,

@@ -4,10 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
 import { FieldError } from '@/components/ui/FieldError';
-import {
-  formatRateLimitDuration,
-  formatRetryCountdownMessage,
-} from '@/lib/error-dictionary';
+import { formatRateLimitDuration, formatRetryCountdownMessage } from '@/lib/error-dictionary';
 import { useLogin } from '../hooks/use-login';
 import { useMobileDevToolsGuard } from '../hooks/use-devtools-detector';
 import { MobileDevToolsGuard } from './mobile-devtools-guard';
@@ -70,7 +67,6 @@ export function LoginView() {
               />
             </div>
             <h1 className="auth-title">Portal Kendali NOC FiberOps</h1>
-            <p className="auth-subtitle">Masuk dengan akun operator dan kode OTP Telegram</p>
           </header>
 
           {(errorMessage || rateLimitSeconds > 0) && (
@@ -96,9 +92,7 @@ export function LoginView() {
                       )
                     : errorMessage}
                 </span>
-                {errorRefCode && (
-                  <span className="connection-banner-ref">Ref: {errorRefCode}</span>
-                )}
+                {errorRefCode && <span className="connection-banner-ref">Ref: {errorRefCode}</span>}
                 {canRetry && rateLimitSeconds === 0 && (
                   <div className="toast-action-row">
                     <button
@@ -240,7 +234,8 @@ export function LoginView() {
 
                 {deliveryStatus === 'SENT' && (
                   <p className="auth-otp-hint auth-otp-hint-sent">
-                    Kode OTP telah dikirim oleh <strong>@{botUsername}</strong> ke Telegram terdaftar
+                    Kode OTP telah dikirim oleh <strong>@{botUsername}</strong> ke Telegram
+                    terdaftar
                     {maskedChatId ? ` (${maskedChatId})` : ''}
                     {userNik ? ` untuk NIK: ${userNik}` : ''}.
                   </p>
