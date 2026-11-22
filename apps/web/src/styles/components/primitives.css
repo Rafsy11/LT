@@ -1415,16 +1415,34 @@ p {
 .modal .modal-footer,
 .modal [role='group'] {
   display: flex;
-  flex-direction: column-reverse;
-  gap: 8px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
   width: 100%;
 }
 
 .modal footer button,
 .modal .modal-footer button,
 .modal [role='group'] button {
-  width: 100%;
+  width: auto;
   justify-content: center;
+}
+
+@media (max-width: 479px) {
+  .modal footer,
+  .modal .modal-footer,
+  .modal [role='group'] {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .modal footer button,
+  .modal .modal-footer button,
+  .modal [role='group'] button {
+    width: 100%;
+  }
 }
 
 .modal-body {
@@ -1438,15 +1456,61 @@ p {
   color: #687080;
 }
 
+.modal-body label.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  color: #334155;
+}
+
+.modal-body label.field > span:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.35;
+}
+
 .modal-body input,
-.modal-body select {
+.modal-body select,
+.modal-body textarea {
   display: block;
-  border: 1px solid #dddce5;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
-  padding: 10px;
+  padding: 9px 12px;
   width: 100%;
   margin-top: 7px;
-  background: white;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.modal-body textarea {
+  resize: vertical;
+  min-height: 76px;
+}
+
+.modal-body label.field input,
+.modal-body label.field select,
+.modal-body label.field textarea {
+  margin-top: 0;
+}
+
+.modal-body input:focus-visible,
+.modal-body select:focus-visible,
+.modal-body textarea:focus-visible {
+  outline: 2px solid #0e5b92;
+  outline-offset: 1px;
+  border-color: #0e5b92;
 }
 
 .modal-body p {
@@ -4783,6 +4847,39 @@ html.dark .modal-body,
 html.dark .modal-body label,
 [data-theme='dark'] .modal-body label {
   color: #94a3b8 !important;
+}
+
+html.dark .modal-body label.field > span:first-child,
+[data-theme='dark'] .modal-body label.field > span:first-child {
+  color: #e2e8f0 !important;
+}
+
+html.dark .modal-body input,
+html.dark .modal-body select,
+html.dark .modal-body textarea,
+[data-theme='dark'] .modal-body input,
+[data-theme='dark'] .modal-body select,
+[data-theme='dark'] .modal-body textarea {
+  background: #020617 !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .modal-body input::placeholder,
+html.dark .modal-body textarea::placeholder,
+[data-theme='dark'] .modal-body input::placeholder,
+[data-theme='dark'] .modal-body textarea::placeholder {
+  color: #64748b !important;
+}
+
+html.dark .modal-body input:focus-visible,
+html.dark .modal-body select:focus-visible,
+html.dark .modal-body textarea:focus-visible,
+[data-theme='dark'] .modal-body input:focus-visible,
+[data-theme='dark'] .modal-body select:focus-visible,
+[data-theme='dark'] .modal-body textarea:focus-visible {
+  outline-color: #38bdf8 !important;
+  border-color: #38bdf8 !important;
 }
 
 html.dark .permission-lock-notice,

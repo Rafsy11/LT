@@ -346,24 +346,77 @@ export function CustomerProfileEditModal({
     }
   };
 
+  const tabOrder: EditTab[] = ['profile', 'pic', 'technical'];
+
+  const hasProfileErrors = Boolean(
+    fieldErrors.fullName ||
+      fieldErrors.address ||
+      fieldErrors.lat ||
+      fieldErrors.lng ||
+      fieldErrors.photoObjectKey ||
+      photoUploadError,
+  );
+  const hasPicErrors = Boolean(
+    fieldErrors.picName || fieldErrors.picPhone || fieldErrors.picRole,
+  );
+  const hasTechnicalErrors = Boolean(
+    fieldErrors.portNumber || fieldErrors.oltAttenuation || fieldErrors.ontAttenuation,
+  );
+
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = tabOrder.indexOf(activeTab);
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const next = tabOrder[(currentIndex + 1) % tabOrder.length];
+      setActiveTab(next);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const prev = tabOrder[(currentIndex - 1 + tabOrder.length) % tabOrder.length];
+      setActiveTab(prev);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setActiveTab(tabOrder[0]);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setActiveTab(tabOrder[tabOrder.length - 1]);
+    }
+  };
+
+  const activeStepLabel =
+    activeTab === 'profile'
+      ? 'Langkah 1/3 · Profil & Foto Lokasi'
+      : activeTab === 'pic'
+        ? 'Langkah 2/3 · Kontak PIC Pelanggan'
+        : 'Langkah 3/3 · Datek ODP & Telemetri Optik';
+
   return (
     <ModalOverlay onClose={onClose} labelledBy="edit-customer-profile-title">
       <article
-        className="modal"
-        style={{ maxWidth: '680px', width: '100%' }}
+        className="modal cp-edit-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="panel-heading" style={{ padding: '16px 20px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <header className="panel-heading" style={{ padding: '16px 22px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
             <div className="modal-icon-wrap">
               <Icon name="edit" size={18} />
             </div>
-            <div>
+            <div style={{ minWidth: 0 }}>
               <h2 id="edit-customer-profile-title" className="modal-heading">
-                Edit Profil Pelanggan (Super Admin)
+                Edit Profil Pelanggan
               </h2>
-              <p className="modal-subheading">
-                SIA: <b>{customer.siaNumber}</b> · {customer.cluster}
+              <p className="modal-subheading" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <span className="modal-badge-mono">{customer.siaNumber}</span>
+                <span>·</span>
+                <span>{customer.cluster}</span>
+                {splitterCode.trim() && (
+                  <>
+                    <span>·</span>
+                    <span>
+                      {splitterCode.trim().toUpperCase()}
+                      {portNumber.trim() ? ` / Port #${portNumber.trim()}` : ''}
+                    </span>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -372,412 +425,584 @@ export function CustomerProfileEditModal({
           </button>
         </header>
 
-        <form onSubmit={handleSubmit} noValidate>
-          <div
-            className="modal-body"
-            style={{
-              padding: '16px 20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-              maxHeight: '72vh',
-              overflowY: 'auto',
-            }}
-          >
-            <div className="cp-edit-tabs" role="tablist" aria-label="Bagian profil pelanggan">
+        <form className="cp-edit-form" onSubmit={handleSubmit} noValidate>
+          <div className="cp-edit-tabs-bar">
+            <div
+              className="cp-edit-tabs"
+              role="tablist"
+              aria-label="Bagian profil pelanggan"
+              onKeyDown={handleTabKeyDown}
+            >
               <button
+                id="cp-tab-profile"
                 type="button"
                 role="tab"
                 aria-selected={activeTab === 'profile'}
+                aria-controls="cp-tabpanel-profile"
+                tabIndex={activeTab === 'profile' ? 0 : -1}
                 className={`cp-edit-tab ${activeTab === 'profile' ? 'is-active' : ''}`}
                 onClick={() => setActiveTab('profile')}
               >
-                1. Foto &amp; Deskripsi Profil
+                <span className="cp-edit-tab-step">1</span>
+                <span>Profil &amp; Foto Lokasi</span>
+                {hasProfileErrors && (
+                  <span
+                    className="cp-edit-tab-err-dot"
+                    title="Terdapat input yang perlu diperbaiki pada tab ini"
+                    aria-label="Perlu perbaikan"
+                  />
+                )}
               </button>
               <button
+                id="cp-tab-pic"
                 type="button"
                 role="tab"
                 aria-selected={activeTab === 'pic'}
+                aria-controls="cp-tabpanel-pic"
+                tabIndex={activeTab === 'pic' ? 0 : -1}
                 className={`cp-edit-tab ${activeTab === 'pic' ? 'is-active' : ''}`}
                 onClick={() => setActiveTab('pic')}
               >
-                2. Kontak PIC
+                <span className="cp-edit-tab-step">2</span>
+                <span>Kontak PIC</span>
+                {hasPicErrors && (
+                  <span
+                    className="cp-edit-tab-err-dot"
+                    title="Terdapat input yang perlu diperbaiki pada tab ini"
+                    aria-label="Perlu perbaikan"
+                  />
+                )}
               </button>
               <button
+                id="cp-tab-technical"
                 type="button"
                 role="tab"
                 aria-selected={activeTab === 'technical'}
+                aria-controls="cp-tabpanel-technical"
+                tabIndex={activeTab === 'technical' ? 0 : -1}
                 className={`cp-edit-tab ${activeTab === 'technical' ? 'is-active' : ''}`}
                 onClick={() => setActiveTab('technical')}
               >
-                3. Datek ODP, Redaman &amp; Aktivitas
+                <span className="cp-edit-tab-step">3</span>
+                <span>Datek ODP, Redaman &amp; Aktivitas</span>
+                {hasTechnicalErrors && (
+                  <span
+                    className="cp-edit-tab-err-dot"
+                    title="Terdapat input yang perlu diperbaiki pada tab ini"
+                    aria-label="Perlu perbaikan"
+                  />
+                )}
               </button>
             </div>
+          </div>
 
+          <div className="modal-body cp-edit-modal-body">
             {activeTab === 'profile' && (
-              <>
-                {/* Building / Location Photo Upload */}
-                <div className="cp-photo-upload-row">
-                  {photoPreviewUrl ? (
-                    <img
-                      src={photoPreviewUrl}
-                      alt={photoCaption || `Foto lokasi ${customer.fullName}`}
-                      width={120}
-                      height={90}
-                      decoding="async"
-                      fetchPriority="low"
-                      className="cp-photo-thumb"
-                    />
-                  ) : (
-                    <div className="cp-photo-thumb-placeholder" aria-hidden="true">
-                      <Icon name="building" size={24} />
-                    </div>
-                  )}
-                  <div style={{ flex: 1, minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ fontSize: '12.5px', fontWeight: 600 }}>
-                      Foto Bangunan / Lokasi Pelanggan
-                    </div>
-                    <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-                      Tampak depan gedung cabang, ruko, atau lokasi ATM (JPG, PNG, WEBP, maks. 5 MB).
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        style={{ display: 'none' }}
-                        onChange={handlePhotoSelect}
+              <div
+                id="cp-tabpanel-profile"
+                role="tabpanel"
+                aria-labelledby="cp-tab-profile"
+                className="cp-tabpanel"
+              >
+                {/* Section 1: Unified Building / Location Photo & Caption Card */}
+                <section className="cp-photo-upload-card">
+                  <div className="cp-photo-upload-row">
+                    {photoPreviewUrl ? (
+                      <img
+                        src={photoPreviewUrl}
+                        alt={photoCaption || `Foto lokasi ${customer.fullName}`}
+                        width={124}
+                        height={84}
+                        decoding="async"
+                        fetchPriority="low"
+                        className="cp-photo-thumb"
                       />
-                      <button
-                        type="button"
-                        className="button secondary"
-                        disabled={uploadingPhoto || removingPhoto}
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Icon name="upload" size={13} />
-                        <span>{uploadingPhoto ? 'Mengunggah...' : 'Unggah Foto'}</span>
-                      </button>
-                      {(photoPreviewUrl || photoObjectKey) && (
+                    ) : (
+                      <div className="cp-photo-thumb-placeholder" aria-hidden="true">
+                        <Icon name="building" size={22} />
+                        <span>Belum Ada Foto</span>
+                      </div>
+                    )}
+
+                    <div className="cp-photo-upload-meta">
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 700 }}>
+                          Foto Bangunan / Lokasi Pelanggan
+                        </div>
+                        {photoObjectKey && (
+                          <span className="cp-photo-key-pill" title={photoObjectKey}>
+                            <Icon name="check" size={11} />
+                            <span>Media Tersimpan</span>
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>
+                        Unggah foto tampak depan gedung cabang, ruko, atau lokasi ATM untuk mempermudah identifikasi teknisi di lapangan (JPG, PNG, WEBP · maks. 5 MB).
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          style={{ display: 'none' }}
+                          onChange={handlePhotoSelect}
+                        />
                         <button
                           type="button"
                           className="button secondary"
                           disabled={uploadingPhoto || removingPhoto}
-                          onClick={handleRemovePhoto}
+                          onClick={() => fileInputRef.current?.click()}
                         >
-                          <Icon name="trash" size={13} />
-                          <span>{removingPhoto ? 'Menghapus...' : 'Hapus Foto'}</span>
+                          <Icon name="upload" size={13} />
+                          <span>
+                            {uploadingPhoto
+                              ? 'Mengunggah...'
+                              : photoPreviewUrl
+                                ? 'Ganti Foto Lokasi'
+                                : 'Unggah Foto Lokasi'}
+                          </span>
                         </button>
+                        {(photoPreviewUrl || photoObjectKey) && (
+                          <button
+                            type="button"
+                            className="button secondary"
+                            disabled={uploadingPhoto || removingPhoto}
+                            onClick={handleRemovePhoto}
+                          >
+                            <Icon name="trash" size={13} />
+                            <span>{removingPhoto ? 'Menghapus...' : 'Hapus Foto'}</span>
+                          </button>
+                        )}
+                      </div>
+                      {photoUploadError && <FieldError message={photoUploadError} />}
+                      {fieldErrors.photoObjectKey && (
+                        <FieldError message={fieldErrors.photoObjectKey} />
                       )}
                     </div>
-                    {photoUploadError && <FieldError message={photoUploadError} />}
                   </div>
-                </div>
 
-                <div className="cp-edit-grid-2">
                   <label className="field">
-                    <span>Keterangan Foto (Caption)</span>
+                    <span>
+                      <span>Keterangan Foto Lokasi (Caption)</span>
+                      <span className="cp-field-opt">Opsional</span>
+                    </span>
                     <input
                       type="text"
-                      placeholder="Contoh: Tampak depan gedung Bank Indonesia KC Palembang"
+                      placeholder="Contoh: Tampak depan gedung Bank Indonesia KC Palembang (pintu akses ruang server di sisi barat)"
                       value={photoCaption}
                       onChange={(e) => setPhotoCaption(e.target.value)}
                     />
                   </label>
+                </section>
 
-                  <label className="field">
-                    <span>Referensi Key Media / Aset (Opsional)</span>
-                    <input
-                      type="text"
-                      placeholder="customers/... atau /assets/... (hasil unggah otomatis)"
-                      aria-invalid={Boolean(fieldErrors.photoObjectKey)}
-                      className={fieldErrors.photoObjectKey ? 'ui-input-invalid' : ''}
-                      value={photoObjectKey}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setPhotoObjectKey(v);
-                        clearField('photoObjectKey');
-                        if (v.trim().startsWith('/assets/')) {
-                          setPhotoPreviewUrl(v.trim());
+                {/* Section 2: Core Customer Identity, Address & Coordinates */}
+                <section className="cp-form-section">
+                  <div className="cp-form-section-head">
+                    <div>
+                      <h3 className="cp-form-section-title">
+                        <Icon name="users" size={15} />
+                        <span>Identitas &amp; Titik Lokasi Instalasi</span>
+                      </h3>
+                      <p className="cp-form-section-desc">
+                        Data utama pelanggan korporat/ritel, alamat fisik pemasangan, dan koordinat peta GIS.
+                      </p>
+                    </div>
+                    <span className="cp-form-section-badge">Wajib Diisi (*)</span>
+                  </div>
+
+                  <div className="cp-edit-grid-2">
+                    <label className="field">
+                      <span>
+                        <span>
+                          Nama Pelanggan / Instansi
+                          <span className="cp-field-req" aria-hidden="true">*</span>
+                        </span>
+                      </span>
+                      <input
+                        type="text"
+                        required
+                        aria-invalid={Boolean(fieldErrors.fullName)}
+                        className={fieldErrors.fullName ? 'ui-input-invalid' : ''}
+                        placeholder="Contoh: PT Bank Mandiri (Persero) Tbk - KCP Sudirman"
+                        value={fullName}
+                        onChange={(e) => {
+                          setFullName(e.target.value);
+                          clearField('fullName');
+                        }}
+                      />
+                      <FieldError message={fieldErrors.fullName} />
+                    </label>
+
+                    <label className="field">
+                      <span>Status Layanan SIA</span>
+                      <select
+                        value={status}
+                        onChange={(e) =>
+                          setStatus(
+                            e.target.value as
+                              | 'PENDING_INSTALL'
+                              | 'ACTIVE'
+                              | 'ISOLATED'
+                              | 'DISMANTLED',
+                          )
                         }
-                      }}
-                    />
-                    <FieldError message={fieldErrors.photoObjectKey} />
-                  </label>
-                </div>
+                      >
+                        <option value="ACTIVE">Aktif (ACTIVE)</option>
+                        <option value="PENDING_INSTALL">Menunggu PSB (PENDING_INSTALL)</option>
+                        <option value="ISOLATED">Terisolir (ISOLATED)</option>
+                        <option value="DISMANTLED">Putus / Dismantle (DISMANTLED)</option>
+                      </select>
+                    </label>
+                  </div>
 
-                <div className="cp-edit-grid-2">
                   <label className="field">
-                    <span>Nama Pelanggan / Instansi</span>
+                    <span>
+                      <span>
+                        Alamat Lengkap Instalasi
+                        <span className="cp-field-req" aria-hidden="true">*</span>
+                      </span>
+                    </span>
                     <input
                       type="text"
                       required
-                      aria-invalid={Boolean(fieldErrors.fullName)}
-                      className={fieldErrors.fullName ? 'ui-input-invalid' : ''}
-                      value={fullName}
+                      aria-invalid={Boolean(fieldErrors.address)}
+                      className={fieldErrors.address ? 'ui-input-invalid' : ''}
+                      placeholder="Jl. Jend. Sudirman No. 512, Kec. Ilir Timur I, Kota Palembang"
+                      value={address}
                       onChange={(e) => {
-                        setFullName(e.target.value);
-                        clearField('fullName');
+                        setAddress(e.target.value);
+                        clearField('address');
                       }}
                     />
-                    <FieldError message={fieldErrors.fullName} />
+                    <FieldError message={fieldErrors.address} />
                   </label>
 
                   <label className="field">
-                    <span>Status Layanan SIA</span>
-                    <select
-                      value={status}
-                      onChange={(e) =>
-                        setStatus(
-                          e.target.value as
-                            | 'PENDING_INSTALL'
-                            | 'ACTIVE'
-                            | 'ISOLATED'
-                            | 'DISMANTLED',
-                        )
-                      }
-                    >
-                      <option value="ACTIVE">Aktif (ACTIVE)</option>
-                      <option value="PENDING_INSTALL">Menunggu PSB (PENDING_INSTALL)</option>
-                      <option value="ISOLATED">Terisolir (ISOLATED)</option>
-                      <option value="DISMANTLED">Putus / Dismantle (DISMANTLED)</option>
-                    </select>
-                  </label>
-                </div>
-
-                <label className="field">
-                  <span>Deskripsi Profil Pelanggan</span>
-                  <textarea
-                    rows={3}
-                    placeholder="Jelaskan profil lokasi, karakteristik gedung/cabang, jam akses teknisi, atau kebutuhan khusus layanan pelanggan..."
-                    value={profileDescription}
-                    onChange={(e) => setProfileDescription(e.target.value)}
-                  />
-                </label>
-
-                <label className="field">
-                  <span>Alamat Lengkap Instalasi</span>
-                  <input
-                    type="text"
-                    required
-                    aria-invalid={Boolean(fieldErrors.address)}
-                    className={fieldErrors.address ? 'ui-input-invalid' : ''}
-                    value={address}
-                    onChange={(e) => {
-                      setAddress(e.target.value);
-                      clearField('address');
-                    }}
-                  />
-                  <FieldError message={fieldErrors.address} />
-                </label>
-
-                <div className="cp-edit-grid-2">
-                  <label className="field">
-                    <span>Latitude Pelanggan (Lat)</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="-2.9790933"
-                      aria-invalid={Boolean(fieldErrors.lat)}
-                      className={fieldErrors.lat ? 'ui-input-invalid' : ''}
-                      value={lat}
-                      onChange={(e) => {
-                        setLat(e.target.value);
-                        clearField('lat');
-                      }}
+                    <span>
+                      <span>Deskripsi Profil &amp; Panduan Akses Lokasi</span>
+                      <span className="cp-field-opt">Opsional</span>
+                    </span>
+                    <textarea
+                      rows={3}
+                      placeholder="Jelaskan karakteristik gedung/cabang, prosedur izin masuk teknisi, jam operasional, atau posisi rak CPE/ONT..."
+                      value={profileDescription}
+                      onChange={(e) => setProfileDescription(e.target.value)}
                     />
-                    <FieldError message={fieldErrors.lat} />
                   </label>
 
-                  <label className="field">
-                    <span>Longitude Pelanggan (Lng)</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="104.7570692"
-                      aria-invalid={Boolean(fieldErrors.lng)}
-                      className={fieldErrors.lng ? 'ui-input-invalid' : ''}
-                      value={lng}
-                      onChange={(e) => {
-                        setLng(e.target.value);
-                        clearField('lng');
-                      }}
-                    />
-                    <FieldError message={fieldErrors.lng} />
-                  </label>
-                </div>
-              </>
+                  <div className="cp-edit-grid-2">
+                    <label className="field">
+                      <span>
+                        <span>Latitude Pelanggan (Lat)</span>
+                        <span className="cp-field-opt">-90 s/d 90</span>
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="-2.9790933"
+                        aria-invalid={Boolean(fieldErrors.lat)}
+                        className={fieldErrors.lat ? 'ui-input-invalid' : ''}
+                        value={lat}
+                        onChange={(e) => {
+                          setLat(e.target.value);
+                          clearField('lat');
+                        }}
+                      />
+                      <FieldError message={fieldErrors.lat} />
+                    </label>
+
+                    <label className="field">
+                      <span>
+                        <span>Longitude Pelanggan (Lng)</span>
+                        <span className="cp-field-opt">-180 s/d 180</span>
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="104.7570692"
+                        aria-invalid={Boolean(fieldErrors.lng)}
+                        className={fieldErrors.lng ? 'ui-input-invalid' : ''}
+                        value={lng}
+                        onChange={(e) => {
+                          setLng(e.target.value);
+                          clearField('lng');
+                        }}
+                      />
+                      <FieldError message={fieldErrors.lng} />
+                    </label>
+                  </div>
+                </section>
+              </div>
             )}
 
             {activeTab === 'pic' && (
-              <>
-                <div className="cp-edit-grid-2">
-                  <label className="field">
-                    <span>Nama PIC Pelanggan</span>
-                    <input
-                      type="text"
-                      placeholder="Contoh: Hendra Wijaya"
-                      value={picName}
-                      onChange={(e) => setPicName(e.target.value)}
-                    />
-                  </label>
+              <div
+                id="cp-tabpanel-pic"
+                role="tabpanel"
+                aria-labelledby="cp-tab-pic"
+                className="cp-tabpanel"
+              >
+                <section className="cp-form-section">
+                  <div className="cp-form-section-head">
+                    <div>
+                      <h3 className="cp-form-section-title">
+                        <Icon name="phone" size={15} />
+                        <span>Narahubung / PIC Lokasi Pelanggan</span>
+                      </h3>
+                      <p className="cp-form-section-desc">
+                        Informasi ini ditampilkan kepada Helpdesk NOC dan teknisi lapangan untuk koordinasi kunjungan maupun konfirmasi pemulihan gangguan.
+                      </p>
+                    </div>
+                    <span className="cp-form-section-badge">Kontak Lapangan</span>
+                  </div>
+
+                  <div className="cp-edit-grid-2">
+                    <label className="field">
+                      <span>
+                        <span>Nama Lengkap PIC</span>
+                        <span className="cp-field-opt">Opsional</span>
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="Contoh: Hendra Wijaya"
+                        value={picName}
+                        onChange={(e) => setPicName(e.target.value)}
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>
+                        <span>Jabatan / Peran PIC</span>
+                        <span className="cp-field-opt">Opsional</span>
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="Contoh: IT Branch Support / Koordinator Gedung"
+                        value={picRole}
+                        onChange={(e) => setPicRole(e.target.value)}
+                      />
+                    </label>
+                  </div>
 
                   <label className="field">
-                    <span>Jabatan / Peran PIC</span>
+                    <span>
+                      <span>Nomor Telepon / WhatsApp PIC</span>
+                      <span className="cp-field-opt">Aktif Telepon &amp; WA</span>
+                    </span>
                     <input
-                      type="text"
-                      placeholder="Contoh: IT Branch Support / PIC ATM"
-                      value={picRole}
-                      onChange={(e) => setPicRole(e.target.value)}
+                      type="tel"
+                      inputMode="tel"
+                      placeholder="Contoh: +62 812-7311-4092"
+                      value={picPhone}
+                      onChange={(e) => setPicPhone(e.target.value)}
                     />
+                    <span className="cp-field-hint">
+                      Gunakan format nomor dengan kode negara (+62) atau 08xx agar tombol panggil cepat &amp; WhatsApp berfungsi langsung dari halaman detail pelanggan.
+                    </span>
                   </label>
-                </div>
-
-                <label className="field">
-                  <span>Nomor Telepon / WhatsApp PIC</span>
-                  <input
-                    type="tel"
-                    placeholder="+62 812-7311-4092"
-                    value={picPhone}
-                    onChange={(e) => setPicPhone(e.target.value)}
-                  />
-                </label>
-              </>
+                </section>
+              </div>
             )}
 
             {activeTab === 'technical' && (
-              <>
-                <div className="cp-edit-grid-2">
+              <div
+                id="cp-tabpanel-technical"
+                role="tabpanel"
+                aria-labelledby="cp-tab-technical"
+                className="cp-tabpanel"
+              >
+                {/* Section 1: ODP, Port & GPON Allocation */}
+                <section className="cp-form-section">
+                  <div className="cp-form-section-head">
+                    <div>
+                      <h3 className="cp-form-section-title">
+                        <Icon name="network" size={15} />
+                        <span>Alokasi Datek ODP, Port Splitter &amp; GPON</span>
+                      </h3>
+                      <p className="cp-form-section-desc">
+                        Penempatan jalur distribusi optik pelanggan pada splitter ODP serta identitas perangkat GPON/ONT.
+                      </p>
+                    </div>
+                    <span className="cp-form-section-badge">
+                      {splitterCode.trim()
+                        ? `${splitterCode.trim().toUpperCase()}${portNumber.trim() ? ` · Port #${portNumber.trim()}` : ''}`
+                        : 'Belum Terhubung ODP'}
+                    </span>
+                  </div>
+
+                  <div className="cp-edit-grid-2">
+                    <label className="field">
+                      <span>
+                        <span>Kode ODP / Splitter</span>
+                        <span className="cp-field-opt">Format ODP-*</span>
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="Contoh: ODP-PLB-001"
+                        value={splitterCode}
+                        onChange={(e) => setSplitterCode(e.target.value)}
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>
+                        <span>Nomor Port ODP Tersambung</span>
+                        <span className="cp-field-opt">Port 1 s/d 32</span>
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={32}
+                        aria-invalid={Boolean(fieldErrors.portNumber)}
+                        className={fieldErrors.portNumber ? 'ui-input-invalid' : ''}
+                        placeholder="Contoh: 2"
+                        value={portNumber}
+                        onChange={(e) => {
+                          setPortNumber(e.target.value);
+                          clearField('portNumber');
+                        }}
+                      />
+                      <FieldError message={fieldErrors.portNumber} />
+                    </label>
+                  </div>
+
+                  <div className="cp-edit-grid-3">
+                    <label className="field">
+                      <span>Node Akses GPON</span>
+                      <input
+                        type="text"
+                        placeholder="PLBBSGGA01"
+                        value={gponNode}
+                        onChange={(e) => setGponNode(e.target.value)}
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>Slot / Port OLT</span>
+                      <input
+                        type="text"
+                        placeholder="2@1/7/3.gpon"
+                        value={oltSlot}
+                        onChange={(e) => setOltSlot(e.target.value)}
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>SN Modem / ONT</span>
+                      <input
+                        type="text"
+                        placeholder="rcmginds183"
+                        value={ontSn}
+                        onChange={(e) => setOntSn(e.target.value)}
+                      />
+                    </label>
+                  </div>
+                </section>
+
+                {/* Section 2: Optical Attenuation & Activity Notes */}
+                <section className="cp-form-section">
+                  <div className="cp-form-section-head">
+                    <div>
+                      <h3 className="cp-form-section-title">
+                        <Icon name="activity" size={15} />
+                        <span>Telemetri Redaman Optik &amp; Catatan Aktivitas</span>
+                      </h3>
+                      <p className="cp-form-section-desc">
+                        Standar redaman normal: -13 s/d -24 dBm · Warning: -24 s/d -27 dBm · Kritis (LOS Risk): &le; -27 dBm.
+                      </p>
+                    </div>
+                    <span className="cp-form-section-badge">Satuan dBm</span>
+                  </div>
+
+                  <div className="cp-edit-grid-2">
+                    <label className="field">
+                      <span>
+                        <span>Redaman OLT (Rx OLT)</span>
+                        <span className="cp-field-opt">dBm</span>
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Contoh: -21.4"
+                        aria-invalid={Boolean(fieldErrors.oltAttenuation)}
+                        className={fieldErrors.oltAttenuation ? 'ui-input-invalid' : ''}
+                        value={oltAttenuation}
+                        onChange={(e) => {
+                          setOltAttenuation(e.target.value);
+                          clearField('oltAttenuation');
+                        }}
+                      />
+                      <FieldError message={fieldErrors.oltAttenuation} />
+                    </label>
+
+                    <label className="field">
+                      <span>
+                        <span>Redaman ONT (Rx Modem)</span>
+                        <span className="cp-field-opt">dBm</span>
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Contoh: -19.8"
+                        aria-invalid={Boolean(fieldErrors.ontAttenuation)}
+                        className={fieldErrors.ontAttenuation ? 'ui-input-invalid' : ''}
+                        value={ontAttenuation}
+                        onChange={(e) => {
+                          setOntAttenuation(e.target.value);
+                          clearField('ontAttenuation');
+                        }}
+                      />
+                      <FieldError message={fieldErrors.ontAttenuation} />
+                    </label>
+                  </div>
+
                   <label className="field">
-                    <span>Kode ODP / Splitter</span>
+                    <span>
+                      <span>Note Activity Terakhir (Riwayat Lapangan)</span>
+                      <span className="cp-field-opt">Opsional</span>
+                    </span>
+                    <textarea
+                      rows={2}
+                      placeholder="Contoh: Splicing ulang dropcore di tiang ke-2 depan ruko, redaman membaik dari -28.4 dBm ke -19.8 dBm..."
+                      value={lastActivityNote}
+                      onChange={(e) => setLastActivityNote(e.target.value)}
+                    />
+                  </label>
+
+                  <label className="field">
+                    <span>
+                      <span>Catatan Integrasi Datek</span>
+                      <span className="cp-field-opt">Opsional</span>
+                    </span>
                     <input
                       type="text"
-                      placeholder="ODP-PLB-001"
-                      value={splitterCode}
-                      onChange={(e) => setSplitterCode(e.target.value)}
+                      placeholder="Catatan teknis tambahan dari dokumen Datek / BAST instalasi"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
                     />
                   </label>
-
-                  <label className="field">
-                    <span>Port ODP (1-32)</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={32}
-                      aria-invalid={Boolean(fieldErrors.portNumber)}
-                      className={fieldErrors.portNumber ? 'ui-input-invalid' : ''}
-                      placeholder="2"
-                      value={portNumber}
-                      onChange={(e) => {
-                        setPortNumber(e.target.value);
-                        clearField('portNumber');
-                      }}
-                    />
-                    <FieldError message={fieldErrors.portNumber} />
-                  </label>
-                </div>
-
-                <div className="cp-edit-grid-2">
-                  <label className="field">
-                    <span>Redaman OLT (dB / dBm)</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="-28.0"
-                      aria-invalid={Boolean(fieldErrors.oltAttenuation)}
-                      className={fieldErrors.oltAttenuation ? 'ui-input-invalid' : ''}
-                      value={oltAttenuation}
-                      onChange={(e) => {
-                        setOltAttenuation(e.target.value);
-                        clearField('oltAttenuation');
-                      }}
-                    />
-                    <FieldError message={fieldErrors.oltAttenuation} />
-                  </label>
-
-                  <label className="field">
-                    <span>Redaman ONT (dB / dBm)</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="-27.0"
-                      aria-invalid={Boolean(fieldErrors.ontAttenuation)}
-                      className={fieldErrors.ontAttenuation ? 'ui-input-invalid' : ''}
-                      value={ontAttenuation}
-                      onChange={(e) => {
-                        setOntAttenuation(e.target.value);
-                        clearField('ontAttenuation');
-                      }}
-                    />
-                    <FieldError message={fieldErrors.ontAttenuation} />
-                  </label>
-                </div>
-
-                <div className="cp-edit-grid-2">
-                  <label className="field">
-                    <span>Node Akses GPON</span>
-                    <input
-                      type="text"
-                      placeholder="PLBBSGGA01"
-                      value={gponNode}
-                      onChange={(e) => setGponNode(e.target.value)}
-                    />
-                  </label>
-
-                  <label className="field">
-                    <span>Slot OLT</span>
-                    <input
-                      type="text"
-                      placeholder="2@1/7/3.gpon"
-                      value={oltSlot}
-                      onChange={(e) => setOltSlot(e.target.value)}
-                    />
-                  </label>
-                </div>
-
-                <label className="field">
-                  <span>SN Modem ONT</span>
-                  <input
-                    type="text"
-                    placeholder="rcmginds183"
-                    value={ontSn}
-                    onChange={(e) => setOntSn(e.target.value)}
-                  />
-                </label>
-
-                <label className="field">
-                  <span>Note Activity Terakhir</span>
-                  <textarea
-                    rows={3}
-                    placeholder="Contoh: Kabel nya ketabrak, masih ada PR perlu pergantian kabel dropcore..."
-                    value={lastActivityNote}
-                    onChange={(e) => setLastActivityNote(e.target.value)}
-                  />
-                </label>
-
-                <label className="field">
-                  <span>Catatan Integrasi Datek (Opsional)</span>
-                  <input
-                    type="text"
-                    placeholder="Catatan teknis tambahan dari datek"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                  />
-                </label>
-              </>
+                </section>
+              </div>
             )}
           </div>
 
-          <footer className="modal-footer">
-            <button type="button" className="button secondary" onClick={onClose}>
-              Batal
-            </button>
-            <button
-              type="submit"
-              className="button primary"
-              disabled={submitting || uploadingPhoto || removingPhoto}
-            >
-              {submitting ? 'Menyimpan...' : 'Simpan Perubahan Profil'}
-            </button>
+          <footer className="modal-footer cp-edit-footer">
+            <div className="cp-edit-footer-meta">
+              <Icon name="info" size={13} />
+              <span>{activeStepLabel}</span>
+            </div>
+            <div className="cp-edit-footer-actions">
+              <button type="button" className="button secondary" onClick={onClose}>
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="button primary"
+                disabled={submitting || uploadingPhoto || removingPhoto}
+              >
+                {submitting ? 'Menyimpan...' : 'Simpan Perubahan Profil'}
+              </button>
+            </div>
           </footer>
         </form>
       </article>

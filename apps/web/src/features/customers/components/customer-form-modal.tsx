@@ -190,10 +190,15 @@ export function CustomerFormModal({
         </header>
 
         <form onSubmit={handleSubmit} noValidate>
-          <div className="modal-body" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="modal-body" style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '72vh', overflowY: 'auto' }}>
+            <div className="cp-edit-grid-2">
               <label className="field">
-                <span>Nomor SIA Pelanggan</span>
+                <span>
+                  <span>
+                    Nomor SIA Pelanggan
+                    <span className="cp-field-req" aria-hidden="true">*</span>
+                  </span>
+                </span>
                 <input
                   type="text"
                   required
@@ -223,7 +228,12 @@ export function CustomerFormModal({
             </div>
 
             <label className="field">
-              <span>Nama Lengkap / Perusahaan</span>
+              <span>
+                <span>
+                  Nama Lengkap / Perusahaan
+                  <span className="cp-field-req" aria-hidden="true">*</span>
+                </span>
+              </span>
               <input
                 type="text"
                 required
@@ -241,7 +251,12 @@ export function CustomerFormModal({
             </label>
 
             <label className="field">
-              <span>Alamat Pemasangan</span>
+              <span>
+                <span>
+                  Alamat Pemasangan
+                  <span className="cp-field-req" aria-hidden="true">*</span>
+                </span>
+              </span>
               <input
                 type="text"
                 required
@@ -258,9 +273,14 @@ export function CustomerFormModal({
               <FieldError id="cust-addr-err" message={fieldErrors.address} />
             </label>
 
-            <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+            <div className="cp-edit-grid-3">
               <label className="field">
-                <span>Kode Cluster</span>
+                <span>
+                  <span>
+                    Kode Cluster
+                    <span className="cp-field-req" aria-hidden="true">*</span>
+                  </span>
+                </span>
                 <select
                   value={clusterCode}
                   aria-invalid={Boolean(fieldErrors.clusterCode)}
@@ -287,7 +307,10 @@ export function CustomerFormModal({
               </label>
 
               <label className="field">
-                <span>Kode ODP (Opsional)</span>
+                <span>
+                  <span>Kode ODP</span>
+                  <span className="cp-field-opt">Opsional</span>
+                </span>
                 <input
                   type="text"
                   aria-invalid={Boolean(fieldErrors.splitterCode)}
@@ -303,7 +326,10 @@ export function CustomerFormModal({
               </label>
 
               <label className="field">
-                <span>Port # (Opsional)</span>
+                <span>
+                  <span>Port ODP</span>
+                  <span className="cp-field-opt">1–32</span>
+                </span>
                 <input
                   type="number"
                   min={1}
@@ -322,9 +348,12 @@ export function CustomerFormModal({
               </label>
             </div>
 
-            <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="cp-edit-grid-2">
               <label className="field">
-                <span>Nama PIC (Opsional)</span>
+                <span>
+                  <span>Nama PIC</span>
+                  <span className="cp-field-opt">Opsional</span>
+                </span>
                 <input
                   type="text"
                   placeholder="Nama penanggung jawab lokasi"
@@ -334,9 +363,13 @@ export function CustomerFormModal({
               </label>
 
               <label className="field">
-                <span>Telepon / WA PIC (Opsional)</span>
+                <span>
+                  <span>Telepon / WA PIC</span>
+                  <span className="cp-field-opt">Opsional</span>
+                </span>
                 <input
                   type="tel"
+                  inputMode="tel"
                   placeholder="+62 812-xxxx-xxxx"
                   value={picPhone}
                   onChange={(e) => setPicPhone(e.target.value)}
@@ -345,7 +378,10 @@ export function CustomerFormModal({
             </div>
 
             <label className="field">
-              <span>Deskripsi Profil Pelanggan (Opsional)</span>
+              <span>
+                <span>Deskripsi Profil Pelanggan</span>
+                <span className="cp-field-opt">Opsional</span>
+              </span>
               <textarea
                 rows={2}
                 placeholder="Catatan singkat profil cabang/gedung atau akses teknisi"
@@ -355,13 +391,15 @@ export function CustomerFormModal({
             </label>
           </div>
 
-          <footer className="modal-footer">
-            <button type="button" className="button secondary" onClick={onClose}>
-              Batal
-            </button>
-            <button type="submit" className="button primary" disabled={submitting}>
-              {submitting ? 'Menyimpan...' : 'Daftarkan Pelanggan'}
-            </button>
+          <footer className="modal-footer cp-edit-footer">
+            <div className="cp-edit-footer-actions">
+              <button type="button" className="button secondary" onClick={onClose}>
+                Batal
+              </button>
+              <button type="submit" className="button primary" disabled={submitting}>
+                {submitting ? 'Menyimpan...' : 'Daftarkan Pelanggan'}
+              </button>
+            </div>
           </footer>
         </form>
       </article>
