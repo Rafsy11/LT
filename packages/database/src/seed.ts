@@ -24,6 +24,7 @@ export async function seedDatabase() {
 
   const seedPassword = process.env.SEED_DEFAULT_PASSWORD || 'FiberOps#2026';
   const defaultPasswordHash = await bcrypt.hash(seedPassword, BCRYPT_SALT_ROUNDS);
+  const seedTelegramChatId = process.env.TELEGRAM_DEFAULT_CHAT_ID?.trim() || null;
 
   // 1. ROLES & RBAC MATRIX (Selaras dengan ROLE_PRESETS)
   const superAdminRole = await prisma.role.upsert({
@@ -93,7 +94,12 @@ export async function seedDatabase() {
   const superAdminHash = await ensureValidBcryptHash('superadmin', defaultPasswordHash);
   const superAdmin = await prisma.user.upsert({
     where: { username: 'superadmin' },
-    update: { nik: '882041', passwordHash: superAdminHash, assignedClusters: ['Global Scope'] },
+    update: {
+      nik: '882041',
+      passwordHash: superAdminHash,
+      assignedClusters: ['Global Scope'],
+      ...(seedTelegramChatId ? { telegramChatId: seedTelegramChatId } : {}),
+    },
     create: {
       nik: '882041',
       username: 'superadmin',
@@ -103,6 +109,7 @@ export async function seedDatabase() {
       userType: 'SUPER_ADMIN',
       isActive: true,
       twoFactorEnabled: false,
+      telegramChatId: seedTelegramChatId,
       assignedClusters: ['Global Scope'],
     },
   });
@@ -114,6 +121,7 @@ export async function seedDatabase() {
       nik: '882042',
       passwordHash: adminNocHash,
       assignedClusters: palembangAllClusters,
+      ...(seedTelegramChatId ? { telegramChatId: seedTelegramChatId } : {}),
     },
     create: {
       nik: '882042',
@@ -124,6 +132,7 @@ export async function seedDatabase() {
       userType: 'ADMIN',
       isActive: true,
       twoFactorEnabled: false,
+      telegramChatId: seedTelegramChatId,
       assignedClusters: palembangAllClusters,
     },
   });
@@ -136,6 +145,7 @@ export async function seedDatabase() {
       vendorCompany: 'PT Mitra Fiber Nusantara',
       passwordHash: techAndiHash,
       assignedClusters: ['PLBHRAGA01', 'PLBBSGGA01'],
+      ...(seedTelegramChatId ? { telegramChatId: seedTelegramChatId } : {}),
     },
     create: {
       nik: '882043',
@@ -147,6 +157,7 @@ export async function seedDatabase() {
       userType: 'TECHNICIAN',
       isActive: true,
       twoFactorEnabled: false,
+      telegramChatId: seedTelegramChatId,
       assignedClusters: ['PLBHRAGA01', 'PLBBSGGA01'],
     },
   });
@@ -159,6 +170,7 @@ export async function seedDatabase() {
       vendorCompany: 'PT Sarana Optik Palembang',
       passwordHash: techRizkyHash,
       assignedClusters: ['PLBKBNGR01', 'PLBTKEGR01'],
+      ...(seedTelegramChatId ? { telegramChatId: seedTelegramChatId } : {}),
     },
     create: {
       nik: '882044',
@@ -170,6 +182,7 @@ export async function seedDatabase() {
       userType: 'TECHNICIAN',
       isActive: true,
       twoFactorEnabled: false,
+      telegramChatId: seedTelegramChatId,
       assignedClusters: ['PLBKBNGR01', 'PLBTKEGR01'],
     },
   });

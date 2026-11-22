@@ -26,18 +26,28 @@ function loadRootEnvFile(filename: string): void {
 loadRootEnvFile('.env.local');
 loadRootEnvFile('.env');
 
-const CONTENT_SECURITY_POLICY = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
-  "connect-src 'self' https: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* wss:",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-].join('; ');
+function buildContentSecurityPolicy(): string {
+  const isNextDevServer =
+    process.env.NODE_ENV === 'development' &&
+    !process.env.NODE_TEST_CONTEXT &&
+    process.env.NEXT_PHASE !== 'phase-production-build';
+  const scriptSrc = isNextDevServer
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    : "script-src 'self' 'unsafe-inline'";
+
+  return [
+    "default-src 'self'",
+    scriptSrc,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*",
+    "font-src 'self' data:",
+    "connect-src 'self' https: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* wss:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+}
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -52,33 +62,19 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  webpack(config, { dev }) {
-    if (dev) {
-      config.devtool = 'cheap-module-source-map';
-    }
-    return config;
-  },
   async headers() {
+    const cspValue = buildContentSecurityPolicy();
     return [
       {
         source: '/mobile',
         headers: [
-          {
-            key: 'Clear-Site-Data',
-            value: '"cookies"',
-          },
           {
             key: 'Cross-Origin-Opener-Policy',
             value: 'same-origin',
           },
           {
             key: 'Content-Security-Policy',
-            value: CONTENT_SECURITY_POLICY,
-          },
-          {
-            key: 'Set-Cookie',
-            value:
-              'fiberops_session=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict',
+            value: cspValue,
           },
         ],
       },
@@ -86,21 +82,12 @@ const nextConfig: NextConfig = {
         source: '/mobile/:path*',
         headers: [
           {
-            key: 'Clear-Site-Data',
-            value: '"cookies"',
-          },
-          {
             key: 'Cross-Origin-Opener-Policy',
             value: 'same-origin',
           },
           {
             key: 'Content-Security-Policy',
-            value: CONTENT_SECURITY_POLICY,
-          },
-          {
-            key: 'Set-Cookie',
-            value:
-              'fiberops_session=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict',
+            value: cspValue,
           },
         ],
       },
@@ -129,7 +116,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: CONTENT_SECURITY_POLICY,
+            value: cspValue,
           },
         ],
       },

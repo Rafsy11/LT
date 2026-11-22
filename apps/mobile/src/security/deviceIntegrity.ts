@@ -76,6 +76,9 @@ function isInputCurrentlyFocused(): boolean {
 
 function detectDockedDevTools(): boolean {
   if (typeof window === 'undefined') return false;
+  if (window.innerWidth > 768) {
+    return false;
+  }
   const widthDelta = Math.max(0, window.outerWidth - window.innerWidth);
   const heightDelta = Math.max(0, window.outerHeight - window.innerHeight);
 
@@ -297,15 +300,37 @@ const AEAD_IV_BYTES = 12;
 const AEAD_TAG_BYTES = 16;
 const B64URL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 
+const AEAD_MASTER_KEY_STORAGE_ID = '@fiberops_aead_master_key_v2';
 let runtimeMasterKey: Uint8Array | null = null;
 
 function getOrGenerateMasterKey(): Uint8Array {
   if (runtimeMasterKey) {
     return runtimeMasterKey;
   }
+  if (typeof window !== 'undefined') {
+    try {
+      const existingB64 = window.localStorage?.getItem(AEAD_MASTER_KEY_STORAGE_ID);
+      if (existingB64) {
+        const decoded = base64UrlToBytes(existingB64);
+        if (decoded && decoded.byteLength === 32) {
+          runtimeMasterKey = decoded;
+          return runtimeMasterKey;
+        }
+      }
+    } catch {
+      // Ignore Web Storage access restriction
+    }
+  }
   const bytes = new Uint8Array(32);
   globalThis.crypto.getRandomValues(bytes);
   runtimeMasterKey = bytes;
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage?.setItem(AEAD_MASTER_KEY_STORAGE_ID, bytesToBase64Url(bytes));
+    } catch {
+      // Ignore Web Storage quota/access restriction
+    }
+  }
   return runtimeMasterKey;
 }
 

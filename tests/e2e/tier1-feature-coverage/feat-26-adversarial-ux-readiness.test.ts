@@ -279,8 +279,13 @@ describe('Tier 1: Feature 26 - Adversarial Hardening & Commercial End-User UI/UX
     );
     assert.match(
       nextCfgSrc,
-      /cheap-module-source-map/,
-      'next.config.ts must configure cheap-module-source-map in dev mode so strict CSP does not block Next.js hydration',
+      /unsafe-eval/,
+      'next.config.ts must allow unsafe-eval in dev mode so Next.js 15 eval-source-map hydration is never blocked by CSP',
+    );
+    assert.doesNotMatch(
+      nextCfgSrc,
+      /Clear-Site-Data/,
+      'next.config.ts must not emit Clear-Site-Data on /mobile which would wipe the Admin Web Dashboard session cookie',
     );
   });
 });

@@ -1,11 +1,23 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTheme } from '@/providers';
 import App from '../../../../mobile/App';
 
+const DEDICATED_MOBILE_ORIGIN = process.env.NEXT_PUBLIC_MOBILE_ORIGIN?.trim() || '';
+
 export default function MobileFieldAppPage() {
   const { theme, resolvedTheme, setTheme } = useTheme();
+
+  useEffect(() => {
+    if (
+      DEDICATED_MOBILE_ORIGIN &&
+      typeof window !== 'undefined' &&
+      window.location.origin !== DEDICATED_MOBILE_ORIGIN
+    ) {
+      window.location.replace(`${DEDICATED_MOBILE_ORIGIN}/mobile`);
+    }
+  }, []);
 
   return (
     <main className="mobile-shell-root" data-mobile-theme={resolvedTheme}>
