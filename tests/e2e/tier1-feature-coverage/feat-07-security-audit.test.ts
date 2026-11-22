@@ -1,14 +1,29 @@
-// Explicitly allow standalone / offline mode for security audit test suite
-process.env.STRICT_LIVE_DATA = 'false';
-
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { TicketService } from '@/server/services/ticket.service';
+import crypto from 'node:crypto';
 import { ERROR_CODES, SubmitTicketInput } from '@repo/shared';
+import {
+  configureOfflineTestEnv,
+  closeServerHandles,
+  restoreTestEnv,
+} from '../helpers/auth-test-harness';
+
+let TicketService: typeof import('@/server/services/ticket.service').TicketService;
 
 describe('Tier 1: Feature 7 - Security Audit Offline Compatibility (ticket.service.ts)', () => {
+  before(async () => {
+    configureOfflineTestEnv();
+    const mod = await import('@/server/services/ticket.service');
+    TicketService = mod.TicketService;
+  });
+
   beforeEach(() => {
-    process.env.STRICT_LIVE_DATA = 'false';
+    configureOfflineTestEnv();
+  });
+
+  after(async () => {
+    await closeServerHandles();
+    restoreTestEnv();
   });
 
   it('provides fallback ticket WO-2025-0842 assigned to tech.andi in offline environment', async () => {
@@ -28,7 +43,7 @@ describe('Tier 1: Feature 7 - Security Audit Offline Compatibility (ticket.servi
 
   it('enforces IDOR protection when an unauthorized technician attempts ticket submission', async () => {
     const fakePayload: SubmitTicketInput = {
-      submissionId: `audit_idor_sub_${Date.now()}`,
+      submissionId: crypto.randomUUID(),
       splitterId: 'ODP-PLB-034',
       portNumber: 2,
       attenuationDbm: -19.5,
@@ -53,13 +68,13 @@ describe('Tier 1: Feature 7 - Security Audit Offline Compatibility (ticket.servi
 
     assert.ok(
       idorBlocked,
-      'Cross-technician ticket submission must be rejected with IDOR_VIOLATION'
+      'Cross-technician ticket submission must be rejected with IDOR_VIOLATION',
     );
   });
 
   it('flags identical GPS coordinates as anomaly to prevent spoofing', async () => {
     const identicalCoordsPayload: SubmitTicketInput = {
-      submissionId: `audit_gps_sub_${Date.now()}`,
+      submissionId: crypto.randomUUID(),
       splitterId: 'ODP-PLB-034',
       portNumber: 1,
       attenuationDbm: -18.5,
@@ -74,18 +89,18 @@ describe('Tier 1: Feature 7 - Security Audit Offline Compatibility (ticket.servi
       identicalCoordsPayload,
       {
         username: 'tech.andi',
-      }
+      },
     );
 
     assert.strictEqual(
       submissionResult.isLocationFlagged,
       true,
-      'Coordinates identical to target splitter must be flagged (isLocationFlagged === true)'
+      'Coordinates identical to target splitter must be flagged (isLocationFlagged === true)',
     );
   });
 
   it('guarantees submission idempotency on same ticket and blocks cross-ticket replay to WO-2025-0841', async () => {
-    const sharedSubmissionId = `cross_idempotent_test_${Date.now()}`;
+    const sharedSubmissionId = crypto.randomUUID();
     const payloadForTicket1: SubmitTicketInput = {
       submissionId: sharedSubmissionId,
       splitterId: 'ODP-PLB-034',
@@ -108,12 +123,12 @@ describe('Tier 1: Feature 7 - Security Audit Offline Compatibility (ticket.servi
       payloadForTicket1,
       {
         username: 'tech.andi',
-      }
+      },
     );
     assert.strictEqual(
       replayResult.alreadyProcessed,
       true,
-      'Duplicate submissionId to same ticket must be idempotent (alreadyProcessed: true)'
+      'Duplicate submissionId to same ticket must be idempotent (alreadyProcessed: true)',
     );
 
     // 3. Replay same submissionId to different ticket (WO-2025-0841) -> must throw IDOR error
@@ -134,7 +149,7 @@ describe('Tier 1: Feature 7 - Security Audit Offline Compatibility (ticket.servi
 
     assert.ok(
       crossTicketBlocked,
-      'Cross-ticket submission with reused submissionId must be blocked with IDOR_VIOLATION'
+      'Cross-ticket submission with reused submissionId must be blocked with IDOR_VIOLATION',
     );
   });
 });

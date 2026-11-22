@@ -24,8 +24,10 @@ import {
   generateSignedActionToken,
   verifySignedActionToken,
 } from '../apps/web/src/server/services/ai.service';
+import { isGlobalScopeActor, getActorPermissions } from '../apps/web/src/server/lib/admin-auth';
+import { encryptData, decryptData } from '../apps/mobile/src/security/deviceIntegrity';
 import { redisManager } from '../apps/web/src/server/lib/redis';
-import { ERROR_CODES, SubmitTicketInput } from '@repo/shared';
+import { ERROR_CODES, PERMISSIONS, SubmitTicketInput } from '@repo/shared';
 
 interface TestResult {
   name: string;
@@ -313,6 +315,83 @@ async function runSecurityAudit() {
     );
   } catch (err: unknown) {
     assert(false, 'Test F: Cross-Ticket Idempotency IDOR Check', (err as Error).message);
+  }
+
+  // ---------------------------------------------------------------------------
+  // TEST G: RBAC Vertical Privilege Escalation Guard (AUTH-03)
+  // ---------------------------------------------------------------------------
+  try {
+    const spoofedActor = {
+      userId: '00000000-0000-4000-8000-000000000099',
+      username: 'rogue.admin',
+      fullName: 'Rogue Admin',
+      role: 'Super Admin',
+      userType: 'ADMIN' as const,
+      hierarchyLevel: 50,
+      assignedClusters: ['Global Scope', 'PLB-01'],
+      permissions: ['*'],
+    };
+
+    const blockedGlobalScope = isGlobalScopeActor(spoofedActor) === false;
+    const effectivePerms = await getActorPermissions(spoofedActor);
+    const wildcardStripped = !effectivePerms.includes(PERMISSIONS.ALL);
+
+    assert(
+      blockedGlobalScope && wildcardStripped,
+      'Test G: RBAC Vertical Privilege Escalation Guard (AUTH-03)',
+      'Level-50 ADMIN with role="Super Admin" and assignedClusters=["Global Scope"] denied global scope and wildcard permission',
+    );
+  } catch (err: unknown) {
+    assert(
+      false,
+      'Test G: RBAC Vertical Privilege Escalation Guard (AUTH-03)',
+      (err as Error).message,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TEST H: Mobile AES-256-GCM Authenticated Encryption & Tamper Rejection (MOB-01)
+  // ---------------------------------------------------------------------------
+  try {
+    const sampleSecret = JSON.stringify({
+      accessToken: 'jwt-access-sample',
+      refreshToken: 'jwt-refresh-sample',
+    });
+    const ct1 = await encryptData(sampleSecret, 'vault_salt_a');
+    const ct2 = await encryptData(sampleSecret, 'vault_salt_a');
+    const decrypted = await decryptData(ct1, 'vault_salt_a');
+
+    let tamperRejected = false;
+    try {
+      const lastChar = ct1.slice(-1);
+      const tampered = ct1.slice(0, -1) + (lastChar === 'A' ? 'B' : 'A');
+      await decryptData(tampered, 'vault_salt_a');
+    } catch {
+      tamperRejected = true;
+    }
+
+    let legacyXorRejected = false;
+    try {
+      await decryptData('enc:v1:deadbeef', 'vault_salt_a');
+    } catch {
+      legacyXorRejected = true;
+    }
+
+    assert(
+      ct1 !== ct2 &&
+        ct1.startsWith('aead:v2:') &&
+        decrypted === sampleSecret &&
+        tamperRejected &&
+        legacyXorRejected,
+      'Test H: Mobile AES-256-GCM Authenticated Encryption (MOB-01)',
+      'Random-IV AES-256-GCM encryption verified; bit-flip tampering and legacy enc:v1 XOR rejected',
+    );
+  } catch (err: unknown) {
+    assert(
+      false,
+      'Test H: Mobile AES-256-GCM Authenticated Encryption (MOB-01)',
+      (err as Error).message,
+    );
   }
 
   // ---------------------------------------------------------------------------

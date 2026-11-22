@@ -92,15 +92,21 @@ describe('Tier 1: Feature 14 - In-App Watermarked Camera Modal (apps/mobile/src/
     const lines2 = formatOpmWatermarkLines(boundaryData2);
     assert.ok(lines2[4].includes('-28.99 dBm'));
 
-    // Verify categorizeAttenuation from opmCamera
+    // Verify categorizeAttenuation from opmCamera (28 dB standard: [-25, -10] GOOD, [-28, -25) WARNING, < -28 CRITICAL)
     const goodCat = categorizeAttenuation(-18.5);
     assert.strictEqual(goodCat.category, 'GOOD');
     assert.strictEqual(goodCat.label, 'Baik');
 
-    const warnCat = categorizeAttenuation(-23.0);
+    const goodBoundaryCat = categorizeAttenuation(-25.0);
+    assert.strictEqual(goodBoundaryCat.category, 'GOOD');
+
+    const warnCat = categorizeAttenuation(-26.5);
     assert.strictEqual(warnCat.category, 'WARNING');
 
-    const critCat = categorizeAttenuation(-28.0);
+    const warnBoundaryCat = categorizeAttenuation(-28.0);
+    assert.strictEqual(warnBoundaryCat.category, 'WARNING');
+
+    const critCat = categorizeAttenuation(-28.5);
     assert.strictEqual(critCat.category, 'CRITICAL');
   });
 

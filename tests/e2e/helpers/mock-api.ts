@@ -33,6 +33,13 @@ export class MockNetworkHarness {
         body: init?.body,
       });
 
+      // Custom registered routes take precedence over built-in defaults
+      for (const route of self.routes) {
+        if (route.match(url, init)) {
+          return route.handler(url, init);
+        }
+      }
+
       // 0. Local file photo URI (simulates local file read in Node.js test environment)
       if (url.startsWith('file://')) {
         return new Response(new Blob(['fake-image-bytes'], { type: 'image/jpeg' }), {

@@ -1,21 +1,34 @@
-import { describe, it } from 'node:test';
+import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { verifyOtpRequestSchema, ERROR_CODES } from '@repo/shared';
-import { AuthService } from '../../../apps/web/src/server/services/auth.service';
+import {
+  configureOfflineTestEnv,
+  closeServerHandles,
+  restoreTestEnv,
+  resolveRepoRoot,
+} from '../helpers/auth-test-harness';
+
+let AuthService: typeof import('@/server/services/auth.service').AuthService;
 
 describe('Tier 1: Feature 22 - Mobile 2FA Telegram OTP Integration', () => {
-  const loginScreenPath = path.resolve(
-    process.cwd(),
-    '../../apps/mobile/src/screens/LoginScreen.tsx',
-  );
-  const verifyOtpRoutePath = path.resolve(
-    process.cwd(),
-    '../../apps/web/src/app/api/v1/auth/verify-otp/route.ts',
-  );
+  const repoRoot = resolveRepoRoot();
+  const loginScreenPath = path.join(repoRoot, 'apps/mobile/src/screens/LoginScreen.tsx');
+  const verifyOtpRoutePath = path.join(repoRoot, 'apps/web/src/app/api/v1/auth/verify-otp/route.ts');
   const loginScreenContent = fs.readFileSync(loginScreenPath, 'utf-8');
   const verifyOtpRouteContent = fs.readFileSync(verifyOtpRoutePath, 'utf-8');
+
+  before(async () => {
+    configureOfflineTestEnv();
+    const mod = await import('@/server/services/auth.service');
+    AuthService = mod.AuthService;
+  });
+
+  after(async () => {
+    await closeServerHandles();
+    restoreTestEnv();
+  });
 
   it('1. verifyOtpRequestSchema validates both web and mobile payloads and rejects malformed OTPs', () => {
     const webParsed = verifyOtpRequestSchema.safeParse({

@@ -177,7 +177,18 @@ describe('Tier 1: Feature 20 - Web Error Handling & Humane Microcopy UX', () => 
     assert.strictEqual(extCheck.valid, false);
     assert.strictEqual(extCheck.error?.statusCode, 415);
     assert.strictEqual(extCheck.error?.category, 'UNSUPPORTED_FILE');
-    assert.match(extCheck.error?.message || '', /\.xlsx, \.xls, atau \.csv/);
+    assert.match(extCheck.error?.message || '', /\.xlsx\s+atau\s+\.csv/);
+
+    const legacyXls = {
+      name: 'legacy.xls',
+      size: 2048,
+      type: 'application/vnd.ms-excel',
+    } as unknown as File;
+    const legacyXlsCheck = validateUploadFile(legacyXls, DATEK_UPLOAD_RULE);
+    assert.strictEqual(legacyXlsCheck.valid, false);
+    assert.strictEqual(legacyXlsCheck.error?.statusCode, 415);
+    assert.strictEqual(legacyXlsCheck.error?.category, 'UNSUPPORTED_FILE');
+    assert.match(legacyXlsCheck.error?.message || '', /\.xlsx\s+atau\s+\.csv/);
 
     const oversizedDatek = {
       name: 'datek-palembang.xlsx',
