@@ -20,7 +20,7 @@ export const mutatePortSchema = z.object({
 export type MutatePortInput = z.infer<typeof mutatePortSchema>;
 
 export const customerDetailResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   siaNumber: z.string(),
   fullName: z.string(),
   address: z.string(),
@@ -36,7 +36,8 @@ export const customerDetailResponseSchema = z.object({
   updatedAt: z.string(),
 });
 
-const SAFE_PHOTO_REF_RE = /^(?:https:\/\/[^\s"'<>]+|\/assets\/[a-zA-Z0-9._/-]+|customers\/[a-zA-Z0-9._/-]+|proofs\/[a-zA-Z0-9._/-]+)$/;
+const SAFE_PHOTO_REF_RE =
+  /^(?:\/assets\/[a-zA-Z0-9._-]+(?:\/[a-zA-Z0-9._-]+)*|(?:customers|proofs|opm-proofs)\/[a-zA-Z0-9._-]+(?:\/[a-zA-Z0-9._-]+)*)$/;
 
 const optionalNullableString = (max: number) =>
   z.preprocess(
@@ -44,11 +45,23 @@ const optionalNullableString = (max: number) =>
     z.string().trim().max(max).nullable().optional(),
   );
 
+const preprocessOptionalNullableNumber = (val: unknown): unknown => {
+  if (val === undefined) return undefined;
+  if (val === null) return null;
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (trimmed === '') return null;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : Number.NaN;
+  }
+  if (typeof val === 'number') {
+    return Number.isFinite(val) ? val : Number.NaN;
+  }
+  return val;
+};
+
 const optionalNullableAttenuation = z.preprocess(
-  (val) => {
-    if (val === '' || val === null || val === undefined) return val === undefined ? undefined : null;
-    return Number(val);
-  },
+  preprocessOptionalNullableNumber,
   z
     .number()
     .min(-50, 'Nilai redaman tidak boleh kurang dari -50 dBm')
@@ -59,10 +72,7 @@ const optionalNullableAttenuation = z.preprocess(
 
 const optionalNullableCoord = (min: number, max: number, label: string) =>
   z.preprocess(
-    (val) => {
-      if (val === '' || val === null || val === undefined) return val === undefined ? undefined : null;
-      return Number(val);
-    },
+    preprocessOptionalNullableNumber,
     z.number().min(min, `${label} tidak valid`).max(max, `${label} tidak valid`).nullable().optional(),
   );
 
@@ -73,7 +83,7 @@ const optionalSafePhotoRef = z.preprocess(
     .trim()
     .max(500)
     .refine((val) => !val.includes('..') && SAFE_PHOTO_REF_RE.test(val), {
-      message: 'Referensi foto harus berupa key MinIO yang sah atau URL HTTPS.',
+      message: 'Referensi foto harus berupa key MinIO atau path aset internal yang sah.',
     })
     .nullable()
     .optional(),
@@ -115,10 +125,7 @@ export const updateCustomerSchema = z.object({
   status: z.enum(['PENDING_INSTALL', 'ACTIVE', 'ISOLATED', 'DISMANTLED']).optional(),
   splitterCode: optionalNullableString(60),
   portNumber: z.preprocess(
-    (val) => {
-      if (val === '' || val === null || val === undefined) return val === undefined ? undefined : null;
-      return Number(val);
-    },
+    preprocessOptionalNullableNumber,
     z.number().int().min(1, 'Port minimal 1').max(32, 'Port maksimal 32').nullable().optional(),
   ),
   picName: optionalNullableString(120),

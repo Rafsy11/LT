@@ -21,28 +21,45 @@ export const permissionEnum = z.enum(PERMISSION_LIST);
 export type Permission = z.infer<typeof permissionEnum>;
 
 export const roleSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   name: z.string().min(2, 'Nama role minimal 2 karakter').max(50),
   permissions: z.array(z.string()),
   hierarchyLevel: z.number().int().min(1).max(100),
-  createdAt: z.string().datetime().optional(),
+  createdAt: z.iso.datetime().optional(),
 });
 
 export type RoleData = z.infer<typeof roleSchema>;
 
 export const createRoleSchema = z.object({
   name: z.string().trim().min(2, 'Nama role minimal 2 karakter').max(50),
-  permissions: z.array(z.string()).min(1, 'Minimal satu permission harus dipilih'),
+  permissions: z.array(permissionEnum).min(1, 'Minimal satu permission harus dipilih'),
   hierarchyLevel: z.number().int().min(1).max(99, 'Hierarchy level 100 hanya untuk Super Admin'),
 });
 
 export type CreateRoleInput = z.infer<typeof createRoleSchema>;
 
 export const updateRolePermissionsSchema = z.object({
-  permissions: z.array(z.string()).min(1, 'Minimal satu permission harus dipilih'),
+  permissions: z.array(permissionEnum).min(1, 'Minimal satu permission harus dipilih'),
 });
 
 export type UpdateRolePermissionsInput = z.infer<typeof updateRolePermissionsSchema>;
+
+export const reassignUserRoleSchema = z.object({
+  targetUserId: z.uuid('ID pengguna tidak valid'),
+  newRoleId: z.uuid('ID role tujuan tidak valid'),
+});
+
+export type ReassignUserRoleInput = z.infer<typeof reassignUserRoleSchema>;
+
+export const patchRolesSchema = z.union([
+  reassignUserRoleSchema,
+  z.object({
+    roleId: z.string().trim().min(1, 'roleId wajib disertakan'),
+    permissions: z.array(permissionEnum).min(1, 'Minimal satu permission harus dipilih'),
+  }),
+]);
+
+export type PatchRolesInput = z.infer<typeof patchRolesSchema>;
 
 export const createUserSchema = z.object({
   fullName: z.string().trim().min(2, 'Nama lengkap minimal 2 karakter').max(100),

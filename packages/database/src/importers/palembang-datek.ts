@@ -564,6 +564,7 @@ export async function executePalembangImport(
     actorUserId?: string;
     actorRole?: string;
     ipAddress?: string;
+    allowedClusterCodes?: string[];
   } = {},
 ): Promise<PalembangImportResult> {
   const startTime = Date.now();
@@ -579,127 +580,141 @@ export async function executePalembangImport(
     };
   }
 
-  // 1. Upsert Clusters
-  const clusterIdMap = new Map<string, string>();
-  for (const c of topology.clusters) {
-    const record = await prismaClient.networkCluster.upsert({
-      where: { clusterCode: c.clusterCode },
-      update: {
-        name: c.name,
-        centerLat: c.centerLat,
-        centerLng: c.centerLng,
-        isActive: c.isActive,
-      },
-      create: {
-        clusterCode: c.clusterCode,
-        name: c.name,
-        centerLat: c.centerLat,
-        centerLng: c.centerLng,
-        isActive: c.isActive,
-      },
-    });
-    clusterIdMap.set(c.clusterCode, record.id);
-  }
+  const allowedSet = options.allowedClusterCodes?.length
+    ? new Set(options.allowedClusterCodes.map((c) => c.toUpperCase()))
+    : null;
+  const clustersToUpsert = allowedSet
+    ? topology.clusters.filter((c) => allowedSet.has(c.clusterCode.toUpperCase()))
+    : topology.clusters;
 
-  // 2. Upsert Splitters
-  const splitterIdMap = new Map<string, string>();
-  for (const s of topology.splitters) {
-    const clusterId = clusterIdMap.get(s.clusterCode);
-    if (!clusterId) {
-      throw new Error(`Cluster ID not resolved for cluster code: ${s.clusterCode}`);
-    }
-    const record = await prismaClient.networkSplitter.upsert({
-      where: { splitterCode: s.splitterCode },
-      update: {
-        clusterId,
-        name: s.name,
-        notes: s.notes,
-        lat: s.lat,
-        lng: s.lng,
-        maxPorts: s.maxPorts,
-        isActive: s.isActive,
-      },
-      create: {
-        clusterId,
-        splitterCode: s.splitterCode,
-        name: s.name,
-        notes: s.notes,
-        lat: s.lat,
-        lng: s.lng,
-        maxPorts: s.maxPorts,
-        isActive: s.isActive,
-      },
-    });
-    splitterIdMap.set(s.splitterCode, record.id);
-  }
+  await prismaClient.$transaction(
+    async (tx) => {
+      // 1. Upsert Clusters
+      const clusterIdMap = new Map<string, string>();
+      for (const c of clustersToUpsert) {
+        const record = await tx.networkCluster.upsert({
+          where: { clusterCode: c.clusterCode },
+          update: {
+            name: c.name,
+            centerLat: c.centerLat,
+            centerLng: c.centerLng,
+            isActive: c.isActive,
+          },
+          create: {
+            clusterCode: c.clusterCode,
+            name: c.name,
+            centerLat: c.centerLat,
+            centerLng: c.centerLng,
+            isActive: c.isActive,
+          },
+        });
+        clusterIdMap.set(c.clusterCode, record.id);
+      }
 
-  // 3. Upsert Customers
-  for (const c of topology.customers) {
-    const clusterId = clusterIdMap.get(c.clusterCode);
-    if (!clusterId) {
-      throw new Error(`Cluster ID not resolved for customer ${c.siaNumber} with cluster: ${c.clusterCode}`);
-    }
-    const splitterId = c.splitterCode ? splitterIdMap.get(c.splitterCode) ?? null : null;
+      // 2. Upsert Splitters
+      const splitterIdMap = new Map<string, string>();
+      for (const s of topology.splitters) {
+        const clusterId = clusterIdMap.get(s.clusterCode);
+        if (!clusterId) {
+          throw new Error(`Cluster ID not resolved for cluster code: ${s.clusterCode}`);
+        }
+        const record = await tx.networkSplitter.upsert({
+          where: { splitterCode: s.splitterCode },
+          update: {
+            clusterId,
+            name: s.name,
+            notes: s.notes,
+            lat: s.lat,
+            lng: s.lng,
+            maxPorts: s.maxPorts,
+            isActive: s.isActive,
+          },
+          create: {
+            clusterId,
+            splitterCode: s.splitterCode,
+            name: s.name,
+            notes: s.notes,
+            lat: s.lat,
+            lng: s.lng,
+            maxPorts: s.maxPorts,
+            isActive: s.isActive,
+          },
+        });
+        splitterIdMap.set(s.splitterCode, record.id);
+      }
 
-    await prismaClient.customer.upsert({
-      where: { siaNumber: c.siaNumber },
-      update: {
-        fullName: c.fullName,
-        address: c.address,
-        lat: c.lat,
-        lng: c.lng,
-        clusterId,
-        splitterId,
-        portNumber: c.portNumber,
-        currentAttenuation: c.currentAttenuation,
-        status: c.status,
-        gponNode: c.gponNode,
-        oltSlot: c.oltSlot,
-        ontSn: c.ontSn,
-        notes: c.notes,
-      },
-      create: {
-        siaNumber: c.siaNumber,
-        fullName: c.fullName,
-        address: c.address,
-        lat: c.lat,
-        lng: c.lng,
-        clusterId,
-        splitterId,
-        portNumber: c.portNumber,
-        currentAttenuation: c.currentAttenuation,
-        status: c.status,
-        gponNode: c.gponNode,
-        oltSlot: c.oltSlot,
-        ontSn: c.ontSn,
-        notes: c.notes,
-      },
-    });
-  }
+      // 3. Upsert Customers in bounded batches
+      const CUSTOMER_BATCH_SIZE = 250;
+      for (let i = 0; i < topology.customers.length; i += CUSTOMER_BATCH_SIZE) {
+        const batch = topology.customers.slice(i, i + CUSTOMER_BATCH_SIZE);
+        for (const c of batch) {
+          const clusterId = clusterIdMap.get(c.clusterCode);
+          if (!clusterId) {
+            throw new Error(
+              `Cluster ID not resolved for customer ${c.siaNumber} with cluster: ${c.clusterCode}`,
+            );
+          }
+          const splitterId = c.splitterCode ? splitterIdMap.get(c.splitterCode) ?? null : null;
 
-  // 4. Log Activity if actor specified
-  if (options.actorUserId) {
-    try {
-      await prismaClient.activityLog.create({
-        data: {
-          actorUserId: options.actorUserId,
-          actorRole: options.actorRole || 'ADMIN',
-          actionType: 'NETWORK_DATEK_IMPORT',
-          targetEntity: 'NETWORK_CLUSTER',
-          targetId: 'PALEMBANG_MASTER',
-          newPayload: JSON.parse(
-            JSON.stringify({
-              summary: topology.summary,
-              executedAt: new Date().toISOString(),
-            }),
-          ),
-          ipAddress: options.ipAddress || '127.0.0.1',
-        },
-      });
-    } catch (logErr) {
-      console.warn('Failed to record activity log for datek import:', logErr);
-    }
-  }
+          await tx.customer.upsert({
+            where: { siaNumber: c.siaNumber },
+            update: {
+              fullName: c.fullName,
+              address: c.address,
+              lat: c.lat,
+              lng: c.lng,
+              clusterId,
+              splitterId,
+              portNumber: c.portNumber,
+              currentAttenuation: c.currentAttenuation,
+              status: c.status,
+              gponNode: c.gponNode,
+              oltSlot: c.oltSlot,
+              ontSn: c.ontSn,
+              notes: c.notes,
+            },
+            create: {
+              siaNumber: c.siaNumber,
+              fullName: c.fullName,
+              address: c.address,
+              lat: c.lat,
+              lng: c.lng,
+              clusterId,
+              splitterId,
+              portNumber: c.portNumber,
+              currentAttenuation: c.currentAttenuation,
+              status: c.status,
+              gponNode: c.gponNode,
+              oltSlot: c.oltSlot,
+              ontSn: c.ontSn,
+              notes: c.notes,
+            },
+          });
+        }
+      }
+
+      // 4. Log Activity if actor specified
+      if (options.actorUserId) {
+        await tx.activityLog.create({
+          data: {
+            actorUserId: options.actorUserId,
+            actorRole: options.actorRole || 'ADMIN',
+            actionType: 'NETWORK_DATEK_IMPORT',
+            targetEntity: 'NETWORK_CLUSTER',
+            targetId: 'PALEMBANG_MASTER',
+            newPayload: JSON.parse(
+              JSON.stringify({
+                summary: topology.summary,
+                executedAt: new Date().toISOString(),
+              }),
+            ),
+            ipAddress: options.ipAddress || '127.0.0.1',
+          },
+        });
+      }
+    },
+    { maxWait: 10_000, timeout: 60_000 },
+  );
 
   return {
     success: true,
@@ -707,7 +722,7 @@ export async function executePalembangImport(
     summary: topology.summary,
     anomalies: topology.anomalies,
     counts: {
-      clusters: topology.clusters.length,
+      clusters: clustersToUpsert.length,
       splitters: topology.splitters.length,
       customers: topology.customers.length,
     },

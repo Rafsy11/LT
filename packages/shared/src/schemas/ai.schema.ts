@@ -77,7 +77,7 @@ export type PrepareMutateSplitterPortInput = z.infer<typeof prepareMutateSplitte
 export const confirmActionSchema = z.object({
   actionToken: z.string().min(1, 'actionToken wajib disertakan untuk validasi integritas draf'),
   actionType: z.enum(['CREATE_TICKET', 'TOGGLE_TECH_ACCOUNT', 'MUTATE_SPLITTER_PORT']),
-  payload: z.record(z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
 });
 
 export type ConfirmActionInput = z.infer<typeof confirmActionSchema>;
@@ -88,7 +88,7 @@ export const draftActionCardSchema = z.object({
   title: z.string(),
   summary: z.string(),
   actionToken: z.string(),
-  payload: z.record(z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
 });
 
 export type DraftActionCard = z.infer<typeof draftActionCardSchema>;

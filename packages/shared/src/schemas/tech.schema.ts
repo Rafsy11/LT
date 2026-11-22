@@ -14,3 +14,26 @@ export const technicianWorkloadQuerySchema = z.object({
 });
 
 export type TechnicianWorkloadQuery = z.infer<typeof technicianWorkloadQuerySchema>;
+
+export const techErrorLogSchema = z
+  .object({
+    errorMessage: z.string().trim().max(2000).optional(),
+    message: z.string().trim().max(2000).optional(),
+    appVersion: z.string().trim().max(64).nullable().optional(),
+    deviceInfo: z.string().trim().max(200).nullable().optional(),
+    stackTrace: z.string().max(8000).nullable().optional(),
+    stack: z.string().max(8000).nullable().optional(),
+  })
+  .refine(
+    (data) =>
+      Boolean(
+        (data.errorMessage && data.errorMessage.length > 0) ||
+          (data.message && data.message.length > 0),
+      ),
+    {
+      message: 'errorMessage wajib disertakan dan tidak boleh kosong.',
+      path: ['errorMessage'],
+    },
+  );
+
+export type TechErrorLogInput = z.infer<typeof techErrorLogSchema>;

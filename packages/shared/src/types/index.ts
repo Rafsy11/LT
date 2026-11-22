@@ -26,6 +26,8 @@ export interface UserSessionContext {
   permissions?: string[];
   assignedClusters: string[];
   deviceId?: string;
+  jti?: string;
+  sessionId?: string;
 }
 
 export interface JwtTokenPayload {

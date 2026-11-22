@@ -4,7 +4,10 @@ import { z } from 'zod';
 
 export const createTicketSchema = z.object({
   ticketType: z.enum(['PSB', 'MAINTENANCE'], {
-    required_error: 'Tipe tiket wajib dipilih (PSB atau MAINTENANCE)',
+    error: (issue) =>
+      issue.input === undefined
+        ? 'Tipe tiket wajib dipilih (PSB atau MAINTENANCE)'
+        : 'Tipe tiket harus PSB atau MAINTENANCE',
   }),
   customerName: z.string().trim().min(2, 'Nama pelanggan minimal 2 karakter').max(100),
   siaNumber: z.string().trim().min(3, 'Nomor SIA minimal 3 karakter').max(30),
@@ -47,8 +50,14 @@ export type DispatchTicketInput = z.infer<typeof dispatchTicketSchema>;
 
 // Field technician submission schema (server timestamp and UUID idempotency key)
 
+export const SAFE_TICKET_PHOTO_KEY_RE =
+  /^(?:opm-proofs|proofs)\/[a-zA-Z0-9._-]+(?:\/[a-zA-Z0-9._-]+)*$/;
+
 export const submitTicketSchema = z.object({
-  submissionId: z.string().uuid('submission_id wajib berupa UUID v4 yang valid (Idempotency Key)'),
+  submissionId: z.uuid({
+    version: 'v4',
+    error: 'submission_id wajib berupa UUID v4 yang valid (Idempotency Key)',
+  }),
   splitterId: z.string().min(1, 'splitter_id wajib disertakan'),
   portNumber: z.number().int().min(1, 'port_number minimal 1').max(32, 'port_number maksimal 32'),
   attenuationDbm: z
@@ -57,14 +66,21 @@ export const submitTicketSchema = z.object({
     .max(5.0, 'Nilai redaman tidak valid (terlalu tinggi)'),
   photoObjectKey: z
     .string()
-    .min(1, 'photo_object_key dari MinIO wajib disertakan sebagai bukti OPM'),
+    .trim()
+    .min(1, 'photo_object_key dari MinIO wajib disertakan sebagai bukti OPM')
+    .max(500, 'photoObjectKey maksimal 500 karakter')
+    .refine(
+      (val) => !val.includes('..') && SAFE_TICKET_PHOTO_KEY_RE.test(val),
+      'photoObjectKey wajib berupa path objek MinIO yang valid (opm-proofs/ atau proofs/) tanpa karakter traversal.',
+    ),
   submittedLat: z.number().min(-90.0).max(90.0, 'Latitude tidak valid'),
   submittedLng: z.number().min(-180.0).max(180.0, 'Longitude tidak valid'),
   isMockLocation: z.boolean().default(false), // Flag anti-fake GPS
   accuracyMeters: z.number().positive().optional(),
-  clientRecordedAt: z.string().datetime().optional(),
+  clientRecordedAt: z.iso.datetime().optional(),
   technicianNotes: z.string().max(1000).optional(),
   channel: z.enum(['WEB', 'MOBILE', 'TELEGRAM']).optional(),
+  deviceIntegrityToken: z.string().min(8).max(4096).optional(),
 });
 
 export type SubmitTicketInput = z.infer<typeof submitTicketSchema>;

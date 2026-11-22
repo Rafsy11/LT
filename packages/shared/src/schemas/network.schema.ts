@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const clusterSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   clusterCode: z.string().min(2),
   name: z.string().min(2),
   centerLat: z.number(),
@@ -12,8 +12,8 @@ export const clusterSchema = z.object({
 export type ClusterData = z.infer<typeof clusterSchema>;
 
 export const splitterSchema = z.object({
-  id: z.string().uuid(),
-  clusterId: z.string().uuid(),
+  id: z.uuid(),
+  clusterId: z.uuid(),
   splitterCode: z.string().min(2),
   name: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
@@ -28,7 +28,7 @@ export type SplitterData = z.infer<typeof splitterSchema>;
 export const portAllocationSchema = z.object({
   portNumber: z.number().int().min(1).max(32),
   isOccupied: z.boolean(),
-  customerId: z.string().uuid().optional(),
+  customerId: z.uuid().optional(),
   customerName: z.string().optional(),
   siaNumber: z.string().optional(),
 });
