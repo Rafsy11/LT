@@ -28,6 +28,26 @@ article > *,
   min-width: 0;
 }
 
+.tkt-code,
+.customer-sia-mono,
+.ticket-sia-badge,
+.odp-coord-mono,
+.dbm-cell b,
+.nav-count,
+.table-count-badge,
+.overview-time-title,
+.maps-kpi-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.customer-name-heading,
+.ticket-customer-name,
+.tech-card-name,
+.cell-multiline b {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
 .lintasarta-emblem {
   width: 32px;
   height: 42px;

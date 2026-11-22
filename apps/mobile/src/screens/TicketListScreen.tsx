@@ -434,7 +434,17 @@ export function TicketListView(props: TicketListScreenProps) {
   const [copiedSia, setCopiedSia] = useState<string | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const themeWrapRef = useRef<HTMLDivElement>(null);
+
+  const handleRequestLogout = () => {
+    if (state.offlineQueueCount > 0 && !showLogoutConfirm) {
+      setShowLogoutConfirm(true);
+      return;
+    }
+    setShowLogoutConfirm(false);
+    (props.onLogout || actions.logout)();
+  };
 
   const currentThemePreference: MobileThemePreference =
     props.themePreference ?? (props.themeMode === 'dark' ? 'dark' : 'light');
@@ -799,7 +809,7 @@ export function TicketListView(props: TicketListScreenProps) {
           <button
             type="button"
             className="fiberops-action-btn"
-            onClick={props.onLogout || actions.logout}
+            onClick={handleRequestLogout}
             aria-label="Keluar dari akun teknisi"
             title="Keluar dari akun teknisi"
             style={{
@@ -821,6 +831,69 @@ export function TicketListView(props: TicketListScreenProps) {
           </button>
         </div>
       </header>
+
+      {/* Accidental Logout Guard Banner when Offline Queue has Pending Reports */}
+      {showLogoutConfirm && state.offlineQueueCount > 0 && (
+        <div
+          role="alertdialog"
+          aria-label="Konfirmasi keluar saat antrean offline belum terkirim"
+          style={{
+            background: isDark ? '#2A1215' : '#FEF2F2',
+            border: `1px solid ${isDark ? '#EF4444' : '#FECACA'}`,
+            borderRadius: '6px',
+            padding: '12px 14px',
+            marginBottom: '12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          <div style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#FCA5A5' : '#991B1B' }}>
+            Masih ada {state.offlineQueueCount} laporan offline yang belum disinkronkan ke server. Keluar sekarang akan menghapus antrean lokal.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <button
+              type="button"
+              className="fiberops-action-btn"
+              onClick={() => setShowLogoutConfirm(false)}
+              style={{
+                minHeight: '36px',
+                padding: '6px 12px',
+                background: isDark ? '#1E293B' : '#FFFFFF',
+                color: theme.textPrimary,
+                border: `1px solid ${theme.border}`,
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              className="fiberops-action-btn"
+              onClick={() => {
+                setShowLogoutConfirm(false);
+                (props.onLogout || actions.logout)();
+              }}
+              style={{
+                minHeight: '36px',
+                padding: '6px 12px',
+                background: '#DC2626',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Tetap Keluar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Sticky Offline Queue Sync Banner */}
       {state.offlineQueueCount > 0 && (

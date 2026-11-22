@@ -63,10 +63,18 @@ export function TechniciansView() {
         <nav className="overview-toolbar" aria-label="Aksi bilah status teknisi">
           <div className="overview-status-pill">
             <span
-              className="status-dot status-dot--ok"
-              style={{ boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.2)' }}
+              className={`status-dot ${loadError ? 'status-dot--warn' : 'status-dot--ok'}`}
+              style={
+                loadError
+                  ? { background: '#d97706' }
+                  : { boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.2)' }
+              }
             />
-            Redis Session Store: Aktif
+            {loadError
+              ? 'Pemantauan Sesi Perangkat: Gangguan'
+              : loading
+                ? 'Pemantauan Sesi Perangkat: Memuat...'
+                : 'Pemantauan Sesi Perangkat: Aktif'}
           </div>
 
 

@@ -1,6 +1,11 @@
 import { ERROR_CODES } from '@repo/shared';
 
 export const MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MAX_IMAGE_DIMENSION_PX = 8192;
+export const MAX_IMAGE_TOTAL_PIXELS = 25_000_000;
+
+const POLYGLOT_PAYLOAD_RE =
+  /<\s*(?:script|html|!doctype\s+html|svg|iframe|object|embed)\b|<\?php|javascript\s*:/i;
 
 export const ALLOWED_IMAGE_MIME_TYPES = new Set([
   'image/jpeg',
@@ -38,6 +43,64 @@ export function detectImageFromMagicBytes(buf: Buffer): DetectedImageFormat | nu
   ) {
     return { mimeType: 'image/webp', ext: 'webp' };
   }
+  return null;
+}
+
+export function extractImageDimensions(
+  buf: Buffer,
+  mimeType: DetectedImageFormat['mimeType'],
+): { width: number; height: number } | null {
+  if (mimeType === 'image/png') {
+    if (buf.length >= 24 && buf.subarray(12, 16).toString('ascii') === 'IHDR') {
+      const width = buf.readUInt32BE(16);
+      const height = buf.readUInt32BE(20);
+      return { width, height };
+    }
+    return null;
+  }
+
+  if (mimeType === 'image/jpeg') {
+    let offset = 2;
+    while (offset + 9 < buf.length) {
+      if (buf[offset] !== 0xff) {
+        offset++;
+        continue;
+      }
+      const marker = buf[offset + 1] ?? 0;
+      if (marker === 0xff) {
+        offset++;
+        continue;
+      }
+      if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7)) {
+        offset += 2;
+        continue;
+      }
+      const segLength = buf.readUInt16BE(offset + 2);
+      if (segLength < 2 || offset + 2 + segLength > buf.length) {
+        break;
+      }
+      if ((marker === 0xc0 || marker === 0xc2) && segLength >= 8) {
+        const precision = buf[offset + 4];
+        if (precision === 8 || precision === 12) {
+          const height = buf.readUInt16BE(offset + 5);
+          const width = buf.readUInt16BE(offset + 7);
+          return { width, height };
+        }
+      }
+      offset += 2 + segLength;
+    }
+    return null;
+  }
+
+  if (mimeType === 'image/webp') {
+    if (buf.length >= 30 && buf.subarray(12, 16).toString('ascii') === 'VP8X') {
+      const width = 1 + buf.readUIntLE(24, 3);
+      const height = 1 + buf.readUIntLE(27, 3);
+      return { width, height };
+    }
+    return null;
+  }
+
   return null;
 }
 
@@ -80,6 +143,32 @@ export function validateImageUploadBuffer(file: File, buffer: Buffer): DetectedI
       new Error('Tipe berkas tidak sesuai dengan format gambar sebenarnya.'),
       { statusCode: 415, code: ERROR_CODES.UNSUPPORTED_MEDIA_TYPE },
     );
+  }
+
+  const sampleWindow = buffer.toString('latin1', 0, Math.min(buffer.length, 65536));
+  if (POLYGLOT_PAYLOAD_RE.test(sampleWindow)) {
+    throw Object.assign(
+      new Error('Berkas gambar ditolak karena mengandung muatan skrip atau markup berbahaya.'),
+      { statusCode: 415, code: ERROR_CODES.UNSUPPORTED_MEDIA_TYPE },
+    );
+  }
+
+  const dimensions = extractImageDimensions(buffer, detected.mimeType);
+  if (dimensions) {
+    if (
+      dimensions.width <= 0 ||
+      dimensions.height <= 0 ||
+      dimensions.width > MAX_IMAGE_DIMENSION_PX ||
+      dimensions.height > MAX_IMAGE_DIMENSION_PX ||
+      dimensions.width * dimensions.height > MAX_IMAGE_TOTAL_PIXELS
+    ) {
+      throw Object.assign(
+        new Error(
+          `Resolusi piksel gambar (${dimensions.width}x${dimensions.height}) melebihi batas keamanan maksimal (${MAX_IMAGE_DIMENSION_PX}x${MAX_IMAGE_DIMENSION_PX} piksel).`,
+        ),
+        { statusCode: 413, code: ERROR_CODES.PAYLOAD_TOO_LARGE },
+      );
+    }
   }
 
   return detected;

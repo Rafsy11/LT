@@ -63,7 +63,7 @@ export function MonitoringView() {
           <h1 className="overview-greeting">Live Monitoring Redaman</h1>
           <p className="overview-subtitle">
             Pusat kendali dan pemantauan sinyal redaman optik FTTH secara real-time via Server-Sent
-            Events (SSE) &amp; Redis Pub/Sub (PRD Section 3.4).
+            Events (SSE).
           </p>
         </div>
 

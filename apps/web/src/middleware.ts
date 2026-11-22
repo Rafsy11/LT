@@ -131,8 +131,51 @@ function isProtectedDashboardPage(pathname: string): boolean {
   );
 }
 
+const MAX_JSON_API_BODY_BYTES = 1_048_576; // 1 MB cap for JSON API bodies
+const INVISIBLE_UNICODE_SMUGGLING_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/;
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith('/api/')) {
+    const contentType = (request.headers.get('content-type') || '').toLowerCase();
+    const contentLength = Number(request.headers.get('content-length') || '0');
+    const isMultipart = contentType.includes('multipart/form-data');
+
+    if (!isMultipart && Number.isFinite(contentLength) && contentLength > MAX_JSON_API_BODY_BYTES) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: ERROR_CODES.PAYLOAD_TOO_LARGE,
+            message: 'Ukuran muatan JSON melebihi batas keamanan maksimal 1 MB.',
+          },
+        },
+        { status: 413 },
+      );
+    }
+
+    const decodedQuery = (() => {
+      try {
+        return decodeURIComponent(`${pathname}${request.nextUrl.search || ''}`);
+      } catch {
+        return `${pathname}${request.nextUrl.search || ''}`;
+      }
+    })();
+
+    if (INVISIBLE_UNICODE_SMUGGLING_RE.test(decodedQuery)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Parameter URL mengandung karakter kontrol atau karakter Unicode tersembunyi yang tidak diizinkan.',
+          },
+        },
+        { status: 400 },
+      );
+    }
+  }
 
   if (PUBLIC_API_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
     return NextResponse.next();

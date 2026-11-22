@@ -24,7 +24,7 @@ interface NavItem {
 }
 
 export function Sidebar({
-  ticketCount = 3,
+  ticketCount = 0,
   isOpen = false,
   onClose,
   isCollapsed = false,
@@ -122,7 +122,7 @@ export function Sidebar({
             {navItems.map((item) => {
               const active = isActive(item.href);
               const hasTrailingBadge = Boolean(
-                item.hasLiveDot || item.tag || item.count !== undefined,
+                item.hasLiveDot || item.tag || (item.count !== undefined && item.count > 0),
               );
               return (
                 <Link
@@ -143,7 +143,7 @@ export function Sidebar({
                   )}
                   {item.hasLiveDot && <i className="green-dot" aria-label="Status Live Aktif" />}
                   {item.tag && <span className="ai-tag">{item.tag}</span>}
-                  {item.count !== undefined && (
+                  {item.count !== undefined && item.count > 0 && (
                     <span className="nav-count" aria-label={`${item.count} tiket`}>
                       {item.count}
                     </span>

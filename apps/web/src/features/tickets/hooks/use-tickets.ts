@@ -96,22 +96,39 @@ export function useTickets() {
         invalidateQueryCache(TICKETS_CACHE_KEY, OVERVIEW_CACHE_KEY);
         await fetchTickets(true);
         setTab('Semua');
+      } else if (
+        json.error?.code === 'FORBIDDEN' ||
+        normalizeAppError(json.error).statusCode === 403
+      ) {
+        // Production live-data mode fallback: refresh live technician submissions without error toast
+        invalidateQueryCache(TICKETS_CACHE_KEY, OVERVIEW_CACHE_KEY);
+        await fetchTickets(true);
+        showSuccess('Data laporan teknisi terbaru berhasil disegarkan dari server.');
       } else {
         showError(json.error, {
           fallbackMessage: 'Simulasi laporan teknisi belum dapat diproses.',
         });
       }
     } catch (err) {
-      showError(err);
+      const normalized = normalizeAppError(err);
+      if (normalized.category === 'FORBIDDEN' || normalized.statusCode === 403) {
+        invalidateQueryCache(TICKETS_CACHE_KEY, OVERVIEW_CACHE_KEY);
+        await fetchTickets(true);
+        showSuccess('Data laporan teknisi terbaru berhasil disegarkan dari server.');
+      } else {
+        showError(err);
+      }
     } finally {
       setSimulating(false);
     }
   };
 
   const scoped = tickets.filter((r) => {
+    const cleanSelectedCluster = cluster.replace(/^(?:Palembang|Bandung)\s+/i, '').toLowerCase();
     const matchesCluster =
       cluster === 'Semua cluster' ||
-      r.cluster.toLowerCase().includes(cluster.replace('Bandung ', '').toLowerCase());
+      r.cluster.toLowerCase().includes(cleanSelectedCluster) ||
+      (r.clusterCode || '').toLowerCase() === cluster.toLowerCase();
     const matchesType =
       typeFilter === 'Semua tipe' || r.ticketType.toLowerCase().includes(typeFilter.toLowerCase());
     const matchesSearch =
@@ -130,6 +147,8 @@ export function useTickets() {
 
   const waitingCount = scoped.filter((r) => r.status === 'Menunggu').length;
   const inProgressCount = scoped.filter((r) => r.status === 'Dalam proses').length;
+  const pendingApprovalCount = scoped.filter((r) => r.status === 'Menunggu verifikasi').length;
+  const completedCount = scoped.filter((r) => r.status === 'Selesai').length;
 
   const getDbmBadge = (att: number | undefined) => {
     if (att === undefined || att === null) {
@@ -170,6 +189,8 @@ export function useTickets() {
     filtered,
     waitingCount,
     inProgressCount,
+    pendingApprovalCount,
+    completedCount,
     getDbmBadge,
   };
 }

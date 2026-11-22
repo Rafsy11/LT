@@ -15,6 +15,7 @@ import {
   rethrowIfStrictDatabaseError,
 } from '../lib/live-data';
 import { minioManager } from '../lib/minio';
+import { withSplitterPortMutex } from '../lib/port-mutex';
 
 const DEFAULT_CUSTOMER_LIST_LIMIT = 1000;
 
@@ -567,7 +568,8 @@ export class CustomerService {
   ) {
     if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memutasikan port.')) {
       try {
-        return await prisma.$transaction(async (tx) => {
+        return await withSplitterPortMutex(newSplitterCode, newPortNumber, async () =>
+          prisma.$transaction(async (tx) => {
           const customer = await tx.customer.findUnique({
             where: { siaNumber },
             include: { cluster: true, splitter: true },
@@ -704,7 +706,7 @@ export class CustomerService {
             notes: updated.notes ?? null,
             updatedAt: updated.updatedAt.toISOString(),
           };
-        });
+        }));
       } catch (err) {
         if (err instanceof AuthHttpError) {
           throw err;

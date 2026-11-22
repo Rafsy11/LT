@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -50,7 +51,7 @@ export function OverviewTicketQueue({
           <div className="table-header-controls">
             {/* Quick Status Filter Tabs */}
             <nav className="status-tabs" role="tablist" aria-label="Filter status tiket">
-              {['Semua', 'Menunggu', 'Dalam proses', 'Selesai'].map((st) => (
+              {['Semua', 'Menunggu', 'Dalam proses', 'Menunggu verifikasi', 'Selesai'].map((st) => (
                 <button
                   key={st}
                   type="button"
@@ -64,7 +65,7 @@ export function OverviewTicketQueue({
               ))}
             </nav>
 
-            {/* Search Box & Filter Button Row */}
+            {/* Search Box & Filter Navigation Link Row */}
             <div className="table-search-filter-row">
               <SearchInput
                 value={query}
@@ -74,11 +75,15 @@ export function OverviewTicketQueue({
                 className="table-search-box"
               />
 
-              {/* Filter Button */}
-              <button className="button-filter" type="button" aria-label="Buka filter lanjutan">
+              {/* Direct Navigation to Full Ticket Filter Workspace */}
+              <Link
+                href="/tickets"
+                className="button-filter"
+                aria-label="Buka halaman kelola dan filter tiket lengkap"
+              >
                 <Icon name="filter" size={14} />
-                <span>Filter &gt;</span>
-              </button>
+                <span>Kelola Tiket &gt;</span>
+              </Link>
             </div>
           </div>
         </header>

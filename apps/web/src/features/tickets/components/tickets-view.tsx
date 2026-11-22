@@ -37,6 +37,8 @@ export function TicketsView() {
     filtered,
     waitingCount,
     inProgressCount,
+    pendingApprovalCount,
+    completedCount,
     getDbmBadge,
   } = useTickets();
 
@@ -105,7 +107,7 @@ export function TicketsView() {
         totalWorkOrder={scoped.length}
         waitingCount={waitingCount}
         inProgressCount={inProgressCount}
-        completedCount={scoped.filter((t) => t.status === 'Selesai').length}
+        completedCount={completedCount}
       />
 
       {/* Filter Toolbar & Segmented Status Tabs Bar */}
@@ -121,6 +123,8 @@ export function TicketsView() {
         totalCount={scoped.length}
         waitingCount={waitingCount}
         inProgressCount={inProgressCount}
+        pendingApprovalCount={pendingApprovalCount}
+        completedCount={completedCount}
       />
 
       {/* Work Order Cards Grid */}

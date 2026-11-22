@@ -32,8 +32,11 @@ import {
 } from '../lib/telegram';
 
 import { CustomerService } from './customer.service';
+import { withSplitterPortMutex } from '../lib/port-mutex';
 
+export { withSplitterPortMutex };
 export type { DbTicket, DbTicketPendingSubmission };
+
 const FALLBACK_TICKETS: DbTicket[] = [
   {
     id: 't-1',
@@ -1600,7 +1603,11 @@ export class TicketService {
 
     if (dbAvailable) {
       try {
-        completedTicketResult = await prisma.$transaction(async (tx) => {
+        completedTicketResult = await withSplitterPortMutex(
+          splitterCode,
+          input.portNumber,
+          async () =>
+            prisma.$transaction(async (tx) => {
           // 1. Fetch Ticket
           const ticket = await tx.ticket.findFirst({
             where: {
@@ -1679,6 +1686,37 @@ export class TicketService {
             );
           }
 
+          // 3b. Prevent concurrent PENDING_APPROVAL reservation collision on the same ODP port
+          try {
+            const pendingTicketsOnCluster = await tx.ticket.findMany({
+              where: {
+                status: 'PENDING_APPROVAL',
+                id: { not: ticket.id },
+              },
+              select: { ticketNumber: true, pendingPayload: true },
+            });
+            if (Array.isArray(pendingTicketsOnCluster)) {
+              const conflictingPending = pendingTicketsOnCluster.find((pt) => {
+                const parsed = parsePendingPayload(pt.pendingPayload);
+                return (
+                  parsed &&
+                  (parsed.splitterId === splitter.id ||
+                    parsed.splitterCode === splitter.splitterCode) &&
+                  parsed.portNumber === input.portNumber
+                );
+              });
+              if (conflictingPending) {
+                throw new Error(
+                  `${ERROR_CODES.PORT_OCCUPIED}: Port ${input.portNumber} pada ODP ${splitter.splitterCode} sedang dalam antrean verifikasi tiket ${conflictingPending.ticketNumber}.`,
+                );
+              }
+            }
+          } catch (pendingErr) {
+            if ((pendingErr as Error).message.includes(ERROR_CODES.PORT_OCCUPIED)) {
+              throw pendingErr;
+            }
+          }
+
           // 4. Resolve Tech User
           let techUserId: string | null = ticket.assignedTechId;
           let resolvedTechFull = ticket.assignedTech?.fullName || pendingSubmission.techFullName;
@@ -1750,7 +1788,8 @@ export class TicketService {
           });
 
           return updatedTicket;
-        });
+            }),
+        );
       } catch (dbErr) {
         if (dbErr instanceof AuthHttpError) {
           throw dbErr;
@@ -1914,7 +1953,11 @@ export class TicketService {
         const finalPort =
           effectivePending?.portNumber || ticket?.portNumber || dbTicket.customer.portNumber || 1;
 
-        const updatedDbTicket = await prisma.$transaction(async (tx) => {
+        const updatedDbTicket = await withSplitterPortMutex(
+          finalSplitter,
+          finalPort,
+          async () =>
+            prisma.$transaction(async (tx) => {
           const splitter = await tx.networkSplitter.findFirst({
             where: {
               OR: [{ id: finalSplitter }, { splitterCode: finalSplitter }],
@@ -2003,7 +2046,8 @@ export class TicketService {
               assignedTech: true,
             },
           });
-        });
+            }),
+        );
 
         resolvedDto = mapDbTicketToDto(updatedDbTicket);
       } catch (err) {

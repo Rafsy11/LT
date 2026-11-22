@@ -73,14 +73,22 @@ export function CustomersView() {
           <h1 className="overview-greeting">Master Data Pelanggan (SIA)</h1>
           <p className="overview-subtitle">
             Pusat data pelanggan FTTH, pengikatan nomor SIA, alokasi fisik port splitter, dan
-            riwayat redaman optik (PRD 3.1 &amp; 5.1).
+            riwayat redaman optik.
           </p>
         </div>
 
         <nav className="overview-toolbar" aria-label="Aksi bilah status pelanggan">
           <div className="overview-status-pill">
-            <span className="status-dot status-dot--ok" aria-hidden="true" />
-            PostgreSQL Master Data: Aktif
+            <span
+              className={`status-dot ${loadError ? 'status-dot--warn' : 'status-dot--ok'}`}
+              style={loadError ? { background: '#d97706' } : undefined}
+              aria-hidden="true"
+            />
+            {loadError
+              ? 'Sinkronisasi Data SIA: Gangguan'
+              : loading
+                ? 'Sinkronisasi Data SIA: Memuat...'
+                : 'Sinkronisasi Data SIA: Aktif'}
           </div>
           {hasPermission(PERMISSIONS.CUSTOMER_UPDATE) && (
             <button

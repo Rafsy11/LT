@@ -14,6 +14,8 @@ export interface TicketFiltersProps {
   totalCount: number;
   waitingCount: number;
   inProgressCount: number;
+  pendingApprovalCount?: number;
+  completedCount?: number;
 }
 
 export function TicketFilters({
@@ -28,6 +30,8 @@ export function TicketFilters({
   totalCount,
   waitingCount,
   inProgressCount,
+  pendingApprovalCount = 0,
+  completedCount = 0,
 }: TicketFiltersProps) {
   const { clusters } = useClusterOptions();
 
@@ -78,12 +82,14 @@ export function TicketFilters({
         </div>
       </section>
 
-      {/* Segmented Status Tabs Bar (3 Clean Tabs: Semua, Menunggu, Dalam proses) */}
+      {/* Segmented Status Tabs Bar (5 Lifecycle Tabs: Semua, Menunggu, Dalam proses, Menunggu verifikasi, Selesai) */}
       <nav className="tickets-tabs-bar" role="tablist" aria-label="Filter Status Tiket">
         {[
           { label: 'Semua', count: totalCount },
           { label: 'Menunggu', count: waitingCount },
           { label: 'Dalam proses', count: inProgressCount },
+          { label: 'Menunggu verifikasi', count: pendingApprovalCount },
+          { label: 'Selesai', count: completedCount },
         ].map((item) => (
           <button
             key={item.label}
