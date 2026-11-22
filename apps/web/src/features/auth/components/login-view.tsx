@@ -129,7 +129,7 @@ export function LoginView() {
                   required
                   aria-invalid={Boolean(fieldErrors.username)}
                   aria-describedby={fieldErrors.username ? 'auth-username-error' : undefined}
-                  placeholder="superadmin atau admin.noc"
+                  placeholder="Masukkan username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className={`auth-input ${fieldErrors.username ? 'ui-input-invalid' : ''}`}
