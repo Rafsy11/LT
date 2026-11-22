@@ -16,6 +16,9 @@ import { useAuth, useToast } from '@/providers';
 export type OtpDeliveryStatus = 'IDLE' | 'SENT';
 export type LoginFieldKey = 'username' | 'password' | 'otpCode';
 
+const WEB_LOGIN_RATE_LIMIT_STORAGE_KEY = 'fiberops_web_login_rate_limit_until';
+const WEB_LOGIN_OTP_RESEND_STORAGE_KEY = 'fiberops_web_login_otp_resend_until';
+
 interface OtpChallengeResponse {
   preAuthToken: string;
   expiresIn?: number;
@@ -101,8 +104,8 @@ export function useLogin() {
   const [canRetry, setCanRetry] = useState<boolean>(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<LoginFieldKey, string>>>({});
 
-  const rateLimit = useRateLimitCountdown();
-  const resendCooldown = useRateLimitCountdown();
+  const rateLimit = useRateLimitCountdown(0, WEB_LOGIN_RATE_LIMIT_STORAGE_KEY);
+  const resendCooldown = useRateLimitCountdown(0, WEB_LOGIN_OTP_RESEND_STORAGE_KEY);
 
   // Scrub any accidentally leaked credentials (?username=...&password=...&otpCode=...) from URL bar on mount
   useEffect(() => {
@@ -250,6 +253,8 @@ export function useLogin() {
 
   const completeWebSession = useCallback(
     (authData: VerifiedSessionResponse) => {
+      rateLimit.clearCooldown();
+      resendCooldown.clearCooldown();
       const userPayload = authData.user;
 
       loginUser({
@@ -274,7 +279,7 @@ export function useLogin() {
 
       router.replace(targetUrl);
     },
-    [loginUser, router, showSuccess],
+    [loginUser, rateLimit, resendCooldown, router, showSuccess],
   );
 
   const resolveCurrentCredentials = useCallback((): {

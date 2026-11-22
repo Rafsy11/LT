@@ -287,5 +287,29 @@ describe('Tier 1: Feature 26 - Adversarial Hardening & Commercial End-User UI/UX
       /Clear-Site-Data/,
       'next.config.ts must not emit Clear-Site-Data on /mobile which would wipe the Admin Web Dashboard session cookie',
     );
+
+    const rateLimitHookSrc = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'web', 'src', 'hooks', 'use-rate-limit-countdown.ts'),
+      'utf8',
+    );
+    const useLoginSrc = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'web', 'src', 'features', 'auth', 'hooks', 'use-login.ts'),
+      'utf8',
+    );
+    assert.match(
+      rateLimitHookSrc,
+      /window\.localStorage\.setItem\(storageKey/,
+      'useRateLimitCountdown must persist expiration timestamp to localStorage when storageKey is provided',
+    );
+    assert.match(
+      useLoginSrc,
+      /WEB_LOGIN_RATE_LIMIT_STORAGE_KEY/,
+      'useLogin must persist login rate-limit cooldown across page refreshes',
+    );
+    assert.match(
+      mobileLoginSrc,
+      /MOBILE_RATE_LIMIT_UNTIL_KEY/,
+      'Mobile LoginScreen must persist login rate-limit cooldown across refreshes',
+    );
   });
 });

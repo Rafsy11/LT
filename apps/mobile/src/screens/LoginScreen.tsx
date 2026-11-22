@@ -13,6 +13,9 @@ import { getThemeTokens } from '../theme/tokens';
 import { ErrorBanner } from '../components/ErrorBanner';
 
 export const SERVER_URL_STORAGE_KEY = '@fiberops_server_url_v1';
+const MOBILE_RATE_LIMIT_UNTIL_KEY = '@fiberops_mobile_login_rate_limit_until_v1';
+const MOBILE_OTP_RESEND_UNTIL_KEY = '@fiberops_mobile_otp_resend_until_v1';
+const MS_PER_SECOND = 1000;
 
 export interface LoginScreenProps {
   apiClient: ApiClient;
@@ -165,7 +168,74 @@ export function LoginScreen({
   const [focusedInput, setFocusedInput] = useState<'username' | 'password' | 'otp' | null>(null);
 
   const otpInputRef = useRef<HTMLInputElement | null>(null);
+  const rateLimitUntilRef = useRef<number | null>(null);
+  const resendCooldownUntilRef = useRef<number | null>(null);
   const theme = getThemeTokens(themeMode);
+
+  const startMobileRateLimit = (seconds: number) => {
+    const normalized = Math.max(1, Math.ceil(seconds));
+    const until = Date.now() + normalized * MS_PER_SECOND;
+    rateLimitUntilRef.current = until;
+    setRateLimitSeconds(normalized);
+    void persistentStorage.setItem(MOBILE_RATE_LIMIT_UNTIL_KEY, String(until));
+  };
+
+  const startMobileResendCooldown = (seconds: number) => {
+    const normalized = Math.max(1, Math.ceil(seconds));
+    const until = Date.now() + normalized * MS_PER_SECOND;
+    resendCooldownUntilRef.current = until;
+    setResendCooldownSeconds(normalized);
+    void persistentStorage.setItem(MOBILE_OTP_RESEND_UNTIL_KEY, String(until));
+  };
+
+  const clearMobileCooldowns = () => {
+    rateLimitUntilRef.current = null;
+    resendCooldownUntilRef.current = null;
+    setRateLimitSeconds(0);
+    setResendCooldownSeconds(0);
+    void persistentStorage.removeItem(MOBILE_RATE_LIMIT_UNTIL_KEY);
+    void persistentStorage.removeItem(MOBILE_OTP_RESEND_UNTIL_KEY);
+  };
+
+  // Restore persisted rate-limit and OTP resend cooldowns across refreshes
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const [savedRateUntil, savedResendUntil] = await Promise.all([
+          persistentStorage.getItem(MOBILE_RATE_LIMIT_UNTIL_KEY),
+          persistentStorage.getItem(MOBILE_OTP_RESEND_UNTIL_KEY),
+        ]);
+        if (!active) return;
+
+        const now = Date.now();
+        if (savedRateUntil) {
+          const parsedUntil = Number(savedRateUntil);
+          if (Number.isFinite(parsedUntil) && parsedUntil > now) {
+            rateLimitUntilRef.current = parsedUntil;
+            setRateLimitSeconds(Math.max(1, Math.ceil((parsedUntil - now) / MS_PER_SECOND)));
+          } else {
+            void persistentStorage.removeItem(MOBILE_RATE_LIMIT_UNTIL_KEY);
+          }
+        }
+
+        if (savedResendUntil) {
+          const parsedResend = Number(savedResendUntil);
+          if (Number.isFinite(parsedResend) && parsedResend > now) {
+            resendCooldownUntilRef.current = parsedResend;
+            setResendCooldownSeconds(Math.max(1, Math.ceil((parsedResend - now) / MS_PER_SECOND)));
+          } else {
+            void persistentStorage.removeItem(MOBILE_OTP_RESEND_UNTIL_KEY);
+          }
+        }
+      } catch {
+        // Ignore storage errors
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
   const isDark = themeMode === 'dark';
   const isLocked = isLoading || rateLimitSeconds > 0;
 
@@ -211,22 +281,46 @@ export function LoginScreen({
     if (resendCooldownSeconds <= 0) return;
 
     const timer = window.setInterval(() => {
-      setResendCooldownSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
-    }, 1000);
+      if (resendCooldownUntilRef.current !== null) {
+        const left = Math.max(
+          0,
+          Math.ceil((resendCooldownUntilRef.current - Date.now()) / MS_PER_SECOND),
+        );
+        if (left <= 0) {
+          resendCooldownUntilRef.current = null;
+          void persistentStorage.removeItem(MOBILE_OTP_RESEND_UNTIL_KEY);
+        }
+        setResendCooldownSeconds(left);
+      } else {
+        setResendCooldownSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
+      }
+    }, MS_PER_SECOND);
 
     return () => window.clearInterval(timer);
-  }, [resendCooldownSeconds]);
+  }, [resendCooldownSeconds > 0]);
 
   // Rate limit countdown (HTTP 429)
   useEffect(() => {
     if (rateLimitSeconds <= 0) return;
 
     const timer = window.setInterval(() => {
-      setRateLimitSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
-    }, 1000);
+      if (rateLimitUntilRef.current !== null) {
+        const left = Math.max(
+          0,
+          Math.ceil((rateLimitUntilRef.current - Date.now()) / MS_PER_SECOND),
+        );
+        if (left <= 0) {
+          rateLimitUntilRef.current = null;
+          void persistentStorage.removeItem(MOBILE_RATE_LIMIT_UNTIL_KEY);
+        }
+        setRateLimitSeconds(left);
+      } else {
+        setRateLimitSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
+      }
+    }, MS_PER_SECOND);
 
     return () => window.clearInterval(timer);
-  }, [rateLimitSeconds]);
+  }, [rateLimitSeconds > 0]);
 
   const setUsername = (val: string) => {
     setUsernameState(val);
@@ -262,9 +356,9 @@ export function LoginScreen({
           : 0;
 
     if (code === ERROR_CODES.OTP_COOLDOWN_ACTIVE || (code === ERROR_CODES.RATE_LIMIT_EXCEEDED && options.isResend)) {
-      setResendCooldownSeconds(retrySec || OTP_CONFIG.RESEND_COOLDOWN_SECONDS);
+      startMobileResendCooldown(retrySec || OTP_CONFIG.RESEND_COOLDOWN_SECONDS);
     } else if (code === ERROR_CODES.RATE_LIMIT_EXCEEDED || code === ERROR_CODES.RATE_LIMITED) {
-      setRateLimitSeconds(retrySec || 60);
+      startMobileRateLimit(retrySec || 60);
     }
 
     if (code === ERROR_CODES.OTP_MAX_ATTEMPTS || code === ERROR_CODES.OTP_EXPIRED) {
@@ -350,7 +444,7 @@ export function LoginScreen({
 
         setPreAuthToken(res.data.preAuthToken);
         setOtpExpiresSeconds(res.data.expiresIn || OTP_CONFIG.EXPIRY_SECONDS);
-        setResendCooldownSeconds(res.data.resendCooldown ?? OTP_CONFIG.RESEND_COOLDOWN_SECONDS);
+        startMobileResendCooldown(res.data.resendCooldown ?? OTP_CONFIG.RESEND_COOLDOWN_SECONDS);
         setDeliveryStatus('SENT');
         setMaskedChatId(res.data.maskedChatId || null);
         setBotUsername(res.data.botUsername || 'FiberOpsNOCBot');
@@ -376,7 +470,7 @@ export function LoginScreen({
 
       setPreAuthToken(res.data.preAuthToken);
       setOtpExpiresSeconds(res.data.expiresIn || OTP_CONFIG.EXPIRY_SECONDS);
-      setResendCooldownSeconds(res.data.resendCooldown ?? OTP_CONFIG.RESEND_COOLDOWN_SECONDS);
+      startMobileResendCooldown(res.data.resendCooldown ?? OTP_CONFIG.RESEND_COOLDOWN_SECONDS);
       setDeliveryStatus('SENT');
       setMaskedChatId(res.data.maskedChatId || null);
       setBotUsername(res.data.botUsername || 'FiberOpsNOCBot');
@@ -439,6 +533,7 @@ export function LoginScreen({
         refreshToken: res.data.refreshToken,
       };
 
+      clearMobileCooldowns();
       apiClient.setTokens(tokens);
       onLoginSuccess(res.data.user, tokens);
     } catch {
