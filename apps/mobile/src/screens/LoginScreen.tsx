@@ -1256,7 +1256,7 @@ export function LoginScreen({
                 className="fiberops-action-btn"
                 onClick={() => setShowServerModal(false)}
                 style={{
-                  minHeight: '40px',
+                  minHeight: '44px',
                   padding: '8px 16px',
                   background: '#1B5CA2',
                   color: '#FFFFFF',

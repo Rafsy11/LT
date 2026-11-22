@@ -417,6 +417,10 @@ export function CustomerProfileEditModal({
                     <img
                       src={photoPreviewUrl}
                       alt={photoCaption || `Foto lokasi ${customer.fullName}`}
+                      width={120}
+                      height={90}
+                      decoding="async"
+                      fetchPriority="low"
                       className="cp-photo-thumb"
                     />
                   ) : (

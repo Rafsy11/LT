@@ -247,6 +247,7 @@ export async function uploadToPresignedPutUrl(
     );
     throw new Error(
       `Gagal mengunggah foto bukti OPM ke server penyimpanan MinIO: ${(err as Error).message}`,
+      { cause: err },
     );
   }
 }

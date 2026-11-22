@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import { UserAccessItem } from '../hooks/use-roles';
 
 export interface TelegramGuideModalProps {
@@ -13,8 +14,17 @@ export interface TelegramGuideModalProps {
 }
 
 export function TelegramGuideModal({ user, onClose, onUnlink }: TelegramGuideModalProps) {
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [confirmUnlink, setConfirmUnlink] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current !== null) {
+        globalThis.clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
 
   if (!user) return null;
 
@@ -28,21 +38,15 @@ Untuk mengaktifkan OTP 2FA akun FiberOps Anda:
 Setelah Chat ID ditautkan oleh Admin, kode OTP login resmi FiberOps Lintasarta akan dikirim ke Telegram Anda.`;
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(instructionText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback if clipboard API is restricted
-      const textarea = document.createElement('textarea');
-      textarea.value = instructionText;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    if (copyTimerRef.current !== null) {
+      globalThis.clearTimeout(copyTimerRef.current);
     }
+    const ok = await copyTextToClipboard(instructionText);
+    setCopyStatus(ok ? 'copied' : 'failed');
+    copyTimerRef.current = globalThis.setTimeout(() => {
+      setCopyStatus('idle');
+      copyTimerRef.current = null;
+    }, 2000);
   };
 
   const handleExecuteUnlink = () => {
@@ -251,25 +255,40 @@ Setelah Chat ID ditautkan oleh Admin, kode OTP login resmi FiberOps Lintasarta a
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {!user.telegramChatId && (
-              <button
-                type="button"
-                onClick={handleCopy}
-                className={`button ${copied ? 'ui-btn-solid-success' : 'primary ui-btn-solid-primary'}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 14px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  borderRadius: '6px',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                <Icon name={copied ? 'check' : 'fileText'} size={14} />
-                <span>{copied ? 'Tersalin!' : 'Salin Instruksi'}</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => void handleCopy()}
+                  className={`button ${copyStatus === 'copied' ? 'ui-btn-solid-success' : 'primary ui-btn-solid-primary'}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Icon name={copyStatus === 'copied' ? 'check' : 'fileText'} size={14} />
+                  <span>
+                    {copyStatus === 'copied'
+                      ? 'Tersalin!'
+                      : copyStatus === 'failed'
+                        ? 'Gagal Menyalin'
+                        : 'Salin Instruksi'}
+                  </span>
+                </button>
+                <span className="sr-only" role="status">
+                  {copyStatus === 'copied'
+                    ? 'Instruksi Telegram tersalin ke papan klip'
+                    : copyStatus === 'failed'
+                      ? 'Gagal menyalin instruksi Telegram'
+                      : ''}
+                </span>
+              </>
             )}
 
             <button

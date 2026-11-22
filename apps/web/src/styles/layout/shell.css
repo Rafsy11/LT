@@ -860,6 +860,7 @@ footer > span:last-child {
   top: calc(100% + 10px);
   z-index: var(--z-header-popover, 100);
   width: 340px;
+  max-inline-size: calc(100vw - 24px);
   background: #ffffff;
   padding: 14px 16px;
   box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.16),
@@ -1703,6 +1704,7 @@ html.dark .ai-tag,
   top: calc(100% + 8px);
   right: 0;
   min-width: 176px;
+  max-inline-size: calc(100vw - 24px);
   background: #ffffff;
   border: 1px solid #dce7f0;
   border-radius: 10px;

@@ -198,6 +198,10 @@ export function OdpInspectorPanel({ odp, highlightedSia }: OdpInspectorPanelProp
                     <img
                       src={c.photoUrl}
                       alt={`Lokasi ${c.fullName}`}
+                      width={44}
+                      height={44}
+                      loading="lazy"
+                      decoding="async"
                       className="maps-customer-thumb"
                     />
                   ) : (

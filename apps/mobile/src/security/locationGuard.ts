@@ -78,7 +78,9 @@ export async function acquireVerifiedLocation(
         accuracy: Location.Accuracy.High,
       });
     } catch (err) {
-      throw new Error(`Gagal membaca sinyal satelit GPS: ${(err as Error).message}`);
+      throw new Error(`Gagal membaca sinyal satelit GPS: ${(err as Error).message}`, {
+        cause: err,
+      });
     }
   }
 

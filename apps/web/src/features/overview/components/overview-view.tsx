@@ -120,7 +120,6 @@ export function OverviewView() {
               className={`button primary overview-action-trigger ${actionMenuOpen ? 'open' : ''}`}
               onClick={() => setActionMenuOpen((prev) => !prev)}
               aria-expanded={actionMenuOpen}
-              aria-haspopup="menu"
             >
               <Icon name="plus" size={14} />
               <span>Menu Tindakan</span>
@@ -132,11 +131,10 @@ export function OverviewView() {
             </button>
 
             {actionMenuOpen && (
-              <div className="overview-action-dropdown" role="menu">
+              <div className="overview-action-dropdown" role="group" aria-label="Menu Tindakan">
                 {canCreateTicket ? (
                   <button
                     type="button"
-                    role="menuitem"
                     className="action-dropdown-item"
                     onClick={() => {
                       setModalOpen(true);
@@ -154,7 +152,6 @@ export function OverviewView() {
                 ) : (
                   <button
                     type="button"
-                    role="menuitem"
                     disabled
                     className="action-dropdown-item disabled"
                     title="Izin ticket:create diperlukan"
@@ -173,10 +170,9 @@ export function OverviewView() {
 
                 <button
                   type="button"
-                  role="menuitem"
                   className="action-dropdown-item"
                   onClick={() => {
-                    exportCsv();
+                    void exportCsv();
                     setActionMenuOpen(false);
                   }}
                 >

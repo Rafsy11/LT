@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth, useToast } from '@/providers';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
 import { webApiClient } from '@/lib/api-client';
-import { escapeCsvCell } from '@/lib/csv';
+import { escapeCsvRowsAsync } from '@/lib/csv';
 import { normalizeAppError } from '@/lib/error-normalizer';
 import {
   classifyDbm,
@@ -95,7 +95,7 @@ export function useOverview() {
   const canReadNetwork = hasPermission(PERMISSIONS.NETWORK_READ);
 
   const feedItems = useMemo<OverviewFeedItem[]>(() => {
-    const sorted = [...tickets].sort((a, b) => {
+    const sorted = tickets.toSorted((a, b) => {
       const aTime =
         new Date(a.completedAt || a.dispatchedAt || a.startedAt || a.createdAt).getTime() || 0;
       const bTime =
@@ -303,7 +303,7 @@ export function useOverview() {
     return matchesCluster && matchesStatus && matchesQuery;
   });
 
-  const exportCsv = () => {
+  const exportCsv = async () => {
     const headers = [
       'Tiket',
       'Pelanggan',
@@ -325,9 +325,7 @@ export function useOverview() {
       r.currentAttenuation,
     ]);
 
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => escapeCsvCell(cell)).join(','))
-      .join('\n');
+    const csvContent = await escapeCsvRowsAsync(headers, rows);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

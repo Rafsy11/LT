@@ -10,7 +10,7 @@ import {
   type CreateTicketInput,
 } from '@repo/shared';
 import { SignalStrengthBars } from '@/features/customers';
-import { escapeCsvCell } from '@/lib/csv';
+import { escapeCsvRowsAsync } from '@/lib/csv';
 import type {
   AttenuationMeta,
   OdpHistoryLogItem,
@@ -93,7 +93,7 @@ export function SplitterPortGrid({
       ? measuredPorts.reduce((sum, p) => sum + (p.attenuation ?? 0), 0) / measuredPorts.length
       : null;
 
-  const handleDownloadInspectionCsv = () => {
+  const handleDownloadInspectionCsv = async () => {
     const headers = [
       'ODP',
       'Port',
@@ -117,9 +117,7 @@ export function SplitterPortGrid({
       port.lastActivity?.notes || '-',
     ]);
 
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => escapeCsvCell(cell)).join(','))
-      .join('\n');
+    const csvContent = await escapeCsvRowsAsync(headers, rows);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

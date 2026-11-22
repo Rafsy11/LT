@@ -493,6 +493,7 @@ export async function storeSecureToken(key: string, token: string): Promise<void
     if (process.env.NODE_ENV === 'production' && typeof window === 'undefined') {
       throw new Error(
         `SECURE_STORE_REQUIRED: Penyimpanan hardware keystore wajib tersedia pada mode produksi (${(err as Error).message}).`,
+        { cause: err },
       );
     }
     inMemorySecureVault.set(key, encrypted);

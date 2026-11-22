@@ -342,6 +342,7 @@
 
 /* Inspector Sidebar */
 .maps-inspector {
+  contain: layout style paint;
   background: #ffffff;
   border: 1px solid #dce7f0;
   border-radius: 8px;
@@ -461,6 +462,8 @@
 }
 
 .maps-customer-row {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 72px;
   display: flex;
   align-items: center;
   gap: 10px;

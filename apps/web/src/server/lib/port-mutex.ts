@@ -18,10 +18,7 @@ export async function withSplitterPortMutex<T>(
 ): Promise<T> {
   const normalizedKey = `${splitterKey.trim().toUpperCase()}:${portNumber}`;
   const previous = splitterPortLocks.get(normalizedKey) ?? Promise.resolve();
-  let release!: () => void;
-  const current = new Promise<void>((resolve) => {
-    release = resolve;
-  });
+  const { promise: current, resolve: release } = Promise.withResolvers<void>();
   const chained = previous.then(
     () => current,
     () => current,

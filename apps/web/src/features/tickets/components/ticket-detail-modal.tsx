@@ -8,6 +8,7 @@ import { FieldError } from '@/components/ui/FieldError';
 import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { useToast, useAuth } from '@/providers';
 import { webApiClient } from '@/lib/api-client';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import { normalizeAppError } from '@/lib/error-normalizer';
 import { invalidateQueryCache } from '@/lib/query-cache';
 import { classifyDbm, type TechnicianListItem } from '@repo/shared';
@@ -298,11 +299,13 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
     }
   };
 
-  const handleCopyCoords = () => {
+  const handleCopyCoords = async () => {
     if (ticket.targetLat === undefined || ticket.targetLng === undefined) return;
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      void navigator.clipboard.writeText(`${ticket.targetLat}, ${ticket.targetLng}`);
-      showSuccess('Titik koordinat berhasil disalin ke clipboard.');
+    const copied = await copyTextToClipboard(`${ticket.targetLat}, ${ticket.targetLng}`);
+    if (copied) {
+      showSuccess('Titik koordinat berhasil disalin ke papan klip.');
+    } else {
+      showError('Gagal menyalin titik koordinat ke papan klip.');
     }
   };
 

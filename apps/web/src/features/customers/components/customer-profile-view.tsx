@@ -11,8 +11,10 @@ import {
 } from '@repo/shared';
 import { Icon } from '@/components/ui/Icon';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ModalOverlay } from '@/components/ui/modal-overlay';
 import { SafeErrorState } from '@/components/ui/SafeErrorState';
 import { webApiClient } from '@/lib/api-client';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import { normalizeAppError } from '@/lib/error-normalizer';
 import { useAuth, useToast } from '@/providers';
 import { CustomerProfileEditModal } from './customer-profile-edit-modal';
@@ -120,10 +122,10 @@ export function CustomerProfileView({ sia }: CustomerProfileViewProps) {
   }, [loadProfile]);
 
   const copyText = async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
+    const ok = await copyTextToClipboard(value);
+    if (ok) {
       showSuccess(`${label} disalin ke papan klip.`);
-    } catch {
+    } else {
       showError('Gagal menyalin teks ke papan klip.');
     }
   };
@@ -285,6 +287,10 @@ export function CustomerProfileView({ sia }: CustomerProfileViewProps) {
                   <img
                     src={customer.photoUrl}
                     alt={customer.photoCaption || `Foto bangunan ${customer.fullName}`}
+                    width={640}
+                    height={360}
+                    fetchPriority="high"
+                    decoding="async"
                     className="cp-photo-img"
                     onClick={() => setLightboxOpen(true)}
                   />
@@ -723,16 +729,14 @@ export function CustomerProfileView({ sia }: CustomerProfileViewProps) {
 
       {/* Fullscreen Photo Lightbox */}
       {lightboxOpen && customer.photoUrl && (
-        <div
+        <ModalOverlay
+          onClose={() => setLightboxOpen(false)}
+          labelledBy="cp-lightbox-title"
           className="cp-lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Pratinjau foto lokasi ${customer.fullName}`}
-          onClick={() => setLightboxOpen(false)}
         >
-          <div className="cp-lightbox-inner" onClick={(e) => e.stopPropagation()}>
+          <div className="cp-lightbox-inner">
             <div className="cp-lightbox-bar">
-              <span>
+              <span id="cp-lightbox-title">
                 <b>{customer.fullName}</b>
                 {customer.photoCaption ? ` · ${customer.photoCaption}` : ''}
               </span>
@@ -747,10 +751,12 @@ export function CustomerProfileView({ sia }: CustomerProfileViewProps) {
             <img
               src={customer.photoUrl}
               alt={customer.photoCaption || `Foto lokasi ${customer.fullName}`}
+              decoding="async"
+              fetchPriority="low"
               className="cp-lightbox-img"
             />
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </main>
   );

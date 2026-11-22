@@ -100,13 +100,11 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
     }
 
     setIsChecking(true);
-    const controller = new AbortController();
-    const timer = globalThis.setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
 
     try {
       const res = await fetch('/api/v1/health', {
         cache: 'no-store',
-        signal: controller.signal,
+        signal: AbortSignal.timeout(HEALTH_CHECK_TIMEOUT_MS),
       });
       const json = (await res.json().catch(() => null)) as { success?: boolean } | null;
 
@@ -137,7 +135,6 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
       }
       return false;
     } finally {
-      globalThis.clearTimeout(timer);
       setIsChecking(false);
     }
   }, [isChecking, serviceUnavailable.category]);

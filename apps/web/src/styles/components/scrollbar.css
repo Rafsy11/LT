@@ -37,6 +37,28 @@ html.dark,
   --scrollbar-thumb-active: #38bdf8;
 }
 
+/* High-contrast scrollbar overrides (>= 3:1 WCAG 1.4.11) without animations */
+@media (prefers-contrast: more) {
+  :root,
+  .mobile-shell-viewport:not([data-mobile-theme='dark']) {
+    --scrollbar-track: #f8fafc;
+    --scrollbar-track-root: #ffffff;
+    --scrollbar-thumb: #334155;
+    --scrollbar-thumb-hover: #0e5b92;
+    --scrollbar-thumb-active: #0f172a;
+  }
+
+  html.dark,
+  [data-theme='dark'],
+  .mobile-shell-viewport[data-mobile-theme='dark'] {
+    --scrollbar-track: #0f172a;
+    --scrollbar-track-root: #020617;
+    --scrollbar-thumb: #cbd5e1;
+    --scrollbar-thumb-hover: #7dd3fc;
+    --scrollbar-thumb-active: #ffffff;
+  }
+}
+
 /* Chromium, Edge, Safari & WebKit Custom Scrollbar */
 ::-webkit-scrollbar {
   width: var(--scrollbar-size);

@@ -32,9 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="id" className={plusJakartaSans.variable} suppressHydrationWarning>
       <head>
+        <meta name="color-scheme" content="light dark" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('fiberops_theme');var isDark=t==='dark'||((!t||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(isDark){document.documentElement.classList.add('dark');document.documentElement.setAttribute('data-theme','dark');}else{document.documentElement.classList.remove('dark');document.documentElement.setAttribute('data-theme','light');}}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('fiberops_theme');var m=document.querySelector('meta[name="color-scheme"]');if(m){m.setAttribute('content',t==='dark'||t==='light'?t:'light dark');}var isDark=t==='dark'||((!t||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(isDark){document.documentElement.classList.add('dark');document.documentElement.setAttribute('data-theme','dark');}else{document.documentElement.classList.remove('dark');document.documentElement.setAttribute('data-theme','light');}}catch(e){}})();`,
           }}
         />
       </head>

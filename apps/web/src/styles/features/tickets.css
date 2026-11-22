@@ -116,6 +116,8 @@
 }
 
 .ticket-card {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 196px;
   background: #ffffff;
   border: 1px solid #dce7f0;
   border-radius: 8px;

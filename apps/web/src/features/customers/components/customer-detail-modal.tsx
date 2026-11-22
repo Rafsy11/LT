@@ -151,6 +151,10 @@ export function CustomerDetailModal({
               <img
                 src={activeCustomer.photoUrl}
                 alt={activeCustomer.photoCaption || `Foto bangunan ${activeCustomer.fullName}`}
+                width={150}
+                height={96}
+                decoding="async"
+                fetchPriority="low"
                 style={{
                   width: '150px',
                   height: '96px',

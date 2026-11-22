@@ -185,6 +185,26 @@ export function Header({
                 className="theme-dropdown-menu"
                 role="listbox"
                 aria-label="Pilihan Tema Antarmuka"
+                onKeyDown={(e) => {
+                  const items = Array.from(
+                    e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+                  );
+                  if (items.length === 0) return;
+                  const currentIdx = items.indexOf(document.activeElement as HTMLButtonElement);
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    items[(currentIdx + 1) % items.length]?.focus();
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    items[(currentIdx - 1 + items.length) % items.length]?.focus();
+                  } else if (e.key === 'Home') {
+                    e.preventDefault();
+                    items[0]?.focus();
+                  } else if (e.key === 'End') {
+                    e.preventDefault();
+                    items[items.length - 1]?.focus();
+                  }
+                }}
               >
                 {THEME_OPTIONS.map((opt) => {
                   const isSelected = theme === opt.value;
@@ -233,7 +253,7 @@ export function Header({
           </button>
 
           {notice && (
-            <aside className="notification-pop" role="dialog" aria-label="Notifikasi terbaru">
+            <aside className="notification-pop" aria-label="Notifikasi terbaru">
               <div className="notification-pop-header">
                 <b>Notifikasi {unreadCount > 0 ? `(${unreadCount})` : ''}</b>
                 {unreadCount > 0 && onMarkAllRead && (

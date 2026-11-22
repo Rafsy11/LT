@@ -517,6 +517,8 @@ html.dark .customer-status-select,
   }
 
   .mobile-customer-card {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 132px;
     padding: 12px 14px !important;
     border-radius: 14px !important;
     background: #0b1329 !important;

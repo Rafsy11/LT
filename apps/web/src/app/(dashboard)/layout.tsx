@@ -127,7 +127,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       fetchWithCache<DbTicket[]>(
         activeCacheKey,
         async () => {
-          const res = await webApiClient.get<DbTicket[]>(activeCacheKey);
+          const res = await webApiClient.get<DbTicket[]>(activeCacheKey, { priority: 'low' });
           if (!res.success || !Array.isArray(res.data)) {
             throw new Error('Daftar tiket belum dapat dimuat saat ini.');
           }
@@ -264,7 +264,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return 2;
     };
 
-    const ordered = [...relevant].sort((a, b) => score(a) - score(b));
+    const ordered = relevant.toSorted((a, b) => score(a) - score(b));
     for (const t of ordered.slice(0, 6)) {
       const isCriticalDbm =
         typeof t.currentAttenuation === 'number' &&

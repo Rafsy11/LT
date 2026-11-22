@@ -20,10 +20,20 @@
    Overview ODP Health & Anomaly Watchlist Panel (replaces redundant SVG map)
    ========================================================================== */
 
+.odp-health-panel {
+  container-type: inline-size;
+}
+
 .odp-health-panel .panel-inner {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+@container (max-width: 440px) {
+  .odp-summary-tiles {
+    grid-template-columns: 1fr;
+  }
 }
 
 .odp-health-header {

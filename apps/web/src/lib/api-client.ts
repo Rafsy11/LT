@@ -18,8 +18,10 @@ export type ApiClientError = AppError;
 export interface RequestOptions extends RequestInit {
   onConflict?: () => void | Promise<void>;
   skipAuthRedirect?: boolean;
-  /** Request timeout in milliseconds using AbortController. Defaults to 15000ms. */
+  /** Request timeout in milliseconds using AbortSignal.timeout(). Defaults to 15000ms. */
   timeoutMs?: number;
+  /** Optional Fetch Priority hint ('high' | 'low' | 'auto') for progressive enhancement. */
+  priority?: 'high' | 'low' | 'auto';
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -47,6 +49,7 @@ class WebApiClient {
       onConflict,
       skipAuthRedirect = false,
       timeoutMs = DEFAULT_TIMEOUT_MS,
+      priority,
       signal: externalSignal,
       ...fetchOptions
     } = options;
@@ -63,35 +66,51 @@ class WebApiClient {
       headers.set('Content-Type', 'application/json');
     }
 
-    const controller = new AbortController();
-    let didTimeout = false;
+    const timeoutSignal = timeoutMs > 0 ? AbortSignal.timeout(timeoutMs) : undefined;
+    let fallbackController: AbortController | null = null;
+    let fallbackTimedOut = false;
+    let handleExternalAbort: (() => void) | null = null;
+    let handleTimeoutAbort: (() => void) | null = null;
+    let signal: AbortSignal | undefined;
 
-    const handleExternalAbort = () => {
-      controller.abort();
-    };
-    if (externalSignal) {
-      if (externalSignal.aborted) {
-        controller.abort();
+    if (externalSignal && timeoutSignal) {
+      if (typeof AbortSignal.any === 'function') {
+        signal = AbortSignal.any([externalSignal, timeoutSignal]);
       } else {
-        externalSignal.addEventListener('abort', handleExternalAbort, { once: true });
+        fallbackController = new AbortController();
+        handleExternalAbort = () => fallbackController?.abort(externalSignal.reason);
+        handleTimeoutAbort = () => {
+          fallbackTimedOut = true;
+          fallbackController?.abort(timeoutSignal.reason);
+        };
+        if (externalSignal.aborted) {
+          handleExternalAbort();
+        } else {
+          externalSignal.addEventListener('abort', handleExternalAbort, { once: true });
+        }
+        if (timeoutSignal.aborted) {
+          handleTimeoutAbort();
+        } else {
+          timeoutSignal.addEventListener('abort', handleTimeoutAbort, { once: true });
+        }
+        signal = fallbackController.signal;
       }
+    } else {
+      signal = timeoutSignal ?? externalSignal ?? undefined;
     }
 
-    const timerId =
-      timeoutMs > 0
-        ? globalThis.setTimeout(() => {
-            didTimeout = true;
-            controller.abort();
-          }, timeoutMs)
-        : null;
+    const requestInit: RequestInit & { priority?: 'high' | 'low' | 'auto' } = {
+      ...fetchOptions,
+      credentials: fetchOptions.credentials ?? 'include',
+      headers,
+      signal,
+    };
+    if (priority) {
+      requestInit.priority = priority;
+    }
 
     try {
-      const response = await fetch(endpoint, {
-        ...fetchOptions,
-        credentials: fetchOptions.credentials ?? 'include',
-        headers,
-        signal: controller.signal,
-      });
+      const response = await fetch(endpoint, requestInit);
 
       const retryAfterHeader = response.headers.get('Retry-After');
 
@@ -242,7 +261,12 @@ class WebApiClient {
       }
       return json;
     } catch (err: unknown) {
-      if (didTimeout) {
+      const isTimeoutError =
+        fallbackTimedOut ||
+        (err instanceof DOMException && err.name === 'TimeoutError') ||
+        (err instanceof Error && err.name === 'TimeoutError');
+
+      if (isTimeoutError) {
         throw normalizeAppError(err, {
           statusCode: 408,
           code: ERROR_CODES.REQUEST_TIMEOUT,
@@ -270,11 +294,11 @@ class WebApiClient {
             : STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR,
       });
     } finally {
-      if (timerId !== null) {
-        globalThis.clearTimeout(timerId);
-      }
-      if (externalSignal) {
+      if (externalSignal && handleExternalAbort) {
         externalSignal.removeEventListener('abort', handleExternalAbort);
+      }
+      if (timeoutSignal && handleTimeoutAbort) {
+        timeoutSignal.removeEventListener('abort', handleTimeoutAbort);
       }
     }
   }

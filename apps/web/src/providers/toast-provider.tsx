@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { normalizeAppError } from '@/lib/error-normalizer';
 import '@/styles/components/error-ux.css';
 
@@ -37,15 +37,112 @@ interface ToastContextType {
 
 const TOAST_AUTO_DISMISS_MS = 5500;
 const TOAST_WITH_ACTION_DISMISS_MS = 9000;
+const TOAST_RESUME_DISMISS_MS = 3000;
 
 const ToastContext = createContext<ToastContextType | null>(null);
 
+function announceToast(message: string, hasAction: boolean): void {
+  if (typeof document === 'undefined') return;
+  const text = hasAction ? `${message}. Aksi tersedia.` : message;
+  const docWithAriaNotify = document as Document & {
+    ariaNotify?: (announcement: string, options?: { priority?: 'normal' | 'high' }) => void;
+  };
+  if (typeof docWithAriaNotify.ariaNotify === 'function') {
+    try {
+      docWithAriaNotify.ariaNotify(text, { priority: 'normal' });
+    } catch {
+      // Fallback live region remains active
+    }
+  }
+}
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [liveAnnouncement, setLiveAnnouncement] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const pausedIdsRef = useRef<Set<string>>(new Set());
 
-  const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  const clearToastTimer = useCallback((id: string) => {
+    const existing = timersRef.current.get(id);
+    if (existing !== undefined) {
+      globalThis.clearTimeout(existing);
+      timersRef.current.delete(id);
+    }
   }, []);
+
+  const dismissToast = useCallback(
+    (id: string) => {
+      clearToastTimer(id);
+      pausedIdsRef.current.delete(id);
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    },
+    [clearToastTimer],
+  );
+
+  const scheduleAutoDismiss = useCallback(
+    (id: string, durationMs: number) => {
+      clearToastTimer(id);
+      if (pausedIdsRef.current.has(id)) return;
+      const timer = globalThis.setTimeout(() => {
+        dismissToast(id);
+      }, durationMs);
+      timersRef.current.set(id, timer);
+    },
+    [clearToastTimer, dismissToast],
+  );
+
+  const pauseToastDismiss = useCallback(
+    (id: string) => {
+      pausedIdsRef.current.add(id);
+      clearToastTimer(id);
+    },
+    [clearToastTimer],
+  );
+
+  const resumeToastDismiss = useCallback(
+    (id: string, hasAction: boolean) => {
+      pausedIdsRef.current.delete(id);
+      scheduleAutoDismiss(id, hasAction ? TOAST_AUTO_DISMISS_MS : TOAST_RESUME_DISMISS_MS);
+    },
+    [scheduleAutoDismiss],
+  );
+
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      for (const timer of timers.values()) {
+        globalThis.clearTimeout(timer);
+      }
+      timers.clear();
+    };
+  }, []);
+
+  // Promote toast stack into the browser Top Layer via popover="manual" so toasts remain
+  // visible above open native <dialog> modals while degrading cleanly without Popover API.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof el.showPopover !== 'function' || typeof el.hidePopover !== 'function') {
+      return;
+    }
+
+    try {
+      if (toasts.length > 0) {
+        const isOpen = el.matches(':popover-open');
+        const hasOpenModal = Boolean(document.querySelector('dialog:modal'));
+        if (isOpen && hasOpenModal) {
+          el.hidePopover();
+          el.showPopover();
+        } else if (!isOpen) {
+          el.showPopover();
+        }
+      } else if (el.matches(':popover-open')) {
+        el.hidePopover();
+      }
+    } catch {
+      // Safe fallback to fixed positioning
+    }
+  }, [toasts]);
 
   const addToast = useCallback(
     (toast: Omit<ToastItem, 'id' | 'createdAt'>) => {
@@ -54,10 +151,29 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
       setToasts((prev) => [newToast, ...prev].slice(0, 5));
 
+      const spoken = toast.title ? `${toast.title}: ${toast.message}` : toast.message;
+      setLiveAnnouncement(toast.action ? `${spoken}. Aksi tersedia.` : spoken);
+      announceToast(spoken, Boolean(toast.action));
+
       const duration = toast.action ? TOAST_WITH_ACTION_DISMISS_MS : TOAST_AUTO_DISMISS_MS;
-      globalThis.setTimeout(() => {
-        dismissToast(id);
-      }, duration);
+      scheduleAutoDismiss(id, duration);
+    },
+    [scheduleAutoDismiss],
+  );
+
+  const handleManualDismiss = useCallback(
+    (id: string, buttonEl: HTMLButtonElement | null) => {
+      const cardEl = buttonEl?.closest('.toast-card');
+      const nextCard =
+        (cardEl?.nextElementSibling as HTMLElement | null) ??
+        (cardEl?.previousElementSibling as HTMLElement | null);
+      const nextCloseBtn = nextCard?.querySelector<HTMLButtonElement>('.toast-close');
+
+      dismissToast(id);
+
+      if (nextCloseBtn) {
+        requestAnimationFrame(() => nextCloseBtn.focus());
+      }
     },
     [dismissToast],
   );
@@ -137,9 +253,30 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
-      <div className="toast-container" aria-live="polite">
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {liveAnnouncement}
+      </div>
+      <div
+        ref={containerRef}
+        className="toast-container"
+        role="region"
+        aria-label="Notifikasi sistem"
+        {...({ popover: 'manual' } as Record<string, string>)}
+      >
         {toasts.map((toast) => (
-          <div key={toast.id} className={`toast-card toast-${toast.type}`} role="status">
+          <div
+            key={toast.id}
+            className={`toast-card toast-${toast.type}`}
+            role="status"
+            onMouseEnter={() => pauseToastDismiss(toast.id)}
+            onMouseLeave={() => resumeToastDismiss(toast.id, Boolean(toast.action))}
+            onFocusCapture={() => pauseToastDismiss(toast.id)}
+            onBlurCapture={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                resumeToastDismiss(toast.id, Boolean(toast.action));
+              }
+            }}
+          >
             <div className="toast-content">
               <div className="toast-header">
                 <span className="toast-indicator" aria-hidden="true" />
@@ -175,7 +312,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               className="toast-close"
-              onClick={() => dismissToast(toast.id)}
+              onClick={(e) => handleManualDismiss(toast.id, e.currentTarget)}
               aria-label="Tutup notifikasi"
             >
               ×
