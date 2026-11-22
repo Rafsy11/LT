@@ -312,4 +312,58 @@ describe('Tier 1: Feature 26 - Adversarial Hardening & Commercial End-User UI/UX
       'Mobile LoginScreen must persist login rate-limit cooldown across refreshes',
     );
   });
+
+  it('8. verifies ModalOverlay StrictMode dialog close guard and Customer UX fixes (single upload button, ODP port detail, address ellipsis, simplified Wilayah bar)', () => {
+    const modalOverlaySrc = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'web', 'src', 'components', 'ui', 'modal-overlay.tsx'),
+      'utf8',
+    );
+    const customerProfileSrc = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'web', 'src', 'features', 'customers', 'components', 'customer-profile-view.tsx'),
+      'utf8',
+    );
+    const customerDetailModalSrc = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'web', 'src', 'features', 'customers', 'components', 'customer-detail-modal.tsx'),
+      'utf8',
+    );
+    const customerTableSrc = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'web', 'src', 'features', 'customers', 'components', 'customer-table.tsx'),
+      'utf8',
+    );
+    const customersCss = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'web', 'src', 'styles', 'features', 'customers.css'),
+      'utf8',
+    );
+
+    assert.match(
+      modalOverlaySrc,
+      /if\s*\(\s*isUnmountingRef\.current\s*\|\|\s*dialog\.open\s*\)/,
+      'ModalOverlay handleClose must ignore stale async close events while dialog.open is true under React 19 StrictMode',
+    );
+    assert.match(
+      customerProfileSrc,
+      /isSuperAdmin\s*&&\s*customer\.photoUrl/,
+      'CustomerProfileView must hide header upload button when photoUrl is absent so only one upload photo button renders',
+    );
+    assert.match(
+      customerProfileSrc,
+      /Port ODP Tersambung/,
+      'CustomerProfileView must explicitly display connected ODP port details',
+    );
+    assert.doesNotMatch(
+      customerDetailModalSrc,
+      /<CustomerProfileEditModal[\s\S]*<\/ModalOverlay>/,
+      'CustomerDetailModal must render CustomerProfileEditModal as a sibling outside its parent ModalOverlay',
+    );
+    assert.match(
+      customerTableSrc,
+      /Pratinjau/,
+      'CustomerTable quick-preview action must use clear label "Pratinjau"',
+    );
+    assert.match(
+      customersCss,
+      /\.customer-address-text\s*\{[\s\S]*text-overflow:\s*ellipsis/,
+      'customers.css must apply text-overflow: ellipsis on long customer installation addresses',
+    );
+  });
 });

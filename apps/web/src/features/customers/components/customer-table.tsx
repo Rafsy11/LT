@@ -119,19 +119,18 @@ export function CustomerTable({
                   </div>
                 </td>
 
-                <td style={{ maxWidth: '300px' }}>
-                  <div
-                    style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}
-                    title={c.address}
-                  >
+                <td className="customer-address-td">
+                  <div className="customer-address-cell" title={c.address}>
                     <span className="customer-street-name">
                       {c.street || c.address.split(',')[0]}
                     </span>
                     <span className="customer-address-sub">
-                      <Icon name="pin" size={11} />
-                      {c.kelurahan && c.kecamatan
-                        ? `Kel. ${c.kelurahan}, Kec. ${c.kecamatan}`
-                        : c.address}
+                      <Icon name="pin" size={11} className="customer-address-pin" />
+                      <span className="customer-address-text">
+                        {c.kelurahan && c.kecamatan
+                          ? `Kel. ${c.kelurahan}, Kec. ${c.kecamatan}`
+                          : c.address}
+                      </span>
                     </span>
                   </div>
                 </td>
@@ -213,20 +212,21 @@ export function CustomerTable({
                   <div style={{ display: 'inline-flex', gap: '6px', justifyContent: 'flex-end' }}>
                     <Link
                       href={`/customers/${encodeURIComponent(c.siaNumber)}`}
-                      className="button customer-action-btn"
+                      className="button customer-action-btn customer-action-btn--primary"
                       onClick={(e) => e.stopPropagation()}
                     >
                       Profil
                     </Link>
                     <button
                       type="button"
-                      className="button customer-action-btn"
+                      className="button customer-action-btn customer-action-btn--ghost"
+                      title="Buka pratinjau cepat pelanggan tanpa meninggalkan tabel"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectCustomer(c);
                       }}
                     >
-                      Ringkasan
+                      Pratinjau
                     </button>
                   </div>
                 </td>

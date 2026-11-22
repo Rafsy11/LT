@@ -91,7 +91,8 @@ export function CustomerDetailModal({
     : `/maps?sia=${encodeURIComponent(activeCustomer.siaNumber)}`;
 
   return (
-    <ModalOverlay onClose={onClose} labelledBy="customer-detail-title">
+    <>
+      <ModalOverlay onClose={onClose} labelledBy="customer-detail-title">
       <article
         className="modal"
         style={{
@@ -253,7 +254,9 @@ export function CustomerDetailModal({
               </div>
               <div style={{ fontSize: '11.5px', fontFamily: 'var(--font-mono, monospace)', color: 'var(--color-text-muted)' }}>
                 {activeCustomer.splitterCode || '-'} ·{' '}
-                {activeCustomer.portNumber != null ? `Port #${activeCustomer.portNumber}` : 'Tanpa port'}
+                {activeCustomer.portNumber != null
+                  ? `Port #${activeCustomer.portNumber}${activeCustomer.splitterMaxPorts ? ` / ${activeCustomer.splitterMaxPorts}` : ''}`
+                  : 'Tanpa port'}
               </div>
             </div>
 
@@ -500,12 +503,17 @@ export function CustomerDetailModal({
           </button>
         </footer>
       </article>
+      </ModalOverlay>
 
       {isSuperAdmin && (
         <CustomerProfileEditModal
           customer={activeCustomer}
           isOpen={editModalOpen}
           onClose={() => setEditModalOpen(false)}
+          onPhotoChanged={async () => {
+            reloadDetail(activeCustomer.siaNumber);
+            await onUpdated?.();
+          }}
           onSaved={async (updated) => {
             setLiveCustomer(updated);
             reloadDetail(updated.siaNumber);
@@ -513,6 +521,6 @@ export function CustomerDetailModal({
           }}
         />
       )}
-    </ModalOverlay>
+    </>
   );
 }

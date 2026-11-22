@@ -60,9 +60,11 @@ export function ModalOverlay({
     };
 
     const handleClose = () => {
-      if (!isUnmountingRef.current) {
-        onCloseRef.current();
+      // Ignore stale async 'close' events queued by React StrictMode cleanup after re-opening
+      if (isUnmountingRef.current || dialog.open) {
+        return;
       }
+      onCloseRef.current();
     };
 
     dialog.addEventListener('cancel', handleCancel);

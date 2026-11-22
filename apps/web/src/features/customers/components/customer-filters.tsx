@@ -111,27 +111,40 @@ export function CustomerFilters({
             className="customer-search-box"
           />
 
-          {/* Tombol Filter Wilayah (Kecamatan, Kelurahan, Jalan) */}
-          <button
-            type="button"
-            aria-expanded={isWilayahFilterOpen}
-            onClick={() => setIsWilayahFilterOpen(!isWilayahFilterOpen)}
-            title="Buka filter spesifikasi wilayah (Kecamatan, Kelurahan, Jalan)"
-            className={`btn-wilayah-toggle ${isWilayahFilterOpen || activeWilayahCount > 0 ? 'is-active' : ''}`}
-          >
-            <Icon name="filter" size={13} />
-            <span>Filter Wilayah</span>
+          {/* Tombol Filter Wilayah Ringkas (Kecamatan, Kelurahan, Jalan) */}
+          <div className="customer-wilayah-trigger-group">
+            <button
+              type="button"
+              aria-expanded={isWilayahFilterOpen}
+              onClick={() => setIsWilayahFilterOpen(!isWilayahFilterOpen)}
+              title="Filter berdasarkan Kecamatan, Kelurahan, atau Jalan"
+              className={`btn-wilayah-toggle ${isWilayahFilterOpen || activeWilayahCount > 0 ? 'is-active' : ''}`}
+            >
+              <Icon name="filter" size={13} />
+              <span>Wilayah</span>
+              {activeWilayahCount > 0 && (
+                <span className="wilayah-badge-count">{activeWilayahCount}</span>
+              )}
+              <Icon
+                name="chevron"
+                size={12}
+                style={{
+                  transform: isWilayahFilterOpen ? 'rotate(180deg)' : 'none',
+                }}
+              />
+            </button>
             {activeWilayahCount > 0 && (
-              <span className="wilayah-badge-count">{activeWilayahCount}</span>
+              <button
+                type="button"
+                onClick={resetWilayahFilters}
+                aria-label="Reset semua filter wilayah"
+                title="Reset filter wilayah"
+                className="customer-wilayah-quick-clear"
+              >
+                <Icon name="x" size={12} />
+              </button>
             )}
-            <Icon
-              name="chevron"
-              size={12}
-              style={{
-                transform: isWilayahFilterOpen ? 'rotate(180deg)' : 'none',
-              }}
-            />
-          </button>
+          </div>
         </div>
 
         {/* Right: Segmented Status Filter Tabs */}
@@ -197,151 +210,75 @@ export function CustomerFilters({
         </nav>
       </div>
 
-      {/* Panel Filter Spesifikasi Wilayah (Kecamatan, Kelurahan, Jalan) */}
+      {/* Baris Filter Wilayah Ringkas (1 baris inline, tanpa header & label berlebihan) */}
       {isWilayahFilterOpen && (
-        <fieldset
-          aria-label="Filter Spesifikasi Wilayah"
-          className="customer-filter-subpanel"
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div
-              className="customer-filter-subpanel-title"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '12px',
-                fontWeight: 600,
+        <fieldset aria-label="Filter Wilayah Pelanggan" className="customer-wilayah-bar">
+          <div className="customer-wilayah-grid">
+            <select
+              value={kecamatan}
+              onChange={(e) => {
+                setKecamatan(e.target.value);
+                setKelurahan('Semua kelurahan');
+                setJalan('Semua jalan');
               }}
+              aria-label="Filter Kecamatan"
+              className="customer-filter-select"
             >
-              <Icon name="pin" size={14} />
-              <span>Filter Spesifikasi Wilayah Pelanggan</span>
-            </div>
-            {activeWilayahCount > 0 && (
-              <button
-                type="button"
-                onClick={resetWilayahFilters}
-                className="ui-text-danger"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '11.5px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 6px',
-                }}
-              >
-                <Icon name="x" size={11} />
-                Reset Filter Wilayah
-              </button>
-            )}
+              <option value="Semua kecamatan">Semua Kecamatan</option>
+              {availableKecamatans.map((k) => (
+                <option key={k} value={k}>
+                  Kec. {k}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={kelurahan}
+              onChange={(e) => {
+                setKelurahan(e.target.value);
+                setJalan('Semua jalan');
+              }}
+              aria-label="Filter Kelurahan"
+              className="customer-filter-select"
+            >
+              <option value="Semua kelurahan">Semua Kelurahan</option>
+              {availableKelurahans.map((kl) => (
+                <option key={kl} value={kl}>
+                  Kel. {kl}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={jalan}
+              onChange={(e) => setJalan(e.target.value)}
+              aria-label="Filter Jalan"
+              className="customer-filter-select"
+            >
+              <option value="Semua jalan">Semua Jalan</option>
+              {availableJalans.map((j) => (
+                <option key={j} value={j}>
+                  {j}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div
-            className="customer-wilayah-grid"
-            style={{
-              alignItems: 'flex-end',
-            }}
-          >
-            {/* Filter Kecamatan */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: 'var(--color-text-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.4px',
-                }}
-              >
-                Kecamatan
-              </label>
-              <select
-                value={kecamatan}
-                onChange={(e) => {
-                  setKecamatan(e.target.value);
-                  setKelurahan('Semua kelurahan');
-                  setJalan('Semua jalan');
-                }}
-                aria-label="Filter Kecamatan"
-                className="customer-filter-select"
-              >
-                <option>Semua kecamatan</option>
-                {availableKecamatans.map((k) => (
-                  <option key={k} value={k}>
-                    Kec. {k}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Filter Kelurahan */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: 'var(--color-text-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.4px',
-                }}
-              >
-                Kelurahan
-              </label>
-              <select
-                value={kelurahan}
-                onChange={(e) => {
-                  setKelurahan(e.target.value);
-                  setJalan('Semua jalan');
-                }}
-                aria-label="Filter Kelurahan"
-                className="customer-filter-select"
-              >
-                <option>Semua kelurahan</option>
-                {availableKelurahans.map((kl) => (
-                  <option key={kl} value={kl}>
-                    Kel. {kl}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Filter Jalan */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: 'var(--color-text-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.4px',
-                }}
-              >
-                Jalan / Alamat Spesifik
-              </label>
-              <select
-                value={jalan}
-                onChange={(e) => setJalan(e.target.value)}
-                aria-label="Filter Jalan"
-                className="customer-filter-select"
-              >
-                <option>Semua jalan</option>
-                {availableJalans.map((j) => (
-                  <option key={j} value={j}>
-                    {j}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {activeWilayahCount > 0 && (
+            <button
+              type="button"
+              onClick={resetWilayahFilters}
+              className="customer-wilayah-reset-btn"
+            >
+              <Icon name="x" size={12} />
+              <span>Reset</span>
+            </button>
+          )}
         </fieldset>
       )}
 
-      {/* Active Wilayah Filter Badges */}
-      {activeWilayahCount > 0 && (
+      {/* Active Wilayah Filter Badges (tampil hanya saat panel ditutup agar tidak duplikat) */}
+      {!isWilayahFilterOpen && activeWilayahCount > 0 && (
         <aside
           aria-label="Filter Wilayah Terpilih"
           className="customer-active-filter-strip"

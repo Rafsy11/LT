@@ -40,6 +40,8 @@ export interface CustomerProfileEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaved: (updated: CustomerListItem) => Promise<void> | void;
+  /** Optional callback triggered immediately after a photo is uploaded or removed. */
+  onPhotoChanged?: () => Promise<void> | void;
 }
 
 /**
@@ -52,6 +54,7 @@ export function CustomerProfileEditModal({
   isOpen,
   onClose,
   onSaved,
+  onPhotoChanged,
 }: CustomerProfileEditModalProps) {
   const { showSuccess, showError } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -183,6 +186,7 @@ export function CustomerProfileEditModal({
         setPhotoCaption(res.data.photoCaption);
       }
       showSuccess('Foto bangunan/lokasi pelanggan berhasil diunggah.');
+      await onPhotoChanged?.();
     } catch (err: unknown) {
       const normalized = normalizeAppError(err, {
         fallbackMessage: 'Foto bangunan pelanggan belum dapat diunggah.',
@@ -211,6 +215,7 @@ export function CustomerProfileEditModal({
       setPhotoPreviewUrl(null);
       setPhotoCaption('');
       showSuccess('Foto bangunan pelanggan telah dihapus.');
+      await onPhotoChanged?.();
     } catch (err: unknown) {
       showError(
         normalizeAppError(err, { fallbackMessage: 'Foto profil pelanggan belum dapat dihapus.' }),

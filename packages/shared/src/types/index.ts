@@ -145,6 +145,7 @@ export interface CustomerListItem {
   clusterCode: string;
   splitterCode?: string | null;
   splitterName?: string | null;
+  splitterMaxPorts?: number | null;
   odpLat?: number | null;
   odpLng?: number | null;
   portNumber?: number | null;

@@ -196,6 +196,21 @@ export function CustomerProfileView({ sia }: CustomerProfileViewProps) {
           <div className="cp-title-row">
             <h1 className="cp-title">{customer.fullName}</h1>
             <span className="cp-sia-chip">SIA {customer.siaNumber}</span>
+            <span
+              className={`cp-port-chip ${customer.portNumber == null ? 'is-unassigned' : ''}`}
+              title={
+                customer.portNumber != null
+                  ? `Pelanggan tersambung pada Port #${customer.portNumber}${customer.splitterCode ? ` di ${customer.splitterCode}` : ''}`
+                  : 'Port ODP belum dialokasikan'
+              }
+            >
+              <Icon name="network" size={12} />
+              <span>
+                {customer.portNumber != null
+                  ? `Port ODP #${customer.portNumber}${customer.splitterMaxPorts ? ` / ${customer.splitterMaxPorts}` : ''}`
+                  : 'Port ODP: Belum Dialokasi'}
+              </span>
+            </span>
             <span className="customer-status-badge">
               <span
                 className={`customer-status-dot ${
@@ -235,7 +250,9 @@ export function CustomerProfileView({ sia }: CustomerProfileViewProps) {
             <span>·</span>
             <span>
               ODP: <b>{customer.splitterName || customer.splitterCode || 'Belum dipetakan'}</b>
-              {customer.portNumber != null ? ` · Port #${customer.portNumber}` : ''}
+              {customer.portNumber != null
+                ? ` · Tersambung di Port #${customer.portNumber}${customer.splitterMaxPorts ? ` dari ${customer.splitterMaxPorts}` : ''}`
+                : ' · Port belum dialokasi'}
             </span>
           </div>
         </div>
@@ -269,14 +286,14 @@ export function CustomerProfileView({ sia }: CustomerProfileViewProps) {
                 <Icon name="building" size={16} />
                 <span>Foto Bangunan / Lokasi Pelanggan</span>
               </h2>
-              {isSuperAdmin && (
+              {isSuperAdmin && customer.photoUrl && (
                 <button
                   type="button"
                   className="cp-mini-btn"
                   onClick={() => setEditOpen(true)}
                 >
                   <Icon name="upload" size={12} />
-                  <span>{customer.photoUrl ? 'Ganti Foto' : 'Unggah Foto'}</span>
+                  <span>Ganti Foto</span>
                 </button>
               )}
             </div>
@@ -592,6 +609,14 @@ export function CustomerProfileView({ sia }: CustomerProfileViewProps) {
 
             <div className="cp-pic-grid" style={{ paddingTop: '4px' }}>
               <div className="cp-kv">
+                <span className="cp-kv-label">Port ODP Tersambung</span>
+                <span className="cp-kv-mono">
+                  {customer.portNumber != null
+                    ? `Port #${customer.portNumber}${customer.splitterMaxPorts ? ` / ${customer.splitterMaxPorts}` : ''}`
+                    : 'Belum dialokasi'}
+                </span>
+              </div>
+              <div className="cp-kv">
                 <span className="cp-kv-label">Node GPON</span>
                 <span className="cp-kv-mono">{customer.gponNode || '-'}</span>
               </div>
@@ -668,9 +693,15 @@ export function CustomerProfileView({ sia }: CustomerProfileViewProps) {
                 </span>
               </div>
               <div className="cp-kv">
-                <span className="cp-kv-label">Kode &amp; Port ODP</span>
+                <span className="cp-kv-label">Kode ODP</span>
+                <span className="cp-kv-mono">{customer.splitterCode || '-'}</span>
+              </div>
+              <div className="cp-kv">
+                <span className="cp-kv-label">Port ODP Tersambung</span>
                 <span className="cp-kv-mono">
-                  {customer.splitterCode || '-'} · Port #{customer.portNumber ?? '-'}
+                  {customer.portNumber != null
+                    ? `Port #${customer.portNumber}${customer.splitterMaxPorts ? ` dari ${customer.splitterMaxPorts} port` : ''}`
+                    : 'Belum dialokasi'}
                 </span>
               </div>
             </div>
@@ -721,6 +752,9 @@ export function CustomerProfileView({ sia }: CustomerProfileViewProps) {
           customer={customer}
           isOpen={editOpen}
           onClose={() => setEditOpen(false)}
+          onPhotoChanged={async () => {
+            await loadProfile();
+          }}
           onSaved={async () => {
             await loadProfile();
           }}
