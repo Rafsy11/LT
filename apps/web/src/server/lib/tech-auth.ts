@@ -52,9 +52,9 @@ export function normalizeTechUsernameAlias(username?: string | null): string {
  * Enforces Redis device revocation blacklist and rejects unauthenticated invocations.
  */
 export async function resolveTechActor(request: NextRequest): Promise<TechActorContext> {
-  const deviceId = request.headers.get('x-device-id');
-  if (deviceId) {
-    const isBlacklisted = await redisManager.isSessionBlacklisted(deviceId);
+  const headerDeviceId = request.headers.get('x-device-id')?.trim() || null;
+  if (headerDeviceId) {
+    const isBlacklisted = await redisManager.isSessionBlacklisted(headerDeviceId);
     if (isBlacklisted) {
       throw new TechHttpError(
         401,
@@ -64,39 +64,15 @@ export async function resolveTechActor(request: NextRequest): Promise<TechActorC
     }
   }
 
-  let userId = request.headers.get('x-user-id') || '';
-  let username = request.headers.get('x-username') || '';
-  let userType = (request.headers.get('x-user-type') || '') as UserTypeEnum | '';
+  const authHeader = request.headers.get('authorization');
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  const cookieToken =
+    request.cookies.get('fiberops_session')?.value ||
+    request.cookies.get('session')?.value ||
+    null;
+  const token = bearerToken || cookieToken;
 
-  if (!userId || !username) {
-    const authHeader = request.headers.get('authorization');
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-    const cookieToken =
-      request.cookies.get('fiberops_session')?.value ||
-      request.cookies.get('session')?.value ||
-      null;
-    const token = bearerToken || cookieToken;
-
-    if (token) {
-      try {
-        const verified = await AuthService.verifyAccessToken(token);
-        userId = verified.userId;
-        username = verified.username;
-        userType = verified.userType;
-      } catch (err) {
-        if (err instanceof ServiceUnavailableError) {
-          throw err;
-        }
-        const msg = err instanceof Error ? err.message : '';
-        const code = msg.includes(ERROR_CODES.SESSION_REVOKED)
-          ? ERROR_CODES.SESSION_REVOKED
-          : ERROR_CODES.UNAUTHORIZED;
-        throw new TechHttpError(401, code, 'Sesi vendor/teknisi tidak valid atau kedaluwarsa.');
-      }
-    }
-  }
-
-  if (!userId && !username) {
+  if (!token) {
     throw new TechHttpError(
       401,
       ERROR_CODES.UNAUTHORIZED,
@@ -104,48 +80,83 @@ export async function resolveTechActor(request: NextRequest): Promise<TechActorC
     );
   }
 
+  let verified: Awaited<ReturnType<typeof AuthService.verifyAccessToken>>;
+  try {
+    verified = await AuthService.verifyAccessToken(token);
+  } catch (err) {
+    if (err instanceof ServiceUnavailableError) {
+      throw err;
+    }
+    const msg = err instanceof Error ? err.message : '';
+    const code = msg.includes(ERROR_CODES.SESSION_REVOKED)
+      ? ERROR_CODES.SESSION_REVOKED
+      : ERROR_CODES.UNAUTHORIZED;
+    throw new TechHttpError(401, code, 'Sesi vendor/teknisi tidak valid atau kedaluwarsa.');
+  }
+
+  if (
+    headerDeviceId &&
+    verified.deviceId &&
+    headerDeviceId !== verified.deviceId
+  ) {
+    throw new TechHttpError(
+      401,
+      ERROR_CODES.UNAUTHORIZED,
+      'Identitas perangkat tidak sesuai dengan token sesi.',
+    );
+  }
+
+  const effectiveDeviceId = verified.deviceId || headerDeviceId;
+  if (effectiveDeviceId && effectiveDeviceId !== 'web-browser') {
+    const isBlacklisted = await redisManager.isSessionBlacklisted(effectiveDeviceId);
+    if (isBlacklisted) {
+      throw new TechHttpError(
+        401,
+        ERROR_CODES.SESSION_REVOKED,
+        'Sesi perangkat Anda telah dicabut oleh Administrator (Force Logout). Silakan login kembali.',
+      );
+    }
+  }
+
+  let userId = verified.userId;
+  let username = verified.username;
+  let userType = verified.userType;
+  let fullName: string | undefined = verified.fullName;
   const canonicalUsername = normalizeTechUsernameAlias(username);
-  let fullName: string | undefined;
 
   if (await requireLiveDatabase('Database PostgreSQL tidak tersedia untuk autentikasi teknisi.')) {
     try {
-      const dbUser = userId
-        ? await prisma.user.findUnique({
-            where: { id: userId },
-            select: { id: true, username: true, fullName: true, userType: true },
-          })
-        : await prisma.user.findUnique({
-            where: { username: canonicalUsername || username },
-            select: { id: true, username: true, fullName: true, userType: true },
-          });
-      if (dbUser) {
-        userId = dbUser.id;
-        username = dbUser.username;
-        fullName = dbUser.fullName;
-        userType = dbUser.userType as UserTypeEnum;
+      const dbUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, username: true, fullName: true, userType: true, isActive: true },
+      });
+      if (!dbUser || !dbUser.isActive) {
+        throw new TechHttpError(
+          401,
+          ERROR_CODES.SESSION_REVOKED,
+          'Akun vendor/teknisi telah dinonaktifkan atau tidak ditemukan.',
+        );
       }
+      userId = dbUser.id;
+      username = dbUser.username;
+      fullName = dbUser.fullName;
+      userType = dbUser.userType as UserTypeEnum;
     } catch (err) {
+      if (err instanceof TechHttpError) {
+        throw err;
+      }
       rethrowIfStrictDatabaseError(err, 'Gagal memverifikasi akun teknisi di database.');
     }
   }
 
-  if (!fullName && canonicalUsername) {
-    const account = await AuthService.resolveAccountByUsername(canonicalUsername);
-    if (account) {
-      fullName = account.fullName;
-      if (!userId) userId = account.id;
-      if (!userType) userType = account.userType;
-    }
-  }
-
   return {
-    userId: userId || deviceId || 'tech_unknown',
-    username: username || canonicalUsername,
-    canonicalUsername: canonicalUsername || username.toLowerCase(),
+    userId,
+    username,
+    canonicalUsername: normalizeTechUsernameAlias(username) || canonicalUsername,
     fullName,
     userType: (userType || 'TECHNICIAN') as UserTypeEnum,
-    deviceId,
-    channel: deviceId ? 'MOBILE' : 'WEB',
+    deviceId: effectiveDeviceId,
+    channel: effectiveDeviceId && effectiveDeviceId !== 'web-browser' ? 'MOBILE' : 'WEB',
   };
 }
 

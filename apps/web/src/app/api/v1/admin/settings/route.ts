@@ -1,11 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SystemService } from '@/server/services/system.service';
-import { requireAdminActor, handleAdminRouteError } from '@/server/lib/admin-auth';
-import { SystemSettingsSchema } from '@repo/shared';
+import {
+  AuthHttpError,
+  requireAdminActor,
+  handleAdminRouteError,
+} from '@/server/lib/admin-auth';
+import { ERROR_CODES, SystemSettingsSchema } from '@repo/shared';
+
+function assertSuperAdmin(actor: { userType: string; hierarchyLevel: number }): void {
+  if (actor.userType !== 'SUPER_ADMIN' || actor.hierarchyLevel < 100) {
+    throw new AuthHttpError(
+      403,
+      ERROR_CODES.FORBIDDEN,
+      'Hanya Super Admin yang berwenang mengakses atau mengubah pengaturan sistem.',
+    );
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdminActor(request);
+    const actor = await requireAdminActor(request);
+    assertSuperAdmin(actor);
     const data = await SystemService.getSystemSettings();
     return NextResponse.json({
       success: true,
@@ -23,6 +38,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const actor = await requireAdminActor(request);
+    assertSuperAdmin(actor);
     const body: unknown = await request.json();
     const validated = SystemSettingsSchema.parse(body);
 

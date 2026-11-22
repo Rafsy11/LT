@@ -2,6 +2,46 @@ import { env, ensureRootEnvLoaded } from '@/env';
 
 const TELEGRAM_API_TIMEOUT_MS = 4000;
 const NUMERIC_CHAT_ID_REGEX = /^-?\d{5,20}$/;
+const MAX_TELEGRAM_FILE_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Escapes HTML special characters for Telegram `parse_mode: 'HTML'` messages.
+ */
+export function escapeTelegramHtml(raw: string | null | undefined): string {
+  if (raw === null || raw === undefined) return '';
+  return String(raw)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function detectImageMimeFromMagicBytes(buf: Buffer): 'image/jpeg' | 'image/png' | 'image/webp' | null {
+  if (buf.length < 12) return null;
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47 &&
+    buf[4] === 0x0d &&
+    buf[5] === 0x0a &&
+    buf[6] === 0x1a &&
+    buf[7] === 0x0a
+  ) {
+    return 'image/png';
+  }
+  if (
+    buf.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    buf.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) {
+    return 'image/webp';
+  }
+  return null;
+}
 
 interface TelegramSendMessageResponse {
   ok: boolean;
@@ -64,6 +104,10 @@ export function resolveTelegramChatId(params: { dbChatId?: string | null }): str
   const dbIds = parseValidChatIds(params.dbChatId);
   if (dbIds.length > 0) {
     return dbIds.join(',');
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return null;
   }
 
   const fallbackEnvValue = process.env.TELEGRAM_DEFAULT_CHAT_ID || env.TELEGRAM_DEFAULT_CHAT_ID;
@@ -136,11 +180,26 @@ export async function downloadTelegramFileBuffer(
     );
     const metaJson = (await metaRes.json().catch(() => null)) as {
       ok?: boolean;
-      result?: { file_path?: string };
+      result?: { file_path?: string; file_size?: number };
     } | null;
 
     const filePath = metaJson?.result?.file_path;
+    const declaredSize = metaJson?.result?.file_size;
     if (!metaRes.ok || !metaJson?.ok || !filePath) {
+      return null;
+    }
+
+    if (typeof declaredSize === 'number' && declaredSize > MAX_TELEGRAM_FILE_BYTES) {
+      return null;
+    }
+
+    // Sanitize Telegram file_path against traversal or unexpected characters
+    if (
+      filePath.startsWith('/') ||
+      filePath.includes('..') ||
+      filePath.includes('\\') ||
+      /[\s\r\n]/.test(filePath)
+    ) {
       return null;
     }
 
@@ -149,9 +208,47 @@ export async function downloadTelegramFileBuffer(
     });
     if (!fileRes.ok) return null;
 
-    const arrBuf = await fileRes.arrayBuffer();
-    const mimeType = fileRes.headers.get('content-type') || 'image/jpeg';
-    return { buffer: Buffer.from(arrBuf), mimeType };
+    const contentLenHeader = fileRes.headers.get('content-length');
+    if (contentLenHeader) {
+      const contentLen = Number(contentLenHeader);
+      if (Number.isFinite(contentLen) && contentLen > MAX_TELEGRAM_FILE_BYTES) {
+        return null;
+      }
+    }
+
+    let buffer: Buffer;
+    if (fileRes.body) {
+      const reader = fileRes.body.getReader();
+      const chunks: Buffer[] = [];
+      let totalBytes = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          totalBytes += value.byteLength;
+          if (totalBytes > MAX_TELEGRAM_FILE_BYTES) {
+            await reader.cancel().catch(() => {});
+            return null;
+          }
+          chunks.push(Buffer.from(value));
+        }
+      }
+      buffer = Buffer.concat(chunks, totalBytes);
+    } else {
+      const arrBuf = await fileRes.arrayBuffer();
+      if (arrBuf.byteLength > MAX_TELEGRAM_FILE_BYTES) {
+        return null;
+      }
+      buffer = Buffer.from(arrBuf);
+    }
+
+    const detectedMime = detectImageMimeFromMagicBytes(buffer);
+    if (!detectedMime) {
+      return null;
+    }
+
+    return { buffer, mimeType: detectedMime };
   } catch {
     return null;
   }
@@ -191,23 +288,23 @@ export async function sendVendorTaskDispatchTelegram(params: {
   const htmlText = [
     `📋 <b>PENUGASAN BARU DARI LINTASARTA PUSAT</b>`,
     ``,
-    `• <b>No. Tiket:</b> <code>${params.ticketNumber}</code> (${params.ticketType})`,
-    `• <b>PIC Vendor:</b> ${params.vendorDisplayName}${params.vendorCompany ? ` - ${params.vendorCompany}` : ''}`,
-    `• <b>Pelanggan:</b> ${params.customerName} (SIA: <code>${params.siaNumber}</code>)`,
-    ...(params.customerPhone ? [`• <b>Kontak Pelanggan:</b> ${params.customerPhone}`] : []),
-    ...(params.complaintSummary ? [`• <b>Aduan / Permintaan:</b> ${params.complaintSummary}`] : []),
-    `• <b>Alamat Lokasi:</b> ${params.serviceAddress || '-'}`,
-    ...(params.locationPlace ? [`• <b>Tempat / Patokan:</b> ${params.locationPlace}`] : []),
+    `• <b>No. Tiket:</b> <code>${escapeTelegramHtml(params.ticketNumber)}</code> (${escapeTelegramHtml(params.ticketType)})`,
+    `• <b>PIC Vendor:</b> ${escapeTelegramHtml(params.vendorDisplayName)}${params.vendorCompany ? ` - ${escapeTelegramHtml(params.vendorCompany)}` : ''}`,
+    `• <b>Pelanggan:</b> ${escapeTelegramHtml(params.customerName)} (SIA: <code>${escapeTelegramHtml(params.siaNumber)}</code>)`,
+    ...(params.customerPhone ? [`• <b>Kontak Pelanggan:</b> ${escapeTelegramHtml(params.customerPhone)}`] : []),
+    ...(params.complaintSummary ? [`• <b>Aduan / Permintaan:</b> ${escapeTelegramHtml(params.complaintSummary)}`] : []),
+    `• <b>Alamat Lokasi:</b> ${escapeTelegramHtml(params.serviceAddress || '-')}`,
+    ...(params.locationPlace ? [`• <b>Tempat / Patokan:</b> ${escapeTelegramHtml(params.locationPlace)}`] : []),
     ...(hasCoords
       ? [
-          `• <b>Titik Koordinat:</b> <code>${params.targetLat}, ${params.targetLng}</code> (<a href="${mapsUrl}">Buka Google Maps</a>)`,
+          `• <b>Titik Koordinat:</b> <code>${params.targetLat}, ${params.targetLng}</code> (<a href="${escapeTelegramHtml(mapsUrl)}">Buka Google Maps</a>)`,
         ]
       : []),
-    ...(params.adminNotes ? [`• <b>Arahan Pusat:</b> ${params.adminNotes}`] : []),
+    ...(params.adminNotes ? [`• <b>Arahan Pusat:</b> ${escapeTelegramHtml(params.adminNotes)}`] : []),
     ``,
     `<b>Aksi Cepat Bot Telegram:</b>`,
-    `1. Tiba di lokasi: <code>/mulai ${params.ticketNumber}</code>`,
-    `2. Kirim laporan terbaru: <code>/lapor ${params.ticketNumber}</code>`,
+    `1. Tiba di lokasi: <code>/mulai ${escapeTelegramHtml(params.ticketNumber)}</code>`,
+    `2. Kirim laporan terbaru: <code>/lapor ${escapeTelegramHtml(params.ticketNumber)}</code>`,
   ].join('\n');
 
   const results = await Promise.allSettled(
@@ -234,19 +331,19 @@ export async function sendVendorVerificationResultTelegram(params: {
     ? [
         `✅ <b>LAPORAN DISETUJUI PUSAT LINTASARTA</b>`,
         ``,
-        `• <b>No. Tiket:</b> <code>${params.ticketNumber}</code>`,
-        `• <b>Pelanggan:</b> ${params.customerName}`,
+        `• <b>No. Tiket:</b> <code>${escapeTelegramHtml(params.ticketNumber)}</code>`,
+        `• <b>Pelanggan:</b> ${escapeTelegramHtml(params.customerName)}`,
         `• <b>Status:</b> Selesai (COMPLETED)`,
-        ...(params.reviewedBy ? [`• <b>Diverifikasi oleh:</b> ${params.reviewedBy}`] : []),
+        ...(params.reviewedBy ? [`• <b>Diverifikasi oleh:</b> ${escapeTelegramHtml(params.reviewedBy)}`] : []),
       ].join('\n')
     : [
         `⚠️ <b>LAPORAN PERLU REVISI / PENGUKURAN ULANG</b>`,
         ``,
-        `• <b>No. Tiket:</b> <code>${params.ticketNumber}</code>`,
-        `• <b>Pelanggan:</b> ${params.customerName}`,
-        `• <b>Alasan Pusat:</b> ${params.reason || 'Data belum memenuhi standar operasional'}`,
+        `• <b>No. Tiket:</b> <code>${escapeTelegramHtml(params.ticketNumber)}</code>`,
+        `• <b>Pelanggan:</b> ${escapeTelegramHtml(params.customerName)}`,
+        `• <b>Alasan Pusat:</b> ${escapeTelegramHtml(params.reason || 'Data belum memenuhi standar operasional')}`,
         ``,
-        `Silakan kirim ulang laporan terbaru lewat Aplikasi Mobile atau ketik <code>/lapor ${params.ticketNumber}</code>.`,
+        `Silakan kirim ulang laporan terbaru lewat Aplikasi Mobile atau ketik <code>/lapor ${escapeTelegramHtml(params.ticketNumber)}</code>.`,
       ].join('\n');
 
   const results = await Promise.allSettled(
@@ -315,12 +412,12 @@ export async function sendTelegramOtpMessage(params: {
   const htmlText = [
     `🔐 <b>FIBEROPS NOC - VERIFIKASI 2FA</b>`,
     ``,
-    `Kode OTP Anda: <code>${params.otpCode}</code>`,
+    `Kode OTP Anda: <code>${escapeTelegramHtml(params.otpCode)}</code>`,
     ``,
-    `• <b>Operator:</b> ${params.fullName} (<code>${params.username}</code>)`,
-    ...(params.nik ? [`• <b>NIK:</b> <code>${params.nik}</code>`] : []),
-    `• <b>IP Akses:</b> <code>${params.clientIp || 'On-Premise Local'}</code>`,
-    `• <b>Waktu:</b> ${timestampWib} WIB`,
+    `• <b>Operator:</b> ${escapeTelegramHtml(params.fullName)} (<code>${escapeTelegramHtml(params.username)}</code>)`,
+    ...(params.nik ? [`• <b>NIK:</b> <code>${escapeTelegramHtml(params.nik)}</code>`] : []),
+    `• <b>IP Akses:</b> <code>${escapeTelegramHtml(params.clientIp || 'On-Premise Local')}</code>`,
+    `• <b>Waktu:</b> ${escapeTelegramHtml(timestampWib)} WIB`,
     `• <b>Berlaku:</b> 5 Menit (Sekali Pakai)`,
     ``,
     `⚠️ <i>Jangan bagikan kode ini kepada siapa pun.</i>`,

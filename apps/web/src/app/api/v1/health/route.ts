@@ -30,7 +30,6 @@ export async function GET() {
   return NextResponse.json(
     {
       status: isHealthy ? 'ok' : 'degraded',
-      strictLiveData: isStrictLiveMode(),
       system: 'FiberOps On-Premise',
       checks: {
         postgres: postgresUp ? 'up' : 'down',

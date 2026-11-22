@@ -2,38 +2,61 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/server/services/auth.service';
 import { sanitizeAndLogServerError } from '@/server/lib/api-error-sanitizer';
 import { resendOtpRequestSchema, ERROR_CODES } from '@repo/shared';
-import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
+import {
+  checkRateLimit,
+  extractClientIp,
+  RATE_LIMIT_PROFILES,
+} from '@/server/lib/rate-limit';
+
+function buildResendLimitResponse(retryAfterMs: number) {
+  const retrySeconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+  return NextResponse.json(
+    {
+      success: false,
+      error: {
+        code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
+        message: 'Terlalu banyak permintaan pengiriman ulang OTP. Silakan tunggu sejenak.',
+        retryAfter: retrySeconds,
+      },
+      meta: { retryAfterMs, retryAfter: retrySeconds },
+    },
+    {
+      status: 429,
+      headers: { 'Retry-After': String(retrySeconds) },
+    },
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.json();
     const validated = resendOtpRequestSchema.parse(rawBody);
 
-    const clientIp =
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      request.headers.get('x-real-ip') ||
-      'unknown';
+    const clientIp = extractClientIp(request);
+    const ipRateResult = await checkRateLimit(
+      `auth_otp_resend:${clientIp}`,
+      RATE_LIMIT_PROFILES.AUTH_OTP_RESEND,
+    );
+    if (!ipRateResult.allowed) {
+      return buildResendLimitResponse(ipRateResult.retryAfterMs);
+    }
 
-    const rateLimitKey = `auth_otp_resend:${clientIp}`;
-    const rateResult = await checkRateLimit(rateLimitKey, RATE_LIMIT_PROFILES.AUTH_OTP_RESEND);
+    const preAuth = await AuthService.verifyPreAuthToken(validated.preAuthToken);
 
-    if (!rateResult.allowed) {
-      const retrySeconds = Math.max(1, Math.ceil(rateResult.retryAfterMs / 1000));
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
-            message: 'Terlalu banyak permintaan pengiriman ulang OTP. Silakan tunggu sejenak.',
-            retryAfter: retrySeconds,
-          },
-          meta: { retryAfterMs: rateResult.retryAfterMs, retryAfter: retrySeconds },
-        },
-        {
-          status: 429,
-          headers: { 'Retry-After': String(retrySeconds) },
-        },
-      );
+    const challengeRateResult = await checkRateLimit(
+      `auth_otp_resend_ch:${preAuth.challengeId}`,
+      RATE_LIMIT_PROFILES.AUTH_OTP_RESEND,
+    );
+    if (!challengeRateResult.allowed) {
+      return buildResendLimitResponse(challengeRateResult.retryAfterMs);
+    }
+
+    const userRateResult = await checkRateLimit(`auth_otp_resend_user:${preAuth.userId}`, {
+      windowMs: 5 * 60_000,
+      maxRequests: 8,
+    });
+    if (!userRateResult.allowed) {
+      return buildResendLimitResponse(userRateResult.retryAfterMs);
     }
 
     const result = await AuthService.resendWebOtp(validated.preAuthToken, clientIp);

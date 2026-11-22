@@ -1,4 +1,30 @@
+import net from 'node:net';
+import type { NextRequest } from 'next/server';
 import { redisManager } from './redis';
+
+/**
+ * Extracts the trusted client IP from proxy headers without trusting spoofable leftmost X-Forwarded-For entries.
+ * Priority: valid `x-real-ip` -> rightmost valid IP in `x-forwarded-for` -> `'unknown'`.
+ */
+export function extractClientIp(request: NextRequest): string {
+  const realIp = request.headers.get('x-real-ip')?.trim();
+  if (realIp && net.isIP(realIp) !== 0) {
+    return realIp;
+  }
+
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    const parts = forwardedFor.split(',');
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const candidate = parts[i]?.trim();
+      if (candidate && net.isIP(candidate) !== 0) {
+        return candidate;
+      }
+    }
+  }
+
+  return 'unknown';
+}
 
 /**
  * Configuration for a rate-limited endpoint.
@@ -111,6 +137,15 @@ export const RATE_LIMIT_PROFILES = {
   /** POST /api/v1/auth/resend-otp: Maksimal 4 request per 5 menit per IP */
   AUTH_OTP_RESEND: { windowMs: 5 * 60_000, maxRequests: 4 } as const,
 
+  /** POST /api/v1/auth/refresh: Maksimal 10 request per menit per IP */
+  AUTH_REFRESH: { windowMs: 60_000, maxRequests: 10 } as const,
+
+  /** GET /api/v1/ota/manifest: Maksimal 60 request per menit per IP */
+  OTA_MANIFEST: { windowMs: 60_000, maxRequests: 60 } as const,
+
+  /** POST /api/v1/telegram/webhook: Maksimal 30 update per menit per chatId */
+  TELEGRAM_WEBHOOK: { windowMs: 60_000, maxRequests: 30 } as const,
+
   /** POST /api/v1/admin/ai/chat: Maksimal 10 request per menit per Admin user ID */
   AI_CHAT: { windowMs: 60_000, maxRequests: 10 } as const,
 
@@ -119,4 +154,10 @@ export const RATE_LIMIT_PROFILES = {
 
   /** POST /api/v1/tech/tickets/[id]/submit: Maksimal 20 request per menit per Teknisi user ID */
   TECH_SUBMIT: { windowMs: 60_000, maxRequests: 20 } as const,
+
+  /** POST /api/v1/tech/error-logs: Maksimal 20 laporan error per menit per Teknisi user ID */
+  TECH_ERROR_LOGS: { windowMs: 60_000, maxRequests: 20 } as const,
+
+  /** POST /api/v1/admin/network/import: Maksimal 8 import Datek per menit per Admin + IP */
+  NETWORK_IMPORT: { windowMs: 60_000, maxRequests: 8 } as const,
 } as const;

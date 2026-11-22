@@ -4,7 +4,6 @@ import {
   PERMISSIONS,
   ROLE_PRESETS,
   UserSessionContext,
-  UserTypeEnum,
 } from '@repo/shared';
 import { AuthService } from '../services/auth.service';
 import { RoleService } from '../services/role.service';
@@ -65,12 +64,7 @@ function expandClusterTokens(value: string): string[] {
 }
 
 export function isGlobalScopeActor(actor: UserSessionContext): boolean {
-  return (
-    actor.hierarchyLevel >= 100 ||
-    actor.userType === 'SUPER_ADMIN' ||
-    actor.role.toLowerCase() === 'super admin' ||
-    actor.assignedClusters.some((c) => c.toLowerCase() === 'global scope')
-  );
+  return actor.userType === 'SUPER_ADMIN' && actor.hierarchyLevel >= 100;
 }
 
 export function matchesAssignedClusters(
@@ -80,15 +74,51 @@ export function matchesAssignedClusters(
   if (isGlobalScopeActor(actor)) {
     return true;
   }
-  if (!actor.assignedClusters || actor.assignedClusters.length === 0) {
+
+  const scopedClusters = (actor.assignedClusters || []).filter(
+    (c) => c.trim().toLowerCase() !== 'global scope',
+  );
+  if (scopedClusters.length === 0) {
     return false;
   }
 
-  const allowedTokens = new Set(actor.assignedClusters.flatMap((c) => expandClusterTokens(c)));
+  const allowedTokens = new Set(scopedClusters.flatMap((c) => expandClusterTokens(c)));
   return candidates.some((cand) => {
     if (!cand) return false;
     return expandClusterTokens(cand).some((token) => allowedTokens.has(token));
   });
+}
+
+export function assertAssignableClusters(
+  actor: UserSessionContext,
+  targetClusters: string[],
+): void {
+  if (isGlobalScopeActor(actor)) {
+    return;
+  }
+
+  if (!Array.isArray(targetClusters) || targetClusters.length === 0) {
+    throw new AuthHttpError(
+      403,
+      ERROR_CODES.FORBIDDEN,
+      'Operator selain Super Admin wajib menetapkan minimal satu cluster wilayah yang sesuai wewenang.',
+    );
+  }
+
+  for (const cluster of targetClusters) {
+    const clean = cluster.trim();
+    if (
+      !clean ||
+      clean.toLowerCase() === 'global scope' ||
+      !matchesAssignedClusters(actor, clean)
+    ) {
+      throw new AuthHttpError(
+        403,
+        ERROR_CODES.FORBIDDEN,
+        `Akses ditolak: Anda tidak berhak memberikan cluster "${cluster}" di luar wewenang Anda.`,
+      );
+    }
+  }
 }
 
 /**
@@ -132,42 +162,6 @@ export async function resolveAdminActor(request: NextRequest): Promise<UserSessi
     return actor;
   }
 
-  // Fallback to verified headers only when injected by Next.js middleware with an existing x-user-id
-  const headerUserId = request.headers.get('x-user-id');
-  if (headerUserId) {
-    const userType = (request.headers.get('x-user-type') || 'ADMIN') as UserTypeEnum;
-    if (userType === 'TECHNICIAN') {
-      throw new AuthHttpError(
-        403,
-        ERROR_CODES.FORBIDDEN,
-        'Akun Teknisi Lapangan tidak berhak mengakses API manajemen NOC.',
-      );
-    }
-
-    let assignedClusters: string[] = [];
-    const rawClusters = request.headers.get('x-assigned-clusters');
-    if (rawClusters) {
-      try {
-        const parsed: unknown = JSON.parse(rawClusters);
-        if (Array.isArray(parsed)) {
-          assignedClusters = parsed.map(String);
-        }
-      } catch {
-        assignedClusters = [];
-      }
-    }
-
-    return {
-      userId: headerUserId,
-      username: request.headers.get('x-username') || headerUserId,
-      fullName: request.headers.get('x-username') || 'Operator NOC',
-      role: request.headers.get('x-user-role') || 'Admin Operasional',
-      userType,
-      hierarchyLevel: parseInt(request.headers.get('x-hierarchy-level') || '50', 10) || 50,
-      assignedClusters,
-    };
-  }
-
   if (process.env.NODE_ENV === 'production' || isStrictLiveMode()) {
     throw new AuthHttpError(
       401,
@@ -196,15 +190,23 @@ export async function getActorPermissions(actor: UserSessionContext): Promise<st
     return [PERMISSIONS.ALL];
   }
 
+  const sanitizePerms = (perms: string[]): string[] =>
+    perms.map(String).filter((p) => p !== PERMISSIONS.ALL);
+
   if (Array.isArray(actor.permissions) && actor.permissions.length > 0) {
-    return actor.permissions;
+    const cleaned = sanitizePerms(actor.permissions);
+    if (cleaned.length > 0) {
+      return cleaned;
+    }
   }
 
   try {
     const roles = await RoleService.listRoles();
-    const matched = roles.find((r) => r.name.toLowerCase() === actor.role.toLowerCase());
+    const matched = roles.find(
+      (r) => r.name.toLowerCase() === actor.role.toLowerCase() && r.hierarchyLevel < 100,
+    );
     if (matched && Array.isArray(matched.permissions)) {
-      return matched.permissions.map(String);
+      return sanitizePerms(matched.permissions.map(String));
     }
   } catch (err) {
     if (err instanceof ServiceUnavailableError) {
@@ -214,9 +216,11 @@ export async function getActorPermissions(actor: UserSessionContext): Promise<st
   }
 
   const preset = Object.values(ROLE_PRESETS).find(
-    (p) => p.name.toLowerCase() === actor.role.toLowerCase() || p.userType === actor.userType,
+    (p) =>
+      p.userType !== 'SUPER_ADMIN' &&
+      (p.name.toLowerCase() === actor.role.toLowerCase() || p.userType === actor.userType),
   );
-  return preset ? [...preset.permissions] : [];
+  return preset ? sanitizePerms([...preset.permissions]) : [];
 }
 
 /**

@@ -2,6 +2,7 @@ import os from 'node:os';
 import fs from 'node:fs/promises';
 import zlib from 'node:zlib';
 import crypto from 'node:crypto';
+import { promisify } from 'node:util';
 import { prisma, Prisma } from '@repo/database';
 import {
   SystemSettingsInput,
@@ -11,13 +12,43 @@ import {
   ERROR_CODES,
 } from '@repo/shared';
 import { redisManager } from '../lib/redis';
-import { minioManager } from '../lib/minio';
+import { BACKUP_BUCKET_NAME, minioManager } from '../lib/minio';
 import { ollamaClient } from '../lib/ollama';
 import { env } from '@/env';
 import {
   requireLiveDatabase,
   rethrowIfStrictDatabaseError,
 } from '../lib/live-data';
+
+const gzipAsync = promisify(zlib.gzip);
+const OTA_SETTINGS_CACHE_TTL_MS = 60_000;
+let otaSettingsCache: { value: SystemSettingsInput; expiresAt: number } | null = null;
+
+function deriveBackupEncryptionKey(): Buffer {
+  const explicit = process.env.BACKUP_ENCRYPTION_KEY || env.BACKUP_ENCRYPTION_KEY;
+  if (explicit && explicit.trim().length > 0) {
+    return crypto.createHash('sha256').update(explicit.trim(), 'utf8').digest();
+  }
+  const baseSecret = process.env.HMAC_ACTION_SECRET || env.HMAC_ACTION_SECRET;
+  return Buffer.from(
+    crypto.hkdfSync(
+      'sha256',
+      baseSecret,
+      'fiberops-backup-salt-v1',
+      'fiberops-aes-256-gcm-backup-v1',
+      32,
+    ),
+  );
+}
+
+function encryptBackupBuffer(plainCompressed: Buffer): Buffer {
+  const key = deriveBackupEncryptionKey();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(plainCompressed), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return Buffer.concat([Buffer.from('FOPSENC1', 'ascii'), iv, authTag, encrypted]);
+}
 
 const SETTINGS_REDIS_KEY = 'fiberops:system:settings';
 const BACKUP_HISTORY_REDIS_KEY = 'fiberops:system:backups';
@@ -297,23 +328,71 @@ export class SystemService {
   }
 
   /**
+   * Lightweight cached OTA settings reader for public `/api/v1/ota/manifest` (no live infra probes).
+   */
+  static async getOtaManifestSettings(): Promise<SystemSettingsInput> {
+    const now = Date.now();
+    if (otaSettingsCache && now < otaSettingsCache.expiresAt) {
+      return { ...otaSettingsCache.value };
+    }
+
+    let resolved: SystemSettingsInput = { ...currentSettings };
+    const dbReady = await requireLiveDatabase().catch(() => false);
+    if (dbReady) {
+      try {
+        const row = await prisma.systemConfig.findUnique({
+          where: { key: WORKSPACE_CONFIG_KEY },
+        });
+        if (row && row.value && typeof row.value === 'object') {
+          resolved = {
+            ...DEFAULT_SYSTEM_SETTINGS,
+            ...(row.value as Partial<SystemSettingsInput>),
+          };
+        }
+      } catch {
+        // Fallback to Redis/default below
+      }
+    } else {
+      try {
+        const rawSettings = await redisManager.getKey(SETTINGS_REDIS_KEY);
+        if (rawSettings) {
+          resolved = {
+            ...DEFAULT_SYSTEM_SETTINGS,
+            ...(JSON.parse(rawSettings) as Partial<SystemSettingsInput>),
+          };
+        }
+      } catch {
+        // Use in-memory/default settings
+      }
+    }
+
+    otaSettingsCache = {
+      value: resolved,
+      expiresAt: now + OTA_SETTINGS_CACHE_TTL_MS,
+    };
+    return { ...resolved };
+  }
+
+  /**
    * Memperbarui konfigurasi sistem (Khusus Super Admin level 100) ke PostgreSQL SystemConfig & Redis.
    */
   static async updateSettings(
     actor: UserSessionContext,
     newSettings: SystemSettingsInput,
   ): Promise<SystemSettingsInput> {
-    if (actor.hierarchyLevel < 100) {
+    if (actor.userType !== 'SUPER_ADMIN' || actor.hierarchyLevel < 100) {
       const err = new Error(
         `${ERROR_CODES.FORBIDDEN}: Hanya Super Admin yang berwenang mengubah konfigurasi sistem on-premise`,
-      ) as Error & { code: string };
+      ) as Error & { code: string; statusCode?: number };
       err.code = ERROR_CODES.FORBIDDEN;
+      err.statusCode = 403;
       throw err;
     }
 
     await hydrateSystemState();
     const oldSettings = { ...currentSettings };
     currentSettings = { ...newSettings };
+    otaSettingsCache = null;
 
     if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk menyimpan konfigurasi.')) {
       try {
@@ -353,14 +432,15 @@ export class SystemService {
   }
 
   /**
-   * Menjalankan backup snapshot terkompresi (Gzip JSON + SHA-256) langsung ke MinIO & BackupRecord PostgreSQL.
+   * Menjalankan backup snapshot terkompresi & terenkripsi AES-256-GCM langsung ke bucket backup MinIO terisolasi.
    */
   static async triggerBackupSnapshot(actor: UserSessionContext): Promise<BackupSnapshotItem> {
-    if (actor.hierarchyLevel < 50) {
+    if (actor.userType !== 'SUPER_ADMIN' || actor.hierarchyLevel < 100) {
       const err = new Error(
-        `${ERROR_CODES.FORBIDDEN}: Minimal Admin Operasional atau Super Admin untuk memicu snapshot backup`,
-      ) as Error & { code: string };
+        `${ERROR_CODES.FORBIDDEN}: Hanya Super Admin yang berwenang memicu snapshot backup sistem`,
+      ) as Error & { code: string; statusCode?: number };
       err.code = ERROR_CODES.FORBIDDEN;
+      err.statusCode = 403;
       throw err;
     }
 
@@ -371,14 +451,14 @@ export class SystemService {
 
     const now = new Date();
     const dateStr = now.toISOString().replace(/[-:T.]/g, '').slice(0, 14);
-    const filename = `ftth_snapshot_${dateStr}.json.gz`;
+    const filename = `ftth_snapshot_${dateStr}.json.gz.enc`;
     const objectKey = `backups/${filename}`;
     const targetLabel =
       currentSettings.secondaryBackupTarget === 'EXTERNAL_NAS'
-        ? `MinIO + NAS Target (${currentSettings.secondaryStoragePath})`
+        ? `MinIO Vault + NAS Target (${currentSettings.secondaryStoragePath})`
         : currentSettings.secondaryBackupTarget === 'ENCRYPTED_CLOUD_BUCKET'
-          ? 'MinIO S3 Primary + Secondary Bucket'
-          : 'MinIO S3 Vault Archive';
+          ? 'MinIO Encrypted Backup Vault'
+          : 'MinIO S3 Encrypted Vault';
 
     let payloadData: Record<string, unknown> = {
       exportedAt: now.toISOString(),
@@ -419,14 +499,15 @@ export class SystemService {
       }
     }
 
-    const compressedBuffer = zlib.gzipSync(Buffer.from(JSON.stringify(payloadData), 'utf-8'));
-    const sha256Checksum = crypto.createHash('sha256').update(compressedBuffer).digest('hex');
-    const sizeMb = Number(Math.max(0.01, compressedBuffer.byteLength / (1024 * 1024)).toFixed(2));
+    const compressedBuffer = await gzipAsync(Buffer.from(JSON.stringify(payloadData), 'utf-8'));
+    const encryptedBuffer = encryptBackupBuffer(compressedBuffer);
+    const sha256Checksum = crypto.createHash('sha256').update(encryptedBuffer).digest('hex');
+    const sizeMb = Number(Math.max(0.01, encryptedBuffer.byteLength / (1024 * 1024)).toFixed(2));
 
-    const uploadRes = await minioManager.putObjectBuffer(
+    const uploadRes = await minioManager.putBackupObjectBuffer(
       objectKey,
-      compressedBuffer,
-      'application/gzip',
+      encryptedBuffer,
+      'application/octet-stream',
     );
 
     const snapshot: BackupSnapshotItem = {
@@ -434,7 +515,7 @@ export class SystemService {
       timestamp: formatBackupTimestamp(now),
       filename,
       sizeMb,
-      target: uploadRes.stored ? `MinIO (${objectKey})` : targetLabel,
+      target: uploadRes.stored ? `MinIO (${BACKUP_BUCKET_NAME}/${objectKey})` : targetLabel,
       sha256Checksum,
       photosCount,
       status: 'SUCCESS',

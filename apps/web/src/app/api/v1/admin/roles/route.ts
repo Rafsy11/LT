@@ -3,14 +3,14 @@ import { RoleService } from '@/server/services/role.service';
 import { requireAdminActor, handleAdminRouteError } from '@/server/lib/admin-auth';
 import {
   createRoleSchema,
-  updateRolePermissionsSchema,
+  patchRolesSchema,
   ERROR_CODES,
   PERMISSIONS,
 } from '@repo/shared';
 
 export async function GET(request: NextRequest) {
   try {
-    const actor = await requireAdminActor(request);
+    const actor = await requireAdminActor(request, [PERMISSIONS.ROLE_READ, PERMISSIONS.ROLE_EDIT]);
     const roles = await RoleService.listRoles(actor.hierarchyLevel);
 
     return NextResponse.json({
@@ -46,18 +46,14 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const actor = await requireAdminActor(request, PERMISSIONS.ROLE_EDIT);
-    const body = (await request.json()) as {
-      targetUserId?: string;
-      newRoleId?: string;
-      roleId?: string;
-      permissions?: unknown;
-    };
+    const body: unknown = await request.json();
+    const validated = patchRolesSchema.parse(body);
 
-    if (body.targetUserId && body.newRoleId) {
+    if ('targetUserId' in validated) {
       const updatedUser = await RoleService.updateUserRole(
         actor,
-        body.targetUserId,
-        body.newRoleId,
+        validated.targetUserId,
+        validated.newRoleId,
       );
       return NextResponse.json({
         success: true,
@@ -65,23 +61,9 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    if (!body.roleId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'roleId wajib disertakan.',
-          },
-        },
-        { status: 400 },
-      );
-    }
-
-    const validated = updateRolePermissionsSchema.parse({ permissions: body.permissions });
     const updatedRole = await RoleService.updateRolePermissions(
       actor,
-      body.roleId,
+      validated.roleId,
       validated.permissions,
     );
 

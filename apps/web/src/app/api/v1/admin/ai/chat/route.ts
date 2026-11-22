@@ -8,6 +8,8 @@ import {
 import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
 import { ERROR_CODES, PERMISSIONS } from '@repo/shared';
 
+const MAX_AI_PROMPT_LENGTH = 4000;
+
 export async function POST(request: NextRequest) {
   try {
     const adminContext = await requireAdminActor(request, PERMISSIONS.AI_USE);
@@ -22,6 +24,19 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Pesan prompt tidak boleh kosong' },
+        },
+        { status: 400 },
+      );
+    }
+
+    if (prompt.length > MAX_AI_PROMPT_LENGTH) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: `Pesan prompt maksimal ${MAX_AI_PROMPT_LENGTH} karakter.`,
+          },
         },
         { status: 400 },
       );

@@ -1,10 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
+import { jwtVerify, type JWTPayload } from 'jose';
 import { MIN_MOBILE_APP_VERSION, ERROR_CODES } from '@repo/shared';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'fiberops_on_premise_super_secure_jwt_secret_key_32chars',
-);
+const PLACEHOLDER_JWT_RE =
+  /^(?:replace-with|changeme|placeholder|your-|example|default-secret|fiberops_on_premise_super_secure|fiberops_action_secret_token_default)/i;
+
+function isProductionMiddlewareRuntime(): boolean {
+  return (
+    process.env.NODE_ENV === 'production' &&
+    process.env.NEXT_PHASE !== 'phase-production-build'
+  );
+}
+
+function getJwtSecretBytes(): Uint8Array | null {
+  const raw = process.env.JWT_SECRET?.trim();
+  if (!raw) return null;
+  if (isProductionMiddlewareRuntime()) {
+    if (raw.length < 32 || PLACEHOLDER_JWT_RE.test(raw)) {
+      return null;
+    }
+  }
+  return new TextEncoder().encode(raw);
+}
+
+async function verifyAccessJwt(token: string, secretBytes: Uint8Array): Promise<JWTPayload> {
+  const { payload } = await jwtVerify(token, secretBytes, {
+    algorithms: ['HS256'],
+    audience: ['web', 'mobile'],
+  });
+  if (payload.tokenType !== 'access' || payload.purpose === '2fa_pending') {
+    throw new Error('INVALID_TOKEN_PURPOSE');
+  }
+  return payload;
+}
 
 /**
  * Sensitive internal headers that MUST be stripped from incoming requests
@@ -65,7 +93,7 @@ function buildVerifiedHeaders(original: Headers, payload: Record<string, unknown
   if (payload.role) requestHeaders.set('x-user-role', String(payload.role));
   if (payload.userType) requestHeaders.set('x-user-type', String(payload.userType));
   if (payload.deviceId) requestHeaders.set('x-device-id', String(payload.deviceId));
-  if (payload.hierarchyLevel) {
+  if (payload.hierarchyLevel !== undefined) {
     requestHeaders.set('x-hierarchy-level', String(payload.hierarchyLevel));
   }
   if (payload.assignedClusters) {
@@ -153,11 +181,22 @@ export async function middleware(request: NextRequest) {
       );
     }
 
+    const secretBytes = getJwtSecretBytes();
+    if (!secretBytes) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: ERROR_CODES.SERVICE_UNAVAILABLE,
+            message: 'Konfigurasi otentikasi server belum siap.',
+          },
+        },
+        { status: 503 },
+      );
+    }
+
     try {
-      const { payload } = await jwtVerify(token, JWT_SECRET);
-      if (payload.purpose === '2fa_pending') {
-        throw new Error('INVALID_TOKEN_PURPOSE');
-      }
+      const payload = await verifyAccessJwt(token, secretBytes);
 
       const requestHeaders = buildVerifiedHeaders(
         request.headers,
@@ -193,6 +232,22 @@ export async function middleware(request: NextRequest) {
       request.cookies.get('fiberops_session')?.value || request.cookies.get('session')?.value;
 
     const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7).trim() : cookieToken;
+    const secretBytes = getJwtSecretBytes();
+
+    if (!secretBytes && (isProductionMiddlewareRuntime() || Boolean(token))) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: isProductionMiddlewareRuntime()
+              ? ERROR_CODES.SERVICE_UNAVAILABLE
+              : ERROR_CODES.UNAUTHORIZED,
+            message: 'Konfigurasi otentikasi server tidak valid.',
+          },
+        },
+        { status: isProductionMiddlewareRuntime() ? 503 : 401 },
+      );
+    }
 
     if (!token) {
       if (process.env.NODE_ENV === 'production' || process.env.STRICT_LIVE_DATA !== 'false') {
@@ -213,10 +268,7 @@ export async function middleware(request: NextRequest) {
     }
 
     try {
-      const { payload } = await jwtVerify(token, JWT_SECRET);
-      if (payload.purpose === '2fa_pending') {
-        throw new Error('INVALID_TOKEN_PURPOSE');
-      }
+      const payload = await verifyAccessJwt(token, secretBytes!);
       if (payload.userType === 'TECHNICIAN') {
         return NextResponse.json(
           {
@@ -231,17 +283,10 @@ export async function middleware(request: NextRequest) {
       }
 
       // SECURITY: Strip ALL sensitive headers first, then inject verified claims only
-      const requestHeaders = stripSensitiveHeaders(request.headers);
-
-      if (payload.sub) requestHeaders.set('x-user-id', payload.sub);
-      if (payload.username) requestHeaders.set('x-username', String(payload.username));
-      if (payload.role) requestHeaders.set('x-user-role', String(payload.role));
-      if (payload.userType) requestHeaders.set('x-user-type', String(payload.userType));
-      if (payload.hierarchyLevel)
-        requestHeaders.set('x-hierarchy-level', String(payload.hierarchyLevel));
-      if (payload.assignedClusters) {
-        requestHeaders.set('x-assigned-clusters', JSON.stringify(payload.assignedClusters));
-      }
+      const requestHeaders = buildVerifiedHeaders(
+        request.headers,
+        payload as Record<string, unknown>,
+      );
 
       return NextResponse.next({
         request: {
@@ -249,20 +294,16 @@ export async function middleware(request: NextRequest) {
         },
       });
     } catch {
-      if (process.env.NODE_ENV === 'production' || process.env.STRICT_LIVE_DATA !== 'false') {
-        return NextResponse.json(
-          {
-            success: false,
-            error: {
-              code: ERROR_CODES.UNAUTHORIZED,
-              message: 'Sesi login admin tidak valid atau telah kedaluwarsa.',
-            },
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: ERROR_CODES.UNAUTHORIZED,
+            message: 'Sesi login admin tidak valid atau telah kedaluwarsa.',
           },
-          { status: 401 },
-        );
-      }
-      const requestHeaders = stripSensitiveHeaders(request.headers);
-      return NextResponse.next({ request: { headers: requestHeaders } });
+        },
+        { status: 401 },
+      );
     }
   }
 
@@ -273,14 +314,13 @@ export async function middleware(request: NextRequest) {
   if (isLoginRoute || isDashboardPage) {
     const cookieToken =
       request.cookies.get('fiberops_session')?.value || request.cookies.get('session')?.value;
+    const secretBytes = getJwtSecretBytes();
 
     let validWebPayload: Record<string, unknown> | null = null;
-    if (cookieToken) {
+    if (cookieToken && secretBytes) {
       try {
-        const { payload } = await jwtVerify(cookieToken, JWT_SECRET);
-        if (payload.purpose !== '2fa_pending') {
-          validWebPayload = payload as Record<string, unknown>;
-        }
+        const payload = await verifyAccessJwt(cookieToken, secretBytes);
+        validWebPayload = payload as Record<string, unknown>;
       } catch {
         validWebPayload = null;
       }

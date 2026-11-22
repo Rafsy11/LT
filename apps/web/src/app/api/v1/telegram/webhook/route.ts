@@ -4,7 +4,12 @@ import { AuthService, FallbackAccount } from '@/server/services/auth.service';
 import { TicketService, DbTicket } from '@/server/services/ticket.service';
 import { redisManager } from '@/server/lib/redis';
 import { minioManager } from '@/server/lib/minio';
-import { downloadTelegramFileBuffer, sendTelegramHtmlMessage } from '@/server/lib/telegram';
+import {
+  downloadTelegramFileBuffer,
+  escapeTelegramHtml,
+  sendTelegramHtmlMessage,
+} from '@/server/lib/telegram';
+import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
 import { normalizeTechUsernameAlias } from '@/server/lib/tech-auth';
 import { ServiceUnavailableError } from '@/server/lib/live-data';
 import { sanitizeUiErrorMessage, STANDARD_ERROR_MESSAGES } from '@repo/shared';
@@ -64,11 +69,20 @@ function draftRedisKey(chatId: string): string {
 }
 
 function escapeHtml(raw?: string | null): string {
-  if (!raw) return '';
-  return raw
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return escapeTelegramHtml(raw);
+}
+
+function isValidCoordinates(lat?: number, lng?: number): lat is number {
+  return (
+    typeof lat === 'number' &&
+    typeof lng === 'number' &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
 }
 
 function buildDeterministicUuid(seed: string): string {
@@ -77,14 +91,6 @@ function buildDeterministicUuid(seed: string): string {
   bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
   const hex = Buffer.from(bytes).toString('hex');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-}
-
-function extractCandidateNik(text: string): string | null {
-  const trimmed = text.trim();
-  const cmdMatch = trimmed.match(/^\/(?:start|mulai)(?:@[a-zA-Z0-9_]+)?\s+([a-zA-Z0-9_-]+)/i);
-  if (cmdMatch?.[1]) return cmdMatch[1].trim();
-  if (/^\d{4,12}$/.test(trimmed)) return trimmed;
-  return null;
 }
 
 function ticketBelongsToAccount(ticket: DbTicket, account: FallbackAccount): boolean {
@@ -217,10 +223,29 @@ async function handleBoundCommandHelp(chatId: string, account: FallbackAccount) 
 
 export async function POST(request: NextRequest) {
   try {
-    const secretToken = request.headers.get('x-telegram-bot-api-secret-token');
-    const configuredSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
-    if (configuredSecret && secretToken !== configuredSecret) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized webhook secret' }, { status: 401 });
+    const configuredSecret = (process.env.TELEGRAM_WEBHOOK_SECRET || '').trim();
+    if (!configuredSecret) {
+      return NextResponse.json(
+        { ok: false, error: 'Webhook secret not configured' },
+        { status: 503 },
+      );
+    }
+
+    const secretToken = (request.headers.get('x-telegram-bot-api-secret-token') || '').trim();
+    if (!secretToken) {
+      return NextResponse.json(
+        { ok: false, error: 'Unauthorized webhook secret' },
+        { status: 401 },
+      );
+    }
+
+    const expectedDigest = crypto.createHash('sha256').update(configuredSecret, 'utf8').digest();
+    const actualDigest = crypto.createHash('sha256').update(secretToken, 'utf8').digest();
+    if (!crypto.timingSafeEqual(expectedDigest, actualDigest)) {
+      return NextResponse.json(
+        { ok: false, error: 'Unauthorized webhook secret' },
+        { status: 401 },
+      );
     }
 
     const body = (await request.json()) as TelegramUpdate;
@@ -230,6 +255,18 @@ export async function POST(request: NextRequest) {
     }
 
     const chatId = String(message.chat.id);
+    const rateResult = await checkRateLimit(
+      `tg_webhook:${chatId}`,
+      RATE_LIMIT_PROFILES.TELEGRAM_WEBHOOK,
+    );
+    if (!rateResult.allowed) {
+      const retrySeconds = Math.max(1, Math.ceil(rateResult.retryAfterMs / 1000));
+      return NextResponse.json(
+        { ok: false, error: 'Too many webhook requests' },
+        { status: 429, headers: { 'Retry-After': String(retrySeconds) } },
+      );
+    }
+
     const updateId = body.update_id ?? message.message_id ?? Date.now();
     const rawText = (message.text || message.caption || '').trim();
     const senderName = message.from?.first_name || 'Vendor Lapangan';
@@ -246,7 +283,7 @@ export async function POST(request: NextRequest) {
             `🔓 <b>IKATAN AKUN DILEPAS</b>`,
             ``,
             `Tautan ke akun <b>${escapeHtml(boundUser.fullName)} (${escapeHtml(boundUser.nik || boundUser.username)})</b> telah berhasil dilepas.`,
-            `Kirim NIK resmi Anda kapan saja untuk menautkan kembali.`,
+            `Hubungi Super Admin NOC jika perlu menautkan kembali Telegram Chat ID Anda.`,
           ].join('\n'),
         );
       } else {
@@ -297,20 +334,16 @@ export async function POST(request: NextRequest) {
       } else {
         await sendTelegramHtmlMessage(
           chatId,
-          `🔴 Akun Telegram Anda belum terdaftar. Silakan kirimkan <b>NIK</b> Anda untuk registrasi.\nContoh: <code>882043</code>`,
+          `🔒 Akun Telegram Anda belum tertaut ke sistem FiberOps. Silakan hubungi Super Admin NOC untuk mendaftarkan Telegram Chat ID Anda secara terotentikasi.`,
         );
       }
       return NextResponse.json({ ok: true, action: 'status' });
     }
 
-    // 4. /start (or bare /mulai when NOT bound yet -> NIK onboarding)
+    // 4. /start (or bare /mulai when NOT bound yet) -> neutral unlinked guidance (no NIK self-bind)
     const isStartCmd = /^\/start(?:@[a-zA-Z0-9_]+)?(?:\s|$)/i.test(rawText);
     const isBareMulai = /^\/mulai(?:@[a-zA-Z0-9_]+)?$/i.test(rawText);
     if (isStartCmd || (isBareMulai && !boundUser)) {
-      const candidateFromStart = extractCandidateNik(rawText);
-      if (candidateFromStart) {
-        return await handleNikRegistration(chatId, candidateFromStart, senderName);
-      }
       if (boundUser) {
         await handleBoundCommandHelp(chatId, boundUser);
         return NextResponse.json({ ok: true, action: 'help' });
@@ -320,23 +353,18 @@ export async function POST(request: NextRequest) {
         [
           `👋 <b>Selamat datang, ${escapeHtml(senderName)}!</b>`,
           ``,
-          `Sistem integrasi <b>FiberOps NOC Lintasarta</b> membutuhkan verifikasi identitas Vendor / Teknisi.`,
-          `Silakan balas pesan ini dengan mengetikkan <b>NIK resmi Anda</b> (contoh: <code>882043</code>).`,
+          `Akun Telegram Anda belum tertaut ke sistem <b>FiberOps NOC Lintasarta</b>.`,
+          `Demi keamanan, penautan akun hanya dilakukan oleh Super Admin melalui Dasbor NOC. Hubungi Administrator NOC Anda.`,
         ].join('\n'),
       );
-      return NextResponse.json({ ok: true, action: 'prompt_nik' });
+      return NextResponse.json({ ok: true, action: 'unlinked_guidance' });
     }
 
-    // 5. Bare numeric NIK registration
-    if (!rawText.startsWith('/') && /^\d{4,12}$/.test(rawText)) {
-      return await handleNikRegistration(chatId, rawText, senderName);
-    }
-
-    // Gate all operational commands & uploads behind bound Telegram user
+    // Gate all operational commands & uploads behind pre-bound Telegram user
     if (!boundUser) {
       await sendTelegramHtmlMessage(
         chatId,
-        `🔒 Akun Telegram Anda belum tertaut ke sistem.\nSilakan ketikkan <b>NIK resmi Anda</b> terlebih dahulu (contoh: <code>882043</code>).`,
+        `🔒 Akun Telegram Anda belum tertaut ke sistem.\nHubungi Super Admin NOC untuk mendaftarkan Telegram Chat ID resmi Anda.`,
       );
       return NextResponse.json({ ok: true, action: 'unauthenticated_prompt' });
     }
@@ -517,19 +545,33 @@ export async function POST(request: NextRequest) {
           photoKey = existingDraft.photoObjectKey;
         }
 
-        const lat =
-          message.location?.latitude ??
-          existingDraft?.submittedLat ??
-          ticket.targetLat ??
-          -6.914744;
-        const lng =
-          message.location?.longitude ??
-          existingDraft?.submittedLng ??
-          ticket.targetLng ??
-          107.60981;
+        const lat = message.location?.latitude ?? existingDraft?.submittedLat;
+        const lng = message.location?.longitude ?? existingDraft?.submittedLng;
 
-        const finalPhotoKey =
-          photoKey || `opm-proofs/telegram/${ticket.ticketNumber}-${updateId}-text-report.txt`;
+        if (
+          !photoKey ||
+          typeof lat !== 'number' ||
+          typeof lng !== 'number' ||
+          !isValidCoordinates(lat, lng)
+        ) {
+          const missingItems: string[] = [];
+          if (!photoKey) missingItems.push('• <b>Foto Bukti OPM</b> (JPEG/PNG/WEBP, maks 10MB)');
+          if (typeof lat !== 'number' || typeof lng !== 'number' || !isValidCoordinates(lat, lng)) {
+            missingItems.push('• <b>Share Location</b> GPS Anda');
+          }
+          await sendTelegramHtmlMessage(
+            chatId,
+            [
+              `⚠️ <b>BUKTI LAPANGAN WAJIB DILENGKAPI</b>`,
+              ``,
+              `Laporan untuk <code>${escapeHtml(ticket.ticketNumber)}</code> tidak dapat dikirim tanpa bukti asli:`,
+              ...missingItems,
+              ``,
+              `Gunakan <code>/lapor ${escapeHtml(ticket.ticketNumber)}</code> untuk mengirim lokasi dan foto terlebih dahulu.`,
+            ].join('\n'),
+          );
+          return NextResponse.json({ ok: true, action: 'lapor_missing_evidence' });
+        }
 
         return await finalizeTelegramReport({
           chatId,
@@ -538,7 +580,7 @@ export async function POST(request: NextRequest) {
           splitterId,
           portNumber,
           attenuationDbm,
-          photoObjectKey: finalPhotoKey,
+          photoObjectKey: photoKey,
           lat,
           lng,
           notes,
@@ -584,8 +626,8 @@ export async function POST(request: NextRequest) {
           `Pelanggan: <b>${escapeHtml(ticket.customerName)}</b>`,
           ``,
           `Silakan kirimkan kelengkapan berikut:`,
-          `1️⃣ <b>Share Location</b> lokasi Anda saat ini (atau langsung gunakan koordinat target)`,
-          `2️⃣ <b>Foto Bukti OPM</b> (kirim sebagai gambar)`,
+          `1️⃣ <b>Share Location</b> lokasi GPS Anda saat ini (wajib)`,
+          `2️⃣ <b>Foto Bukti OPM</b> (kirim sebagai gambar JPEG/PNG/WEBP, wajib)`,
           `3️⃣ Data teknis dengan format: <code>ODP | PORT | REDAMAN_DBM | CATATAN</code>`,
           `<i>Contoh:</i> <code>ODP-BDG-01 | 2 | -19.2 | Kabel normal &amp; redaman bagus</code>`,
           ``,
@@ -637,6 +679,9 @@ export async function POST(request: NextRequest) {
           draft.photoObjectKey = storedKey;
           updated = true;
           notices.push(`📷 Foto bukti OPM berhasil disimpan ke MinIO`);
+        } else {
+          updated = true;
+          notices.push(`⚠️ Foto ditolak: pastikan format gambar JPEG/PNG/WEBP valid dan maksimal 10MB.`);
         }
       }
 
@@ -683,8 +728,9 @@ export async function POST(request: NextRequest) {
           typeof draft.portNumber === 'number' &&
           typeof draft.attenuationDbm === 'number';
         const readyPhoto = Boolean(draft.photoObjectKey);
+        const readyLocation = isValidCoordinates(draft.submittedLat, draft.submittedLng);
 
-        if (readyMetrics && readyPhoto) {
+        if (readyMetrics && readyPhoto && readyLocation) {
           return await finalizeTelegramReport({
             chatId,
             account: boundUser,
@@ -693,14 +739,15 @@ export async function POST(request: NextRequest) {
             portNumber: draft.portNumber!,
             attenuationDbm: draft.attenuationDbm!,
             photoObjectKey: draft.photoObjectKey!,
-            lat: draft.submittedLat ?? draft.targetLat ?? -6.914744,
-            lng: draft.submittedLng ?? draft.targetLng ?? 107.60981,
+            lat: draft.submittedLat!,
+            lng: draft.submittedLng!,
             notes: draft.technicianNotes,
             updateId,
           });
         }
 
         const missing: string[] = [];
+        if (!readyLocation) missing.push('• <b>Share Location</b> GPS saat ini');
         if (!readyPhoto) missing.push('• <b>Foto Bukti OPM</b>');
         if (!readyMetrics) {
           missing.push('• Data teknis: <code>ODP | PORT | REDAMAN_DBM | CATATAN</code>');
@@ -734,49 +781,4 @@ export async function POST(request: NextRequest) {
     console.error('[Telegram Webhook Error]:', error);
     return NextResponse.json({ ok: false, error: 'Internal webhook error' }, { status: 500 });
   }
-}
-
-async function handleNikRegistration(chatId: string, candidateNik: string, _senderName: string) {
-  const result = await AuthService.bindTelegramChatIdByNik({
-    nik: candidateNik,
-    chatId,
-  });
-
-  if (!result.success || !result.user) {
-    const errorHtml = [
-      `❌ <b>NIK TIDAK TERDAFTAR</b>`,
-      ``,
-      `Nomor Induk Karyawan <code>${escapeHtml(candidateNik)}</code> tidak ditemukan di dalam direktori sistem FiberOps NOC Lintasarta.`,
-      ``,
-      `<i>Petunjuk:</i>`,
-      `• Pastikan NIK resmi dimasukkan tanpa spasi.`,
-      `• Hubungi <b>Super Admin / Tim CS Lintasarta</b> agar akun &amp; NIK Anda didaftarkan terlebih dahulu.`,
-    ].join('\n');
-
-    await sendTelegramHtmlMessage(chatId, errorHtml);
-    return NextResponse.json({ ok: true, action: 'nik_not_found', nik: candidateNik });
-  }
-
-  const user = result.user;
-  const successHtml = [
-    `✅ <b>INTEGRASI AKUN BERHASIL!</b>`,
-    ``,
-    `Akun Telegram Anda telah resmi ditautkan ke sistem <b>FiberOps NOC Lintasarta</b>:`,
-    `• <b>Nama:</b> ${escapeHtml(user.fullName)}`,
-    `• <b>NIK:</b> <code>${escapeHtml(user.nik || candidateNik)}</code>`,
-    `• <b>Username:</b> <code>${escapeHtml(user.username)}</code>`,
-    `• <b>Peran:</b> ${escapeHtml(user.role.name)}`,
-    ``,
-    user.userType === 'TECHNICIAN'
-      ? `Ketik /tugas untuk melihat daftar tugas lapangan, atau gunakan akun ini untuk menerima kode OTP 2FA Aplikasi Mobile FiberOps.`
-      : `Gunakan akun ini untuk menerima kode OTP 2FA saat login di Dasbor NOC Lintasarta.`,
-  ].join('\n');
-
-  await sendTelegramHtmlMessage(chatId, successHtml);
-  return NextResponse.json({
-    ok: true,
-    action: 'bound_success',
-    userId: user.id,
-    nik: user.nik,
-  });
 }

@@ -1,6 +1,30 @@
 import * as Minio from 'minio';
+import { ERROR_CODES } from '@repo/shared';
 import { env } from '@/env';
 import { isStrictLiveMode, ServiceUnavailableError } from './live-data';
+
+export const SAFE_PROOF_OBJECT_KEY_RE =
+  /^(?:opm-proofs|proofs|customers)\/[a-zA-Z0-9._-]+(?:\/[a-zA-Z0-9._-]+)*$/;
+
+export function assertSafeProofObjectKey(objectKey: string): void {
+  if (
+    !objectKey ||
+    typeof objectKey !== 'string' ||
+    objectKey.includes('..') ||
+    objectKey.includes('\\') ||
+    objectKey.includes('%') ||
+    objectKey.includes('?') ||
+    objectKey.includes('#') ||
+    /[\x00-\x1f\x7f]/.test(objectKey) ||
+    objectKey.startsWith('backups/') ||
+    !SAFE_PROOF_OBJECT_KEY_RE.test(objectKey)
+  ) {
+    throw Object.assign(
+      new Error('Key objek media tidak valid atau berada di luar direktori yang diizinkan.'),
+      { statusCode: 400, code: ERROR_CODES.VALIDATION_ERROR },
+    );
+  }
+}
 
 /**
  * Normalizes MinIO endpoint by stripping protocol prefixes (http://, https://, including duplicates),
@@ -25,6 +49,10 @@ const minioUseSSL = env.MINIO_USE_SSL;
 const minioAccessKey = env.MINIO_ACCESS_KEY;
 const minioSecretKey = env.MINIO_SECRET_KEY;
 export const PROOF_BUCKET_NAME = env.MINIO_BUCKET;
+export const BACKUP_BUCKET_NAME =
+  env.MINIO_BACKUP_BUCKET === PROOF_BUCKET_NAME
+    ? `${PROOF_BUCKET_NAME}-backups`
+    : env.MINIO_BACKUP_BUCKET;
 const minioPublicUrl = env.MINIO_PUBLIC_URL?.replace(/\/+$/, '');
 
 const MINIO_FAILURE_COOLDOWN_MS = 15_000;
@@ -34,6 +62,7 @@ class MinioStorageManager {
   private presignedClient: Minio.Client;
   private publicBaseUrl: string;
   private bucketChecked = false;
+  private backupBucketChecked = false;
   private lastFailureAt = 0;
 
   constructor() {
@@ -92,6 +121,51 @@ class MinioStorageManager {
     }
   }
 
+  public async ensureBackupBucket(): Promise<void> {
+    if (this.backupBucketChecked || this.isInCooldown()) return;
+    try {
+      const exists = await this.client.bucketExists(BACKUP_BUCKET_NAME);
+      if (!exists) {
+        await this.client.makeBucket(BACKUP_BUCKET_NAME, 'us-east-1');
+      }
+      this.backupBucketChecked = true;
+      this.lastFailureAt = 0;
+    } catch (err) {
+      this.lastFailureAt = Date.now();
+      console.warn('[MinIO] Warning checking/creating backup bucket:', (err as Error).message);
+    }
+  }
+
+  /**
+   * Uploads encrypted database backup snapshots exclusively to the isolated private backup bucket.
+   */
+  public async putBackupObjectBuffer(
+    objectKey: string,
+    buffer: Buffer,
+    contentType = 'application/octet-stream',
+  ): Promise<{ stored: boolean; objectKey: string }> {
+    await this.ensureBackupBucket();
+    if (this.isInCooldown()) {
+      if (isStrictLiveMode()) {
+        throw new ServiceUnavailableError('MinIO Backup Storage tidak tersedia untuk menyimpan snapshot.');
+      }
+      return { stored: false, objectKey };
+    }
+    try {
+      await this.client.putObject(BACKUP_BUCKET_NAME, objectKey, buffer, buffer.length, {
+        'Content-Type': contentType,
+      });
+      return { stored: true, objectKey };
+    } catch (err) {
+      this.lastFailureAt = Date.now();
+      if (isStrictLiveMode()) {
+        throw new ServiceUnavailableError('Gagal mengunggah snapshot terenkripsi ke MinIO Backup Storage.');
+      }
+      console.warn('[MinIO] Warning uploading backup object buffer:', (err as Error).message);
+      return { stored: false, objectKey };
+    }
+  }
+
   public async isHealthy(): Promise<boolean> {
     const scheme = minioUseSSL ? 'https' : 'http';
     try {
@@ -145,6 +219,7 @@ class MinioStorageManager {
    * Enforces Law 5: Files are stored in MinIO object storage, never in Next.js local storage.
    */
   public async generatePresignedPutUrl(objectKey: string, expirySeconds = 900): Promise<string> {
+    assertSafeProofObjectKey(objectKey);
     await this.ensureBucket();
     if (this.isInCooldown()) {
       if (isStrictLiveMode()) {
@@ -172,6 +247,7 @@ class MinioStorageManager {
     buffer: Buffer,
     contentType = 'image/jpeg',
   ): Promise<{ stored: boolean; objectKey: string }> {
+    assertSafeProofObjectKey(objectKey);
     await this.ensureBucket();
     if (this.isInCooldown()) {
       if (isStrictLiveMode()) {
@@ -198,6 +274,7 @@ class MinioStorageManager {
    * Generates a Presigned GET URL for Web Admin to inspect photo evidence with temporary access.
    */
   public async generatePresignedGetUrl(objectKey: string, expirySeconds = 3600): Promise<string> {
+    assertSafeProofObjectKey(objectKey);
     await this.ensureBucket();
     if (this.isInCooldown()) {
       return `${this.publicBaseUrl}/${PROOF_BUCKET_NAME}/${objectKey}`;

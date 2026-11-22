@@ -14,6 +14,12 @@ import {
 } from '@repo/shared';
 import { redisManager } from '../lib/redis';
 import {
+  assertAssignableClusters,
+  isGlobalScopeActor,
+  matchesAssignedClusters,
+} from '../lib/admin-auth';
+import { maskTelegramChatId } from '../lib/telegram';
+import {
   isStrictLiveMode,
   requireLiveDatabase,
   rethrowIfStrictDatabaseError,
@@ -178,6 +184,17 @@ export class RoleService {
    * Creates a new role with strict Anti-Privilege Escalation checks.
    */
   public static async createRole(actor: UserSessionContext, data: CreateRoleInput) {
+    const cleanName = data.name.trim();
+    const normalizedName = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (/super\s*admin/i.test(cleanName) || normalizedName.includes('superadmin')) {
+      const err = new Error(
+        `${ERROR_CODES.FORBIDDEN}: Nama role tidak boleh menggunakan variasi "Super Admin".`,
+      ) as Error & { code?: string; statusCode?: number };
+      err.code = ERROR_CODES.FORBIDDEN;
+      err.statusCode = 403;
+      throw err;
+    }
+
     // 1. Hierarchy Check: actor must have strictly higher hierarchy
     this.checkHierarchyProtection(actor.hierarchyLevel, data.hierarchyLevel);
 
@@ -186,19 +203,33 @@ export class RoleService {
     }
 
     try {
+      const duplicate = await prisma.role.findFirst({
+        where: { name: { equals: cleanName, mode: 'insensitive' } },
+      });
+      if (duplicate && duplicate.name.toLowerCase() === cleanName.toLowerCase()) {
+        const dupErr = new Error(`Nama role "${cleanName}" sudah digunakan.`) as Error & {
+          statusCode?: number;
+        };
+        dupErr.statusCode = 409;
+        throw dupErr;
+      }
+
       // 2. Permission Check: actor cannot grant permissions they do not possess
       const actorRole = await prisma.role.findFirst({
         where: { name: actor.role },
       });
 
-      const actorPermissions =
-        actor.hierarchyLevel >= 100 ? ['*'] : ((actorRole?.permissions as string[]) || []);
+      const actorPermissions = isGlobalScopeActor(actor)
+        ? ['*']
+        : ((actorRole?.permissions as string[]) ?? actor.permissions ?? []).filter(
+            (p) => p !== '*',
+          );
       this.validateGrantablePermissions(actorPermissions, data.permissions);
 
       // 3. Create role
       const newRole = await prisma.role.create({
         data: {
-          name: data.name,
+          name: cleanName,
           permissions: data.permissions,
           hierarchyLevel: data.hierarchyLevel,
         },
@@ -250,8 +281,11 @@ export class RoleService {
         const actorRole = await prisma.role.findFirst({
           where: { name: actor.role },
         });
-        actorPermissions =
-          actor.hierarchyLevel >= 100 ? ['*'] : ((actorRole?.permissions as string[]) || []);
+        actorPermissions = isGlobalScopeActor(actor)
+          ? ['*']
+          : ((actorRole?.permissions as string[]) ?? actor.permissions ?? []).filter(
+              (p) => p !== '*',
+            );
       } catch (err) {
         rethrowIfStrictDatabaseError(err, 'Gagal membaca role dari PostgreSQL.');
         targetRole = null;
@@ -262,11 +296,11 @@ export class RoleService {
       // In-memory fallback lookup
       targetRole = MEMORY_ROLES.find((r) => r.id === roleId || r.name === roleId) || null;
       const actorRole = MEMORY_ROLES.find((r) => r.name === actor.role);
-      actorPermissions = actorRole
-        ? actorRole.permissions
-        : actor.hierarchyLevel === 100
-          ? ['*']
-          : [];
+      actorPermissions = isGlobalScopeActor(actor)
+        ? ['*']
+        : (actorRole ? actorRole.permissions : (actor.permissions ?? [])).filter(
+            (p) => p !== '*',
+          );
     }
 
     if (!targetRole) {
@@ -327,17 +361,44 @@ export class RoleService {
     targetUserId: string,
     newRoleId: string,
   ) {
+    if (targetUserId === actor.userId) {
+      const err = new Error(
+        `${ERROR_CODES.FORBIDDEN}: Dilarang mengubah peran akun sendiri.`,
+      ) as Error & { code?: string; statusCode?: number };
+      err.code = ERROR_CODES.FORBIDDEN;
+      err.statusCode = 403;
+      throw err;
+    }
+
     if (await requireLiveDatabase('Database PostgreSQL diperlukan untuk mengubah peran pengguna.')) {
       try {
         // 1. Target user check
         const targetUser = await prisma.user.findUnique({
           where: { id: targetUserId },
-          include: { role: true },
+          include: {
+            role: true,
+            sessions: {
+              where: { revokedAt: null },
+              select: { id: true, deviceId: true },
+            },
+          },
         });
 
         if (!targetUser) {
           const err = new Error('Pengguna tidak ditemukan') as Error & { statusCode?: number };
           err.statusCode = 404;
+          throw err;
+        }
+
+        if (
+          !isGlobalScopeActor(actor) &&
+          !matchesAssignedClusters(actor, ...targetUser.assignedClusters)
+        ) {
+          const err = new Error(
+            `${ERROR_CODES.FORBIDDEN}: Pengguna target berada di luar cakupan cluster wewenang Anda.`,
+          ) as Error & { code?: string; statusCode?: number };
+          err.code = ERROR_CODES.FORBIDDEN;
+          err.statusCode = 403;
           throw err;
         }
 
@@ -358,14 +419,31 @@ export class RoleService {
         // Actor cannot assign a role of equal or higher hierarchy
         this.checkHierarchyProtection(actor.hierarchyLevel, newRole.hierarchyLevel);
 
-        // 3. Update user role
+        const nextUserType = this.inferUserType(newRole.name, newRole.hierarchyLevel);
+
+        // 3. Update user role, sync userType, revoke active UserSessions, and log audit
         const updatedUser = await prisma.user.update({
           where: { id: targetUserId },
-          data: { roleId: newRoleId },
-          include: { role: true },
+          data: {
+            roleId: newRoleId,
+            userType: nextUserType,
+          },
+          include: {
+            role: true,
+            sessions: {
+              where: { revokedAt: null },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: { createdAt: true },
+            },
+          },
         });
 
-        // 4. Audit Log
+        await prisma.userSession.updateMany({
+          where: { userId: targetUserId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+
         await prisma.activityLog.create({
           data: {
             actorUserId: actor.userId,
@@ -373,16 +451,36 @@ export class RoleService {
             actionType: 'USER_ROLE_REASSIGNED',
             targetEntity: 'user',
             targetId: targetUserId,
-            oldPayload: { roleId: targetUser.roleId, roleName: targetUser.role.name },
-            newPayload: { roleId: newRole.id, roleName: newRole.name },
+            oldPayload: {
+              roleId: targetUser.roleId,
+              roleName: targetUser.role.name,
+              userType: targetUser.userType,
+            },
+            newPayload: {
+              roleId: newRole.id,
+              roleName: newRole.name,
+              userType: nextUserType,
+            },
           },
         });
 
-        return updatedUser;
+        // 4. Blacklist active sessions in Redis
+        const targetSessions = Array.isArray(targetUser.sessions) ? targetUser.sessions : [];
+        for (const s of targetSessions) {
+          if (s.id) {
+            await redisManager.blacklistSession(s.id).catch(() => {});
+          }
+          if (s.deviceId && s.deviceId !== 'web-browser') {
+            await redisManager.blacklistSession(s.deviceId).catch(() => {});
+          }
+        }
+
+        return this.mapUserToAdminItem(updatedUser);
       } catch (err: unknown) {
         if (
           err instanceof Error &&
           (err.message.includes(ERROR_CODES.HIERARCHY_VIOLATION) ||
+            err.message.includes(ERROR_CODES.FORBIDDEN) ||
             err.message.includes('tidak ditemukan'))
         ) {
           throw err;
@@ -399,15 +497,16 @@ export class RoleService {
     return {
       id: targetUserId,
       roleId: targetRole.id,
-      role: targetRole,
+      role: targetRole.name,
+      userType: this.inferUserType(targetRole.name, targetRole.hierarchyLevel),
     };
   }
 
-  private static inferUserType(roleName: string, hierarchyLevel: number): UserTypeEnum {
-    if (hierarchyLevel >= 100 || roleName.toLowerCase().includes('super admin')) {
+  private static inferUserType(_roleName: string, hierarchyLevel: number): UserTypeEnum {
+    if (hierarchyLevel >= 100) {
       return 'SUPER_ADMIN';
     }
-    const lower = roleName.toLowerCase();
+    const lower = _roleName.toLowerCase();
     if (lower.includes('teknisi') || lower.includes('vendor') || lower.includes('field')) {
       return 'TECHNICIAN';
     }
@@ -443,14 +542,14 @@ export class RoleService {
       assignedClusters: u.assignedClusters,
       isActive: u.isActive,
       twoFactorEnabled: u.twoFactorEnabled,
-      telegramChatId: u.telegramChatId,
+      telegramChatId: maskTelegramChatId(u.telegramChatId),
       lastActiveAt: u.sessions?.[0]?.createdAt ? u.sessions[0].createdAt.toISOString() : null,
       createdAt: u.createdAt.toISOString(),
     };
   }
 
   /**
-   * Lists personnel/operator users from PostgreSQL scoped to actor's hierarchy ceiling.
+   * Lists personnel/operator users from PostgreSQL scoped to actor's hierarchy ceiling and assigned clusters.
    */
   public static async listUsers(actor: UserSessionContext): Promise<AdminUserItem[]> {
     const dbReady = await requireLiveDatabase(
@@ -475,7 +574,12 @@ export class RoleService {
       });
 
       return users
-        .filter((u) => actor.hierarchyLevel >= 100 || u.role.hierarchyLevel <= actor.hierarchyLevel)
+        .filter(
+          (u) =>
+            isGlobalScopeActor(actor) ||
+            (u.role.hierarchyLevel <= actor.hierarchyLevel &&
+              matchesAssignedClusters(actor, ...u.assignedClusters)),
+        )
         .map((u) => this.mapUserToAdminItem(u));
     } catch (err) {
       rethrowIfStrictDatabaseError(err, 'Gagal memuat direktori pengguna dari PostgreSQL.');
@@ -490,6 +594,18 @@ export class RoleService {
     actor: UserSessionContext,
     input: CreateUserInput,
   ): Promise<AdminUserItem> {
+    if (!input.password || input.password.trim().length < 8) {
+      const pwdErr = new Error('Kata sandi awal minimal 8 karakter wajib diisi.') as Error & {
+        code?: string;
+        statusCode?: number;
+      };
+      pwdErr.code = ERROR_CODES.VALIDATION_ERROR;
+      pwdErr.statusCode = 400;
+      throw pwdErr;
+    }
+
+    assertAssignableClusters(actor, input.assignedClusters);
+
     await requireLiveDatabase('Database PostgreSQL diperlukan untuk membuat pengguna baru.');
 
     try {
@@ -504,7 +620,7 @@ export class RoleService {
         throw err;
       }
 
-      if (actor.hierarchyLevel < 100 || targetRole.hierarchyLevel >= 100) {
+      if (!isGlobalScopeActor(actor) || targetRole.hierarchyLevel >= 100) {
         this.checkHierarchyProtection(actor.hierarchyLevel, targetRole.hierarchyLevel);
       }
 
@@ -527,8 +643,7 @@ export class RoleService {
         throw conflict;
       }
 
-      const rawPassword = input.password || process.env.SEED_DEFAULT_PASSWORD || 'FiberOps#2026';
-      const passwordHash = await bcrypt.hash(rawPassword, 10);
+      const passwordHash = await bcrypt.hash(input.password.trim(), 10);
       const userType = this.inferUserType(targetRole.name, targetRole.hierarchyLevel);
 
       const created = await prisma.$transaction(async (tx) => {
@@ -584,6 +699,21 @@ export class RoleService {
     targetUserId: string,
     input: UpdateUserInput,
   ): Promise<AdminUserItem> {
+    if (
+      targetUserId === actor.userId &&
+      (input.assignedClusters !== undefined ||
+        input.twoFactorEnabled !== undefined ||
+        input.roleName !== undefined ||
+        input.isActive !== undefined)
+    ) {
+      const selfErr = new Error(
+        `${ERROR_CODES.FORBIDDEN}: Dilarang mengubah cakupan cluster, status 2FA, peran, atau status aktif akun sendiri.`,
+      ) as Error & { code?: string; statusCode?: number };
+      selfErr.code = ERROR_CODES.FORBIDDEN;
+      selfErr.statusCode = 403;
+      throw selfErr;
+    }
+
     await requireLiveDatabase('Database PostgreSQL diperlukan untuk memperbarui pengguna.');
 
     try {
@@ -593,7 +723,7 @@ export class RoleService {
           role: true,
           sessions: {
             where: { revokedAt: null },
-            select: { deviceId: true },
+            select: { id: true, deviceId: true },
           },
         },
       });
@@ -603,8 +733,22 @@ export class RoleService {
         throw err;
       }
 
-      if (targetUserId !== actor.userId || input.isActive !== undefined || input.roleName) {
+      if (targetUserId !== actor.userId) {
         this.checkHierarchyProtection(actor.hierarchyLevel, existing.role.hierarchyLevel);
+        if (
+          !isGlobalScopeActor(actor) &&
+          !matchesAssignedClusters(actor, ...existing.assignedClusters)
+        ) {
+          const scopeErr = new Error(
+            `${ERROR_CODES.FORBIDDEN}: Pengguna target berada di luar cakupan cluster wewenang Anda.`,
+          ) as Error & { code?: string; statusCode?: number };
+          scopeErr.code = ERROR_CODES.FORBIDDEN;
+          scopeErr.statusCode = 403;
+          throw scopeErr;
+        }
+        if (input.assignedClusters !== undefined) {
+          assertAssignableClusters(actor, input.assignedClusters);
+        }
       }
 
       let nextRoleId = existing.roleId;
@@ -626,6 +770,8 @@ export class RoleService {
       }
 
       const passwordHash = input.password ? await bcrypt.hash(input.password, 10) : undefined;
+      const shouldRevokeSessions =
+        input.isActive === false || Boolean(passwordHash) || nextRoleId !== existing.roleId;
       const nextTelegramChatId = input.unlinkTelegram
         ? null
         : input.telegramChatId !== undefined
@@ -660,7 +806,7 @@ export class RoleService {
           },
         });
 
-        if (input.isActive === false) {
+        if (shouldRevokeSessions) {
           await tx.userSession.updateMany({
             where: { userId: targetUserId, revokedAt: null },
             data: { revokedAt: new Date() },
@@ -692,9 +838,13 @@ export class RoleService {
         return u;
       });
 
-      if (input.isActive === false) {
-        for (const s of existing.sessions) {
-          if (s.deviceId) {
+      if (shouldRevokeSessions) {
+        const activeSessions = Array.isArray(existing.sessions) ? existing.sessions : [];
+        for (const s of activeSessions) {
+          if (s.id) {
+            await redisManager.blacklistSession(s.id).catch(() => {});
+          }
+          if (s.deviceId && s.deviceId !== 'web-browser') {
             await redisManager.blacklistSession(s.deviceId).catch(() => {});
           }
         }

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
@@ -54,6 +55,67 @@ const isProductionRuntime =
   process.env.NEXT_PHASE !== 'phase-production-build' &&
   process.env.npm_lifecycle_event !== 'build';
 
+const KNOWN_PLACEHOLDER_SECRETS = new Set([
+  'fiberops_on_premise_super_secure_jwt_secret_key_32chars',
+  'fiberops_action_secret_token_default_32_chars',
+  'replace-with-a-secure-random-32-byte-hex-secret',
+  'replace-with-telegram-bot-token-from-botfather',
+]);
+
+const PLACEHOLDER_SECRET_RE =
+  /^(?:replace-with|changeme|placeholder|your-|example|default-secret)/i;
+
+export function isNonPlaceholderSecret(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (KNOWN_PLACEHOLDER_SECRETS.has(trimmed.toLowerCase())) return false;
+  if (PLACEHOLDER_SECRET_RE.test(trimmed)) return false;
+  return true;
+}
+
+function emptyToUndefined(value: unknown): unknown {
+  if (typeof value === 'string' && value.trim() === '') {
+    return undefined;
+  }
+  return value;
+}
+
+const globalForSecrets = globalThis as typeof globalThis & {
+  __fiberopsDevJwtSecret?: string;
+  __fiberopsDevHmacSecret?: string;
+};
+
+function getEphemeralDevSecret(kind: 'jwt' | 'hmac'): string {
+  if (kind === 'jwt') {
+    if (!globalForSecrets.__fiberopsDevJwtSecret) {
+      globalForSecrets.__fiberopsDevJwtSecret = crypto.randomBytes(32).toString('hex');
+    }
+    return globalForSecrets.__fiberopsDevJwtSecret;
+  }
+  if (!globalForSecrets.__fiberopsDevHmacSecret) {
+    globalForSecrets.__fiberopsDevHmacSecret = crypto.randomBytes(32).toString('hex');
+  }
+  return globalForSecrets.__fiberopsDevHmacSecret;
+}
+
+function requiredProdSecretSchema(name: string) {
+  return z
+    .string({ message: `${name} is required in production` })
+    .min(32, `${name} must be at least 32 characters in production`)
+    .refine(isNonPlaceholderSecret, `${name} must not use a known placeholder or default value`);
+}
+
+function optionalProdSecretSchema(name: string) {
+  return z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .min(32, `${name} must be at least 32 characters when provided in production`)
+      .refine(isNonPlaceholderSecret, `${name} must not use a known placeholder or default value`)
+      .optional(),
+  );
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
@@ -85,6 +147,7 @@ const envSchema = z.object({
     ? z.string().min(1, 'MINIO_SECRET_KEY is required in production')
     : z.string().default('fiberops_minio_secret_pass'),
   MINIO_BUCKET: z.string().default('fiberops-proofs'),
+  MINIO_BACKUP_BUCKET: z.string().min(1).default('fiberops-backups'),
   MINIO_PUBLIC_URL: z.string().optional(),
 
   // Ollama
@@ -97,14 +160,29 @@ const envSchema = z.object({
 
   // Security & Authentication
   JWT_SECRET: isProductionRuntime
-    ? z.string().min(32, 'JWT_SECRET must be at least 32 characters in production')
-    : z.string().default('fiberops_on_premise_super_secure_jwt_secret_key_32chars'),
-  HMAC_ACTION_SECRET: z.string().default('fiberops_action_secret_token_default_32_chars'),
+    ? requiredProdSecretSchema('JWT_SECRET')
+    : z
+        .preprocess(emptyToUndefined, z.string().min(1).optional())
+        .transform((v) => v ?? getEphemeralDevSecret('jwt')),
+  JWT_REFRESH_SECRET: isProductionRuntime
+    ? optionalProdSecretSchema('JWT_REFRESH_SECRET')
+    : z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  HMAC_ACTION_SECRET: isProductionRuntime
+    ? requiredProdSecretSchema('HMAC_ACTION_SECRET')
+    : z
+        .preprocess(emptyToUndefined, z.string().min(1).optional())
+        .transform((v) => v ?? getEphemeralDevSecret('hmac')),
+  BACKUP_ENCRYPTION_KEY: isProductionRuntime
+    ? optionalProdSecretSchema('BACKUP_ENCRYPTION_KEY')
+    : z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SESSION_EXPIRY_SECONDS: z.coerce.number().default(28800),
 
-  // Telegram Bot 2FA OTP
+  // Telegram Bot 2FA OTP & Webhook
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_BOT_USERNAME: z.string().default('FiberOpsNOCBot'),
+  TELEGRAM_WEBHOOK_SECRET: isProductionRuntime
+    ? requiredProdSecretSchema('TELEGRAM_WEBHOOK_SECRET')
+    : z.string().optional(),
   TELEGRAM_DEFAULT_CHAT_ID: z.string().optional(),
 
   // Mobile App Gate
@@ -128,7 +206,7 @@ function parseEnv(): Env {
 
   if (!result.success) {
     console.error('Invalid environment variables:');
-    console.error(result.error.flatten().fieldErrors);
+    console.error(z.flattenError(result.error).fieldErrors);
     throw new Error('Environment validation failed.');
   }
 

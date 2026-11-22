@@ -26,7 +26,32 @@ import {
   UserTypeEnum,
 } from '@repo/shared';
 
-const JWT_SECRET = new TextEncoder().encode(env.JWT_SECRET);
+const NUMERIC_CHAT_ID_RE = /^-?\d{5,20}$/;
+
+function getAccessJwtSecretBytes(): Uint8Array {
+  return new TextEncoder().encode(process.env.JWT_SECRET || env.JWT_SECRET);
+}
+
+function getRefreshTokenSecretStr(): string {
+  const explicit = process.env.JWT_REFRESH_SECRET || env.JWT_REFRESH_SECRET;
+  if (explicit && explicit.trim().length > 0) {
+    return explicit.trim();
+  }
+  const baseSecret = process.env.JWT_SECRET || env.JWT_SECRET;
+  return crypto.createHmac('sha256', baseSecret).update('fiberops:jwt-refresh:v1').digest('hex');
+}
+
+function getRefreshJwtSecretBytes(): Uint8Array {
+  return new TextEncoder().encode(getRefreshTokenSecretStr());
+}
+
+function hasExactChatIdToken(stored: string | null | undefined, targetId: string): boolean {
+  if (!stored) return false;
+  return stored
+    .split(',')
+    .map((part) => part.trim())
+    .includes(targetId);
+}
 
 const ACCESS_TOKEN_EXPIRY = '15m'; // Short-lived for technicians
 const WEB_SESSION_TOKEN_EXPIRY = '8h'; // Web NOC dashboard session
@@ -222,6 +247,23 @@ export class AuthService {
     return await bcrypt.compare(plain, hashed);
   }
 
+  public static hashRefreshToken(refreshToken: string): string {
+    return crypto
+      .createHmac('sha256', getRefreshTokenSecretStr())
+      .update(refreshToken)
+      .digest('hex');
+  }
+
+  public static verifyRefreshTokenHash(refreshToken: string, storedHash: string): boolean {
+    if (!storedHash || !/^[a-f0-9]{64}$/i.test(storedHash)) {
+      return false;
+    }
+    const expectedHex = this.hashRefreshToken(refreshToken);
+    const expectedBuf = Buffer.from(expectedHex, 'hex');
+    const storedBuf = Buffer.from(storedHash.toLowerCase(), 'hex');
+    return expectedBuf.length === storedBuf.length && crypto.timingSafeEqual(expectedBuf, storedBuf);
+  }
+
   /**
    * Generates short-lived Access Token (15m for mobile, 8h for web session).
    */
@@ -234,44 +276,94 @@ export class AuthService {
       hierarchyLevel: number;
       assignedClusters: string[];
       deviceId?: string;
+      sessionId?: string;
     },
     expiresIn: string = ACCESS_TOKEN_EXPIRY,
   ): Promise<string> {
+    const jti = crypto.randomUUID();
+    const audience = user.deviceId && user.deviceId !== 'web-browser' ? 'mobile' : 'web';
     return await new SignJWT({
       username: user.username,
       role: user.roleName,
       userType: user.userType,
       hierarchyLevel: user.hierarchyLevel,
       assignedClusters: user.assignedClusters,
-      deviceId: user.deviceId,
+      ...(user.deviceId ? { deviceId: user.deviceId } : {}),
+      ...(user.sessionId ? { sessionId: user.sessionId } : {}),
+      tokenType: 'access',
+      jti,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(user.id)
+      .setAudience(audience)
+      .setJti(jti)
       .setIssuedAt()
       .setExpirationTime(expiresIn)
-      .sign(JWT_SECRET);
+      .sign(getAccessJwtSecretBytes());
   }
 
   /**
-   * Generates Refresh Token for mobile technician device binding.
-   * Includes a unique jti for token rotation tracking.
+   * Generates Refresh Token for mobile technician or web session rotation.
+   * Includes a unique UUID jti and channel audience separation.
    */
   public static async generateRefreshToken(
     userId: string,
     sessionId: string,
     deviceId: string,
+    channel: 'mobile' | 'web' = 'mobile',
   ): Promise<string> {
-    const jti = `rt_${sessionId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const jti = crypto.randomUUID();
     return await new SignJWT({
       sessionId,
       deviceId,
       jti,
+      tokenType: 'refresh',
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(userId)
+      .setAudience(channel)
+      .setJti(jti)
       .setIssuedAt()
       .setExpirationTime(`${REFRESH_TOKEN_EXPIRY_DAYS}d`)
-      .sign(JWT_SECRET);
+      .sign(getRefreshJwtSecretBytes());
+  }
+
+  /**
+   * Verifies access token cryptographically for logout (without DB session/role checks so
+   * demoted or session-invalidated callers can still cleanly revoke their jti and clear cookies).
+   */
+  public static async verifyAccessTokenForLogout(token: string): Promise<{
+    userId: string;
+    jti?: string;
+    sessionId?: string;
+    deviceId?: string;
+    exp?: number;
+  }> {
+    try {
+      const { payload } = await jwtVerify(token, getAccessJwtSecretBytes(), {
+        algorithms: ['HS256'],
+        audience: ['web', 'mobile'],
+      });
+      if (payload.tokenType !== 'access' || payload.purpose === '2fa_pending' || !payload.sub) {
+        throw new Error(ERROR_CODES.UNAUTHORIZED);
+      }
+      const jti = typeof payload.jti === 'string' ? payload.jti : undefined;
+      if (jti && (await redisManager.isJwtRevoked(jti))) {
+        throw new Error(ERROR_CODES.SESSION_REVOKED);
+      }
+      return {
+        userId: payload.sub,
+        jti,
+        sessionId: typeof payload.sessionId === 'string' ? payload.sessionId : undefined,
+        deviceId: typeof payload.deviceId === 'string' ? payload.deviceId : undefined,
+        exp: typeof payload.exp === 'number' ? payload.exp : undefined,
+      };
+    } catch (err) {
+      if (err instanceof Error && err.message === ERROR_CODES.SESSION_REVOKED) {
+        throw err;
+      }
+      throw new Error(ERROR_CODES.UNAUTHORIZED);
+    }
   }
 
   /**
@@ -280,12 +372,27 @@ export class AuthService {
    */
   public static async verifyAccessToken(token: string): Promise<UserSessionContext> {
     try {
-      const { payload } = await jwtVerify(token, JWT_SECRET);
-      if (payload.purpose === '2fa_pending') {
+      const { payload } = await jwtVerify(token, getAccessJwtSecretBytes(), {
+        algorithms: ['HS256'],
+        audience: ['web', 'mobile'],
+      });
+      if (payload.tokenType !== 'access' || payload.purpose === '2fa_pending' || !payload.sub) {
         throw new Error(ERROR_CODES.UNAUTHORIZED);
       }
-      const userId = payload.sub as string;
-      const deviceId = payload.deviceId as string | undefined;
+      const userId = payload.sub;
+      const deviceId = typeof payload.deviceId === 'string' ? payload.deviceId : undefined;
+      const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : undefined;
+      const jti = typeof payload.jti === 'string' ? payload.jti : undefined;
+
+      if (jti && (await redisManager.isJwtRevoked(jti))) {
+        throw new Error(ERROR_CODES.SESSION_REVOKED);
+      }
+      if (sessionId && (await redisManager.isSessionBlacklisted(sessionId))) {
+        throw new Error(ERROR_CODES.SESSION_REVOKED);
+      }
+      if (deviceId && deviceId !== 'web-browser' && (await redisManager.isSessionBlacklisted(deviceId))) {
+        throw new Error(ERROR_CODES.SESSION_REVOKED);
+      }
 
       if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk verifikasi sesi.')) {
         try {
@@ -315,43 +422,57 @@ export class AuthService {
             throw new Error(ERROR_CODES.SESSION_REVOKED);
           }
 
-          // If mobile token with deviceId, verify active session
-          if (deviceId) {
-            const isBlacklisted = await redisManager.isSessionBlacklisted(deviceId);
-            if (isBlacklisted) {
-              throw new Error(ERROR_CODES.SESSION_REVOKED);
+          if (user.id === userId) {
+            // Verify active DB UserSession for mobile device tokens, or web tokens with sessionId in strict mode
+            if (deviceId && deviceId !== 'web-browser') {
+              const activeSession = await prisma.userSession.findFirst({
+                where: {
+                  ...(sessionId ? { id: sessionId } : {}),
+                  userId: user.id,
+                  deviceId,
+                  revokedAt: null,
+                  expiresAt: { gt: new Date() },
+                },
+                select: { id: true },
+              });
+
+              if (!activeSession) {
+                throw new Error(ERROR_CODES.SESSION_REVOKED);
+              }
+            } else if (sessionId && isStrictLiveMode()) {
+              const activeSession = await prisma.userSession.findFirst({
+                where: {
+                  id: sessionId,
+                  userId: user.id,
+                  revokedAt: null,
+                  expiresAt: { gt: new Date() },
+                },
+                select: { id: true },
+              });
+
+              if (!activeSession) {
+                throw new Error(ERROR_CODES.SESSION_REVOKED);
+              }
             }
 
-            const activeSession = await prisma.userSession.findFirst({
-              where: {
-                userId: user.id,
-                deviceId,
-                revokedAt: null,
-                expiresAt: { gt: new Date() },
-              },
-              select: { id: true },
-            });
-
-            if (!activeSession) {
-              throw new Error(ERROR_CODES.SESSION_REVOKED);
-            }
+            return {
+              userId: user.id,
+              nik: user.nik,
+              username: user.username,
+              fullName: user.fullName,
+              vendorCompany: user.vendorCompany ?? null,
+              role: user.role.name,
+              userType: user.userType as UserTypeEnum,
+              hierarchyLevel: user.role.hierarchyLevel,
+              permissions: Array.isArray(user.role.permissions)
+                ? user.role.permissions.map(String)
+                : [],
+              assignedClusters: user.assignedClusters,
+              deviceId,
+              jti,
+              sessionId,
+            };
           }
-
-          return {
-            userId: user.id,
-            nik: user.nik,
-            username: user.username,
-            fullName: user.fullName,
-            vendorCompany: user.vendorCompany ?? null,
-            role: user.role.name,
-            userType: user.userType as UserTypeEnum,
-            hierarchyLevel: user.role.hierarchyLevel,
-            permissions: Array.isArray(user.role.permissions)
-              ? user.role.permissions.map(String)
-              : [],
-            assignedClusters: user.assignedClusters,
-            deviceId,
-          };
         } catch (dbErr) {
           if (
             dbErr instanceof Error &&
@@ -364,13 +485,6 @@ export class AuthService {
             dbErr,
             'Koneksi database PostgreSQL terputus saat memverifikasi sesi.',
           );
-        }
-      }
-
-      if (deviceId) {
-        const isBlacklisted = await redisManager.isSessionBlacklisted(deviceId);
-        if (isBlacklisted) {
-          throw new Error(ERROR_CODES.SESSION_REVOKED);
         }
       }
 
@@ -393,6 +507,8 @@ export class AuthService {
           permissions: fallbackUser.role.permissions,
           assignedClusters: fallbackUser.assignedClusters,
           deviceId,
+          jti,
+          sessionId,
         };
       }
 
@@ -403,10 +519,15 @@ export class AuthService {
         role: typeof payload.role === 'string' ? payload.role : 'Super Admin',
         userType: (payload.userType as UserTypeEnum) || 'SUPER_ADMIN',
         hierarchyLevel: typeof payload.hierarchyLevel === 'number' ? payload.hierarchyLevel : 100,
+        permissions: Array.isArray(payload.permissions)
+          ? payload.permissions.map(String)
+          : undefined,
         assignedClusters: Array.isArray(payload.assignedClusters)
           ? (payload.assignedClusters as string[])
           : [],
         deviceId,
+        jti,
+        sessionId,
       };
     } catch (err) {
       if (err instanceof ServiceUnavailableError) {
@@ -531,23 +652,33 @@ export class AuthService {
     chatId: string,
   ): Promise<FallbackAccount | null> {
     const cleanId = String(chatId).trim();
-    if (!cleanId) return null;
+    if (!NUMERIC_CHAT_ID_RE.test(cleanId)) return null;
 
     if (await requireLiveDatabase('Database PostgreSQL tidak dapat dijangkau.')) {
       try {
-        const found = await prisma.user.findFirst({
+        const exactMatch = await prisma.user.findFirst({
           where: {
             isActive: true,
-            OR: [
-              { telegramChatId: cleanId },
-              { telegramChatId: { contains: cleanId } },
-            ],
+            telegramChatId: cleanId,
           },
           include: { role: true },
         });
-        if (found) {
-          return this.mapDbUserToAccount(found);
+        if (exactMatch && hasExactChatIdToken(exactMatch.telegramChatId, cleanId)) {
+          return this.mapDbUserToAccount(exactMatch);
         }
+
+        const candidates = await prisma.user.findMany({
+          where: {
+            isActive: true,
+            telegramChatId: { contains: cleanId },
+          },
+          include: { role: true },
+        });
+        const matched = candidates.find((u) => hasExactChatIdToken(u.telegramChatId, cleanId));
+        if (matched) {
+          return this.mapDbUserToAccount(matched);
+        }
+        return null;
       } catch (err) {
         rethrowIfStrictDatabaseError(err, 'Gagal menghubungi database PostgreSQL.');
         if (isStrictLiveMode()) {
@@ -560,20 +691,31 @@ export class AuthService {
     }
 
     const fallback = Object.values(FALLBACK_SEED_USERS).find(
-      (u) => u.isActive && u.telegramChatId?.split(',').map((s) => s.trim()).includes(cleanId),
+      (u) => u.isActive && hasExactChatIdToken(u.telegramChatId, cleanId),
     );
     return fallback || null;
   }
 
   /**
-   * Binds a Telegram Chat ID to a user account resolved by NIK.
+   * Binds a Telegram Chat ID to an unbound non-privileged account by NIK.
+   * Refuses unauthenticated overwrites of existing telegramChatId or ADMIN/SUPER_ADMIN accounts.
    */
   public static async bindTelegramChatIdByNik(params: {
     nik: string;
     chatId: string;
   }): Promise<{ success: boolean; user: FallbackAccount | null }> {
+    const cleanChatId = String(params.chatId).trim();
+    if (!NUMERIC_CHAT_ID_RE.test(cleanChatId)) {
+      return { success: false, user: null };
+    }
+
     const user = await this.resolveAccountByNik(params.nik);
-    if (!user) {
+    if (
+      !user ||
+      user.userType === 'SUPER_ADMIN' ||
+      user.userType === 'ADMIN' ||
+      Boolean(user.telegramChatId)
+    ) {
       return { success: false, user: null };
     }
 
@@ -581,7 +723,7 @@ export class AuthService {
       try {
         await prisma.user.update({
           where: { id: user.id },
-          data: { telegramChatId: params.chatId },
+          data: { telegramChatId: cleanChatId },
         });
       } catch (err) {
         rethrowIfStrictDatabaseError(err, 'Gagal menyimpan ikatan Telegram ke database.');
@@ -589,12 +731,12 @@ export class AuthService {
     }
 
     // Also update in-memory fallback user if applicable
-    user.telegramChatId = params.chatId;
+    user.telegramChatId = cleanChatId;
     const fallbackKey = Object.keys(FALLBACK_SEED_USERS).find(
       (k) => FALLBACK_SEED_USERS[k].id === user.id,
     );
     if (fallbackKey) {
-      FALLBACK_SEED_USERS[fallbackKey].telegramChatId = params.chatId;
+      FALLBACK_SEED_USERS[fallbackKey].telegramChatId = cleanChatId;
     }
 
     return { success: true, user };
@@ -642,6 +784,7 @@ export class AuthService {
       username: params.username,
       challengeId: params.challengeId,
       purpose: '2fa_pending',
+      tokenType: '2fa_pending',
       channel: params.channel ?? 'web',
       ...(params.deviceId ? { deviceId: params.deviceId } : {}),
       ...(params.deviceModel ? { deviceModel: params.deviceModel } : {}),
@@ -649,9 +792,10 @@ export class AuthService {
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(params.userId)
+      .setAudience('2fa')
       .setIssuedAt()
       .setExpirationTime(PRE_AUTH_TOKEN_EXPIRY)
-      .sign(JWT_SECRET);
+      .sign(getAccessJwtSecretBytes());
   }
 
   /**
@@ -667,9 +811,13 @@ export class AuthService {
     appVersion?: string;
   }> {
     try {
-      const { payload } = await jwtVerify(preAuthToken, JWT_SECRET);
+      const { payload } = await jwtVerify(preAuthToken, getAccessJwtSecretBytes(), {
+        algorithms: ['HS256'],
+        audience: '2fa',
+      });
       if (
         payload.purpose !== '2fa_pending' ||
+        (payload.tokenType !== undefined && payload.tokenType !== '2fa_pending') ||
         typeof payload.sub !== 'string' ||
         typeof payload.username !== 'string' ||
         typeof payload.challengeId !== 'string'
@@ -798,16 +946,11 @@ export class AuthService {
       botUsername: delivery.botUsername,
       user: {
         id: user.id,
-        nik: user.nik || null,
         username: user.username,
         fullName: user.fullName,
-        vendorCompany: user.vendorCompany || null,
         role: user.role.name,
         roleName: user.role.name,
         userType: user.userType as UserTypeEnum,
-        hierarchyLevel: user.role.hierarchyLevel,
-        permissions: user.role.permissions,
-        assignedClusters: user.assignedClusters,
         isActive: user.isActive,
       },
     };
@@ -815,7 +958,7 @@ export class AuthService {
 
   /**
    * Step 2 of Web Admin Dashboard 2FA Authentication:
-   * Verifies the 6-digit OTP code against the challenge and issues the 8h HttpOnly session token.
+   * Verifies the 6-digit OTP code against the challenge and issues the 8h HttpOnly session & refresh tokens.
    */
   public static async verifyWebOtp(preAuthToken: string, otpCode: string, clientIp?: string) {
     const preAuth = await this.verifyPreAuthToken(preAuthToken);
@@ -828,7 +971,7 @@ export class AuthService {
       throw forbiddenErr;
     }
 
-    await verifyAndConsumeOtpChallenge(preAuth.challengeId, otpCode);
+    await verifyAndConsumeOtpChallenge(preAuth.challengeId, otpCode, preAuth.userId);
 
     const user = await this.resolveAccountByUsername(preAuth.username);
     if (!user || !user.isActive) {
@@ -838,6 +981,7 @@ export class AuthService {
       throw forbiddenErr;
     }
 
+    const sessionId = crypto.randomUUID();
     const token = await this.generateAccessToken(
       {
         id: user.id,
@@ -846,11 +990,36 @@ export class AuthService {
         userType: user.userType as UserTypeEnum,
         hierarchyLevel: user.role.hierarchyLevel,
         assignedClusters: user.assignedClusters,
+        sessionId,
       },
       WEB_SESSION_TOKEN_EXPIRY,
     );
 
+    const refreshToken = await this.generateRefreshToken(
+      user.id,
+      sessionId,
+      'web-browser',
+      'web',
+    );
+    const refreshHash = this.hashRefreshToken(refreshToken);
+
     if (await isDatabaseAvailable()) {
+      try {
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
+        await prisma.userSession.create({
+          data: {
+            id: sessionId,
+            userId: user.id,
+            deviceId: 'web-browser',
+            refreshTokenHash: refreshHash,
+            expiresAt,
+          },
+        });
+      } catch (dbErr) {
+        rethrowIfStrictDatabaseError(dbErr, 'Gagal menyimpan sesi dasbor web ke PostgreSQL.');
+      }
+
       void prisma.activityLog
         .create({
           data: {
@@ -862,6 +1031,7 @@ export class AuthService {
             ipAddress: clientIp || null,
             newPayload: {
               username: user.username,
+              sessionId,
               twoFactorMethod: 'TELEGRAM_BOT_OTP',
               authenticatedAt: new Date().toISOString(),
             },
@@ -872,6 +1042,8 @@ export class AuthService {
 
     return {
       token,
+      refreshToken,
+      sessionId,
       user: {
         id: user.id,
         nik: user.nik || null,
@@ -1079,18 +1251,11 @@ export class AuthService {
         botUsername: delivery.botUsername,
         user: {
           id: user.id,
-          nik: user.nik || null,
           username: user.username,
           fullName: user.fullName,
-          vendorCompany: user.vendorCompany || null,
           role: user.role.name,
           roleName: user.role.name,
           userType: user.userType as UserTypeEnum,
-          hierarchyLevel: user.role.hierarchyLevel,
-          permissions: Array.isArray(user.role.permissions)
-            ? user.role.permissions.map(String)
-            : [],
-          assignedClusters: user.assignedClusters,
           isActive: user.isActive,
         },
       };
@@ -1137,7 +1302,7 @@ export class AuthService {
       throw mismatchErr;
     }
 
-    await verifyAndConsumeOtpChallenge(preAuth.challengeId, otpCode);
+    await verifyAndConsumeOtpChallenge(preAuth.challengeId, otpCode, preAuth.userId);
 
     if (!(await isDatabaseAvailable())) {
       throw new ServiceUnavailableError('Database PostgreSQL tidak tersedia untuk autentikasi perangkat mobile');
@@ -1172,6 +1337,9 @@ export class AuthService {
         },
       });
 
+      // Clear prior device blacklist flag upon authenticated mobile 2FA re-login
+      await redisManager.unblacklistSession(resolvedDeviceId);
+
       // Create new session record
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
@@ -1195,12 +1363,18 @@ export class AuthService {
         hierarchyLevel: user.role.hierarchyLevel,
         assignedClusters: user.assignedClusters,
         deviceId: resolvedDeviceId,
+        sessionId: session.id,
       });
 
-      const refreshToken = await this.generateRefreshToken(user.id, session.id, resolvedDeviceId);
+      const refreshToken = await this.generateRefreshToken(
+        user.id,
+        session.id,
+        resolvedDeviceId,
+        'mobile',
+      );
 
-      // Save refresh token hash
-      const refreshHash = await this.hashPassword(refreshToken);
+      // Save refresh token HMAC-SHA256 digest (no bcrypt 72-byte truncation)
+      const refreshHash = this.hashRefreshToken(refreshToken);
       await prisma.userSession.update({
         where: { id: session.id },
         data: { refreshTokenHash: refreshHash },
@@ -1260,20 +1434,42 @@ export class AuthService {
    * 4. Marks the old refresh token hash as rotated in Redis for reuse detection.
    * 5. Stores the new refresh token hash in the session record.
    */
-  public static async refreshMobileSession(refreshToken: string, deviceId: string) {
+  private static async rotateSessionTokens(params: {
+    refreshToken: string;
+    expectedChannel: 'mobile' | 'web';
+    expectedDeviceId?: string;
+  }) {
     try {
-      const { payload } = await jwtVerify(refreshToken, JWT_SECRET);
-      const userId = payload.sub as string;
+      const { payload } = await jwtVerify(params.refreshToken, getRefreshJwtSecretBytes(), {
+        algorithms: ['HS256'],
+        audience: params.expectedChannel,
+      });
+      if (payload.tokenType !== 'refresh' || typeof payload.sub !== 'string') {
+        throw new Error(ERROR_CODES.UNAUTHORIZED);
+      }
+
+      const userId = payload.sub;
       const sessionId = (payload as unknown as RefreshTokenPayload).sessionId;
+      if (!sessionId || typeof sessionId !== 'string') {
+        throw new Error(ERROR_CODES.UNAUTHORIZED);
+      }
+      const tokenDeviceId =
+        typeof (payload as { deviceId?: unknown }).deviceId === 'string'
+          ? ((payload as { deviceId?: string }).deviceId as string)
+          : params.expectedDeviceId || 'web-browser';
+
+      if (params.expectedDeviceId && tokenDeviceId !== params.expectedDeviceId) {
+        throw new Error(ERROR_CODES.SESSION_REVOKED);
+      }
+
       const tokenFingerprint =
-        (payload as { jti?: string }).jti ||
-        crypto.createHash('sha256').update(refreshToken).digest('hex');
+        (typeof payload.jti === 'string' && payload.jti) ||
+        crypto.createHash('sha256').update(params.refreshToken).digest('hex');
 
       // 1. REUSE DETECTION: Check if this specific token was already rotated
       const isRotated = await redisManager.isRefreshTokenRotated(sessionId, tokenFingerprint);
       if (isRotated) {
-        // CONFIRMED REUSE ATTACK (CWE-613): Revoke all sessions for this user and blacklist device
-        await this.revokeAllUserSessionsForReuse(userId, deviceId);
+        await this.revokeAllUserSessionsForReuse(userId, tokenDeviceId, sessionId);
 
         if (await isDatabaseAvailable()) {
           await prisma.activityLog
@@ -1285,7 +1481,7 @@ export class AuthService {
                 targetEntity: 'user_session',
                 targetId: sessionId,
                 newPayload: {
-                  deviceId,
+                  deviceId: tokenDeviceId,
                   tokenFingerprint,
                   detectedAt: new Date().toISOString(),
                   action: 'ALL_USER_SESSIONS_REVOKED_TOKEN_REUSE',
@@ -1298,9 +1494,19 @@ export class AuthService {
         throw new Error(ERROR_CODES.TOKEN_REUSE_DETECTED);
       }
 
+      if (await redisManager.isSessionBlacklisted(sessionId)) {
+        throw new Error(ERROR_CODES.SESSION_REVOKED);
+      }
+      if (
+        tokenDeviceId !== 'web-browser' &&
+        (await redisManager.isSessionBlacklisted(tokenDeviceId))
+      ) {
+        throw new Error(ERROR_CODES.SESSION_REVOKED);
+      }
+
       if (!(await isDatabaseAvailable())) {
         throw new ServiceUnavailableError(
-          'Database PostgreSQL tidak tersedia untuk refresh sesi mobile',
+          'Database PostgreSQL tidak tersedia untuk refresh sesi',
         );
       }
 
@@ -1318,7 +1524,7 @@ export class AuthService {
       if (
         !session ||
         session.revokedAt ||
-        session.deviceId !== deviceId ||
+        session.deviceId !== tokenDeviceId ||
         session.expiresAt < new Date()
       ) {
         throw new Error(ERROR_CODES.SESSION_REVOKED);
@@ -1328,7 +1534,11 @@ export class AuthService {
         throw new Error(ERROR_CODES.SESSION_REVOKED);
       }
 
-      const match = await this.comparePassword(refreshToken, session.refreshTokenHash);
+      if (params.expectedChannel === 'web' && session.user.userType === 'TECHNICIAN') {
+        throw new Error(ERROR_CODES.SESSION_REVOKED);
+      }
+
+      const match = this.verifyRefreshTokenHash(params.refreshToken, session.refreshTokenHash);
       if (!match) {
         throw new Error(ERROR_CODES.UNAUTHORIZED);
       }
@@ -1337,18 +1547,28 @@ export class AuthService {
       await redisManager.markRefreshTokenRotated(sessionId, tokenFingerprint);
 
       // 3. Issue new Access Token AND new Refresh Token (ROTATION)
-      const newAccessToken = await this.generateAccessToken({
-        id: session.user.id,
-        username: session.user.username,
-        roleName: session.user.role.name,
-        userType: session.user.userType as UserTypeEnum,
-        hierarchyLevel: session.user.role.hierarchyLevel,
-        assignedClusters: session.user.assignedClusters,
-        deviceId,
-      });
+      const isWeb = params.expectedChannel === 'web';
+      const newAccessToken = await this.generateAccessToken(
+        {
+          id: session.user.id,
+          username: session.user.username,
+          roleName: session.user.role.name,
+          userType: session.user.userType as UserTypeEnum,
+          hierarchyLevel: session.user.role.hierarchyLevel,
+          assignedClusters: session.user.assignedClusters,
+          ...(isWeb ? {} : { deviceId: tokenDeviceId }),
+          sessionId,
+        },
+        isWeb ? WEB_SESSION_TOKEN_EXPIRY : ACCESS_TOKEN_EXPIRY,
+      );
 
-      const newRefreshToken = await this.generateRefreshToken(session.user.id, sessionId, deviceId);
-      const newRefreshHash = await this.hashPassword(newRefreshToken);
+      const newRefreshToken = await this.generateRefreshToken(
+        session.user.id,
+        sessionId,
+        tokenDeviceId,
+        params.expectedChannel,
+      );
+      const newRefreshHash = this.hashRefreshToken(newRefreshToken);
 
       // 4. Update session record with the new hash
       try {
@@ -1383,26 +1603,50 @@ export class AuthService {
     }
   }
 
+  public static async refreshMobileSession(refreshToken: string, deviceId: string) {
+    return await this.rotateSessionTokens({
+      refreshToken,
+      expectedChannel: 'mobile',
+      expectedDeviceId: deviceId,
+    });
+  }
+
+  public static async refreshWebSession(refreshToken: string) {
+    return await this.rotateSessionTokens({
+      refreshToken,
+      expectedChannel: 'web',
+      expectedDeviceId: 'web-browser',
+    });
+  }
+
   /**
    * Revokes all sessions for a user when refresh token reuse is detected.
-   * Blacklists current device and all user devices in Redis for instant enforcement.
+   * Blacklists current session and all user sessions/devices in Redis for instant enforcement.
    */
   private static async revokeAllUserSessionsForReuse(
     userId: string,
     deviceId: string,
+    sessionId?: string,
   ): Promise<void> {
-    // Blacklist requesting device immediately
-    await redisManager.blacklistSession(deviceId);
+    if (sessionId) {
+      await redisManager.blacklistSession(sessionId);
+    }
+    if (deviceId && deviceId !== 'web-browser') {
+      await redisManager.blacklistSession(deviceId);
+    }
 
     if (await isDatabaseAvailable()) {
       try {
-        // Blacklist all active session devices for this user
+        // Blacklist all active session IDs & non-shared deviceIds for this user
         const activeSessions = await prisma.userSession.findMany({
           where: { userId, revokedAt: null },
         });
 
         for (const session of activeSessions) {
-          if (session.deviceId) {
+          if (session.id) {
+            await redisManager.blacklistSession(session.id);
+          }
+          if (session.deviceId && session.deviceId !== 'web-browser') {
             await redisManager.blacklistSession(session.deviceId);
           }
         }
@@ -1420,7 +1664,7 @@ export class AuthService {
 
   /**
    * Force Logout (Instant Session Revocation):
-   * Updates database and writes revocation flag into Redis so mobile requests fail immediately.
+   * Updates database and writes revocation flag into Redis so mobile/web requests fail immediately.
    */
   public static async revokeUserSessions(
     userId: string,
@@ -1440,9 +1684,14 @@ export class AuthService {
         throw new Error('User tidak ditemukan');
       }
 
-      // Blacklist all active device sessions in Redis
+      // Blacklist all active sessions in Redis (never blacklist shared 'web-browser' deviceId)
       for (const session of user.sessions) {
-        await redisManager.blacklistSession(session.deviceId);
+        if (session.id) {
+          await redisManager.blacklistSession(session.id);
+        }
+        if (session.deviceId && session.deviceId !== 'web-browser') {
+          await redisManager.blacklistSession(session.deviceId);
+        }
       }
 
       // Revoke all sessions in PostgreSQL

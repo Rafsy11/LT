@@ -17,6 +17,7 @@ export interface OtpChallengeRecord {
 }
 
 const CHALLENGE_PREFIX = 'otp_challenge:';
+const ACTIVE_USER_CHALLENGE_PREFIX = 'otp_active_user:';
 
 function computeOtpHash(challengeId: string, otpCode: string): string {
   return crypto
@@ -62,9 +63,19 @@ export async function createOtpChallenge(params: {
     telegramChatId: params.telegramChatId ?? null,
   };
 
+  const prevChallengeId = await redisManager.getKey(`${ACTIVE_USER_CHALLENGE_PREFIX}${params.userId}`);
+  if (prevChallengeId) {
+    await redisManager.deleteKey(`${CHALLENGE_PREFIX}${prevChallengeId}`);
+  }
+
   await redisManager.setKeyWithTtl(
     `${CHALLENGE_PREFIX}${challengeId}`,
     JSON.stringify(record),
+    OTP_CONFIG.EXPIRY_SECONDS,
+  );
+  await redisManager.setKeyWithTtl(
+    `${ACTIVE_USER_CHALLENGE_PREFIX}${params.userId}`,
+    challengeId,
     OTP_CONFIG.EXPIRY_SECONDS,
   );
 
@@ -161,6 +172,11 @@ export async function rotateOtpChallenge(
     JSON.stringify(record),
     OTP_CONFIG.EXPIRY_SECONDS,
   );
+  await redisManager.setKeyWithTtl(
+    `${ACTIVE_USER_CHALLENGE_PREFIX}${record.userId}`,
+    challengeId,
+    OTP_CONFIG.EXPIRY_SECONDS,
+  );
 
   return { otpCode, record };
 }
@@ -178,11 +194,18 @@ export async function rotateOtpChallenge(
 export async function verifyAndConsumeOtpChallenge(
   challengeId: string,
   submittedOtp: string,
+  expectedUserId?: string,
 ): Promise<OtpChallengeRecord> {
   const key = `${CHALLENGE_PREFIX}${challengeId}`;
-  const raw = await redisManager.getKey(key);
+  const expectedHash = computeOtpHash(challengeId, submittedOtp);
+  const res = await redisManager.consumeOtpChallengeAtomic(key, {
+    expectedHash,
+    expectedUserId,
+    maxAttempts: OTP_CONFIG.MAX_ATTEMPTS,
+    nowMs: Date.now(),
+  });
 
-  if (!raw) {
+  if (res.status === 'NOT_FOUND') {
     const err = new Error(
       'Kode OTP telah kedaluwarsa atau sudah digunakan. Silakan masuk kembali.',
     );
@@ -191,19 +214,21 @@ export async function verifyAndConsumeOtpChallenge(
     throw err;
   }
 
-  const record = JSON.parse(raw) as OtpChallengeRecord;
-  const now = Date.now();
-
-  if (now > record.expiresAt) {
-    await redisManager.deleteKey(key);
+  if (res.status === 'EXPIRED') {
     const err = new Error('Kode OTP telah melewati batas waktu 5 menit. Silakan minta OTP baru.');
     (err as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.OTP_EXPIRED;
     (err as Error & { code?: string; statusCode?: number }).statusCode = 401;
     throw err;
   }
 
-  if (record.attempts >= OTP_CONFIG.MAX_ATTEMPTS) {
-    await redisManager.deleteKey(key);
+  if (res.status === 'USER_MISMATCH') {
+    const err = new Error('Tantangan OTP tidak cocok dengan identitas akun.');
+    (err as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
+    (err as Error & { code?: string; statusCode?: number }).statusCode = 403;
+    throw err;
+  }
+
+  if (res.status === 'MAX_ATTEMPTS') {
     const err = new Error(
       'Batas maksimal 3x percobaan OTP salah telah terlampaui. Silakan login ulang.',
     );
@@ -212,34 +237,8 @@ export async function verifyAndConsumeOtpChallenge(
     throw err;
   }
 
-  const candidateHash = computeOtpHash(challengeId, submittedOtp);
-  const expectedBuf = Buffer.from(record.otpHash, 'hex');
-  const candidateBuf = Buffer.from(candidateHash, 'hex');
-
-  const isHashMatch =
-    expectedBuf.length === candidateBuf.length && crypto.timingSafeEqual(expectedBuf, candidateBuf);
-  const isDevMasterOtp =
-    process.env.NODE_ENV === 'development' && submittedOtp.trim() === '123456';
-  const isMatch = isHashMatch || isDevMasterOtp;
-
-  if (!isMatch) {
-    record.attempts += 1;
-    const remainingAttempts = OTP_CONFIG.MAX_ATTEMPTS - record.attempts;
-
-    if (remainingAttempts <= 0) {
-      await redisManager.deleteKey(key);
-      const maxErr = new Error(
-        'Kode OTP salah 3 kali berturut-turut. Tantangan 2FA dibatalkan demi keamanan, silakan login ulang.',
-      );
-      (maxErr as Error & { code?: string; statusCode?: number }).code =
-        ERROR_CODES.OTP_MAX_ATTEMPTS;
-      (maxErr as Error & { code?: string; statusCode?: number }).statusCode = 401;
-      throw maxErr;
-    }
-
-    const remainingTtl = Math.max(1, Math.ceil((record.expiresAt - now) / 1000));
-    await redisManager.setKeyWithTtl(key, JSON.stringify(record), remainingTtl);
-
+  if (res.status === 'INVALID') {
+    const remainingAttempts = res.remainingAttempts ?? 0;
     const invalidErr = new Error(
       `Kode OTP tidak sesuai. Sisa kesempatan percobaan: ${remainingAttempts}x.`,
     );
@@ -248,8 +247,12 @@ export async function verifyAndConsumeOtpChallenge(
     throw invalidErr;
   }
 
-  // Single-use: immediately delete the challenge upon successful verification
-  await redisManager.deleteKey(key);
+  const record = JSON.parse(res.record!) as OtpChallengeRecord;
+  const activeKey = `${ACTIVE_USER_CHALLENGE_PREFIX}${record.userId}`;
+  const activeId = await redisManager.getKey(activeKey);
+  if (activeId === challengeId) {
+    await redisManager.deleteKey(activeKey);
+  }
   return record;
 }
 

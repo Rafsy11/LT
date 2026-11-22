@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/server/services/auth.service';
 import { sanitizeAndLogServerError } from '@/server/lib/api-error-sanitizer';
 import { loginRequestSchema, ERROR_CODES } from '@repo/shared';
-import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
+import {
+  checkRateLimit,
+  extractClientIp,
+  RATE_LIMIT_PROFILES,
+} from '@/server/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,10 +14,7 @@ export async function POST(request: NextRequest) {
     const validated = loginRequestSchema.parse(rawBody);
 
     // Rate Limiting: Maksimal 5 request per 15 menit per IP + username (HTTP 429)
-    const clientIp =
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      request.headers.get('x-real-ip') ||
-      'unknown';
+    const clientIp = extractClientIp(request);
 
     const normalizedUsername = validated.username.trim().toLowerCase();
     const rateLimitKey = `auth_login:${clientIp}:${normalizedUsername}`;
