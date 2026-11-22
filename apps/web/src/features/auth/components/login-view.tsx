@@ -4,7 +4,10 @@ import React from 'react';
 import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
 import { FieldError } from '@/components/ui/FieldError';
-import { formatRetryCountdownMessage } from '@/lib/error-dictionary';
+import {
+  formatRateLimitDuration,
+  formatRetryCountdownMessage,
+} from '@/lib/error-dictionary';
 import { useLogin } from '../hooks/use-login';
 import { useMobileDevToolsGuard } from '../hooks/use-devtools-detector';
 import { MobileDevToolsGuard } from './mobile-devtools-guard';
@@ -82,7 +85,7 @@ export function LoginView() {
               <span className="auth-alert-content">
                 <strong className="auth-alert-code">
                   {rateLimitSeconds > 0
-                    ? `Mohon Tunggu Sebentar (${rateLimitSeconds} detik)`
+                    ? `Mohon Tunggu Sebentar (${formatRateLimitDuration(rateLimitSeconds)})`
                     : errorTitle || 'Autentikasi Belum Berhasil'}
                 </strong>
                 <span className="auth-alert-message">
@@ -226,7 +229,7 @@ export function LoginView() {
                       {isRequestingOtp
                         ? 'Mengirim...'
                         : resendCooldownSeconds > 0
-                          ? `Tunggu (${resendCooldownSeconds}d)`
+                          ? `Tunggu (${formatRateLimitDuration(resendCooldownSeconds)})`
                           : preAuthToken
                             ? 'Kirim Ulang'
                             : 'Kirim OTP'}
@@ -252,7 +255,7 @@ export function LoginView() {
                 <Icon name="shield" size={16} />
                 <span>
                   {rateLimitSeconds > 0
-                    ? `Terkunci Sementara (${rateLimitSeconds}d)`
+                    ? `Terkunci Sementara (${formatRateLimitDuration(rateLimitSeconds)})`
                     : isSubmitting
                       ? 'Memverifikasi OTP & Sesi...'
                       : isRequestingOtp

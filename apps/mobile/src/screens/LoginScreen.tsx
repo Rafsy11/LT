@@ -39,11 +39,28 @@ interface MobileVerifiedSessionResponse {
   user: UserProfile;
 }
 
+const SECONDS_PER_HOUR = 3600;
+const SECONDS_PER_MINUTE = 60;
+
 function formatCountdown(seconds: number): string {
   const safe = Math.max(0, seconds);
-  const mins = Math.floor(safe / 60);
-  const secs = safe % 60;
+  const mins = Math.floor(safe / SECONDS_PER_MINUTE);
+  const secs = safe % SECONDS_PER_MINUTE;
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function formatRateLimitDuration(seconds: number): string {
+  const safeSeconds = Math.max(1, Math.ceil(seconds));
+  const hours = Math.floor(safeSeconds / SECONDS_PER_HOUR);
+  const minutes = Math.floor((safeSeconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
+  const remainingSeconds = safeSeconds % SECONDS_PER_MINUTE;
+
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${hours} jam`);
+  if (minutes > 0) parts.push(`${minutes} menit`);
+  if (remainingSeconds > 0 || parts.length === 0) parts.push(`${remainingSeconds} detik`);
+
+  return parts.join(' ');
 }
 
 function UserIcon({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) {
@@ -546,7 +563,7 @@ export function LoginScreen({
               <ErrorBanner
                 message={
                   rateLimitSeconds > 0
-                    ? `Terlalu banyak percobaan login. Silakan tunggu ${rateLimitSeconds} detik.`
+                    ? `Terlalu banyak percobaan login. Silakan tunggu ${formatRateLimitDuration(rateLimitSeconds)}.`
                     : errorMessage
                 }
                 onDismiss={rateLimitSeconds > 0 ? undefined : () => setErrorMessage(null)}
@@ -814,7 +831,7 @@ export function LoginScreen({
                     {isRequestingOtp
                       ? 'Mengirim...'
                       : resendCooldownSeconds > 0
-                        ? `Tunggu (${resendCooldownSeconds}d)`
+                        ? `Tunggu (${formatRateLimitDuration(resendCooldownSeconds)})`
                         : preAuthToken
                           ? 'Kirim Ulang'
                           : 'Kirim OTP'}
@@ -904,7 +921,7 @@ export function LoginScreen({
               <ShieldIcon size={16} />
               <span>
                 {rateLimitSeconds > 0
-                  ? `Terkunci Sementara (${rateLimitSeconds}d)`
+                  ? `Terkunci Sementara (${formatRateLimitDuration(rateLimitSeconds)})`
                   : isLoading
                     ? 'Memverifikasi OTP & Sesi...'
                     : isRequestingOtp

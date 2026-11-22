@@ -14,7 +14,10 @@ import {
   parseRetryAfterSeconds,
   validateUploadFile,
 } from '../../../apps/web/src/lib/error-normalizer';
-import { formatRetryCountdownMessage } from '../../../apps/web/src/lib/error-dictionary';
+import {
+  formatRateLimitDuration,
+  formatRetryCountdownMessage,
+} from '../../../apps/web/src/lib/error-dictionary';
 
 function resolveRepoRoot(): string {
   const candidates = [
@@ -219,7 +222,14 @@ describe('Tier 1: Feature 20 - Web Error Handling & Humane Microcopy UX', () => 
     assert.match(photoCheck.error?.message || '', /5 MB/);
 
     assert.strictEqual(formatFileSizeLabel(1536), '1,5 KB');
+    assert.strictEqual(formatRateLimitDuration(15), '15 detik');
+    assert.strictEqual(formatRateLimitDuration(60), '1 menit');
+    assert.strictEqual(formatRateLimitDuration(895), '14 menit 55 detik');
+    assert.strictEqual(formatRateLimitDuration(3600), '1 jam');
+    assert.strictEqual(formatRateLimitDuration(3665), '1 jam 1 menit 5 detik');
     assert.match(formatRetryCountdownMessage(15), /15 detik/);
+    assert.match(formatRetryCountdownMessage(895), /14 menit 55 detik/);
+    assert.match(formatRetryCountdownMessage(3665), /1 jam 1 menit 5 detik/);
   });
 
   it('enforces real HTTP 404 via notFound() and brand-aligned Indonesian NotFoundView', () => {

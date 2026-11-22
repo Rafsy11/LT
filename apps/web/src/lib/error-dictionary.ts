@@ -124,8 +124,37 @@ export const ERROR_CODE_FRIENDLY_TITLES: Record<string, string> = {
   [ERROR_CODES.INTERNAL_ERROR]: 'Kendala Sementara pada Sistem',
 };
 
-export function formatRetryCountdownMessage(seconds: number, baseMessage?: string): string {
+const SECONDS_PER_HOUR = 3600;
+const SECONDS_PER_MINUTE = 60;
+
+/**
+ * Formats a wait duration in seconds into human-readable Indonesian hours, minutes, and seconds.
+ *
+ * @param seconds - Total remaining seconds.
+ * @returns Readable duration string ordered from hours to minutes to seconds.
+ * @example
+ * formatRateLimitDuration(3665); // "1 jam 1 menit 5 detik"
+ * formatRateLimitDuration(895);  // "14 menit 55 detik"
+ * formatRateLimitDuration(45);   // "45 detik"
+ */
+export function formatRateLimitDuration(seconds: number): string {
   const safeSeconds = Math.max(1, Math.ceil(seconds));
-  const prefix = baseMessage ? `${baseMessage.replace(/\.$/, '')}. ` : 'Terlalu banyak permintaan dalam waktu singkat. ';
-  return `${prefix}Mohon tunggu ${safeSeconds} detik sebelum mencoba kembali.`;
+  const hours = Math.floor(safeSeconds / SECONDS_PER_HOUR);
+  const minutes = Math.floor((safeSeconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
+  const remainingSeconds = safeSeconds % SECONDS_PER_MINUTE;
+
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${hours} jam`);
+  if (minutes > 0) parts.push(`${minutes} menit`);
+  if (remainingSeconds > 0 || parts.length === 0) parts.push(`${remainingSeconds} detik`);
+
+  return parts.join(' ');
+}
+
+export function formatRetryCountdownMessage(seconds: number, baseMessage?: string): string {
+  const formattedDuration = formatRateLimitDuration(seconds);
+  const prefix = baseMessage
+    ? `${baseMessage.replace(/\.$/, '')}. `
+    : 'Terlalu banyak permintaan dalam waktu singkat. ';
+  return `${prefix}Mohon tunggu ${formattedDuration} sebelum mencoba kembali.`;
 }

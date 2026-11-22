@@ -2,7 +2,10 @@
 
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
-import { formatRetryCountdownMessage } from '@/lib/error-dictionary';
+import {
+  formatRateLimitDuration,
+  formatRetryCountdownMessage,
+} from '@/lib/error-dictionary';
 import '@/styles/components/error-ux.css';
 
 export interface RateLimitNoticeProps {
@@ -37,7 +40,7 @@ export function RateLimitNotice({
       </span>
       <div className="ui-rate-limit-notice-body">
         <strong className="ui-rate-limit-notice-title">
-          {title} ({remainingSeconds} detik)
+          {title} ({formatRateLimitDuration(remainingSeconds)})
         </strong>
         <p className="ui-rate-limit-notice-text">
           {formatRetryCountdownMessage(remainingSeconds, message)}
