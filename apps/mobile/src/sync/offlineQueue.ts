@@ -66,6 +66,20 @@ export class InMemoryStorageAdapter implements StorageAdapter {
 
 export class OfflineQueueManager {
   private static STORAGE_KEY = '@fiberops_offline_ticket_queue_v1';
+  private static MAX_RETRY_ATTEMPTS = 5;
+  private static PERMANENT_REJECTION_CODES = new Set<string>([
+    'IDOR_VIOLATION',
+    'FORBIDDEN',
+    'VALIDATION_ERROR',
+    'TICKET_NOT_FOUND',
+    'PORT_OCCUPIED',
+    'MOCK_LOCATION_DETECTED',
+    'INVALID_GEOFENCE',
+    'GPS_ANOMALY_DETECTED',
+    'TICKET_ALREADY_CLOSED',
+    'BAD_REQUEST',
+    'CONFLICT',
+  ]);
   private storage: StorageAdapter;
   private isProcessing = false;
   private sender?: SubmissionSender;
@@ -100,11 +114,8 @@ export class OfflineQueueManager {
     try {
       const raw = await this.storage.getItem(OfflineQueueManager.STORAGE_KEY);
       if (!raw) return [];
-      try {
-        return await decryptOfflinePayload<OfflineTicketSubmission[]>(raw);
-      } catch {
-        return JSON.parse(raw) as OfflineTicketSubmission[];
-      }
+      const decrypted = await decryptOfflinePayload<OfflineTicketSubmission[]>(raw);
+      return Array.isArray(decrypted) ? decrypted : [];
     } catch {
       return [];
     }
@@ -114,12 +125,8 @@ export class OfflineQueueManager {
    * Persists queue back to local disk (encrypted with AES-256-GCM via deviceIntegrity).
    */
   private async saveQueue(queue: OfflineTicketSubmission[]): Promise<void> {
-    try {
-      const encrypted = await encryptOfflinePayload(queue);
-      await this.storage.setItem(OfflineQueueManager.STORAGE_KEY, encrypted);
-    } catch {
-      await this.storage.setItem(OfflineQueueManager.STORAGE_KEY, JSON.stringify(queue));
-    }
+    const encrypted = await encryptOfflinePayload(queue);
+    await this.storage.setItem(OfflineQueueManager.STORAGE_KEY, encrypted);
   }
 
   /**
@@ -130,10 +137,14 @@ export class OfflineQueueManager {
     submission: Omit<OfflineTicketSubmission, 'id' | 'createdAt' | 'attempts'>,
   ): Promise<OfflineTicketSubmission> {
     const queue = await this.getQueue();
+    const randomSuffix =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID().slice(0, 8)
+        : String(Date.now());
 
     const newItem: OfflineTicketSubmission = {
       ...submission,
-      id: `queue_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      id: `queue_${Date.now()}_${randomSuffix}`,
       createdAt: new Date().toISOString(),
       attempts: 0,
     };
@@ -167,6 +178,7 @@ export class OfflineQueueManager {
     try {
       const queue = await this.getQueue();
       const successfullyProcessedIds = new Set<string>();
+      const droppedIds = new Set<string>();
 
       for (const item of queue) {
         try {
@@ -260,21 +272,50 @@ export class OfflineQueueManager {
             successfullyProcessedIds.add(item.submissionId);
             processed++;
           } else {
+            const errObj = res.error as
+              | { code?: string; message?: string; statusCode?: number }
+              | undefined;
+            const statusCode =
+              typeof errObj?.statusCode === 'number' ? errObj.statusCode : undefined;
+            const errCode = typeof errObj?.code === 'string' ? errObj.code.toUpperCase() : '';
+            const isPermanent4xx =
+              (statusCode !== undefined &&
+                statusCode >= 400 &&
+                statusCode < 500 &&
+                statusCode !== 401 &&
+                statusCode !== 408 &&
+                statusCode !== 429) ||
+              (errCode !== 'UNAUTHORIZED' &&
+                errCode !== 'TOKEN_EXPIRED' &&
+                errCode !== 'RATE_LIMITED' &&
+                errCode !== 'RATE_LIMIT_EXCEEDED' &&
+                OfflineQueueManager.PERMANENT_REJECTION_CODES.has(errCode));
+
             item.attempts += 1;
             item.lastError = res.error?.message || 'Pengiriman gagal';
             failed++;
+
+            if (isPermanent4xx || item.attempts >= OfflineQueueManager.MAX_RETRY_ATTEMPTS) {
+              droppedIds.add(item.submissionId);
+            }
           }
         } catch (itemErr) {
           item.attempts += 1;
           item.lastError = (itemErr as Error).message;
           failed++;
+          if (item.attempts >= OfflineQueueManager.MAX_RETRY_ATTEMPTS) {
+            droppedIds.add(item.submissionId);
+          }
         }
       }
 
       const currentQueue = await this.getQueue();
       const failedMap = new Map(queue.map((q) => [q.submissionId, q]));
       const remainingQueue = currentQueue
-        .filter((item) => !successfullyProcessedIds.has(item.submissionId))
+        .filter(
+          (item) =>
+            !successfullyProcessedIds.has(item.submissionId) && !droppedIds.has(item.submissionId),
+        )
         .map((item) => failedMap.get(item.submissionId) || item);
       await this.saveQueue(remainingQueue);
     } finally {

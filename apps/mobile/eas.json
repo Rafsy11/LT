@@ -14,8 +14,11 @@
       }
     },
     "production": {
+      "channel": "production",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "enableProguardInReleaseBuilds": true,
+        "enableShrinkResourcesInReleaseBuilds": true
       }
     }
   },

@@ -132,21 +132,40 @@ export function OpmCameraModalView({
   };
 
   const handleSimulatedFieldCapture = () => {
-    const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
-      <rect width="800" height="600" fill="#0f172a"/>
-      <rect x="60" y="50" width="680" height="320" rx="8" fill="#1e293b" stroke="#334155" stroke-width="2"/>
-      <text x="400" y="130" fill="#94a3b8" font-family="monospace" font-size="22" text-anchor="middle">OPTICAL POWER METER (1310/1490nm)</text>
-      <text x="400" y="235" fill="#10b981" font-family="monospace" font-weight="bold" font-size="72" text-anchor="middle">${attenuationDbm ?? '-18.5'} dBm</text>
-      <text x="400" y="310" fill="#38bdf8" font-family="monospace" font-size="20" text-anchor="middle">${odpId} | ${ticketNumber}</text>
-      <rect x="40" y="400" width="720" height="165" rx="6" fill="#000000" fill-opacity="0.82" stroke="#475569" stroke-width="1"/>
-      <text x="65" y="432" fill="#f8fafc" font-family="monospace" font-size="16">${watermarkLines[0]}</text>
-      <text x="65" y="460" fill="#f8fafc" font-family="monospace" font-size="16">${watermarkLines[1]}</text>
-      <text x="65" y="488" fill="#f8fafc" font-family="monospace" font-size="16">${watermarkLines[2]}</text>
-      <text x="65" y="516" fill="#f8fafc" font-family="monospace" font-size="16">${watermarkLines[3]}</text>
-      <text x="65" y="544" fill="#10b981" font-family="monospace" font-weight="bold" font-size="16">${watermarkLines[4]}</text>
-    </svg>`;
-    const encoded = `data:image/svg+xml;utf8,${encodeURIComponent(svgContent)}`;
-    void processCapturedUri(encoded);
+    if (typeof document !== 'undefined') {
+      const canvas = document.createElement('canvas');
+      canvas.width = 800;
+      canvas.height = 600;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, 800, 600);
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(60, 50, 680, 320);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '22px monospace';
+        ctx.fillText('OPTICAL POWER METER (1310/1490nm)', 180, 130);
+        ctx.fillStyle = '#10b981';
+        ctx.font = 'bold 64px monospace';
+        ctx.fillText(`${attenuationDbm ?? '-18.5'} dBm`, 230, 235);
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = '20px monospace';
+        ctx.fillText(`${odpId} | ${ticketNumber}`, 240, 310);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.82)';
+        ctx.fillRect(40, 400, 720, 165);
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = '16px monospace';
+        watermarkLines.forEach((line, idx) => {
+          ctx.fillText(line, 65, 432 + idx * 28);
+        });
+        const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        void processCapturedUri(jpegDataUrl);
+        return;
+      }
+    }
+    const calibratedJpegBase64 =
+      'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+    void processCapturedUri(calibratedJpegBase64);
   };
 
   return (
@@ -286,7 +305,7 @@ export function OpmCameraModalView({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           capture="environment"
           onChange={handleFileChange}
           style={{ display: 'none' }}

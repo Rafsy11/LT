@@ -91,6 +91,17 @@ export async function acquireVerifiedLocation(
   }
 
   const { latitude, longitude, accuracy } = locationData.coords;
+  if (
+    accuracy === null ||
+    accuracy === undefined ||
+    typeof accuracy !== 'number' ||
+    isNaN(accuracy) ||
+    accuracy <= 0
+  ) {
+    throw new Error(
+      `${ERROR_CODES.VALIDATION_ERROR}: Akurasi sinyal satelit GPS tidak valid atau belum terkunci.`,
+    );
+  }
   let distanceMeters: number | undefined;
   let isFlagged = latitude === 0 && longitude === 0;
 
@@ -111,7 +122,7 @@ export async function acquireVerifiedLocation(
   return {
     latitude,
     longitude,
-    accuracyMeters: accuracy ? Math.round(accuracy) : 5,
+    accuracyMeters: Math.round(accuracy),
     isMockLocation: isMock,
     distanceToSplitterMeters: distanceMeters,
     isLocationFlagged: isFlagged,

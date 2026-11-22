@@ -39,10 +39,10 @@ export class PersistentStorageAdapter implements StorageAdapter {
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const AsyncStorage = require('@react-native-async-storage/async-storage');
-      if (AsyncStorage) {
-        this.asyncStorageModule = AsyncStorage.default || AsyncStorage;
-        this.resolvedType = 'async-storage';
+      const SecureStore = require('expo-secure-store');
+      if (SecureStore) {
+        this.secureStoreModule = SecureStore;
+        this.resolvedType = 'secure-store';
         return;
       }
     } catch {
@@ -51,10 +51,10 @@ export class PersistentStorageAdapter implements StorageAdapter {
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const SecureStore = require('expo-secure-store');
-      if (SecureStore) {
-        this.secureStoreModule = SecureStore;
-        this.resolvedType = 'secure-store';
+      const AsyncStorage = require('@react-native-async-storage/async-storage');
+      if (AsyncStorage) {
+        this.asyncStorageModule = AsyncStorage.default || AsyncStorage;
+        this.resolvedType = 'async-storage';
         return;
       }
     } catch {

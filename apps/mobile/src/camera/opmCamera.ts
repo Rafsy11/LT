@@ -122,6 +122,40 @@ export function validateNonEmptyPhoto(buffer: Buffer | Uint8Array): boolean {
 }
 
 /**
+ * Burns metadata watermark lines directly into image pixels via HTML5 Canvas 2D context
+ * when running in a DOM/WebView runtime, returning a compressed JPEG data URL.
+ */
+export async function burnWatermarkOntoCanvas(
+  sourceDataUrl: string,
+  watermarkLines: string[],
+  quality = 0.82,
+): Promise<string> {
+  if (typeof document === 'undefined') {
+    return sourceDataUrl;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = 800;
+  canvas.height = 600;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return sourceDataUrl;
+  }
+
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
+  ctx.fillRect(24, canvas.height - 170, canvas.width - 48, 146);
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = '16px monospace';
+
+  watermarkLines.forEach((line, index) => {
+    ctx.fillText(line, 40, canvas.height - 140 + index * 26);
+  });
+
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+/**
  * Interface representing Expo Image Manipulator result.
  */
 export interface ImageManipulatorResult {

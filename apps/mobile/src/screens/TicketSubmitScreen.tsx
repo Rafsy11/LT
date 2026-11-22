@@ -3,6 +3,8 @@ import { ApiClient } from '../api/client';
 import { acquireVerifiedLocation, LocationGuardResult } from '../security/locationGuard';
 import {
   uploadOpmPhotoDualPath,
+  validatePhotoSize,
+  validateNonEmptyPhoto,
   ImageManipulatorResult,
 } from '../camera/opmCamera';
 import { offlineQueue } from '../sync/offlineQueue';
@@ -39,17 +41,21 @@ export type CameraState = 'IDLE' | 'CAPTURING' | 'COMPRESSING_AND_WATERMARKING' 
 export type SubmitLifecycleState = 'IDLE' | 'SUBMITTING' | 'QUEUED_OFFLINE' | 'COMPLETED';
 
 /**
- * Generates an immutable UUID v4 for ticket submission idempotency.
+ * Generates an immutable CSPRNG UUID v4 for ticket submission idempotency.
  */
 function generateUuidV4(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
+    bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+  }
+  throw new Error('CSPRNG_UNAVAILABLE: Generator kriptografi UUID v4 tidak tersedia.');
 }
 
 export function TicketSubmitScreen({
@@ -149,7 +155,13 @@ export function TicketSubmitScreen({
   };
 
   const handleSubmit = async () => {
-    if (submitLockRef.current || gpsState === 'MOCK_DETECTED') return;
+    if (
+      submitLockRef.current ||
+      gpsState === 'MOCK_DETECTED' ||
+      gpsState === 'FLAGGED_OUT_OF_RANGE'
+    ) {
+      return;
+    }
     submitLockRef.current = true;
 
     try {
@@ -164,6 +176,16 @@ export function TicketSubmitScreen({
 
       if (!photoEvidence?.uri) {
         throw new Error('Foto bukti pengukuran OPM wajib diambil menggunakan kamera aplikasi.');
+      }
+
+      if (photoEvidence.base64) {
+        const photoBytes = Buffer.from(photoEvidence.base64, 'base64');
+        const sizeValidation = validatePhotoSize(photoBytes);
+        if (!validateNonEmptyPhoto(photoBytes) || !sizeValidation.valid) {
+          throw new Error(
+            sizeValidation.error || 'Berkas foto OPM tidak valid atau melebihi batas 300KB.',
+          );
+        }
       }
 
       if (!selectedSplitter) {
@@ -191,8 +213,24 @@ export function TicketSubmitScreen({
         throw new Error('Perangkat terdeteksi menggunakan Mock Location / Fake GPS.');
       }
 
+      if (
+        activeLocation.isLocationFlagged ||
+        (activeLocation.distanceToSplitterMeters !== undefined &&
+          activeLocation.distanceToSplitterMeters > MAX_GEOFENCE_RADIUS_METERS)
+      ) {
+        setGpsState('FLAGGED_OUT_OF_RANGE');
+        throw new Error(
+          `Lokasi GPS teknisi berada di luar radius geofence maksimal (${MAX_GEOFENCE_RADIUS_METERS}m) dari titik ODP.`,
+        );
+      }
+
       const submissionId = generateUuidV4();
       const recordedAt = activeLocation.clientRecordedAt || new Date().toISOString();
+      const detectedContentType = photoEvidence.uri.startsWith('data:image/png')
+        ? 'image/png'
+        : photoEvidence.uri.startsWith('data:image/webp')
+          ? 'image/webp'
+          : 'image/jpeg';
 
       const payload: SubmitTicketInput = {
         submissionId,
@@ -214,7 +252,7 @@ export function TicketSubmitScreen({
           ticketId: ticket.id,
           submissionId,
           localPhotoUri: photoEvidence.uri,
-          contentType: 'image/jpeg',
+          contentType: detectedContentType,
         });
         payload.photoObjectKey = uploadRes.photoObjectKey;
 
@@ -231,7 +269,16 @@ export function TicketSubmitScreen({
         );
 
         if (!submitRes.success) {
-          throw new Error(submitRes.error?.message || 'Pengiriman laporan gagal');
+          const errCode = (submitRes.error?.code || '').toUpperCase();
+          const isTransientNetworkOrServerError =
+            errCode === 'INTERNAL_ERROR' ||
+            errCode === 'SERVICE_UNAVAILABLE' ||
+            /network|timeout|koneksi|offline/i.test(submitRes.error?.message || '');
+          const rejectionErr = new Error(
+            submitRes.error?.message || 'Pengiriman laporan gagal',
+          ) as Error & { isPermanent4xxRejection?: boolean };
+          rejectionErr.isPermanent4xxRejection = !isTransientNetworkOrServerError;
+          throw rejectionErr;
         }
 
         setSubmitState('COMPLETED');
@@ -241,6 +288,10 @@ export function TicketSubmitScreen({
           message: 'Laporan pekerjaan berhasil dikirim ke server pusat.',
         });
       } catch (netErr: unknown) {
+        if ((netErr as { isPermanent4xxRejection?: boolean }).isPermanent4xxRejection) {
+          throw netErr;
+        }
+
         console.warn(
           '[TicketSubmit] Offline/Timeout fallback: storing to offline queue:',
           (netErr as Error).message,
@@ -675,7 +726,7 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
 
           {state.dispatchLocation.customerPhone && (
             <a
-              href={`tel:${state.dispatchLocation.customerPhone}`}
+              href={`tel:${state.dispatchLocation.customerPhone.replace(/[^\d+]/g, '')}`}
               className="fiberops-action-btn"
               style={{
                 height: '38px',
@@ -1245,7 +1296,11 @@ export function TicketSubmitView(props: TicketSubmitScreenProps) {
         <button
           type="button"
           className="fiberops-action-btn"
-          disabled={state.isSubmitting || state.isMockBlocked}
+          disabled={
+            state.isSubmitting ||
+            state.isMockBlocked ||
+            state.gpsState === 'FLAGGED_OUT_OF_RANGE'
+          }
           onClick={() => void actions.submit()}
           style={{
             width: '100%',

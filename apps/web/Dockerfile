@@ -19,16 +19,15 @@ ENV NODE_OPTIONS="--max-old-space-size=1536"
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy runtime assets with correct ownership
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web ./apps/web
-COPY --from=builder --chown=nextjs:nodejs /app/packages ./packages
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-COPY --from=builder --chown=nextjs:nodejs /app/pnpm-lock.yaml ./pnpm-lock.yaml
-COPY --from=builder --chown=nextjs:nodejs /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+# Copy read-only standalone runtime assets owned by root:root (not writable by nextjs user)
+COPY --from=builder --chown=root:root /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=root:root /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=root:root /app/apps/web/public ./apps/web/public
 
 USER nextjs
 
 WORKDIR /app/apps/web
 EXPOSE 3000
-CMD ["pnpm", "start"]
+HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3000/api/v1/health || exit 1
+CMD ["node", "server.js"]

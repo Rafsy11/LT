@@ -14,7 +14,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@repo/shared": "workspace:*"
+    "@repo/shared": "workspace:*",
+    "expo-camera": "~16.0.18",
+    "expo-device": "~7.0.3",
+    "expo-image-manipulator": "~13.0.6",
+    "expo-location": "~18.0.10",
+    "expo-secure-store": "~14.0.1",
+    "expo-updates": "~0.27.4"
   },
   "devDependencies": {
     "@types/node": "^22.13.9",

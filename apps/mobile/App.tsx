@@ -11,6 +11,7 @@ import { TicketSubmitView } from './src/screens/TicketSubmitScreen';
 import {
   checkDeviceIntegrity,
   DeviceIntegrityReport,
+  storeSecureToken,
   removeSecureToken,
 } from './src/security/deviceIntegrity';
 import {
@@ -41,6 +42,25 @@ export type ThemeMode = 'light' | 'dark' | 'outdoorSunlight';
 export type ThemePreference = 'light' | 'dark' | 'system';
 
 export const MOBILE_THEME_STORAGE_KEY = '@fiberops_mobile_theme_v1';
+const INSTALLATION_DEVICE_ID_KEY = '@fiberops_installation_device_id_v1';
+const STORAGE_KEY_CACHED_TICKETS = '@fiberops_cached_tickets_v1';
+const STORAGE_KEY_CACHED_ODPS = '@fiberops_cached_odps_v1';
+const STORAGE_KEY_OFFLINE_QUEUE = '@fiberops_offline_ticket_queue_v1';
+
+if (process.env.NODE_ENV === 'production' && !(globalThis as { __DEV__?: boolean }).__DEV__) {
+  const noop = () => undefined;
+  console.log = noop;
+  console.debug = noop;
+  console.info = noop;
+  console.warn = noop;
+}
+
+function generateInstallationDeviceId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `DEV-${crypto.randomUUID()}`;
+  }
+  return `DEV-${Date.now()}`;
+}
 
 function resolveSystemThemeMode(): 'light' | 'dark' {
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
@@ -91,6 +111,9 @@ export default function App({
   const [selectedTicket, setSelectedTicket] = useState<MobileTicketItem | null>(null);
   const [availableSplitters, setAvailableSplitters] = useState<SplitterItem[]>(PALEMBANG_ODP_LIST);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [installationDeviceId, setInstallationDeviceId] = useState<string>(() =>
+    generateInstallationDeviceId(),
+  );
   const [internalThemePreference, setInternalThemePreference] = useState<ThemePreference>(() => {
     if (controlledThemePreference) return controlledThemePreference;
     if (initialThemeMode === 'dark') return 'dark';
@@ -202,7 +225,34 @@ export default function App({
     }
   }, [isCompromisedDevice]);
 
-  // Reactive recheck on window resize or periodic polling while locked
+  // Reactive recheck on window resize, foreground resume (AppState / visibilitychange), or periodic polling while locked
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        void performIntegrityRecheck();
+      }
+    };
+    const handleWindowFocus = () => {
+      void performIntegrityRecheck();
+    };
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleWindowFocus);
+    }
+
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleWindowFocus);
+      }
+    };
+  }, [performIntegrityRecheck]);
+
   useEffect(() => {
     if (securityState !== 'DEVICE_COMPROMISED_LOCK') return undefined;
 
@@ -236,8 +286,11 @@ export default function App({
   // Initialize singleton mobile API client with security interceptors
   const apiClient = useMemo(() => {
     return new ApiClient({
-      baseUrl: 'http://localhost:3000',
-      deviceId: 'DEVICE-TECH-SM-A54',
+      baseUrl:
+        process.env.NODE_ENV === 'production'
+          ? 'https://ftth-ops.lintasarta.co.id'
+          : 'http://localhost:3000',
+      deviceId: installationDeviceId,
       appVersion: CURRENT_MOBILE_APP_VERSION,
       onUpgradeRequired: (details) => {
         setUpgradeLock(details);
@@ -247,6 +300,10 @@ export default function App({
         void removeSecureToken('auth_tokens');
         void removeEncryptedItem('auth_tokens');
         void removeEncryptedItem('user_profile');
+        void removeEncryptedItem(STORAGE_KEY_CACHED_TICKETS);
+        void removeEncryptedItem(STORAGE_KEY_CACHED_ODPS);
+        void removeEncryptedItem(STORAGE_KEY_OFFLINE_QUEUE);
+        void persistentStorage.removeItem(SERVER_URL_STORAGE_KEY);
         setCurrentUser(null);
         setSelectedTicket(null);
         setSessionRevokedReason(reason);
@@ -254,20 +311,36 @@ export default function App({
         setSecurityState('SESSION_REVOKED_LOCK');
       },
     });
-  }, []);
+  }, [installationDeviceId]);
 
-  // 1. Startup Initialization: load server URL, verify integrity, attempt silent auth restore
+  // 1. Startup Initialization: load unique deviceId, verify integrity (fail-closed), attempt silent auth restore
   useEffect(() => {
     let isMounted = true;
 
     async function initializeApp() {
       try {
-        const savedUrl = await persistentStorage.getItem(SERVER_URL_STORAGE_KEY);
-        if (savedUrl && isMounted) {
-          apiClient.setBaseUrl(savedUrl);
+        const storedDeviceId = await getEncryptedItem<string>(INSTALLATION_DEVICE_ID_KEY);
+        if (storedDeviceId && isMounted) {
+          setInstallationDeviceId(storedDeviceId);
+        } else {
+          await setEncryptedItem(INSTALLATION_DEVICE_ID_KEY, installationDeviceId);
         }
-      } catch (err) {
-        console.warn('[App] Failed loading server URL from storage:', err);
+      } catch {
+        // Retain CSPRNG volatile deviceId if storage is unavailable
+      }
+
+      const isDevRuntime =
+        Boolean((globalThis as { __DEV__?: boolean }).__DEV__) ||
+        process.env.NODE_ENV !== 'production';
+      if (isDevRuntime) {
+        try {
+          const savedUrl = await persistentStorage.getItem(SERVER_URL_STORAGE_KEY);
+          if (savedUrl && isMounted) {
+            apiClient.setBaseUrl(savedUrl);
+          }
+        } catch (err) {
+          console.warn('[App] Failed loading server URL from storage:', err);
+        }
       }
 
       try {
@@ -280,7 +353,10 @@ export default function App({
           return;
         }
       } catch {
-        // Continue if integrity check fails outside native container
+        if (isMounted) {
+          setSecurityState('DEVICE_COMPROMISED_LOCK');
+        }
+        return;
       }
 
       try {
@@ -307,7 +383,7 @@ export default function App({
     return () => {
       isMounted = false;
     };
-  }, [apiClient]);
+  }, [apiClient, installationDeviceId, isCompromisedDevice]);
 
   // 2. Wire offline queue with apiClient
   useEffect(() => {
@@ -320,9 +396,19 @@ export default function App({
   };
 
   const handleLogout = () => {
+    void apiClient
+      .request('/api/v1/auth/logout', {
+        method: 'POST',
+        body: JSON.stringify({ deviceId: installationDeviceId }),
+      })
+      .catch(() => undefined);
     void removeSecureToken('auth_tokens');
     void removeEncryptedItem('auth_tokens');
     void removeEncryptedItem('user_profile');
+    void removeEncryptedItem(STORAGE_KEY_CACHED_TICKETS);
+    void removeEncryptedItem(STORAGE_KEY_CACHED_ODPS);
+    void removeEncryptedItem(STORAGE_KEY_OFFLINE_QUEUE);
+    void persistentStorage.removeItem(SERVER_URL_STORAGE_KEY);
     apiClient.setTokens(null);
     setCurrentUser(null);
     setSelectedTicket(null);
@@ -722,7 +808,7 @@ export default function App({
       {currentScreen === 'LOGIN' && (
         <LoginScreen
           apiClient={apiClient}
-          defaultDeviceId="DEVICE-TECH-SM-A54"
+          defaultDeviceId={installationDeviceId}
           sessionRevokedReason={sessionRevokedReason}
           themeMode={themeMode}
           onLoginSuccess={(user, tokens) => {
@@ -730,6 +816,7 @@ export default function App({
             setSessionRevokedReason(null);
             setSecurityState('READY');
             apiClient.setTokens(tokens);
+            void storeSecureToken('auth_tokens', JSON.stringify(tokens)).catch(() => undefined);
             void setEncryptedItem('auth_tokens', tokens);
             void setEncryptedItem('user_profile', user);
             setCurrentScreen('TICKET_LIST');

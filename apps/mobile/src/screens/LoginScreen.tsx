@@ -120,10 +120,17 @@ function CloseIcon({ size = 16, color = 'currentColor' }: { size?: number; color
   );
 }
 
+function generateLoginDeviceId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `DEV-${crypto.randomUUID()}`;
+  }
+  return `DEV-${Date.now()}`;
+}
+
 export function LoginScreen({
   apiClient,
   onLoginSuccess,
-  defaultDeviceId = 'DEVICE-TECH-SM-A54',
+  defaultDeviceId,
   sessionRevokedReason = null,
   themeMode = 'light',
 }: LoginScreenProps) {
@@ -143,9 +150,17 @@ export function LoginScreen({
   const [userNik, setUserNik] = useState<string | null>(null);
   const [isRequestingOtp, setIsRequestingOtp] = useState(false);
 
-  const [deviceId] = useState(defaultDeviceId);
-  const [deviceModel] = useState('Samsung Galaxy A54 5G');
-  const [serverUrl, setServerUrl] = useState(apiClient.getBaseUrl() || 'http://localhost:3000');
+  const [deviceId] = useState(() => defaultDeviceId || generateLoginDeviceId());
+  const [deviceModel] = useState('Android Field Terminal');
+  const [serverUrl, setServerUrl] = useState(
+    apiClient.getBaseUrl() ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://ftth-ops.lintasarta.co.id'
+        : 'http://localhost:3000'),
+  );
+  const __DEV__ =
+    Boolean((globalThis as { __DEV__?: boolean }).__DEV__) ||
+    process.env.NODE_ENV !== 'production';
   const [healthStatus, setHealthStatus] = useState<'IDLE' | 'TESTING' | 'SUCCESS' | 'ERROR'>('IDLE');
   const [healthMessage, setHealthMessage] = useState<string>('Belum diuji');
   const [showServerModal, setShowServerModal] = useState(false);
@@ -159,17 +174,22 @@ export function LoginScreen({
   const isLocked = isLoading || rateLimitSeconds > 0;
 
   useEffect(() => {
+    if (!__DEV__) return;
     let isMounted = true;
-    persistentStorage.getItem(SERVER_URL_STORAGE_KEY).then((saved) => {
+    Promise.resolve(persistentStorage.getItem(SERVER_URL_STORAGE_KEY)).then((saved) => {
       if (saved && isMounted) {
-        setServerUrl(saved);
-        apiClient.setBaseUrl(saved);
+        try {
+          apiClient.setBaseUrl(saved);
+          setServerUrl(saved);
+        } catch {
+          // Ignore invalid or cleartext URL in storage
+        }
       }
     });
     return () => {
       isMounted = false;
     };
-  }, [apiClient]);
+  }, [apiClient, __DEV__]);
 
   // 5-minute OTP challenge expiry countdown
   useEffect(() => {
@@ -963,29 +983,33 @@ export function LoginScreen({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span>v{CURRENT_MOBILE_APP_VERSION}</span>
-          <span style={{ color: theme.border }}>•</span>
-          <button
-            type="button"
-            className="fiberops-action-btn"
-            onClick={() => setShowServerModal(true)}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '2px 4px',
-              color: isDark ? '#38BDF8' : '#0E5B92',
-              fontSize: '11px',
-              cursor: 'pointer',
-              textDecoration: 'underline',
-              textUnderlineOffset: '2px',
-            }}
-          >
-            Pengaturan Server
-          </button>
+          {__DEV__ && (
+            <>
+              <span style={{ color: theme.border }}>•</span>
+              <button
+                type="button"
+                className="fiberops-action-btn"
+                onClick={() => setShowServerModal(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '2px 4px',
+                  color: isDark ? '#38BDF8' : '#0E5B92',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: '2px',
+                }}
+              >
+                Pengaturan Server
+              </button>
+            </>
+          )}
         </div>
       </footer>
 
-      {/* Clean Modal for Server URL Configuration */}
-      {showServerModal && (
+      {/* Clean Modal for Server URL Configuration (Restricted to __DEV__ / non-production) */}
+      {__DEV__ && showServerModal && (
         <div
           role="dialog"
           aria-modal="true"

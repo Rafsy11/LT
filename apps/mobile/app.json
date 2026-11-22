@@ -7,7 +7,12 @@
     "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://ftth-ops.lintasarta.co.id/api/v1/ota/manifest",
-      "enabled": true
+      "enabled": true,
+      "codeSigningCertificate": "./certs/ota-certificate.pem",
+      "codeSigningMetadata": {
+        "keyid": "fiberops-ota-main",
+        "alg": "rsa-v1_5-sha256"
+      }
     },
     "jsEngine": "hermes",
     "orientation": "portrait",
@@ -19,11 +24,16 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Aplikasi membutuhkan akses kamera untuk mengambil foto bukti fisik pengukuran Optical Power Meter (OPM) dan nomor port splitter.",
         "NSLocationWhenInUseUsageDescription": "Aplikasi membutuhkan izin GPS akurat untuk memvalidasi posisi teknisi terhadap ODP target dan mencegah manipulasi Fake GPS.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Aplikasi membutuhkan izin GPS akurat untuk memvalidasi posisi teknisi terhadap ODP target."
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false
+        }
       }
     },
     "android": {
       "package": "com.fiberops.technician",
+      "allowBackup": false,
+      "usesCleartextTraffic": false,
+      "networkSecurityConfig": "./network_security_config.xml",
       "permissions": [
         "CAMERA",
         "ACCESS_FINE_LOCATION",

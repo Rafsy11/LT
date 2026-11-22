@@ -502,6 +502,11 @@ export function TicketListView(props: TicketListScreenProps) {
       setTimeout(() => {
         setCopiedSia((prev) => (prev === siaNumber ? null : prev));
       }, 2000);
+      setTimeout(() => {
+        if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+          void navigator.clipboard.writeText('').catch(() => undefined);
+        }
+      }, 30000);
     } catch (err) {
       console.warn('[TicketList] Gagal menyalin SIA:', err);
     }
@@ -1515,7 +1520,7 @@ export function TicketListView(props: TicketListScreenProps) {
                   {/* Kotak 1: Logo Telepon */}
                   {ticket.customerPhone ? (
                     <a
-                      href={`tel:${ticket.customerPhone}`}
+                      href={`tel:${ticket.customerPhone.replace(/[^\d+]/g, '')}`}
                       className="fiberops-action-btn"
                       aria-label={`Hubungi telepon pelanggan ${ticket.customer.fullName}`}
                       title={`Hubungi: ${ticket.customerPhone}`}

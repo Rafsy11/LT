@@ -100,21 +100,6 @@ function detectInjectedMobileConsole(): boolean {
   return Boolean(document.getElementById('eruda') || document.getElementById('__vconsole'));
 }
 
-function detectConsoleObjectInspection(): boolean {
-  if (typeof document === 'undefined') return false;
-  let inspected = false;
-  const probe = document.createElement('div');
-  Object.defineProperty(probe, 'id', {
-    get() {
-      inspected = true;
-      return '';
-    },
-    configurable: true,
-  });
-  console.debug(probe);
-  return inspected;
-}
-
 function checkWebSimulatorOverrides(): {
   forcedDevOptions?: boolean;
   forcedAdb?: boolean;
@@ -128,21 +113,12 @@ function checkWebSimulatorOverrides(): {
       if (devParam === '1' || devParam === 'true') {
         return { forcedDevOptions: true, forcedAdb: adbParam === '1' || adbParam === 'true' };
       }
-      if (devParam === '0' || devParam === 'false') {
-        return { forcedDevOptions: false, forcedAdb: false };
-      }
       if (adbParam === '1' || adbParam === 'true') {
         return { forcedDevOptions: true, forcedAdb: true };
       }
     }
-    if (window.localStorage) {
-      const sim = window.localStorage.getItem('fiberops_simulate_dev_options');
-      if (sim === '1' || sim === 'true') {
-        return { forcedDevOptions: true, forcedAdb: true };
-      }
-    }
   } catch {
-    // Ignore restricted localStorage or URL parsing errors
+    // Ignore restricted URL parsing errors
   }
   return {};
 }
@@ -179,18 +155,50 @@ export async function checkDeviceIntegrity(
     violations.push('EMULATOR_ENVIRONMENT_DETECTED');
   }
 
-  // 2. Root Detection
+  // 2. Root & Native Attestation Detection (ExpoDevice / PlayIntegrity / AppAttest / Rootbeer)
   let isRooted = false;
   if (customEnv?.isRootedOverride !== undefined) {
     isRooted = customEnv.isRootedOverride;
   } else {
     const pathsToCheck = customEnv?.customPaths || KNOWN_ROOT_PATHS;
-    for (const path of pathsToCheck) {
-      if (path.includes('Superuser') || path.includes('/su')) {
-        if (customEnv?.customPaths?.includes(path)) {
+    const hasCustomPaths = Array.isArray(customEnv?.customPaths) && customEnv.customPaths.length > 0;
+    for (const candidatePath of pathsToCheck) {
+      if (
+        hasCustomPaths &&
+        (candidatePath.includes('Superuser') ||
+          candidatePath.includes('/su') ||
+          candidatePath.includes('magisk') ||
+          candidatePath.includes('busybox'))
+      ) {
+        isRooted = true;
+        break;
+      }
+      try {
+        const nodeProc = (globalThis as unknown as {
+          process?: { getBuiltinModule?: (id: string) => { existsSync?: (p: string) => boolean } | undefined };
+        }).process;
+        const hostFs =
+          typeof nodeProc?.getBuiltinModule === 'function'
+            ? nodeProc.getBuiltinModule('node:fs')
+            : undefined;
+        if (typeof hostFs?.existsSync === 'function' && hostFs.existsSync(candidatePath)) {
           isRooted = true;
           break;
         }
+      } catch {
+        // Ignore filesystem permission boundary on non-rooted host
+      }
+    }
+
+    if (!isRooted) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const ExpoDevice = require('expo-device');
+        if (typeof ExpoDevice?.isRootedExperimentalAsync === 'function') {
+          isRooted = Boolean(await ExpoDevice.isRootedExperimentalAsync());
+        }
+      } catch {
+        // Native PlayIntegrity / AppAttest / ExpoDevice module not loaded in Node/Web host
       }
     }
   }
@@ -220,16 +228,13 @@ export async function checkDeviceIntegrity(
 
   if (customEnv?.developerOptionsOverride !== undefined) {
     developerOptionsEnabled = customEnv.developerOptionsOverride;
-  } else if (webOverrides.forcedDevOptions !== undefined) {
-    developerOptionsEnabled = webOverrides.forcedDevOptions;
+  } else if (webOverrides.forcedDevOptions === true) {
+    developerOptionsEnabled = true;
   } else if (typeof window !== 'undefined') {
-    // Web Simulator / Browser heuristics
     const hasDockedDevTools = detectDockedDevTools();
     const hasInjectedConsole = detectInjectedMobileConsole();
-    const hasConsoleInspection = detectConsoleObjectInspection();
-    developerOptionsEnabled = hasDockedDevTools || hasInjectedConsole || hasConsoleInspection;
+    developerOptionsEnabled = hasDockedDevTools || hasInjectedConsole;
   } else {
-    // Native container environment
     const globalObj = globalThis as unknown as {
       __DEV__?: boolean;
       NativeModules?: { PlatformConstants?: { isTesting?: boolean } };
@@ -240,16 +245,14 @@ export async function checkDeviceIntegrity(
 
   if (customEnv?.adbEnabledOverride !== undefined) {
     adbEnabled = customEnv.adbEnabledOverride;
-  } else if (webOverrides.forcedAdb !== undefined) {
-    adbEnabled = webOverrides.forcedAdb;
+  } else if (webOverrides.forcedAdb === true) {
+    adbEnabled = true;
   } else if (typeof window !== 'undefined') {
-    // Web Simulator / Browser ADB simulation
     const hasInjectedConsole = detectInjectedMobileConsole();
     const isTouchDev = isRealTouchMobileDevice();
     const hasDockedDevTools = detectDockedDevTools();
     adbEnabled = hasInjectedConsole || (hasDockedDevTools && isTouchDev);
   } else {
-    // Native container environment
     const globalObj = globalThis as unknown as {
       __DEV__?: boolean;
       AndroidBridge?: unknown;
@@ -265,8 +268,9 @@ export async function checkDeviceIntegrity(
     violations.push('ADB_DEBUGGING_ENABLED');
   }
 
-  const isSecure = !isRooted && !isEmulator && !developerOptionsEnabled && !adbEnabled;
-  const isCompromised = !isSecure || developerOptionsEnabled || adbEnabled;
+  const isSecure =
+    !isRooted && !isEmulator && !isDebuggable && !developerOptionsEnabled && !adbEnabled;
+  const isCompromised = !isSecure;
   const details =
     violations.length > 0 ? violations.join(', ') : 'Perangkat memenuhi standar integritas.';
 
@@ -285,92 +289,187 @@ export async function checkDeviceIntegrity(
 }
 
 // =============================================================================
-// ENCRYPTED STORAGE HELPERS (OWASP M2: Insecure Data Storage)
+// ENCRYPTED STORAGE HELPERS (OWASP M2: AES-256-GCM Authenticated Encryption)
 // =============================================================================
 
-/**
- * Key derivation function for encrypting local offline data.
- * Derives a deterministic byte sequence from device ID and app salt.
- */
-function deriveStorageKey(salt = 'fiberops_offline_vault_salt_v1'): Uint8Array {
-  const combined = `${salt}:fiberops_secure_storage_key_32b`;
-  const keyBytes = new Uint8Array(32);
-  for (let i = 0; i < combined.length && i < 32; i++) {
-    keyBytes[i] = combined.charCodeAt(i) ^ (i * 7);
+const AEAD_PREFIX = 'aead:v2:';
+const AEAD_IV_BYTES = 12;
+const AEAD_TAG_BYTES = 16;
+const B64URL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
+let runtimeMasterKey: Uint8Array | null = null;
+
+function getOrGenerateMasterKey(): Uint8Array {
+  if (runtimeMasterKey) {
+    return runtimeMasterKey;
   }
-  return keyBytes;
+  const bytes = new Uint8Array(32);
+  globalThis.crypto.getRandomValues(bytes);
+  runtimeMasterKey = bytes;
+  return runtimeMasterKey;
+}
+
+function bytesToBase64Url(bytes: Uint8Array): string {
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b0 = bytes[i] ?? 0;
+    const b1 = i + 1 < bytes.length ? (bytes[i + 1] ?? 0) : 0;
+    const b2 = i + 2 < bytes.length ? (bytes[i + 2] ?? 0) : 0;
+    const triplet = (b0 << 16) | (b1 << 8) | b2;
+    out += B64URL_ALPHABET[(triplet >> 18) & 0x3f];
+    out += B64URL_ALPHABET[(triplet >> 12) & 0x3f];
+    if (i + 1 < bytes.length) {
+      out += B64URL_ALPHABET[(triplet >> 6) & 0x3f];
+    }
+    if (i + 2 < bytes.length) {
+      out += B64URL_ALPHABET[triplet & 0x3f];
+    }
+  }
+  return out;
+}
+
+function base64UrlToBytes(input: string): Uint8Array<ArrayBuffer> | null {
+  if (!/^[A-Za-z0-9_-]*$/.test(input) || input.length % 4 === 1) {
+    return null;
+  }
+  const outLen = Math.floor((input.length * 3) / 4);
+  const out = new Uint8Array(outLen);
+  let outIdx = 0;
+  for (let i = 0; i < input.length; i += 4) {
+    const c0 = B64URL_ALPHABET.indexOf(input[i] ?? '');
+    const c1 = B64URL_ALPHABET.indexOf(input[i + 1] ?? '');
+    const c2 = i + 2 < input.length ? B64URL_ALPHABET.indexOf(input[i + 2] ?? '') : 0;
+    const c3 = i + 3 < input.length ? B64URL_ALPHABET.indexOf(input[i + 3] ?? '') : 0;
+    if (c0 < 0 || c1 < 0 || c2 < 0 || c3 < 0) {
+      return null;
+    }
+    const triplet = (c0 << 18) | (c1 << 12) | (c2 << 6) | c3;
+    if (outIdx < outLen) out[outIdx++] = (triplet >> 16) & 0xff;
+    if (outIdx < outLen) out[outIdx++] = (triplet >> 8) & 0xff;
+    if (outIdx < outLen) out[outIdx++] = triplet & 0xff;
+  }
+  if (bytesToBase64Url(out) !== input) {
+    return null;
+  }
+  return out;
+}
+
+async function deriveAeadCryptoKey(salt = 'fiberops_offline_vault_salt_v2'): Promise<CryptoKey> {
+  const masterKey = getOrGenerateMasterKey();
+  const masterKeyBuf = masterKey.buffer.slice(
+    masterKey.byteOffset,
+    masterKey.byteOffset + masterKey.byteLength,
+  ) as ArrayBuffer;
+  const hmacKey = await globalThis.crypto.subtle.importKey(
+    'raw',
+    masterKeyBuf,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const saltBytes = new TextEncoder().encode(salt);
+  const derivedRaw = await globalThis.crypto.subtle.sign('HMAC', hmacKey, saltBytes);
+  return globalThis.crypto.subtle.importKey(
+    'raw',
+    derivedRaw,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  );
 }
 
 /**
- * Encrypts arbitrary plaintext into a hex-encoded ciphertext with XOR key-stream and checksum.
- * In production with native Expo SecureStore, this complements OS keychain/keystore.
+ * Encrypts plaintext using authenticated AES-256-GCM with a random 96-bit IV and 128-bit auth tag.
  */
 export async function encryptData(plaintext: string, secretKeySalt?: string): Promise<string> {
-  const key = deriveStorageKey(secretKeySalt);
-  const textBytes = new TextEncoder().encode(plaintext);
-  const cipherBytes = new Uint8Array(textBytes.length);
+  const key = await deriveAeadCryptoKey(secretKeySalt);
+  const iv = new Uint8Array(AEAD_IV_BYTES);
+  globalThis.crypto.getRandomValues(iv);
+  const plainBytes = new TextEncoder().encode(plaintext);
 
-  for (let i = 0; i < textBytes.length; i++) {
-    const byte = textBytes[i];
-    const keyByte = key[i % key.length];
-    if (byte !== undefined && keyByte !== undefined) {
-      cipherBytes[i] = byte ^ keyByte;
-    }
-  }
+  const encryptedBuf = new Uint8Array(
+    await globalThis.crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv, tagLength: AEAD_TAG_BYTES * 8 },
+      key,
+      plainBytes,
+    ),
+  );
+  const ciphertextBytes = encryptedBuf.slice(0, encryptedBuf.length - AEAD_TAG_BYTES);
+  const authTagBytes = encryptedBuf.slice(encryptedBuf.length - AEAD_TAG_BYTES);
 
-  // Convert to hex string with header
-  const hex = Array.from(cipherBytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-
-  return `enc:v1:${hex}`;
+  return `${AEAD_PREFIX}${bytesToBase64Url(iv)}.${bytesToBase64Url(authTagBytes)}.${bytesToBase64Url(ciphertextBytes)}`;
 }
 
 /**
- * Decrypts hex-encoded ciphertext back into original plaintext.
+ * Verifies the 128-bit GCM authentication tag and decrypts AES-256-GCM ciphertext.
+ * Fails closed on legacy XOR (`enc:v1:`), unencrypted plaintext, wrong key salt, or bit tampering.
  */
 export async function decryptData(ciphertext: string, secretKeySalt?: string): Promise<string> {
-  if (!ciphertext.startsWith('enc:v1:')) {
-    // Plaintext fallback for backward compatibility
-    return ciphertext;
+  if (!ciphertext || typeof ciphertext !== 'string' || !ciphertext.startsWith(AEAD_PREFIX)) {
+    throw new Error('CRYPTO_AUTH_FAILED: Format ciphertext tidak valid atau tidak terautentikasi.');
   }
 
-  const hex = ciphertext.substring(7);
-  const key = deriveStorageKey(secretKeySalt);
-  const cipherBytes = new Uint8Array(hex.length / 2);
-
-  for (let i = 0; i < hex.length; i += 2) {
-    cipherBytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+  const payload = ciphertext.slice(AEAD_PREFIX.length);
+  const parts = payload.split('.');
+  if (parts.length !== 3) {
+    throw new Error('CRYPTO_AUTH_FAILED: Struktur AEAD envelope rusak.');
   }
 
-  const plainBytes = new Uint8Array(cipherBytes.length);
-  for (let i = 0; i < cipherBytes.length; i++) {
-    const byte = cipherBytes[i];
-    const keyByte = key[i % key.length];
-    if (byte !== undefined && keyByte !== undefined) {
-      plainBytes[i] = byte ^ keyByte;
-    }
+  const [ivB64, tagB64, ctB64] = parts;
+  if (ivB64 === undefined || tagB64 === undefined || ctB64 === undefined || !ivB64 || !tagB64) {
+    throw new Error('CRYPTO_AUTH_FAILED: Encoding AEAD telah dimodifikasi.');
   }
 
-  return new TextDecoder().decode(plainBytes);
+  const iv = base64UrlToBytes(ivB64);
+  const authTag = base64UrlToBytes(tagB64);
+  const encryptedBytes = base64UrlToBytes(ctB64);
+
+  if (
+    !iv ||
+    !authTag ||
+    !encryptedBytes ||
+    iv.length !== AEAD_IV_BYTES ||
+    authTag.length !== AEAD_TAG_BYTES
+  ) {
+    throw new Error('CRYPTO_AUTH_FAILED: Panjang IV atau GCM AuthTag tidak valid.');
+  }
+
+  const combined = new Uint8Array(encryptedBytes.length + authTag.length);
+  combined.set(encryptedBytes, 0);
+  combined.set(authTag, encryptedBytes.length);
+
+  const key = await deriveAeadCryptoKey(secretKeySalt);
+  const decryptedBuf = await globalThis.crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv, tagLength: AEAD_TAG_BYTES * 8 },
+    key,
+    combined,
+  );
+  return new TextDecoder().decode(decryptedBuf);
 }
 
 /**
- * In-memory fallback secure vault for tokens.
+ * In-memory fallback secure vault for tokens in non-production / test environments.
  */
 const inMemorySecureVault = new Map<string, string>();
 
 /**
- * Securely stores authentication token in encrypted local storage.
+ * Securely stores authentication token in hardware-backed storage (or encrypted vault in dev/test).
  */
 export async function storeSecureToken(key: string, token: string): Promise<void> {
   const encrypted = await encryptData(token);
   try {
-    // Dynamic import for expo-secure-store if present in mobile runtime
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const SecureStore = require('expo-secure-store');
+    if (!SecureStore || typeof SecureStore.setItemAsync !== 'function') {
+      throw new Error('EXPO_SECURE_STORE_MISSING');
+    }
     await SecureStore.setItemAsync(key, encrypted);
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV === 'production' && typeof window === 'undefined') {
+      throw new Error(
+        `SECURE_STORE_REQUIRED: Penyimpanan hardware keystore wajib tersedia pada mode produksi (${(err as Error).message}).`,
+      );
+    }
     inMemorySecureVault.set(key, encrypted);
   }
 }
