@@ -46,26 +46,6 @@ function formatCountdown(seconds: number): string {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
-function EyeIcon({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) {
-  return (
-    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function EyeOffIcon({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) {
-  return (
-    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
-      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
-      <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
-      <line x1="2" y1="2" x2="22" y2="22" />
-    </svg>
-  );
-}
-
 function UserIcon({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) {
   return (
     <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -136,7 +116,6 @@ export function LoginScreen({
 }: LoginScreenProps) {
   const [username, setUsernameState] = useState('');
   const [password, setPasswordState] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
 
   // 2FA Telegram OTP states (parity with web LoginView / useLogin)
   const [preAuthToken, setPreAuthToken] = useState<string | null>(null);
@@ -577,7 +556,7 @@ export function LoginScreen({
           )}
 
           {/* Clean Login Form with 2FA Telegram OTP */}
-          <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+          <form method="post" onSubmit={handleSubmit} style={{ width: '100%' }}>
             {/* Username Field with User Icon */}
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
               <span
@@ -632,7 +611,7 @@ export function LoginScreen({
               />
             </div>
 
-            {/* Password Field with Lock Icon and Eye Toggle */}
+            {/* Password Field with Lock Icon */}
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
               <span
                 style={{
@@ -649,7 +628,7 @@ export function LoginScreen({
               </span>
               <input
                 id="field-password"
-                type={showPassword ? 'text' : 'password'}
+                type="password"
                 className="fiberops-input"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -662,7 +641,7 @@ export function LoginScreen({
                 style={{
                   width: '100%',
                   minHeight: '48px',
-                  padding: '12px 48px 12px 46px',
+                  padding: '12px 18px 12px 46px',
                   fontSize: '14px',
                   background: isDark ? '#10192D' : '#FFFFFF',
                   color: isDark ? '#F8FAFC' : '#0F172A',
@@ -683,30 +662,6 @@ export function LoginScreen({
                   transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                 }}
               />
-              <button
-                type="button"
-                className="fiberops-action-btn"
-                onClick={() => setShowPassword(!showPassword)}
-                disabled={isLocked}
-                aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
-                style={{
-                  position: 'absolute',
-                  right: '2px',
-                  width: '44px',
-                  height: '44px',
-                  minHeight: '44px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'transparent',
-                  border: 'none',
-                  color: showPassword ? '#1B5CA2' : '#64748B',
-                  cursor: 'pointer',
-                  borderRadius: '6px',
-                }}
-              >
-                {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
-              </button>
             </div>
 
             {/* 2FA Telegram OTP Inline Row (6-digit input + Kirim OTP / Kirim Ulang button) */}

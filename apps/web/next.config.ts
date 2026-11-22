@@ -32,7 +32,7 @@ const CONTENT_SECURITY_POLICY = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https: http://localhost:* http://127.0.0.1:*",
+  "connect-src 'self' https: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* wss:",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -51,6 +51,12 @@ const nextConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: false,
+  },
+  webpack(config, { dev }) {
+    if (dev) {
+      config.devtool = 'cheap-module-source-map';
+    }
+    return config;
   },
   async headers() {
     return [

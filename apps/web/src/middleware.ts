@@ -370,6 +370,18 @@ export async function middleware(request: NextRequest) {
     }
 
     if (isLoginRoute) {
+      const hasLeakedCredentialsInUrl =
+        request.nextUrl.searchParams.has('username') ||
+        request.nextUrl.searchParams.has('password') ||
+        request.nextUrl.searchParams.has('otpCode');
+      if (hasLeakedCredentialsInUrl) {
+        const cleanLoginUrl = new URL('/login', request.url);
+        const nextParam = request.nextUrl.searchParams.get('next');
+        if (nextParam) {
+          cleanLoginUrl.searchParams.set('next', nextParam);
+        }
+        return NextResponse.redirect(cleanLoginUrl, 303);
+      }
       if (validWebPayload && validWebPayload.userType !== 'TECHNICIAN') {
         return NextResponse.redirect(new URL('/', request.url));
       }

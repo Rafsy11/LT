@@ -226,4 +226,61 @@ describe('Tier 1: Feature 26 - Adversarial Hardening & Commercial End-User UI/UX
       'Mobile TicketListScreen must protect against accidental logout when offlineQueueCount > 0',
     );
   });
+
+  it('5. hardens /login form against GET URL credential leaks, removes showPassword eye icon, unlocks Kirim OTP button, and enables non-eval dev source maps', async () => {
+    const leakedLoginReq = new NextRequest(
+      'http://localhost:3000/login?username=superadmin&password=Secret123!&next=%2Ftickets',
+      { method: 'GET' },
+    );
+    const leakedLoginRes = await middleware(leakedLoginReq);
+    assert.strictEqual(
+      leakedLoginRes.status,
+      303,
+      'Middleware must redirect (303) /login requests that leak username/password in URL query params',
+    );
+    assert.strictEqual(
+      leakedLoginRes.headers.get('location'),
+      'http://localhost:3000/login?next=%2Ftickets',
+      'Redirected /login URL must strip username/password while preserving next parameter',
+    );
+
+    const loginViewSrc = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'web', 'src', 'features', 'auth', 'components', 'login-view.tsx'),
+      'utf8',
+    );
+    const mobileLoginSrc = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'mobile', 'src', 'screens', 'LoginScreen.tsx'),
+      'utf8',
+    );
+    const nextCfgSrc = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'web', 'next.config.ts'),
+      'utf8',
+    );
+
+    assert.match(
+      loginViewSrc,
+      /<form[^>]*method="post"/i,
+      'Web LoginView <form> must declare method="post" to prevent native GET credential leakage into URL',
+    );
+    assert.doesNotMatch(
+      loginViewSrc,
+      /showPassword|toggleShowPassword|auth-password-toggle/,
+      'Web LoginView must not include showPassword toggle or eye icon button',
+    );
+    assert.doesNotMatch(
+      mobileLoginSrc,
+      /showPassword|setShowPassword|EyeOffIcon/,
+      'Mobile LoginScreen must not include showPassword toggle or eye icon button',
+    );
+    assert.doesNotMatch(
+      loginViewSrc,
+      /disabled=\{[\s\S]*?!username\.trim\(\)\s*\|\|\s*!password[\s\S]*?\}\s*className="auth-request-otp-btn"/,
+      'Kirim OTP button must not be locked by !username.trim() || !password in SSR/autofill',
+    );
+    assert.match(
+      nextCfgSrc,
+      /cheap-module-source-map/,
+      'next.config.ts must configure cheap-module-source-map in dev mode so strict CSP does not block Next.js hydration',
+    );
+  });
 });

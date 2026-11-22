@@ -26,7 +26,7 @@
   padding: 20px;
   background: #ffffff;
   border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 16px;
+  border-radius: 8px;
   box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.05),
     0 8px 10px -6px rgba(15, 23, 42, 0.05);
   display: flex;
@@ -175,7 +175,7 @@
   width: 100%;
   background: #f8fafc;
   border: 1px solid #cbd5e1;
-  border-radius: 10px;
+  border-radius: 6px;
   overflow: hidden;
 }
 
@@ -183,6 +183,12 @@
   background: #ffffff;
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.auth-input-wrap.auth-input-wrap--invalid,
+.auth-input-wrap.auth-input-wrap--invalid:focus-within {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15) !important;
 }
 
 .auth-input-icon {
@@ -211,6 +217,11 @@
   font-weight: 500;
 }
 
+input[type='password']::-ms-reveal,
+input[type='password']::-ms-clear {
+  display: none;
+}
+
 .auth-input:-webkit-autofill,
 .auth-input:-webkit-autofill:hover,
 .auth-input:-webkit-autofill:focus,
@@ -225,45 +236,9 @@
   -webkit-text-fill-color: #0f172a !important;
 }
 
-.auth-input-password {
-  padding-right: 4px;
-}
-
 .auth-input::placeholder {
   color: #64748b;
   font-size: 13.5px;
-}
-
-.auth-password-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  margin-right: 2px;
-  border-radius: 8px;
-  background: transparent;
-  color: #64748b;
-  flex-shrink: 0;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .auth-password-toggle:hover {
-    color: #0f172a;
-    background: #f1f5f9;
-  }
-}
-
-.auth-password-toggle:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: -2px;
-}
-
-@media (max-width: 767px) {
-  .auth-password-toggle {
-    width: 44px;
-    height: 44px;
-  }
 }
 
 .auth-submit-btn {
@@ -275,7 +250,7 @@
   min-height: 46px;
   margin-top: 4px;
   padding: 10px 16px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: #1b5ca2;
   color: #ffffff;
   font-size: 13.5px;
@@ -404,12 +379,13 @@
   gap: 6px;
   min-height: 44px;
   padding: 0 14px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: #f0f9ff;
   border: 1px solid #7dd3fc;
   color: #0369a1;
   font-size: 12.5px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   flex-shrink: 0;
   cursor: pointer;
@@ -555,6 +531,14 @@ html.dark .auth-input-wrap:focus-within,
   box-shadow: 0 0 0 3px rgba(37, 133, 208, 0.25) !important;
 }
 
+html.dark .auth-input-wrap.auth-input-wrap--invalid,
+html.dark .auth-input-wrap.auth-input-wrap--invalid:focus-within,
+[data-theme='dark'] .auth-input-wrap.auth-input-wrap--invalid,
+[data-theme='dark'] .auth-input-wrap.auth-input-wrap--invalid:focus-within {
+  border-color: #f87171 !important;
+  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.25) !important;
+}
+
 html.dark .auth-input-icon,
 [data-theme='dark'] .auth-input-icon {
   color: #94a3b8 !important;
@@ -607,20 +591,6 @@ html.dark .auth-input:-webkit-autofill:active,
   -webkit-box-shadow: 0 0 0px 1000px #020617 inset !important;
   -webkit-text-fill-color: #f1f5f9 !important;
   transition: background-color 5000s ease-in-out 0s;
-}
-
-html.dark .auth-password-toggle,
-[data-theme='dark'] .auth-password-toggle {
-  color: #94a3b8 !important;
-  background: transparent !important;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  html.dark .auth-password-toggle:hover,
-  [data-theme='dark'] .auth-password-toggle:hover {
-    color: #f1f5f9 !important;
-    background: #1e293b !important;
-  }
 }
 
 html.dark .auth-otp-timer,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, FormEvent } from 'react';
+import { useState, useEffect, useCallback, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ERROR_CODES,
@@ -78,7 +78,10 @@ export function useLogin() {
 
   const [username, setUsernameState] = useState<string>('');
   const [password, setPasswordState] = useState<string>('');
-  const [showPassword, setShowPassword] = useState<boolean>(false);
+
+  const usernameInputRef = useRef<HTMLInputElement | null>(null);
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
+  const otpInputRef = useRef<HTMLInputElement | null>(null);
 
   // 2FA Telegram OTP states (Strict Pre-Bound Server Mode)
   const [preAuthToken, setPreAuthToken] = useState<string | null>(null);
@@ -100,6 +103,20 @@ export function useLogin() {
 
   const rateLimit = useRateLimitCountdown();
   const resendCooldown = useRateLimitCountdown();
+
+  // Scrub any accidentally leaked credentials (?username=...&password=...&otpCode=...) from URL bar on mount
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.location.search) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('username') || params.has('password') || params.has('otpCode')) {
+      params.delete('username');
+      params.delete('password');
+      params.delete('otpCode');
+      const cleanQuery = params.toString();
+      const cleanUrl = `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`;
+      window.history.replaceState(null, '', cleanUrl);
+    }
+  }, []);
 
   // 5-minute OTP challenge expiry countdown
   useEffect(() => {
@@ -192,29 +209,35 @@ export function useLogin() {
 
   const setUsername = useCallback(
     (val: string) => {
-      setUsernameState(val);
+      setUsernameState((prev) => {
+        if (prev !== val) {
+          setPreAuthToken(null);
+          setDeliveryStatus('IDLE');
+          setOtpExpiresSeconds(0);
+          setOtpCodeState('');
+        }
+        return val;
+      });
       clearFieldError('username');
-      setPreAuthToken(null);
-      setDeliveryStatus('IDLE');
-      setOtpExpiresSeconds(0);
     },
     [clearFieldError],
   );
 
   const setPassword = useCallback(
     (val: string) => {
-      setPasswordState(val);
+      setPasswordState((prev) => {
+        if (prev !== val) {
+          setPreAuthToken(null);
+          setDeliveryStatus('IDLE');
+          setOtpExpiresSeconds(0);
+          setOtpCodeState('');
+        }
+        return val;
+      });
       clearFieldError('password');
-      setPreAuthToken(null);
-      setDeliveryStatus('IDLE');
-      setOtpExpiresSeconds(0);
     },
     [clearFieldError],
   );
-
-  const toggleShowPassword = useCallback(() => {
-    setShowPassword((prev) => !prev);
-  }, []);
 
   const setOtpCode = useCallback(
     (raw: string) => {
@@ -254,17 +277,46 @@ export function useLogin() {
     [loginUser, router, showSuccess],
   );
 
-  const validateCredentials = useCallback((): boolean => {
-    const nextErrors: Partial<Record<LoginFieldKey, string>> = {};
-    if (!username.trim()) {
-      nextErrors.username = 'Username operator perlu diisi.';
+  const resolveCurrentCredentials = useCallback((): {
+    resolvedUsername: string;
+    resolvedPassword: string;
+  } => {
+    const domUsername = usernameInputRef.current?.value ?? '';
+    const domPassword = passwordInputRef.current?.value ?? '';
+    const resolvedUsername = (username || domUsername).trim();
+    const resolvedPassword = password || domPassword;
+
+    if (!username && domUsername) {
+      setUsernameState(domUsername);
     }
-    if (!password) {
-      nextErrors.password = 'Kata sandi perlu diisi.';
+    if (!password && domPassword) {
+      setPasswordState(domPassword);
     }
-    setFieldErrors((prev) => ({ ...prev, ...nextErrors }));
-    return Object.keys(nextErrors).length === 0;
+
+    return { resolvedUsername, resolvedPassword };
   }, [username, password]);
+
+  const validateCredentials = useCallback(
+    (candidateUsername: string, candidatePassword: string): boolean => {
+      const nextErrors: Partial<Record<LoginFieldKey, string>> = {};
+      if (!candidateUsername.trim()) {
+        nextErrors.username = 'Username operator perlu diisi.';
+      }
+      if (!candidatePassword) {
+        nextErrors.password = 'Kata sandi perlu diisi.';
+      }
+      setFieldErrors((prev) => {
+        const updated = { ...prev };
+        if (nextErrors.username) updated.username = nextErrors.username;
+        else delete updated.username;
+        if (nextErrors.password) updated.password = nextErrors.password;
+        else delete updated.password;
+        return updated;
+      });
+      return Object.keys(nextErrors).length === 0;
+    },
+    [],
+  );
 
   /**
    * Requests or resends a 6-digit OTP to the operator's server-bound Telegram Chat ID.
@@ -274,16 +326,17 @@ export function useLogin() {
       return preAuthToken;
     }
 
-    if (!validateCredentials()) {
-      setErrorCode(ERROR_CODES.VALIDATION_ERROR);
-      setErrorTitle('Periksa Kembali Isian');
-      setErrorMessage('Lengkapi username operator dan kata sandi terlebih dahulu untuk meminta kode OTP.');
-      setErrorRefCode(null);
-      setCanRetry(false);
+    const { resolvedUsername, resolvedPassword } = resolveCurrentCredentials();
+    if (!validateCredentials(resolvedUsername, resolvedPassword)) {
+      clearErrors();
+      if (!resolvedUsername) {
+        usernameInputRef.current?.focus();
+      } else {
+        passwordInputRef.current?.focus();
+      }
       return null;
     }
 
-    const trimmedUsername = username.trim();
     setIsRequestingOtp(true);
     clearErrors();
 
@@ -307,6 +360,9 @@ export function useLogin() {
           showSuccess(
             `Kode OTP 6-digit baru telah dikirim ke Telegram terdaftar (${data.maskedChatId || '@FiberOpsNOCBot'}).`,
           );
+          if (typeof window !== 'undefined') {
+            window.setTimeout(() => otpInputRef.current?.focus(), 40);
+          }
           return data.preAuthToken;
         }
         return null;
@@ -314,7 +370,7 @@ export function useLogin() {
 
       const res = await webApiClient.post<OtpChallengeResponse>(
         '/api/v1/auth/login',
-        { username: trimmedUsername, password },
+        { username: resolvedUsername, password: resolvedPassword },
         { skipAuthRedirect: true, timeoutMs: 15_000 },
       );
 
@@ -331,6 +387,9 @@ export function useLogin() {
         showSuccess(
           `Kode OTP 6-digit telah dikirim ke Telegram terdaftar (${authData.maskedChatId || '@FiberOpsNOCBot'}).`,
         );
+        if (typeof window !== 'undefined') {
+          window.setTimeout(() => otpInputRef.current?.focus(), 40);
+        }
 
         return authData.preAuthToken;
       }
@@ -347,9 +406,8 @@ export function useLogin() {
     rateLimit.isLimited,
     resendCooldown,
     preAuthToken,
+    resolveCurrentCredentials,
     validateCredentials,
-    username,
-    password,
     clearErrors,
     showSuccess,
     applyAppError,
@@ -358,31 +416,35 @@ export function useLogin() {
   const verifyOtpSubmission = useCallback(async () => {
     if (isSubmitting || isRequestingOtp || rateLimit.isLimited) return;
 
-    if (!validateCredentials()) {
-      setErrorCode(ERROR_CODES.VALIDATION_ERROR);
-      setErrorTitle('Periksa Kembali Isian');
-      setErrorMessage('Lengkapi username operator dan kata sandi terlebih dahulu.');
-      setErrorRefCode(null);
-      setCanRetry(false);
+    const { resolvedUsername, resolvedPassword } = resolveCurrentCredentials();
+    if (!validateCredentials(resolvedUsername, resolvedPassword)) {
+      clearErrors();
+      if (!resolvedUsername) {
+        usernameInputRef.current?.focus();
+      } else {
+        passwordInputRef.current?.focus();
+      }
       return;
     }
 
-    const cleanOtp = otpCode.trim();
+    const domOtp = otpInputRef.current?.value ?? '';
+    const cleanOtp = (otpCode || domOtp).replace(/\D/g, '').slice(0, 6);
+    if (!otpCode && cleanOtp) {
+      setOtpCodeState(cleanOtp);
+    }
+
     if (!preAuthToken) {
       await requestOtpCode();
       return;
     }
 
     if (!/^\d{6}$/.test(cleanOtp)) {
+      clearErrors();
       setFieldErrors((prev) => ({
         ...prev,
-        otpCode: 'Kode OTP harus terdiri dari 6 digit angka dari Telegram.',
+        otpCode: 'Masukkan 6 digit angka kode OTP yang dikirim ke Telegram Anda.',
       }));
-      setErrorCode(ERROR_CODES.VALIDATION_ERROR);
-      setErrorTitle('Format Kode OTP Belum Sesuai');
-      setErrorMessage('Masukkan 6 digit angka kode OTP yang dikirim ke Telegram Anda.');
-      setErrorRefCode(null);
-      setCanRetry(false);
+      otpInputRef.current?.focus();
       return;
     }
 
@@ -409,6 +471,7 @@ export function useLogin() {
     isSubmitting,
     isRequestingOtp,
     rateLimit.isLimited,
+    resolveCurrentCredentials,
     validateCredentials,
     otpCode,
     preAuthToken,
@@ -439,8 +502,9 @@ export function useLogin() {
     setUsername,
     password,
     setPassword,
-    showPassword,
-    toggleShowPassword,
+    usernameInputRef,
+    passwordInputRef,
+    otpInputRef,
     preAuthToken,
     otpCode,
     setOtpCode,
