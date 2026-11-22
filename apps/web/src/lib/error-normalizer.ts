@@ -431,7 +431,7 @@ export function validateUploadFile(file: File | null | undefined, rule: FileVali
 export const DATEK_UPLOAD_RULE: FileValidationRule = {
   maxSizeBytes: 10 * 1024 * 1024,
   maxSizeLabel: '10 MB',
-  allowedExtensions: ['.xlsx', '.xls', '.csv'],
+  allowedExtensions: ['.xlsx', '.csv'],
   allowedMimeTypes: [
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.ms-excel',
@@ -440,7 +440,7 @@ export const DATEK_UPLOAD_RULE: FileValidationRule = {
     'text/plain',
     'application/octet-stream',
   ],
-  formatLabel: '.xlsx, .xls, atau .csv',
+  formatLabel: '.xlsx atau .csv',
 };
 
 export const PHOTO_UPLOAD_RULE: FileValidationRule = {

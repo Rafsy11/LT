@@ -69,8 +69,8 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
     if (!/^[a-z0-9._-]{3,50}$/.test(username.trim().toLowerCase())) {
       nextFieldErrors.username = 'Username minimal 3 karakter (huruf kecil, angka, titik, _ atau -).';
     }
-    if (password.trim() && password.trim().length < 8) {
-      nextFieldErrors.password = 'Kata sandi awal minimal 8 karakter atau biarkan kosong untuk default.';
+    if (password.trim().length < 8) {
+      nextFieldErrors.password = 'Kata sandi awal wajib diisi minimal 8 karakter.';
     }
 
     if (Object.keys(nextFieldErrors).length > 0) {
@@ -92,7 +92,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
         role,
         cluster,
         vendorCompany: vendorCompany.trim() || undefined,
-        password: password.trim() || undefined,
+        password: password.trim(),
       });
       setName('');
       setNik('');
@@ -310,11 +310,12 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                   htmlFor="add-user-password"
                   style={{ display: 'block', fontSize: '12px', fontWeight: 600, margin: '0 0 4px' }}
                 >
-                  Kata Sandi Awal (Opsional):
+                  Kata Sandi Awal:
                 </label>
                 <input
                   id="add-user-password"
                   type="password"
+                  required
                   aria-invalid={Boolean(fieldErrors.password)}
                   aria-describedby={fieldErrors.password ? 'add-user-pass-err' : undefined}
                   className={fieldErrors.password ? 'ui-input-invalid' : ''}
@@ -419,7 +420,7 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, roleList }: CreateU
                 style={{ marginTop: '1px', flexShrink: 0 }}
               />
               <span>
-                Karyawan dapat langsung mengaktifkan 2FA OTP dengan mengirimkan NIK (<strong>{nik || '...'}</strong>) ke bot Telegram <strong>@FiberOpsNOCBot</strong>.
+                Setelah akun dibuat, daftarkan Telegram Chat ID resmi operator secara terotentikasi oleh Super Admin lalu aktifkan bot <strong>@FiberOpsNOCBot</strong>.
               </span>
             </div>
           </div>

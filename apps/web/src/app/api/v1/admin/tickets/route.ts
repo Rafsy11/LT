@@ -15,8 +15,10 @@ export async function GET(request: NextRequest) {
     const status = (searchParams.get('status') || undefined) as TicketQuery['status'];
     const query = searchParams.get('query') || undefined;
 
-    const rawTickets = await TicketService.listTickets({ cluster, status, query });
-    const tickets = rawTickets.filter((t) => matchesAssignedClusters(actor, t.cluster));
+    const rawTickets = await TicketService.listTickets({ cluster, status, query }, actor);
+    const tickets = rawTickets.filter((t) =>
+      matchesAssignedClusters(actor, t.clusterCode, t.cluster),
+    );
 
     return NextResponse.json({
       success: true,

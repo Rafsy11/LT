@@ -22,8 +22,8 @@ interface ErrorLike {
   message?: unknown;
   stack?: unknown;
   retryAfter?: unknown;
-  errors?: Array<{ message?: unknown; path?: Array<string | number> }>;
-  issues?: Array<{ message?: unknown; path?: Array<string | number> }>;
+  errors?: Array<{ message?: unknown; path?: PropertyKey[] }>;
+  issues?: Array<{ message?: unknown; path?: PropertyKey[] }>;
 }
 
 const PRISMA_ERROR_NAMES = new Set([
@@ -163,7 +163,7 @@ export function sanitizeAndLogServerError(
 
   // 3. Zod validation error -> 400 VALIDATION_ERROR with safe fieldErrors map (omit raw internals)
   if (errObj?.name === 'ZodError') {
-    const rawIssues = errObj.errors ?? errObj.issues ?? [];
+    const rawIssues = errObj.issues ?? errObj.errors ?? [];
     const fieldErrors: Record<string, string> = {};
     for (const issue of rawIssues) {
       const key =

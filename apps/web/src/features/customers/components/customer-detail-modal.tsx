@@ -13,6 +13,7 @@ import {
   type CustomerRecentTicket,
 } from '@repo/shared';
 import { useAuth } from '@/providers';
+import { webApiClient } from '@/lib/api-client';
 import { CustomerProfileEditModal } from './customer-profile-edit-modal';
 import '@/styles/components/customer-modal.css';
 import '@/styles/features/customer-profile.css';
@@ -56,8 +57,13 @@ export function CustomerDetailModal({
 
   const reloadDetail = (siaNumber: string) => {
     setLoadingHistory(true);
-    fetch(`/api/v1/admin/customers?sia=${encodeURIComponent(siaNumber)}`)
-      .then((res) => res.json())
+    webApiClient
+      .get<{
+        customer?: CustomerListItem;
+        histories?: AttenuationHistoryItem[];
+        recentTickets?: CustomerRecentTicket[];
+        openTicket?: CustomerRecentTicket | null;
+      }>(`/api/v1/admin/customers?sia=${encodeURIComponent(siaNumber)}`)
       .then((json) => {
         if (json.success && json.data) {
           if (json.data.customer) setLiveCustomer(json.data.customer);

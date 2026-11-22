@@ -3,10 +3,40 @@ import { redisManager } from '../lib/redis';
 
 type ClientListener = (data: ActivityFeedItem) => void;
 
+const MAX_SSE_CONNECTIONS_PER_USER = 4;
+const MAX_TOTAL_SSE_CLIENTS = 200;
+
 class SseBroadcaster {
   private listeners: Set<ClientListener> = new Set();
   private recentBroadcastKeys: Set<string> = new Set();
+  private activeConnectionsByUser: Map<string, number> = new Map();
+  private totalConnections = 0;
   private redisSubscribed = false;
+
+  public acquireConnection(userId: string): boolean {
+    if (this.totalConnections >= MAX_TOTAL_SSE_CLIENTS) {
+      return false;
+    }
+    const current = this.activeConnectionsByUser.get(userId) || 0;
+    if (current >= MAX_SSE_CONNECTIONS_PER_USER) {
+      return false;
+    }
+    this.activeConnectionsByUser.set(userId, current + 1);
+    this.totalConnections += 1;
+    return true;
+  }
+
+  public releaseConnection(userId: string): void {
+    const current = this.activeConnectionsByUser.get(userId) || 0;
+    if (current <= 1) {
+      this.activeConnectionsByUser.delete(userId);
+    } else {
+      this.activeConnectionsByUser.set(userId, current - 1);
+    }
+    if (this.totalConnections > 0) {
+      this.totalConnections -= 1;
+    }
+  }
 
   private ensureRedisSubscription(): void {
     if (this.redisSubscribed) return;

@@ -19,12 +19,14 @@ export async function GET(request: NextRequest) {
     const cluster = request.nextUrl.searchParams.get('cluster') || undefined;
 
     const [rawTickets, rawCustomers, rawTechs] = await Promise.all([
-      TicketService.listTickets({ cluster }),
+      TicketService.listTickets({ cluster }, actor),
       CustomerService.listCustomers('', cluster || 'Semua cluster'),
       TechnicianService.listTechnicians('', cluster || 'Semua cluster'),
     ]);
 
-    const tickets = rawTickets.filter((t) => matchesAssignedClusters(actor, t.cluster));
+    const tickets = rawTickets.filter((t) =>
+      matchesAssignedClusters(actor, t.clusterCode, t.cluster),
+    );
     const customers = rawCustomers.filter((c) =>
       matchesAssignedClusters(actor, c.clusterCode, c.cluster),
     );

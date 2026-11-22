@@ -15,22 +15,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     ]);
     const { id } = await params;
 
-    const existingList = await TicketService.listTickets({});
-    const targetTicket = existingList.find((t) => t.id === id || t.ticketNumber === id);
-    if (!targetTicket) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: ERROR_CODES.TICKET_NOT_FOUND,
-            message: `Tiket ${id} tidak ditemukan.`,
-          },
-        },
-        { status: 404 },
-      );
-    }
+    const targetTicket = await TicketService.getTicketById(id);
 
-    if (!matchesAssignedClusters(actor, targetTicket.cluster)) {
+    if (!matchesAssignedClusters(actor, targetTicket.clusterCode, targetTicket.cluster)) {
       return NextResponse.json(
         {
           success: false,

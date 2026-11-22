@@ -23,10 +23,9 @@ export function TelegramGuideModal({ user, onClose, onUnlink }: TelegramGuideMod
 
   const instructionText = `Halo ${user.name},
 Untuk mengaktifkan OTP 2FA akun FiberOps Anda:
-1. Buka Telegram lalu cari ${botHandle} (atau klik ${botUrl})
-2. Ketik /start
-3. Masukkan NIK resmi Anda: ${user.nik || '-'}
-Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberOps Lintasarta.`;
+1. Hubungi Super Admin NOC agar Telegram Chat ID resmi Anda ditautkan ke akun (${user.username}).
+2. Buka Telegram lalu cari ${botHandle} (atau klik ${botUrl}) dan tekan /start untuk memulai bot.
+Setelah Chat ID ditautkan oleh Admin, kode OTP login resmi FiberOps Lintasarta akan dikirim ke Telegram Anda.`;
 
   const handleCopy = async () => {
     try {
@@ -82,7 +81,7 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
               id="telegram-guide-title"
               style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'inherit' }}
             >
-              Aktivasi 2FA Telegram (NIK)
+              Aktivasi 2FA Telegram
             </h3>
           </div>
           <button
@@ -135,7 +134,7 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
               {user.telegramChatId ? (
                 <span className="telegram-status-badge connected">Terhubung</span>
               ) : (
-                <span className="telegram-status-badge pending">Menunggu NIK</span>
+                <span className="telegram-status-badge pending">Belum Terhubung</span>
               )}
             </div>
           </section>
@@ -163,7 +162,7 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
           ) : (
             <div>
               <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
-                Karyawan cukup mengirimkan NIK miliknya ke bot Telegram untuk verifikasi otomatis. Salin pesan instruksi berikut untuk dikirimkan via WhatsApp atau email internal:
+                Penautan Chat ID Telegram hanya dilakukan secara terotentikasi oleh Super Admin NOC (bukan lewat kirim NIK ke bot). Salin instruksi berikut untuk operator atau teknisi:
               </p>
 
               <div
@@ -198,7 +197,7 @@ Akun Anda akan langsung terverifikasi untuk menerima kode OTP login resmi FiberO
                 Lepas ikatan Telegram 2FA {user.name}?
               </div>
               <div className="ui-alert-banner-sub" style={{ fontSize: '11px', marginBottom: '10px' }}>
-                Karyawan tidak akan menerima OTP sampai mendaftarkan kembali NIK melalui bot Telegram.
+                Karyawan tidak akan menerima OTP sampai Super Admin menautkan kembali Telegram Chat ID resminya.
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                 <button

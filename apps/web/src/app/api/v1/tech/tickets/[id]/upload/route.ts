@@ -1,8 +1,14 @@
 import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@repo/database';
 import { ERROR_CODES } from '@repo/shared';
 import { minioManager } from '@/server/lib/minio';
 import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
+import { requireLiveDatabase } from '@/server/lib/live-data';
+import {
+  MAX_IMAGE_UPLOAD_BYTES,
+  validateImageUploadBuffer,
+} from '@/server/lib/image-validation';
 import { TicketService } from '@/server/services/ticket.service';
 import {
   resolveTechActor,
@@ -11,13 +17,6 @@ import {
 } from '@/server/lib/tech-auth';
 
 const SAFE_TICKET_ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
-const MIME_TO_EXT: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/jpg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-};
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -58,42 +57,53 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    const tickets = await TicketService.listTickets();
-    const targetTicket = tickets.find((t) => t.id === id || t.ticketNumber === id);
-    if (!targetTicket) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: ERROR_CODES.TICKET_NOT_FOUND,
-            message: `Tiket ${id} tidak ditemukan.`,
-          },
-        },
-        { status: 404 },
-      );
-    }
+    const dbOnline = await requireLiveDatabase(
+      'Database PostgreSQL tidak tersedia untuk memverifikasi tiket unggahan.',
+    );
+    let resolvedTicketId = id;
 
-    if (targetTicket.status === 'Selesai') {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: ERROR_CODES.TICKET_ALREADY_CLOSED,
-            message: 'Tiket sudah selesai diverifikasi dan tidak dapat menerima bukti baru.',
-          },
+    if (dbOnline) {
+      const dbTicket = await prisma.ticket.findFirst({
+        where: {
+          OR: [{ id }, { ticketNumber: id }],
         },
-        { status: 409 },
-      );
-    }
+        select: {
+          id: true,
+          ticketNumber: true,
+          status: true,
+          assignedTechId: true,
+        },
+      });
 
-    if (actor.userType !== 'SUPER_ADMIN') {
-      const assignedNorm = normalizeTechUsernameAlias(
-        targetTicket.assignedTechUsername ||
-          targetTicket.assignedTech.toLowerCase().replace(/\s+/g, '.'),
-      );
+      if (!dbTicket) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: ERROR_CODES.TICKET_NOT_FOUND,
+              message: `Tiket ${id} tidak ditemukan.`,
+            },
+          },
+          { status: 404 },
+        );
+      }
+
+      if (dbTicket.status === 'COMPLETED' || dbTicket.status === 'CANCELLED') {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: ERROR_CODES.TICKET_ALREADY_CLOSED,
+              message: 'Tiket sudah selesai diverifikasi dan tidak dapat menerima bukti baru.',
+            },
+          },
+          { status: 409 },
+        );
+      }
+
       if (
-        assignedNorm !== actor.canonicalUsername &&
-        targetTicket.assignedTech.toLowerCase() !== (actor.fullName || '').toLowerCase()
+        actor.userType !== 'SUPER_ADMIN' &&
+        (!dbTicket.assignedTechId || dbTicket.assignedTechId !== actor.userId)
       ) {
         return NextResponse.json(
           {
@@ -106,6 +116,47 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           { status: 403 },
         );
       }
+
+      resolvedTicketId = dbTicket.id;
+    } else {
+      const targetTicket = await TicketService.getTicketById(id);
+
+      if (targetTicket.status === 'Selesai' || targetTicket.status === 'Dibatalkan') {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: ERROR_CODES.TICKET_ALREADY_CLOSED,
+              message: 'Tiket sudah selesai diverifikasi dan tidak dapat menerima bukti baru.',
+            },
+          },
+          { status: 409 },
+        );
+      }
+
+      if (actor.userType !== 'SUPER_ADMIN') {
+        const assignedNorm = normalizeTechUsernameAlias(
+          targetTicket.assignedTechUsername ||
+            targetTicket.assignedTech.toLowerCase().replace(/\s+/g, '.'),
+        );
+        if (
+          assignedNorm !== actor.canonicalUsername &&
+          targetTicket.assignedTech.toLowerCase() !== (actor.fullName || '').toLowerCase()
+        ) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: {
+                code: ERROR_CODES.IDOR_VIOLATION,
+                message: 'Anda tidak berwenang mengunggah bukti foto untuk tiket vendor lain.',
+              },
+            },
+            { status: 403 },
+          );
+        }
+      }
+
+      resolvedTicketId = targetTicket.id;
     }
 
     const formData = await request.formData();
@@ -123,40 +174,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    const ext = MIME_TO_EXT[fileEntry.type];
-    if (!ext) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: ERROR_CODES.UNSUPPORTED_MEDIA_TYPE,
-            message: 'Format berkas foto belum didukung. Gunakan gambar berformat JPG, PNG, atau WEBP (maksimal 5 MB).',
-          },
-        },
-        { status: 415 },
-      );
-    }
-
-    if (fileEntry.size <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Berkas foto kosong. Ambil ulang foto pengukuran OPM lalu unggah kembali.',
-          },
-        },
-        { status: 400 },
-      );
-    }
-
-    if (fileEntry.size > MAX_UPLOAD_BYTES) {
+    if (fileEntry.size > MAX_IMAGE_UPLOAD_BYTES) {
       return NextResponse.json(
         {
           success: false,
           error: {
             code: ERROR_CODES.PAYLOAD_TOO_LARGE,
-            message: 'Ukuran foto melebihi batas maksimal 5 MB. Perkecil ukuran foto (JPG, PNG, atau WEBP) lalu coba kembali.',
+            message:
+              'Ukuran foto melebihi batas maksimal 5 MB. Perkecil ukuran foto (JPG, PNG, atau WEBP) lalu coba kembali.',
           },
         },
         { status: 413 },
@@ -165,13 +190,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const arrayBuffer = await fileEntry.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+    const detected = validateImageUploadBuffer(fileEntry, buffer);
+
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
-    const safeTicketRef = targetTicket.id.replace(/[^a-zA-Z0-9_-]/g, '');
-    const objectKey = `opm-proofs/${year}/${month}/${safeTicketRef}-${crypto.randomUUID()}.${ext}`;
+    const safeTicketRef = resolvedTicketId.replace(/[^a-zA-Z0-9_-]/g, '');
+    const objectKey = `opm-proofs/${year}/${month}/${safeTicketRef}-${crypto.randomUUID()}.${detected.ext}`;
 
-    const uploadResult = await minioManager.putObjectBuffer(objectKey, buffer, fileEntry.type);
+    const uploadResult = await minioManager.putObjectBuffer(objectKey, buffer, detected.mimeType);
 
     return NextResponse.json(
       {
@@ -180,7 +207,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           photoObjectKey: uploadResult.objectKey,
           storedInMinio: uploadResult.stored,
           sizeBytes: buffer.length,
-          contentType: fileEntry.type,
+          contentType: detected.mimeType,
         },
       },
       { status: 201 },

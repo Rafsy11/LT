@@ -34,9 +34,18 @@ export function OdpInspectorPanel({ odp, highlightedSia }: OdpInspectorPanelProp
         ? { label: 'NORMAL (≤ 28 dB)', cls: 'is-normal' }
         : { label: 'BELUM DIUKUR', cls: 'is-unmeasured' };
 
-  const googleSearchUrl = `https://www.google.com/maps/search/?api=1&query=${odp.lat},${odp.lng}`;
-  const googleDirUrl = `https://www.google.com/maps/dir/?api=1&destination=${odp.lat},${odp.lng}`;
-  const googleEmbedUrl = `https://maps.google.com/maps?q=${odp.lat},${odp.lng}&z=17&output=embed`;
+  const hasSafeCoords =
+    Number.isFinite(odp.lat) &&
+    Number.isFinite(odp.lng) &&
+    odp.lat >= -90 &&
+    odp.lat <= 90 &&
+    odp.lng >= -180 &&
+    odp.lng <= 180;
+  const safeLat = hasSafeCoords ? odp.lat : 0;
+  const safeLng = hasSafeCoords ? odp.lng : 0;
+  const googleSearchUrl = `https://www.google.com/maps/search/?api=1&query=${safeLat},${safeLng}`;
+  const googleDirUrl = `https://www.google.com/maps/dir/?api=1&destination=${safeLat},${safeLng}`;
+  const googleEmbedUrl = `https://maps.google.com/maps?q=${safeLat},${safeLng}&z=17&output=embed`;
 
   return (
     <aside className="maps-inspector" aria-label={`Detail ODP ${odp.name}`}>
@@ -141,13 +150,14 @@ export function OdpInspectorPanel({ odp, highlightedSia }: OdpInspectorPanelProp
         </button>
       </div>
 
-      {showGoogleEmbed && (
+      {showGoogleEmbed && hasSafeCoords && (
         <iframe
           title={`Pratinjau Google Maps untuk ${odp.name}`}
           src={googleEmbedUrl}
           className="maps-gmaps-embed-frame"
           loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
+          sandbox="allow-scripts allow-same-origin"
+          referrerPolicy="no-referrer"
         />
       )}
 

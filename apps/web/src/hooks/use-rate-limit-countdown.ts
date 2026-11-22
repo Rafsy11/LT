@@ -39,15 +39,17 @@ export function useRateLimitCountdown(initialSeconds = 0): RateLimitCountdownSta
     Math.max(0, Math.ceil(initialSeconds)),
   );
 
+  const hasCooldown = remainingSeconds > 0;
+
   useEffect(() => {
-    if (remainingSeconds <= 0) return;
+    if (!hasCooldown) return;
 
     const timerId = window.setInterval(() => {
       setRemainingSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
 
     return () => window.clearInterval(timerId);
-  }, [remainingSeconds > 0]);
+  }, [hasCooldown]);
 
   const startCooldown = useCallback((seconds: number) => {
     const normalized = Math.max(1, Math.ceil(seconds));

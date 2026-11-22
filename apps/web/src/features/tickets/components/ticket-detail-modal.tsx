@@ -218,6 +218,18 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
     }
   };
 
+  const isSafeMediaPreviewUrl = (url: string): boolean => {
+    const trimmed = url.trim();
+    if (!trimmed || /[\x00-\x1f\x7f]/.test(trimmed)) return false;
+    if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return true;
+    try {
+      const parsed = new URL(trimmed);
+      return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+    } catch {
+      return false;
+    }
+  };
+
   const handleInspectPhoto = async () => {
     const objectKey = pendingData?.photoObjectKey || 'opm-proofs/2025/02/t-3-opm.webp';
     if (photoPreviewOpen && loadedPhotoKey === objectKey) {
@@ -232,7 +244,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
       const json = await webApiClient.get<{ url?: string; isMockFallback?: boolean }>(
         `/api/v1/admin/media/presign?key=${encodeURIComponent(objectKey)}`,
       );
-      if (!json.success || !json.data?.url) {
+      if (!json.success || !json.data?.url || !isSafeMediaPreviewUrl(json.data.url)) {
         throw normalizeAppError(!json.success ? json.error : null, {
           fallbackMessage: 'Tautan pratinjau foto bukti belum dapat dimuat saat ini.',
         });
@@ -747,7 +759,7 @@ export function TicketDetailModal({ ticket, onClose, onTicketUpdated }: TicketDe
                         </div>
                       )}
                     </div>
-                  ) : photoUrl ? (
+                  ) : photoUrl && isSafeMediaPreviewUrl(photoUrl) ? (
                     <div className="modal-proof-image-wrap">
                       <Image
                         src={photoUrl}

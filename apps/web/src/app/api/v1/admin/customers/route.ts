@@ -111,6 +111,7 @@ export async function PATCH(request: NextRequest) {
         validated.newSplitterCode,
         validated.newPortNumber,
         actor.userId,
+        actor,
       );
       return NextResponse.json({ success: true, data: updated });
     }

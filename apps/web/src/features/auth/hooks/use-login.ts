@@ -26,7 +26,6 @@ interface OtpChallengeResponse {
 }
 
 interface VerifiedSessionResponse {
-  accessToken?: string;
   user: {
     id: string;
     username: string;
@@ -40,19 +39,36 @@ interface VerifiedSessionResponse {
   };
 }
 
-function resolveSafeRedirectTarget(search: string): string {
+export function resolveSafeRedirectTarget(search: string): string {
   const params = new URLSearchParams(search);
   const candidate =
     params.get('next') || params.get('redirect') || params.get('callbackUrl') || '';
-  if (
-    candidate &&
-    candidate.startsWith('/') &&
-    !candidate.startsWith('//') &&
-    !candidate.startsWith('/login')
-  ) {
-    return candidate;
+  if (!candidate || !candidate.startsWith('/') || candidate.startsWith('//')) {
+    return '/';
   }
-  return '/';
+  if (/[\\\s]/.test(candidate) || /%5c/i.test(candidate)) {
+    return '/';
+  }
+  for (let i = 0; i < candidate.length; i++) {
+    const code = candidate.charCodeAt(i);
+    if (code <= 0x1f || code === 0x7f) {
+      return '/';
+    }
+  }
+  try {
+    const parsed = new URL(candidate, 'https://fiberops.local');
+    if (
+      parsed.origin !== 'https://fiberops.local' ||
+      parsed.pathname.startsWith('//') ||
+      parsed.pathname === '/login' ||
+      parsed.pathname.startsWith('/login/')
+    ) {
+      return '/';
+    }
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return '/';
+  }
 }
 
 export function useLogin() {
@@ -223,14 +239,6 @@ export function useLogin() {
         permissions: userPayload.permissions,
         assignedClusters: userPayload.assignedClusters,
       });
-
-      if (authData.accessToken) {
-        try {
-          window.localStorage.setItem('fiberops_access_token', authData.accessToken);
-        } catch {
-          // Ignore storage errors
-        }
-      }
 
       showSuccess(
         `Verifikasi 2FA Berhasil: Selamat bertugas, ${userPayload.fullName || userPayload.username}.`,

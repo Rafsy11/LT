@@ -512,23 +512,31 @@ export function CustomerProfileView({ sia }: CustomerProfileViewProps) {
                     <span className="cp-kv-mono">{customer.picPhone || '-'}</span>
                   </div>
                 </div>
-                {customer.picPhone && (
-                  <div className="cp-pic-actions">
-                    <a href={`tel:${customer.picPhone.replace(/\s+/g, '')}`} className="cp-contact-btn">
-                      <Icon name="phone" size={13} />
-                      <span>Telepon PIC</span>
-                    </a>
-                    <a
-                      href={`https://wa.me/${formatWaPhone(customer.picPhone)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="cp-contact-btn"
-                    >
-                      <Icon name="chat" size={13} />
-                      <span>Chat WhatsApp</span>
-                    </a>
-                  </div>
-                )}
+                {customer.picPhone && (() => {
+                  const rawDigits = customer.picPhone.replace(/[^\d+]/g, '');
+                  const safeTel = rawDigits.startsWith('+')
+                    ? `+${rawDigits.slice(1).replace(/\+/g, '')}`
+                    : rawDigits.replace(/\+/g, '');
+                  return (
+                    <div className="cp-pic-actions">
+                      {safeTel && (
+                        <a href={`tel:${safeTel}`} className="cp-contact-btn">
+                          <Icon name="phone" size={13} />
+                          <span>Telepon PIC</span>
+                        </a>
+                      )}
+                      <a
+                        href={`https://wa.me/${formatWaPhone(customer.picPhone)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="cp-contact-btn"
+                      >
+                        <Icon name="chat" size={13} />
+                        <span>Chat WhatsApp</span>
+                      </a>
+                    </div>
+                  );
+                })()}
               </>
             ) : (
               <p className="cp-empty-note">

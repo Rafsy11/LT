@@ -146,6 +146,22 @@ export function invalidateQueryCache(...keysOrPrefixes: string[]): void {
 }
 
 /**
+ * Clears all client-side query cache entries, in-flight promises, and listeners (used on logout/401).
+ */
+export function clearQueryCache(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const registry = window.__fiberopsQueryCache;
+  if (registry) {
+    registry.entries.clear();
+    registry.inFlight.clear();
+    registry.listeners.clear();
+    delete window.__fiberopsQueryCache;
+  }
+}
+
+/**
  * Subscribes a listener callback to cache updates for a specific key.
  */
 export function subscribeQueryCache(key: string, listener: () => void): () => void {

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth, useToast } from '@/providers';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
 import { webApiClient } from '@/lib/api-client';
+import { escapeCsvCell } from '@/lib/csv';
 import { normalizeAppError } from '@/lib/error-normalizer';
 import {
   classifyDbm,
@@ -303,23 +304,30 @@ export function useOverview() {
   });
 
   const exportCsv = () => {
-    const csvContent =
-      'Tiket,Pelanggan,Nomor SIA,Tipe Pekerjaan,Cluster,Teknisi,Status,Redaman (dBm)\n' +
-      filteredTickets
-        .map((r) =>
-          [
-            r.ticketNumber,
-            `"${r.customerName}"`,
-            r.siaNumber,
-            r.ticketType,
-            r.cluster,
-            r.assignedTech,
-            r.status,
-            r.currentAttenuation,
-          ].join(','),
-        )
-        .join('\n');
+    const headers = [
+      'Tiket',
+      'Pelanggan',
+      'Nomor SIA',
+      'Tipe Pekerjaan',
+      'Cluster',
+      'Teknisi',
+      'Status',
+      'Redaman (dBm)',
+    ];
+    const rows = filteredTickets.map((r) => [
+      r.ticketNumber,
+      r.customerName,
+      r.siaNumber,
+      r.ticketType,
+      r.cluster,
+      r.assignedTech,
+      r.status,
+      r.currentAttenuation,
+    ]);
 
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => escapeCsvCell(cell)).join(','))
+      .join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

@@ -10,6 +10,7 @@ import {
   type CreateTicketInput,
 } from '@repo/shared';
 import { SignalStrengthBars } from '@/features/customers';
+import { escapeCsvCell } from '@/lib/csv';
 import type {
   AttenuationMeta,
   OdpHistoryLogItem,
@@ -93,24 +94,33 @@ export function SplitterPortGrid({
       : null;
 
   const handleDownloadInspectionCsv = () => {
-    const header = 'ODP,Port,Status,Pelanggan,SIA,Redaman (dBm),Terakhir Dicek,Teknisi,Catatan\n';
-    const rows = activeSplitter.ports
-      .map((port) =>
-        [
-          activeSplitter.splitterCode,
-          port.portNumber,
-          port.isOccupied ? 'Terisi' : 'Siap PSB',
-          `"${port.customerName || '-'}"`,
-          port.siaNumber || '-',
-          port.attenuation != null ? port.attenuation.toFixed(1) : '-',
-          `"${port.lastActivity?.date || '-'}"`,
-          `"${port.lastActivity?.technician || '-'}"`,
-          `"${(port.lastActivity?.notes || '-').replace(/"/g, '""')}"`,
-        ].join(','),
-      )
-      .join('\n');
+    const headers = [
+      'ODP',
+      'Port',
+      'Status',
+      'Pelanggan',
+      'SIA',
+      'Redaman (dBm)',
+      'Terakhir Dicek',
+      'Teknisi',
+      'Catatan',
+    ];
+    const rows = activeSplitter.ports.map((port) => [
+      activeSplitter.splitterCode,
+      port.portNumber,
+      port.isOccupied ? 'Terisi' : 'Siap PSB',
+      port.customerName || '-',
+      port.siaNumber || '-',
+      port.attenuation != null ? Number(port.attenuation.toFixed(1)) : '-',
+      port.lastActivity?.date || '-',
+      port.lastActivity?.technician || '-',
+      port.lastActivity?.notes || '-',
+    ]);
 
-    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => escapeCsvCell(cell)).join(','))
+      .join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

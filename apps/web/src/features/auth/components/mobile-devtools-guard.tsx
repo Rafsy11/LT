@@ -8,15 +8,17 @@ export interface MobileDevToolsGuardProps {
   isBlocked: boolean;
   /** Optional callback to force an immediate status recheck. */
   onRecheck: () => void;
+  /** Protected content that is unmounted from the DOM whenever isBlocked is true. */
+  children?: React.ReactNode;
 }
 
 /**
  * Full-viewport mobile security barrier rendered exclusively when Developer Tools
  * are active on `/login`. Disappears automatically once DevTools are closed.
  */
-export function MobileDevToolsGuard({ isBlocked, onRecheck }: MobileDevToolsGuardProps) {
+export function MobileDevToolsGuard({ isBlocked, onRecheck, children }: MobileDevToolsGuardProps) {
   if (!isBlocked) {
-    return null;
+    return <>{children ?? null}</>;
   }
 
   return (

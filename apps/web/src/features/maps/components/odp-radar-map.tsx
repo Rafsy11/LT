@@ -82,6 +82,36 @@ function hasValidCoords(lat: number, lng: number): boolean {
   );
 }
 
+function buildOdpTooltipElement(item: OdpMapRadarItem, statusText: string): HTMLElement {
+  const root = document.createElement('div');
+  const title = document.createElement('strong');
+  title.textContent = item.name;
+  root.appendChild(title);
+  root.appendChild(document.createElement('br'));
+  root.appendChild(document.createTextNode(`${item.splitterCode} · ${statusText}`));
+  if (item.worstAttenuation !== null) {
+    root.appendChild(document.createElement('br'));
+    root.appendChild(
+      document.createTextNode(`Redaman terburuk: ${item.worstAttenuation.toFixed(1)} dBm`),
+    );
+  }
+  return root;
+}
+
+function buildCustomerTooltipElement(cust: OdpMapRadarItem['customers'][number]): HTMLElement {
+  const root = document.createElement('div');
+  const title = document.createElement('strong');
+  title.textContent = cust.fullName;
+  root.appendChild(title);
+  root.appendChild(document.createElement('br'));
+  root.appendChild(document.createTextNode(`SIA: ${cust.siaNumber}`));
+  if (cust.ontAttenuation !== null) {
+    root.appendChild(document.createElement('br'));
+    root.appendChild(document.createTextNode(`ONT: ${cust.ontAttenuation.toFixed(1)} dB`));
+  }
+  return root;
+}
+
 /**
  * Dual-Engine Interactive ODP Radar Map:
  * - Uses native Google Maps JavaScript SDK when `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is configured.
@@ -307,12 +337,10 @@ export function OdpRadarMap({
           icon,
           zIndexOffset: isSelected ? 1000 : item.radarStatus === 'ABNORMAL' ? 500 : 100,
         });
-        marker.bindTooltip(
-          `<strong>${item.name}</strong><br/>${item.splitterCode} · ${statusText}${
-            item.worstAttenuation !== null ? `<br/>Redaman terburuk: ${item.worstAttenuation.toFixed(1)} dBm` : ''
-          }`,
-          { direction: 'top', offset: [0, -10] },
-        );
+        marker.bindTooltip(buildOdpTooltipElement(item, statusText), {
+          direction: 'top',
+          offset: [0, -10],
+        });
         marker.on('click', () => onSelectOdp(item.id));
         marker.addTo(markersLayer);
       }
@@ -344,14 +372,10 @@ export function OdpRadarMap({
           });
 
           const custMarker = L.marker([cust.lat, cust.lng], { icon: custIcon });
-          custMarker.bindTooltip(
-            `<strong>${cust.fullName}</strong><br/>SIA: ${cust.siaNumber}${
-              cust.ontAttenuation !== null
-                ? `<br/>ONT: ${cust.ontAttenuation.toFixed(1)} dB`
-                : ''
-            }`,
-            { direction: 'top', offset: [0, -6] },
-          );
+          custMarker.bindTooltip(buildCustomerTooltipElement(cust), {
+            direction: 'top',
+            offset: [0, -6],
+          });
           custMarker.addTo(linksLayer);
         }
 

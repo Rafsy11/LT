@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 
 const DEVTOOLS_DIMENSION_THRESHOLD = 160;
 const MOBILE_BREAKPOINT_PX = 768;
-const POLL_INTERVAL_MS = 750;
 
 export interface DevToolsDetectorState {
   /** True only when mobile viewport/device is active AND DevTools is currently open. */
@@ -56,22 +55,6 @@ function detectDockedDevTools(): boolean {
   return false;
 }
 
-function detectConsoleObjectInspection(): boolean {
-  if (typeof document === 'undefined') return false;
-  let inspected = false;
-  const probe = document.createElement('div');
-  Object.defineProperty(probe, 'id', {
-    get() {
-      inspected = true;
-      return '';
-    },
-    configurable: true,
-  });
-  // Uncoerced DOM probe triggers the id getter only when browser DevTools formats console output
-  console.debug(probe);
-  return inspected;
-}
-
 function evaluateDevToolsState(): { isMobileViewport: boolean; isOpen: boolean } {
   if (typeof window === 'undefined') {
     return { isMobileViewport: false, isOpen: false };
@@ -86,8 +69,7 @@ function evaluateDevToolsState(): { isMobileViewport: boolean; isOpen: boolean }
     return { isMobileViewport: true, isOpen: true };
   }
 
-  const consoleInspected = detectConsoleObjectInspection();
-  return { isMobileViewport: true, isOpen: consoleInspected };
+  return { isMobileViewport: true, isOpen: false };
 }
 
 /**
@@ -130,12 +112,10 @@ export function useMobileDevToolsGuard(): DevToolsDetectorState {
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('keydown', handleKeyDown);
-    const intervalId = window.setInterval(recheck, POLL_INTERVAL_MS);
 
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('keydown', handleKeyDown);
-      window.clearInterval(intervalId);
     };
   }, [recheck]);
 

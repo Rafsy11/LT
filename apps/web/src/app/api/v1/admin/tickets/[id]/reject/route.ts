@@ -15,9 +15,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     ]);
     const { id } = await params;
 
-    const existingList = await TicketService.listTickets({});
-    const targetTicket = existingList.find((t) => t.id === id || t.ticketNumber === id);
-    if (targetTicket && !matchesAssignedClusters(actor, targetTicket.cluster)) {
+    const targetTicket = await TicketService.getTicketById(id);
+    if (!matchesAssignedClusters(actor, targetTicket.clusterCode, targetTicket.cluster)) {
       return NextResponse.json(
         {
           success: false,

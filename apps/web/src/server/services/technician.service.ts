@@ -1,5 +1,13 @@
 import { prisma } from '@repo/database';
-import { type TechnicianListItem } from '@repo/shared';
+import {
+  ERROR_CODES,
+  HIERARCHY_LEVELS,
+  type TechnicianListItem,
+  type UserSessionContext,
+} from '@repo/shared';
+import { AuthHttpError, matchesAssignedClusters } from '../lib/admin-auth';
+import { redisManager } from '../lib/redis';
+import { RoleService } from './role.service';
 import {
   isStrictLiveMode,
   requireLiveDatabase,
@@ -286,91 +294,139 @@ export class TechnicianService {
   }
 
   /**
-   * Toggles technician account activation status with audit logging.
+   * Toggles technician account activation status with audit logging and session revocation.
    */
   public static async toggleTechnicianStatus(
     username: string,
     setActive?: boolean,
     reason?: string,
     actorId = 'superadmin',
+    actorContext?: UserSessionContext,
   ) {
     if (await requireLiveDatabase('Database PostgreSQL diperlukan untuk mengubah status teknisi.')) {
       try {
         const user = await prisma.user.findFirst({
           where: {
-            OR: [
-              { id: username },
-              { username },
-              { fullName: { contains: username, mode: 'insensitive' } },
-            ],
+            userType: 'TECHNICIAN',
+            OR: [{ id: username }, { username }],
+          },
+          include: { role: true },
+        });
+
+        if (!user) {
+          throw new AuthHttpError(
+            404,
+            ERROR_CODES.TECH_NOT_FOUND,
+            `Teknisi ${username} tidak ditemukan`,
+          );
+        }
+
+        if (user.userType !== 'TECHNICIAN') {
+          throw new AuthHttpError(
+            403,
+            ERROR_CODES.FORBIDDEN,
+            'Operasi ini hanya berlaku untuk akun Teknisi Lapangan.',
+          );
+        }
+
+        if (actorContext) {
+          RoleService.checkHierarchyProtection(
+            actorContext.hierarchyLevel,
+            user.role?.hierarchyLevel ?? HIERARCHY_LEVELS.TECHNICIAN,
+          );
+          if (!matchesAssignedClusters(actorContext, ...(user.assignedClusters || []))) {
+            throw new AuthHttpError(
+              403,
+              ERROR_CODES.FORBIDDEN,
+              'Akses ditolak: Teknisi berada di luar cakupan wilayah cluster Anda.',
+            );
+          }
+        }
+
+        const nextState = setActive !== undefined ? setActive : !user.isActive;
+
+        const updated = await prisma.user.update({
+          where: { id: user.id },
+          data: { isActive: nextState },
+        });
+
+        if (!nextState) {
+          const activeSessions = await prisma.userSession.findMany({
+            where: { userId: user.id, revokedAt: null },
+            select: { id: true, deviceId: true },
+          });
+          await prisma.userSession.updateMany({
+            where: { userId: user.id, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+          for (const s of activeSessions) {
+            await redisManager.blacklistSession(s.id);
+            if (s.deviceId && s.deviceId !== 'web-browser') {
+              await redisManager.blacklistSession(s.deviceId);
+            }
+          }
+        }
+
+        await prisma.activityLog.create({
+          data: {
+            actorUserId: actorId,
+            actorRole: actorContext?.role || 'Admin',
+            actionType: nextState ? 'TECH_ACCOUNT_ACTIVATED' : 'TECH_ACCOUNT_DEACTIVATED',
+            targetEntity: 'user',
+            targetId: user.id,
+            oldPayload: { isActive: user.isActive },
+            newPayload: { isActive: nextState, reason },
           },
         });
 
-        if (user) {
-          const nextState = setActive !== undefined ? setActive : !user.isActive;
-
-          const updated = await prisma.user.update({
-            where: { id: user.id },
-            data: { isActive: nextState },
-          });
-
-          // Revoke active sessions if account deactivated
-          if (!nextState) {
-            await prisma.userSession.updateMany({
-              where: { userId: user.id, revokedAt: null },
-              data: { revokedAt: new Date() },
-            });
-          }
-
-          // Audit log
-          await prisma.activityLog.create({
-            data: {
-              actorUserId: actorId,
-              actorRole: 'Admin',
-              actionType: nextState ? 'TECH_ACCOUNT_ACTIVATED' : 'TECH_ACCOUNT_DEACTIVATED',
-              targetEntity: 'user',
-              targetId: user.id,
-              oldPayload: { isActive: user.isActive },
-              newPayload: { isActive: nextState, reason },
-            },
-          });
-
-          return {
-            id: updated.id,
-            username: updated.username,
-            fullName: updated.fullName,
-            cluster: updated.assignedClusters[0] || '-',
-            initials: getInitials(updated.fullName),
-            isActive: updated.isActive,
-            activeTicketsCount: 0,
-            completedTicketsCount: 0,
-            sessionStatus: !nextState ? ('REVOKED' as const) : ('NO_SESSION' as const),
-          };
-        }
-        if (isStrictLiveMode()) {
-          const notFound = new Error(`Teknisi ${username} tidak ditemukan`) as Error & {
-            statusCode?: number;
-          };
-          notFound.statusCode = 404;
-          throw notFound;
-        }
+        return {
+          id: updated.id,
+          username: updated.username,
+          fullName: updated.fullName,
+          cluster: updated.assignedClusters[0] || '-',
+          initials: getInitials(updated.fullName),
+          isActive: updated.isActive,
+          activeTicketsCount: 0,
+          completedTicketsCount: 0,
+          sessionStatus: !nextState ? ('REVOKED' as const) : ('NO_SESSION' as const),
+        };
       } catch (err) {
-        if ((err as Error).message.includes('tidak ditemukan')) {
+        if (err instanceof AuthHttpError) {
           throw err;
         }
-        rethrowIfStrictDatabaseError(err, 'Gagal memperbarui status teknisi di PostgreSQL.');
+        if (
+          err instanceof Error &&
+          (err.message.includes('tidak ditemukan') ||
+            err.message.includes(ERROR_CODES.HIERARCHY_VIOLATION))
+        ) {
+          throw err;
+        }
+        rethrowIfStrictDatabaseError(err, 'Gagal memperbarui status teknisi.');
       }
     }
 
-    const tech = FALLBACK_TECHS.find(
-      (t) =>
-        t.id === username ||
-        t.username === username ||
-        t.fullName.toLowerCase() === username.toLowerCase(),
-    );
+    const tech = FALLBACK_TECHS.find((t) => t.id === username || t.username === username);
 
     if (!tech) {
-      throw new Error(`Teknisi ${username} tidak ditemukan`);
+      throw new AuthHttpError(
+        404,
+        ERROR_CODES.TECH_NOT_FOUND,
+        `Teknisi ${username} tidak ditemukan`,
+      );
+    }
+
+    if (actorContext) {
+      RoleService.checkHierarchyProtection(
+        actorContext.hierarchyLevel,
+        HIERARCHY_LEVELS.TECHNICIAN,
+      );
+      if (!matchesAssignedClusters(actorContext, tech.cluster)) {
+        throw new AuthHttpError(
+          403,
+          ERROR_CODES.FORBIDDEN,
+          'Akses ditolak: Teknisi berada di luar cakupan wilayah cluster Anda.',
+        );
+      }
     }
 
     tech.isActive = setActive !== undefined ? setActive : !tech.isActive;
@@ -393,83 +449,132 @@ export class TechnicianService {
     idOrUsername: string,
     reason = 'Admin Force Logout (Sesi Dicabut)',
     actorId = 'usr-admin-01',
+    actorContext?: UserSessionContext,
   ): Promise<TechnicianListItem> {
     if (await requireLiveDatabase('Database PostgreSQL diperlukan untuk mencabut sesi teknisi.')) {
       try {
         const user = await prisma.user.findFirst({
           where: {
-            OR: [
-              { id: idOrUsername },
-              { username: idOrUsername },
-              { fullName: { contains: idOrUsername, mode: 'insensitive' } },
-            ],
+            userType: 'TECHNICIAN',
+            OR: [{ id: idOrUsername }, { username: idOrUsername }],
+          },
+          include: { role: true },
+        });
+
+        if (!user) {
+          throw new AuthHttpError(
+            404,
+            ERROR_CODES.TECH_NOT_FOUND,
+            `Teknisi ${idOrUsername} tidak ditemukan`,
+          );
+        }
+
+        if (user.userType !== 'TECHNICIAN') {
+          throw new AuthHttpError(
+            403,
+            ERROR_CODES.FORBIDDEN,
+            'Operasi ini hanya berlaku untuk akun Teknisi Lapangan.',
+          );
+        }
+
+        if (actorContext) {
+          RoleService.checkHierarchyProtection(
+            actorContext.hierarchyLevel,
+            user.role?.hierarchyLevel ?? HIERARCHY_LEVELS.TECHNICIAN,
+          );
+          if (!matchesAssignedClusters(actorContext, ...(user.assignedClusters || []))) {
+            throw new AuthHttpError(
+              403,
+              ERROR_CODES.FORBIDDEN,
+              'Akses ditolak: Teknisi berada di luar cakupan wilayah cluster Anda.',
+            );
+          }
+        }
+
+        const now = new Date();
+        const activeSessions = await prisma.userSession.findMany({
+          where: { userId: user.id, revokedAt: null },
+          select: { id: true, deviceId: true },
+        });
+
+        await prisma.userSession.updateMany({
+          where: {
+            userId: user.id,
+            revokedAt: null,
+          },
+          data: {
+            revokedAt: now,
           },
         });
 
-        if (user) {
-          // 1. Revoke active sessions in user_sessions table
-          const now = new Date();
-          await prisma.userSession.updateMany({
-            where: {
-              userId: user.id,
-              revokedAt: null,
-            },
-            data: {
-              revokedAt: now,
-            },
-          });
-
-          // 2. Audit log immutable record (agent.md Law 2 & PRD Section 5.1)
-          await prisma.activityLog.create({
-            data: {
-              actorUserId: actorId,
-              actorRole: 'Admin',
-              actionType: 'TECH_FORCE_LOGOUT',
-              targetEntity: 'user',
-              targetId: user.id,
-              oldPayload: { sessionStatus: 'ACTIVE_SESSION' },
-              newPayload: { sessionStatus: 'REVOKED', reason, timestamp: now.toISOString() },
-            },
-          });
-
-          return {
-            id: user.id,
-            username: user.username,
-            fullName: user.fullName,
-            cluster: user.assignedClusters[0] || '-',
-            initials: getInitials(user.fullName),
-            isActive: user.isActive,
-            activeTicketsCount: 0,
-            completedTicketsCount: 0,
-            sessionStatus: 'REVOKED',
-            lastActiveAt: 'Baru saja dicabut oleh Admin',
-          };
+        for (const s of activeSessions) {
+          await redisManager.blacklistSession(s.id);
+          if (s.deviceId && s.deviceId !== 'web-browser') {
+            await redisManager.blacklistSession(s.deviceId);
+          }
         }
-        if (isStrictLiveMode()) {
-          const notFound = new Error(`Teknisi ${idOrUsername} tidak ditemukan`) as Error & {
-            statusCode?: number;
-          };
-          notFound.statusCode = 404;
-          throw notFound;
-        }
+
+        await prisma.activityLog.create({
+          data: {
+            actorUserId: actorId,
+            actorRole: actorContext?.role || 'Admin',
+            actionType: 'TECH_FORCE_LOGOUT',
+            targetEntity: 'user',
+            targetId: user.id,
+            oldPayload: { sessionStatus: 'ACTIVE_SESSION' },
+            newPayload: { sessionStatus: 'REVOKED', reason, timestamp: now.toISOString() },
+          },
+        });
+
+        return {
+          id: user.id,
+          username: user.username,
+          fullName: user.fullName,
+          cluster: user.assignedClusters[0] || '-',
+          initials: getInitials(user.fullName),
+          isActive: user.isActive,
+          activeTicketsCount: 0,
+          completedTicketsCount: 0,
+          sessionStatus: 'REVOKED',
+          lastActiveAt: 'Baru saja dicabut oleh Admin',
+        };
       } catch (err) {
-        if ((err as Error).message.includes('tidak ditemukan')) {
+        if (err instanceof AuthHttpError) {
           throw err;
         }
-        rethrowIfStrictDatabaseError(err, 'Gagal mencabut sesi teknisi di PostgreSQL.');
+        if (
+          err instanceof Error &&
+          (err.message.includes('tidak ditemukan') ||
+            err.message.includes(ERROR_CODES.HIERARCHY_VIOLATION))
+        ) {
+          throw err;
+        }
+        rethrowIfStrictDatabaseError(err, 'Gagal mencabut sesi teknisi.');
       }
     }
 
-    // Graceful fallback memory
-    const tech = FALLBACK_TECHS.find(
-      (t) =>
-        t.id === idOrUsername ||
-        t.username === idOrUsername ||
-        t.fullName.toLowerCase() === idOrUsername.toLowerCase(),
-    );
+    const tech = FALLBACK_TECHS.find((t) => t.id === idOrUsername || t.username === idOrUsername);
 
     if (!tech) {
-      throw new Error(`Teknisi ${idOrUsername} tidak ditemukan`);
+      throw new AuthHttpError(
+        404,
+        ERROR_CODES.TECH_NOT_FOUND,
+        `Teknisi ${idOrUsername} tidak ditemukan`,
+      );
+    }
+
+    if (actorContext) {
+      RoleService.checkHierarchyProtection(
+        actorContext.hierarchyLevel,
+        HIERARCHY_LEVELS.TECHNICIAN,
+      );
+      if (!matchesAssignedClusters(actorContext, tech.cluster)) {
+        throw new AuthHttpError(
+          403,
+          ERROR_CODES.FORBIDDEN,
+          'Akses ditolak: Teknisi berada di luar cakupan wilayah cluster Anda.',
+        );
+      }
     }
 
     tech.sessionStatus = 'REVOKED';

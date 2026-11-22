@@ -261,14 +261,14 @@ export function CustomerProfileEditModal({
     if (
       photoObjectKey.trim() &&
       !(
-        photoObjectKey.trim().startsWith('https://') ||
         photoObjectKey.trim().startsWith('/assets/') ||
         photoObjectKey.trim().startsWith('customers/') ||
-        photoObjectKey.trim().startsWith('proofs/')
+        photoObjectKey.trim().startsWith('proofs/') ||
+        photoObjectKey.trim().startsWith('opm-proofs/')
       )
     ) {
       errors.photoObjectKey =
-        'Gunakan tombol unggah foto atau masukkan tautan gambar aman berawalan https://.';
+        'Gunakan tombol unggah foto atau masukkan key objek media (customers/, proofs/, opm-proofs/) / path /assets/ yang sah.';
     }
 
     setFieldErrors(errors);
@@ -476,10 +476,10 @@ export function CustomerProfileEditModal({
                   </label>
 
                   <label className="field">
-                    <span>Atau URL Gambar HTTPS (Opsional)</span>
+                    <span>Referensi Key Media / Aset (Opsional)</span>
                     <input
                       type="text"
-                      placeholder="https://... atau hasil unggah otomatis"
+                      placeholder="customers/... atau /assets/... (hasil unggah otomatis)"
                       aria-invalid={Boolean(fieldErrors.photoObjectKey)}
                       className={fieldErrors.photoObjectKey ? 'ui-input-invalid' : ''}
                       value={photoObjectKey}
@@ -487,7 +487,7 @@ export function CustomerProfileEditModal({
                         const v = e.target.value;
                         setPhotoObjectKey(v);
                         clearField('photoObjectKey');
-                        if (v.trim().startsWith('https://') || v.trim().startsWith('/assets/')) {
+                        if (v.trim().startsWith('/assets/')) {
                           setPhotoPreviewUrl(v.trim());
                         }
                       }}

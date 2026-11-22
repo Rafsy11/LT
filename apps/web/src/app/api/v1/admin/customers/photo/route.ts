@@ -7,22 +7,20 @@ import { ERROR_CODES, PERMISSIONS } from '@repo/shared';
 import { requireAdminActor, handleAdminRouteError } from '@/server/lib/admin-auth';
 import { minioManager } from '@/server/lib/minio';
 import { requireLiveDatabase } from '@/server/lib/live-data';
+import {
+  ALLOWED_IMAGE_MIME_TYPES,
+  MAX_IMAGE_UPLOAD_BYTES,
+  validateImageUploadBuffer,
+} from '@/server/lib/image-validation';
 
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const SAFE_SIA_PATTERN = /^[a-zA-Z0-9._-]{3,40}$/;
-const MIME_TO_EXT: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/jpg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-};
 
 /**
  * Resolves a stored photo reference into an accessible URL for browser rendering.
  */
 async function resolvePhotoPreviewUrl(photoObjectKey: string | null): Promise<string | null> {
   if (!photoObjectKey) return null;
-  if (photoObjectKey.startsWith('https://') || photoObjectKey.startsWith('/assets/')) {
+  if (photoObjectKey.startsWith('/assets/')) {
     return photoObjectKey;
   }
   return await minioManager.generatePresignedGetUrl(photoObjectKey);
@@ -83,35 +81,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ext = MIME_TO_EXT[fileEntry.type];
-    if (!ext) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: ERROR_CODES.UNSUPPORTED_MEDIA_TYPE,
-            message:
-              'Format foto belum didukung. Unggah gambar berformat JPG, PNG, atau WEBP (maksimal 5 MB).',
-          },
-        },
-        { status: 415 },
-      );
-    }
-
-    if (fileEntry.size <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Berkas gambar kosong. Pilih foto lain lalu coba kembali.',
-          },
-        },
-        { status: 400 },
-      );
-    }
-
-    if (fileEntry.size > MAX_PHOTO_BYTES) {
+    if (fileEntry.size > MAX_IMAGE_UPLOAD_BYTES) {
       return NextResponse.json(
         {
           success: false,
@@ -123,6 +93,23 @@ export async function POST(request: NextRequest) {
         { status: 413 },
       );
     }
+
+    if (!ALLOWED_IMAGE_MIME_TYPES.has((fileEntry.type || '').toLowerCase().trim())) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: ERROR_CODES.UNSUPPORTED_MEDIA_TYPE,
+            message:
+              'Format berkas foto belum didukung. Gunakan gambar berformat JPG, PNG, atau WEBP (maksimal 5 MB).',
+          },
+        },
+        { status: 415 },
+      );
+    }
+
+    const buffer = Buffer.from(await fileEntry.arrayBuffer());
+    const detected = validateImageUploadBuffer(fileEntry, buffer);
 
     await requireLiveDatabase('Database PostgreSQL diperlukan untuk menyimpan foto pelanggan.');
     const existing = await prisma.customer.findUnique({ where: { siaNumber: rawSia } });
@@ -139,22 +126,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const buffer = Buffer.from(await fileEntry.arrayBuffer());
     const safeSiaSlug = rawSia.replace(/[^a-zA-Z0-9_-]/g, '_');
     const uniqueSuffix = crypto.randomUUID().slice(0, 12);
-    let storedKey = `customers/${safeSiaSlug}/${uniqueSuffix}.${ext}`;
+    let storedKey = `customers/${safeSiaSlug}/${uniqueSuffix}.${detected.ext}`;
 
     const minioOnline = await minioManager.isHealthy();
     if (minioOnline) {
-      await minioManager.putObjectBuffer(storedKey, buffer, fileEntry.type);
+      await minioManager.putObjectBuffer(storedKey, buffer, detected.mimeType);
     } else if (process.env.NODE_ENV !== 'production') {
       const publicDir = path.resolve(process.cwd(), 'public', 'assets', 'customers');
       await fs.mkdir(publicDir, { recursive: true });
-      const filename = `${safeSiaSlug}-${uniqueSuffix}.${ext}`;
+      const filename = `${safeSiaSlug}-${uniqueSuffix}.${detected.ext}`;
       await fs.writeFile(path.join(publicDir, filename), buffer);
       storedKey = `/assets/customers/${filename}`;
     } else {
-      await minioManager.putObjectBuffer(storedKey, buffer, fileEntry.type);
+      await minioManager.putObjectBuffer(storedKey, buffer, detected.mimeType);
     }
 
     await prisma.$transaction(async (tx) => {

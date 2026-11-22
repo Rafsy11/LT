@@ -9,6 +9,7 @@ import {
   UserTypeEnum,
 } from '@repo/shared';
 import { clearServiceUnavailable, notifyApiResponseError } from '@/lib/api-error';
+import { clearQueryCache } from '@/lib/query-cache';
 
 const AUTH_STORAGE_KEY = 'fiberops_auth_user';
 
@@ -79,6 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {
         // Ignore storage errors
       }
+      clearQueryCache();
       setSessionUser(null);
       setIsAuthLoading(false);
       return () => {
@@ -101,7 +103,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const hydrateLiveSession = async () => {
       try {
-        const res = await fetch('/api/v1/auth/me', { cache: 'no-store' });
+        const res = await fetch('/api/v1/auth/me', {
+          cache: 'no-store',
+          credentials: 'include',
+        });
         const json = await res.json().catch(() => null);
         if (!active) return;
 
@@ -117,6 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (res.status === 401) {
           setSessionUser(null);
+          clearQueryCache();
           try {
             window.localStorage.removeItem(AUTH_STORAGE_KEY);
             window.localStorage.removeItem('fiberops_access_token');
@@ -244,11 +250,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     setIsLoggingOut(true);
     try {
-      await fetch('/api/v1/auth/logout', { method: 'POST' });
+      await fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' });
     } catch {
       // Proceed with client cleanup even if network call fails
     } finally {
       setSessionUser(null);
+      clearQueryCache();
       try {
         window.localStorage.removeItem(AUTH_STORAGE_KEY);
         window.localStorage.removeItem('fiberops_access_token');

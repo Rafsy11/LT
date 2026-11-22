@@ -84,8 +84,11 @@ export default function GlobalErrorBoundary({
             >
               Coba Lagi
             </button>
-            <a
-              href="/"
+            <button
+              type="button"
+              onClick={() => {
+                window.location.assign('/');
+              }}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -98,12 +101,12 @@ export default function GlobalErrorBoundary({
                 color: '#e2e8f0',
                 fontSize: '13px',
                 fontWeight: 600,
-                textDecoration: 'none',
+                cursor: 'pointer',
                 boxSizing: 'border-box',
               }}
             >
               Kembali ke Beranda
-            </a>
+            </button>
           </div>
         </section>
       </body>

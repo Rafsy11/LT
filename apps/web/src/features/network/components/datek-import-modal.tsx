@@ -399,7 +399,7 @@ export function DatekImportModal({ isOpen, onClose, onSuccess }: DatekImportModa
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".xlsx,.xls,.csv"
+                  accept=".xlsx,.csv"
                   onChange={handleFileInputChange}
                   style={{ display: 'none' }}
                 />
@@ -411,7 +411,7 @@ export function DatekImportModal({ isOpen, onClose, onSuccess }: DatekImportModa
                     Tarik & letakkan file datek di sini, atau <b>jelajahi file</b>
                   </span>
                   <span className="datek-dropzone-hint">
-                    Format didukung: <b>.xlsx, .xls, .csv</b> (Maksimum 10MB)
+                    Format didukung: <b>.xlsx, .csv</b> (Maksimum 10MB)
                   </span>
                 </div>
                 <div className="datek-dropzone-tags">

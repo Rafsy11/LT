@@ -93,6 +93,8 @@ model UserSession {
   @@index([userId])
   @@index([deviceId])
   @@index([revokedAt])
+  @@index([userId, deviceId, revokedAt])
+  @@index([expiresAt])
   @@map("user_sessions")
 }
 

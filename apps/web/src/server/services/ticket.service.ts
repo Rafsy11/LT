@@ -1,6 +1,11 @@
 import { prisma, Prisma } from '@repo/database';
 import { redisManager } from '../lib/redis';
 import {
+  AuthHttpError,
+  isGlobalScopeActor,
+  matchesAssignedClusters,
+} from '../lib/admin-auth';
+import {
   isStrictLiveMode,
   requireLiveDatabase,
   rethrowIfStrictDatabaseError,
@@ -429,10 +434,13 @@ function mapDbTicketToDto(t: {
     targetLng: resolvedLng,
     adminNotes: t.adminNotes || undefined,
     rejectionReason: t.rejectionReason || undefined,
-    dispatchedAt: (t.dispatchedAt || t.assignedAt)?.toISOString(),
-    startedAt: t.startedAt?.toISOString(),
-    createdAt: t.createdAt.toISOString(),
-    completedAt: t.completedAt ? t.completedAt.toISOString() : undefined,
+    dispatchedAt:
+      t.dispatchedAt || t.assignedAt
+        ? new Date((t.dispatchedAt || t.assignedAt) as Date).toISOString()
+        : undefined,
+    startedAt: t.startedAt ? new Date(t.startedAt).toISOString() : undefined,
+    createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString(),
+    completedAt: t.completedAt ? new Date(t.completedAt).toISOString() : undefined,
     splitterCode: pendingSubmission?.splitterCode || t.customer.splitter?.splitterCode,
     portNumber: pendingSubmission?.portNumber || t.customer.portNumber || undefined,
     distanceToSplitterM: pendingSubmission?.distanceToSplitterM,
@@ -466,32 +474,42 @@ export class TicketService {
   ): Promise<DbTicket[]> {
     if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memuat tiket.')) {
       try {
-        // Build Prisma where clause with cluster scoping (Law 4)
+        // Build Prisma where clause with non-overwritable cluster scoping (RLS)
         const whereClause: Record<string, unknown> = {};
+        const andConditions: Record<string, unknown>[] = [];
 
-        if (
-          userContext &&
-          userContext.userType !== 'SUPER_ADMIN' &&
-          userContext.assignedClusters.length > 0
-        ) {
-          whereClause.customer = {
-            cluster: {
-              clusterCode: { in: userContext.assignedClusters },
+        if (userContext && !isGlobalScopeActor(userContext)) {
+          const scopedClusters = (userContext.assignedClusters || []).filter(
+            (c) => c.trim().toLowerCase() !== 'global scope',
+          );
+          if (scopedClusters.length === 0) {
+            return [];
+          }
+          andConditions.push({
+            customer: {
+              cluster: {
+                clusterCode: { in: scopedClusters },
+              },
             },
-          };
+          });
         }
 
         if (params.cluster && params.cluster !== 'Semua cluster') {
           const clusterFilter = params.cluster.replace('Bandung ', '');
-          whereClause.customer = {
-            ...(whereClause.customer as object),
-            cluster: {
-              OR: [
-                { name: { contains: clusterFilter, mode: 'insensitive' } },
-                { clusterCode: { contains: clusterFilter, mode: 'insensitive' } },
-              ],
+          andConditions.push({
+            customer: {
+              cluster: {
+                OR: [
+                  { name: { contains: clusterFilter, mode: 'insensitive' } },
+                  { clusterCode: { contains: clusterFilter, mode: 'insensitive' } },
+                ],
+              },
             },
-          };
+          });
+        }
+
+        if (andConditions.length > 0) {
+          whereClause.AND = andConditions;
         }
 
         if (params.status && params.status !== 'Semua') {
@@ -555,13 +573,9 @@ export class TicketService {
     // Fallback: In-memory store
     let result = [...FALLBACK_TICKETS];
 
-    if (
-      userContext &&
-      userContext.userType !== 'SUPER_ADMIN' &&
-      userContext.assignedClusters.length > 0
-    ) {
+    if (userContext && !isGlobalScopeActor(userContext)) {
       result = result.filter((t) =>
-        userContext.assignedClusters.some((c) => t.cluster.toLowerCase().includes(c.toLowerCase())),
+        matchesAssignedClusters(userContext, t.clusterCode, t.cluster),
       );
     }
 
@@ -618,13 +632,13 @@ export class TicketService {
         if (ticket) {
           return mapDbTicketToDto(ticket);
         }
-        if (isStrictLiveMode()) {
-          const notFound = new Error(`Tiket dengan ID ${id} tidak ditemukan`) as Error & {
-            statusCode?: number;
-          };
-          notFound.statusCode = 404;
-          throw notFound;
-        }
+        const notFound = new Error(`Tiket dengan ID ${id} tidak ditemukan`) as Error & {
+          statusCode?: number;
+          code?: string;
+        };
+        notFound.statusCode = 404;
+        notFound.code = ERROR_CODES.TICKET_NOT_FOUND;
+        throw notFound;
       } catch (err) {
         if ((err as Error).message.includes('tidak ditemukan')) {
           throw err;
@@ -1038,8 +1052,11 @@ export class TicketService {
   ): Promise<DbTicket> {
     let resultDto: DbTicket | null = null;
     const now = new Date();
+    const dbOnline = await requireLiveDatabase(
+      'Koneksi database PostgreSQL diperlukan untuk memulai pengerjaan tiket.',
+    );
 
-    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memulai pengerjaan tiket.')) {
+    if (dbOnline) {
       try {
         const dbTicket = await prisma.ticket.findFirst({
           where: { OR: [{ id: ticketId }, { ticketNumber: ticketId }] },
@@ -1049,64 +1066,72 @@ export class TicketService {
           },
         });
 
-        if (dbTicket) {
-          if (
-            techContext?.id &&
-            dbTicket.assignedTechId &&
-            dbTicket.assignedTechId !== techContext.id
-          ) {
-            throw new Error(
-              `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Tiket ${dbTicket.ticketNumber} ditugaskan ke vendor lain.`,
-            );
-          }
+        if (!dbTicket) {
+          const notFound = new Error(`Tiket ${ticketId} tidak ditemukan`) as Error & {
+            statusCode?: number;
+            code?: string;
+          };
+          notFound.statusCode = 404;
+          notFound.code = ERROR_CODES.TICKET_NOT_FOUND;
+          throw notFound;
+        }
 
-          if (dbTicket.status === 'COMPLETED' || dbTicket.status === 'CANCELLED') {
-            throw new Error(
-              `${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${dbTicket.ticketNumber} sudah berstatus ${dbTicket.status}.`,
-            );
-          }
+        if (
+          techContext?.id &&
+          (!dbTicket.assignedTechId || dbTicket.assignedTechId !== techContext.id)
+        ) {
+          throw new Error(
+            `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Tiket ${dbTicket.ticketNumber} ditugaskan ke vendor lain.`,
+          );
+        }
 
-          const updated = await prisma.$transaction(async (tx) => {
-            const nextStatus = dbTicket.status === 'PENDING_APPROVAL' ? 'PENDING_APPROVAL' : 'IN_PROGRESS';
-            const next = await tx.ticket.update({
-              where: { id: dbTicket.id },
-              data: {
-                status: nextStatus,
-                startedAt: dbTicket.startedAt ?? now,
-              },
-              include: {
-                customer: { include: { cluster: true, splitter: true } },
-                assignedTech: true,
-              },
-            });
+        if (dbTicket.status === 'COMPLETED' || dbTicket.status === 'CANCELLED') {
+          throw new Error(
+            `${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${dbTicket.ticketNumber} sudah berstatus ${dbTicket.status}.`,
+          );
+        }
 
-            await tx.activityLog.create({
-              data: {
-                actorUserId: dbTicket.assignedTechId || techContext?.id || dbTicket.createdByAdminId,
-                actorRole: 'Vendor Lapangan',
-                actionType: 'TICKET_EXECUTION_STARTED',
-                targetEntity: 'ticket',
-                targetId: dbTicket.id,
-                newPayload: {
-                  channel: input.channel,
-                  checkInLat: input.checkInLat ?? null,
-                  checkInLng: input.checkInLng ?? null,
-                  notes: input.notes ?? null,
-                  startedAt: (next.startedAt || now).toISOString(),
-                } as Prisma.InputJsonValue,
-              },
-            });
-
-            return next;
+        const updated = await prisma.$transaction(async (tx) => {
+          const nextStatus = dbTicket.status === 'PENDING_APPROVAL' ? 'PENDING_APPROVAL' : 'IN_PROGRESS';
+          const next = await tx.ticket.update({
+            where: { id: dbTicket.id },
+            data: {
+              status: nextStatus,
+              startedAt: dbTicket.startedAt ?? now,
+            },
+            include: {
+              customer: { include: { cluster: true, splitter: true } },
+              assignedTech: true,
+            },
           });
 
-          resultDto = mapDbTicketToDto(updated);
-        }
+          await tx.activityLog.create({
+            data: {
+              actorUserId: dbTicket.assignedTechId || techContext?.id || dbTicket.createdByAdminId,
+              actorRole: 'Vendor Lapangan',
+              actionType: 'TICKET_EXECUTION_STARTED',
+              targetEntity: 'ticket',
+              targetId: dbTicket.id,
+              newPayload: {
+                channel: input.channel,
+                checkInLat: input.checkInLat ?? null,
+                checkInLng: input.checkInLng ?? null,
+                notes: input.notes ?? null,
+                startedAt: (next.startedAt || now).toISOString(),
+              } as Prisma.InputJsonValue,
+            },
+          });
+
+          return next;
+        });
+
+        resultDto = mapDbTicketToDto(updated);
       } catch (err) {
         const msg = (err as Error).message || '';
         if (
           msg.includes(ERROR_CODES.IDOR_VIOLATION) ||
-          msg.includes(ERROR_CODES.TICKET_ALREADY_CLOSED)
+          msg.includes(ERROR_CODES.TICKET_ALREADY_CLOSED) ||
+          msg.includes('tidak ditemukan')
         ) {
           throw err;
         }
@@ -1114,28 +1139,30 @@ export class TicketService {
       }
     }
 
-    const fallback = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
-    if (fallback) {
-      if (
-        techContext?.username &&
-        !matchesTechIdentity(fallback.assignedTech, fallback.assignedTechUsername, techContext.username)
-      ) {
-        throw new Error(
-          `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Tiket ${fallback.ticketNumber} ditugaskan ke vendor lain.`,
-        );
+    if (!dbOnline && !isStrictLiveMode()) {
+      const fallback = FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId);
+      if (fallback) {
+        if (
+          techContext?.username &&
+          !matchesTechIdentity(fallback.assignedTech, fallback.assignedTechUsername, techContext.username)
+        ) {
+          throw new Error(
+            `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Tiket ${fallback.ticketNumber} ditugaskan ke vendor lain.`,
+          );
+        }
+        if (fallback.status === 'Selesai' || fallback.status === 'Dibatalkan') {
+          throw new Error(
+            `${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${fallback.ticketNumber} sudah berstatus ${fallback.status}.`,
+          );
+        }
+        if (fallback.status === 'Menunggu') {
+          fallback.status = 'Dalam proses';
+        }
+        if (!fallback.startedAt) {
+          fallback.startedAt = now.toISOString();
+        }
+        resultDto = resultDto || fallback;
       }
-      if (fallback.status === 'Selesai' || fallback.status === 'Dibatalkan') {
-        throw new Error(
-          `${ERROR_CODES.TICKET_ALREADY_CLOSED}: Tiket ${fallback.ticketNumber} sudah berstatus ${fallback.status}.`,
-        );
-      }
-      if (fallback.status === 'Menunggu') {
-        fallback.status = 'Dalam proses';
-      }
-      if (!fallback.startedAt) {
-        fallback.startedAt = now.toISOString();
-      }
-      resultDto = resultDto || fallback;
     }
 
     if (!resultDto) {
@@ -1203,8 +1230,8 @@ export class TicketService {
         if (preliminaryTicket) {
           if (
             techContext?.id &&
-            preliminaryTicket.assignedTechId &&
-            preliminaryTicket.assignedTechId !== techContext.id
+            (!preliminaryTicket.assignedTechId ||
+              preliminaryTicket.assignedTechId !== techContext.id)
           ) {
             throw new Error(
               `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${preliminaryTicket.ticketNumber}.`,
@@ -1349,11 +1376,123 @@ export class TicketService {
       }
     }
 
+    // Reject non-finite or Null Island (0, 0) coordinates
+    if (
+      !Number.isFinite(input.submittedLat) ||
+      !Number.isFinite(input.submittedLng) ||
+      (input.submittedLat === 0 && input.submittedLng === 0)
+    ) {
+      throw Object.assign(new Error('Koordinat GPS (0, 0) tidak valid.'), {
+        statusCode: 400,
+        code: ERROR_CODES.INVALID_GEOFENCE,
+      });
+    }
+
     // Reject mock GPS / fake location submissions
     if (input.isMockLocation) {
       throw new Error(
         `${ERROR_CODES.MOCK_LOCATION_DETECTED}: Pengiriman ditolak. Perangkat terdeteksi menggunakan Mock Location / Fake GPS.`,
       );
+    }
+
+    // Validate clientRecordedAt freshness (<= 5 min) & future skew (<= +2 min)
+    const requiresRecordedTimestamp =
+      input.channel === 'MOBILE' ||
+      (input.channel === 'WEB' && (dbAvailable || isStrictLiveMode()));
+    if (requiresRecordedTimestamp && !input.clientRecordedAt) {
+      throw Object.assign(
+        new Error('Timestamp pengambilan GPS (clientRecordedAt) wajib disertakan.'),
+        { statusCode: 400, code: ERROR_CODES.VALIDATION_ERROR },
+      );
+    }
+
+    let parsedRecordedMs: number | null = null;
+    if (input.clientRecordedAt) {
+      parsedRecordedMs = Date.parse(input.clientRecordedAt);
+      if (Number.isNaN(parsedRecordedMs)) {
+        throw Object.assign(new Error('Format waktu clientRecordedAt tidak valid.'), {
+          statusCode: 400,
+          code: ERROR_CODES.VALIDATION_ERROR,
+        });
+      }
+      const nowMs = Date.now();
+      if (parsedRecordedMs - nowMs > 2 * 60_000) {
+        throw Object.assign(
+          new Error(
+            'Timestamp GPS berada di masa depan (> 2 menit). Sinkronkan jam perangkat Anda.',
+          ),
+          { statusCode: 400, code: ERROR_CODES.VALIDATION_ERROR },
+        );
+      }
+      if (nowMs - parsedRecordedMs > 5 * 60_000) {
+        throw Object.assign(
+          new Error(
+            'Data lokasi GPS sudah kedaluwarsa (> 5 menit). Ambil ulang koordinat GPS terbaru.',
+          ),
+          { statusCode: 400, code: ERROR_CODES.VALIDATION_ERROR },
+        );
+      }
+    }
+
+    // Device attestation gate in production when explicitly enforced
+    const attestationEnforced =
+      process.env.NODE_ENV === 'production' &&
+      process.env.REQUIRE_DEVICE_ATTESTATION === 'true';
+    if (attestationEnforced && !input.deviceIntegrityToken) {
+      throw new AuthHttpError(
+        403,
+        ERROR_CODES.FORBIDDEN,
+        'Token integritas perangkat wajib disertakan pada lingkungan produksi.',
+      );
+    }
+    const attestationMode = input.deviceIntegrityToken ? 'VERIFIED' : 'DEV_UNATTESTED';
+
+    // Impossible travel velocity check (> 300 km/h over > 500m) against prior technician GPS
+    if (dbAvailable && techContext?.id) {
+      try {
+        const priorHistory = await prisma.attenuationHistory.findFirst({
+          where: { techId: techContext.id },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            submittedLat: true,
+            submittedLng: true,
+            clientRecordedAt: true,
+            createdAt: true,
+          },
+        });
+        if (
+          priorHistory &&
+          priorHistory.submittedLat != null &&
+          priorHistory.submittedLng != null
+        ) {
+          const priorLat = Number(priorHistory.submittedLat);
+          const priorLng = Number(priorHistory.submittedLng);
+          const priorTimeMs =
+            priorHistory.clientRecordedAt?.getTime() ?? priorHistory.createdAt.getTime();
+          const currentTimeMs = parsedRecordedMs ?? Date.now();
+          const elapsedSeconds = Math.max(1, (currentTimeMs - priorTimeMs) / 1000);
+          const travelMeters = calculateHaversineDistance(
+            priorLat,
+            priorLng,
+            input.submittedLat,
+            input.submittedLng,
+          );
+          const speedKmh = (travelMeters / 1000) / (elapsedSeconds / 3600);
+          if (travelMeters > 500 && speedKmh > 300) {
+            throw Object.assign(
+              new Error(
+                `${ERROR_CODES.GPS_ANOMALY_DETECTED}: Terdeteksi anomali perpindahan lokasi tidak wajar (${Math.round(speedKmh)} km/jam).`,
+              ),
+              { statusCode: 403, code: ERROR_CODES.GPS_ANOMALY_DETECTED },
+            );
+          }
+        }
+      } catch (err) {
+        if ((err as Error).message.includes(ERROR_CODES.GPS_ANOMALY_DETECTED)) {
+          throw err;
+        }
+        rethrowIfStrictDatabaseError(err, 'Gagal memverifikasi riwayat kecepatan lokasi teknisi.');
+      }
     }
 
     // Compute Haversine distance to target splitter for geofence verification
@@ -1381,7 +1520,9 @@ export class TicketService {
             Number(targetSplitter.lat),
             Number(targetSplitter.lng),
           );
-          isLocationFlagged = distanceMeters > MAX_GEOFENCE_RADIUS_METERS;
+          isLocationFlagged =
+            distanceMeters > MAX_GEOFENCE_RADIUS_METERS ||
+            (input.accuracyMeters !== undefined && input.accuracyMeters > 150);
 
           // GPS Anomaly Detection: identical coordinates indicate GPS spoofing
           const splitterLat = Number(targetSplitter.lat);
@@ -1418,7 +1559,9 @@ export class TicketService {
         fallbackSplitterLat,
         fallbackSplitterLng,
       );
-      isLocationFlagged = distanceMeters > MAX_GEOFENCE_RADIUS_METERS;
+      isLocationFlagged =
+        distanceMeters > MAX_GEOFENCE_RADIUS_METERS ||
+        (input.accuracyMeters !== undefined && input.accuracyMeters > 150);
       // GPS Anomaly Detection: identical coordinates indicate GPS spoofing
       if (
         input.submittedLat === fallbackSplitterLat &&
@@ -1474,7 +1617,10 @@ export class TicketService {
           }
 
           // Anti-IDOR: verify technician assignment (Rule 1)
-          if (techContext?.id && ticket.assignedTechId && ticket.assignedTechId !== techContext.id) {
+          if (
+            techContext?.id &&
+            (!ticket.assignedTechId || ticket.assignedTechId !== techContext.id)
+          ) {
             throw new Error(
               `${ERROR_CODES.IDOR_VIOLATION}: Akses ditolak. Anda bukan teknisi yang ditugaskan pada tiket ${ticket.ticketNumber}.`,
             );
@@ -1496,6 +1642,18 @@ export class TicketService {
 
           if (!splitter) {
             throw new Error(`ODP Splitter ${input.splitterId} tidak ditemukan`);
+          }
+
+          if (
+            splitter.clusterId &&
+            ticket.customer?.clusterId &&
+            splitter.clusterId !== ticket.customer.clusterId
+          ) {
+            throw new AuthHttpError(
+              403,
+              ERROR_CODES.FORBIDDEN,
+              'Akses ditolak: ODP Splitter tidak berada pada cluster pelanggan.',
+            );
           }
 
           // Validate port capacity bounds
@@ -1534,8 +1692,7 @@ export class TicketService {
             }
           }
           if (!techUserId) {
-            const firstTech = await tx.user.findFirst({ where: { userType: 'TECHNICIAN' } });
-            techUserId = firstTech ? firstTech.id : ticket.createdByAdminId;
+            techUserId = techContext?.id || ticket.createdByAdminId;
           }
 
           const persistedPayload: DbTicketPendingSubmission = {
@@ -1569,6 +1726,7 @@ export class TicketService {
                 portNumber: input.portNumber,
                 distanceMeters: Math.round(distanceMeters),
                 isLocationFlagged,
+                attestationMode,
                 technicianNotes: input.technicianNotes,
               },
             },
@@ -1594,12 +1752,17 @@ export class TicketService {
           return updatedTicket;
         });
       } catch (dbErr) {
+        if (dbErr instanceof AuthHttpError) {
+          throw dbErr;
+        }
         // Re-throw validation/concurrency errors immediately
         const errMsg = (dbErr as Error).message;
         if (
           errMsg.includes(ERROR_CODES.PORT_OCCUPIED) ||
           errMsg.includes('kapasitas ODP') ||
           errMsg.includes(ERROR_CODES.MOCK_LOCATION_DETECTED) ||
+          errMsg.includes(ERROR_CODES.GPS_ANOMALY_DETECTED) ||
+          errMsg.includes(ERROR_CODES.INVALID_GEOFENCE) ||
           errMsg.includes(ERROR_CODES.TICKET_ALREADY_CLOSED) ||
           errMsg.includes(ERROR_CODES.IDOR_VIOLATION) ||
           errMsg.includes('tidak ditemukan')
@@ -1610,7 +1773,7 @@ export class TicketService {
       }
     }
 
-    const ticket = !isStrictLiveMode()
+    const ticket = !dbAvailable && !isStrictLiveMode()
       ? FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId)
       : undefined;
     if (ticket) {
@@ -1697,15 +1860,18 @@ export class TicketService {
   ): Promise<DbTicket> {
     const adminUser = adminContext?.username || 'superadmin';
     const adminId = adminContext?.id || 'admin-001';
+    const dbOnline = await requireLiveDatabase(
+      'Koneksi database PostgreSQL diperlukan untuk menyetujui laporan tiket.',
+    );
 
-    let ticket = !isStrictLiveMode()
+    const ticket = !dbOnline && !isStrictLiveMode()
       ? FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId)
       : undefined;
     let techTelegramChatId: string | null = null;
     let resolvedDto: DbTicket | null = null;
 
     // Resolve authoritative DB ticket & pendingPayload if PostgreSQL is online
-    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk menyetujui laporan tiket.')) {
+    if (dbOnline) {
       try {
         const dbTicket = await prisma.ticket.findFirst({
           where: { OR: [{ id: ticketId }, { ticketNumber: ticketId }] },
@@ -1715,120 +1881,138 @@ export class TicketService {
           },
         });
 
-        if (dbTicket) {
-          techTelegramChatId = dbTicket.assignedTech?.telegramChatId || null;
-          const dbPending = parsePendingPayload(dbTicket.pendingPayload);
-          const effectivePending = dbPending || ticket?.pendingSubmission;
-          const finalAttenuation = effectivePending
-            ? effectivePending.attenuationDbm
-            : ticket?.currentAttenuation ??
-              (dbTicket.customer.currentAttenuation
-                ? Number(dbTicket.customer.currentAttenuation)
-                : -20.0);
-          const finalSplitter =
-            effectivePending?.splitterCode ||
-            ticket?.splitterCode ||
-            dbTicket.customer.splitter?.splitterCode ||
-            'ODP-BDG-01';
-          const finalPort =
-            effectivePending?.portNumber || ticket?.portNumber || dbTicket.customer.portNumber || 1;
+        if (!dbTicket) {
+          throw Object.assign(new Error(`Tiket ${ticketId} tidak ditemukan`), {
+            statusCode: 404,
+            code: ERROR_CODES.TICKET_NOT_FOUND,
+          });
+        }
 
-          const updatedDbTicket = await prisma.$transaction(async (tx) => {
-            const splitter = await tx.networkSplitter.findFirst({
-              where: {
-                OR: [{ id: finalSplitter }, { splitterCode: finalSplitter }],
-              },
-            });
+        if (dbTicket.status !== 'PENDING_APPROVAL') {
+          throw Object.assign(
+            new Error(
+              `Tiket ${dbTicket.ticketNumber} berstatus ${dbTicket.status}, hanya tiket PENDING_APPROVAL yang dapat disetujui.`,
+            ),
+            { statusCode: 409, code: ERROR_CODES.VALIDATION_ERROR },
+          );
+        }
 
-            if (splitter) {
-              const occupied = await tx.customer.findFirst({
-                where: {
-                  splitterId: splitter.id,
-                  portNumber: finalPort,
-                  status: 'ACTIVE',
-                  id: { not: dbTicket.customerId },
-                },
-              });
+        techTelegramChatId = dbTicket.assignedTech?.telegramChatId || null;
+        const dbPending = parsePendingPayload(dbTicket.pendingPayload);
+        const effectivePending = dbPending || ticket?.pendingSubmission;
+        const finalAttenuation = effectivePending
+          ? effectivePending.attenuationDbm
+          : ticket?.currentAttenuation ??
+            (dbTicket.customer.currentAttenuation
+              ? Number(dbTicket.customer.currentAttenuation)
+              : -20.0);
+        const finalSplitter =
+          effectivePending?.splitterCode ||
+          ticket?.splitterCode ||
+          dbTicket.customer.splitter?.splitterCode ||
+          'ODP-BDG-01';
+        const finalPort =
+          effectivePending?.portNumber || ticket?.portNumber || dbTicket.customer.portNumber || 1;
 
-              if (occupied) {
-                throw new Error(
-                  `${ERROR_CODES.PORT_OCCUPIED}: Port ${finalPort} pada ODP ${splitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName}).`,
-                );
-              }
-
-              await tx.customer.update({
-                where: { id: dbTicket.customerId },
-                data: {
-                  status: 'ACTIVE',
-                  splitterId: splitter.id,
-                  portNumber: finalPort,
-                  currentAttenuation: finalAttenuation,
-                  lat: dbTicket.customer.lat ?? dbTicket.targetLat ?? undefined,
-                  lng: dbTicket.customer.lng ?? dbTicket.targetLng ?? undefined,
-                  updatedAt: new Date(),
-                },
-              });
-
-              if (effectivePending) {
-                await tx.attenuationHistory.create({
-                  data: {
-                    submissionId: effectivePending.submissionId,
-                    ticketId: dbTicket.id,
-                    customerId: dbTicket.customerId,
-                    techId: dbTicket.assignedTechId || adminId,
-                    newAttenuation: finalAttenuation,
-                    splitterId: splitter.id,
-                    portNumber: finalPort,
-                    photoObjectKey: effectivePending.photoObjectKey,
-                    submittedLat: effectivePending.submittedLat,
-                    submittedLng: effectivePending.submittedLng,
-                    distanceToSplitterM: effectivePending.distanceToSplitterM,
-                    isLocationFlagged: effectivePending.isLocationFlagged,
-                    clientRecordedAt: effectivePending.clientRecordedAt
-                      ? new Date(effectivePending.clientRecordedAt)
-                      : null,
-                  },
-                });
-              }
-            }
-
-            await tx.activityLog.create({
-              data: {
-                actorUserId: adminId,
-                actorRole: 'CS / Pusat Lintasarta',
-                actionType: 'TICKET_APPROVED_BY_ADMIN',
-                targetEntity: 'ticket',
-                targetId: dbTicket.id,
-                newPayload: {
-                  status: 'COMPLETED',
-                  approvedBy: adminUser,
-                  attenuationDbm: finalAttenuation,
-                  splitterCode: finalSplitter,
-                  portNumber: finalPort,
-                },
-              },
-            });
-
-            return await tx.ticket.update({
-              where: { id: dbTicket.id },
-              data: {
-                status: 'COMPLETED',
-                completedAt: new Date(),
-                pendingPayload: Prisma.DbNull,
-                rejectionReason: null,
-              },
-              include: {
-                customer: { include: { cluster: true, splitter: true } },
-                assignedTech: true,
-              },
-            });
+        const updatedDbTicket = await prisma.$transaction(async (tx) => {
+          const splitter = await tx.networkSplitter.findFirst({
+            where: {
+              OR: [{ id: finalSplitter }, { splitterCode: finalSplitter }],
+            },
           });
 
-          resolvedDto = mapDbTicketToDto(updatedDbTicket);
-        }
+          if (splitter) {
+            const occupied = await tx.customer.findFirst({
+              where: {
+                splitterId: splitter.id,
+                portNumber: finalPort,
+                status: 'ACTIVE',
+                id: { not: dbTicket.customerId },
+              },
+            });
+
+            if (occupied) {
+              throw new Error(
+                `${ERROR_CODES.PORT_OCCUPIED}: Port ${finalPort} pada ODP ${splitter.splitterCode} sudah digunakan oleh pelanggan aktif (${occupied.fullName}).`,
+              );
+            }
+
+            await tx.customer.update({
+              where: { id: dbTicket.customerId },
+              data: {
+                status: 'ACTIVE',
+                splitterId: splitter.id,
+                portNumber: finalPort,
+                currentAttenuation: finalAttenuation,
+                lat: dbTicket.customer.lat ?? dbTicket.targetLat ?? undefined,
+                lng: dbTicket.customer.lng ?? dbTicket.targetLng ?? undefined,
+                updatedAt: new Date(),
+              },
+            });
+
+            if (effectivePending) {
+              await tx.attenuationHistory.create({
+                data: {
+                  submissionId: effectivePending.submissionId,
+                  ticketId: dbTicket.id,
+                  customerId: dbTicket.customerId,
+                  techId: dbTicket.assignedTechId || adminId,
+                  newAttenuation: finalAttenuation,
+                  splitterId: splitter.id,
+                  portNumber: finalPort,
+                  photoObjectKey: effectivePending.photoObjectKey,
+                  submittedLat: effectivePending.submittedLat,
+                  submittedLng: effectivePending.submittedLng,
+                  distanceToSplitterM: effectivePending.distanceToSplitterM,
+                  isLocationFlagged: effectivePending.isLocationFlagged,
+                  clientRecordedAt: effectivePending.clientRecordedAt
+                    ? new Date(effectivePending.clientRecordedAt)
+                    : null,
+                },
+              });
+            }
+          }
+
+          await tx.activityLog.create({
+            data: {
+              actorUserId: adminId,
+              actorRole: 'CS / Pusat Lintasarta',
+              actionType: 'TICKET_APPROVED_BY_ADMIN',
+              targetEntity: 'ticket',
+              targetId: dbTicket.id,
+              newPayload: {
+                status: 'COMPLETED',
+                approvedBy: adminUser,
+                attenuationDbm: finalAttenuation,
+                splitterCode: finalSplitter,
+                portNumber: finalPort,
+              },
+            },
+          });
+
+          return await tx.ticket.update({
+            where: { id: dbTicket.id },
+            data: {
+              status: 'COMPLETED',
+              completedAt: new Date(),
+              pendingPayload: Prisma.DbNull,
+              rejectionReason: null,
+            },
+            include: {
+              customer: { include: { cluster: true, splitter: true } },
+              assignedTech: true,
+            },
+          });
+        });
+
+        resolvedDto = mapDbTicketToDto(updatedDbTicket);
       } catch (err) {
         const errMsg = (err as Error).message;
-        if (errMsg.includes(ERROR_CODES.PORT_OCCUPIED)) {
+        if (
+          errMsg.includes(ERROR_CODES.PORT_OCCUPIED) ||
+          errMsg.includes('PENDING_APPROVAL') ||
+          errMsg.includes('tidak ditemukan')
+        ) {
           throw err;
         }
         rethrowIfStrictDatabaseError(err, 'Gagal memproses persetujuan tiket di PostgreSQL.');
@@ -1836,7 +2020,19 @@ export class TicketService {
     }
 
     if (!resolvedDto && !ticket) {
-      throw new Error(`Tiket ${ticketId} tidak ditemukan`);
+      throw Object.assign(new Error(`Tiket ${ticketId} tidak ditemukan`), {
+        statusCode: 404,
+        code: ERROR_CODES.TICKET_NOT_FOUND,
+      });
+    }
+
+    if (ticket && ticket.status !== 'Menunggu verifikasi') {
+      throw Object.assign(
+        new Error(
+          `Tiket ${ticket.ticketNumber} berstatus ${ticket.status}, hanya tiket Menunggu verifikasi yang dapat disetujui.`,
+        ),
+        { statusCode: 409, code: ERROR_CODES.VALIDATION_ERROR },
+      );
     }
 
     if (ticket) {
@@ -1916,59 +2112,90 @@ export class TicketService {
   ): Promise<DbTicket> {
     const adminUser = adminContext?.username || 'superadmin';
     const adminId = adminContext?.id || 'admin-001';
+    const dbOnline = await requireLiveDatabase(
+      'Koneksi database PostgreSQL diperlukan untuk menolak laporan tiket.',
+    );
 
-    const ticket = !isStrictLiveMode()
+    const ticket = !dbOnline && !isStrictLiveMode()
       ? FALLBACK_TICKETS.find((t) => t.id === ticketId || t.ticketNumber === ticketId)
       : undefined;
     let resolvedDto: DbTicket | null = null;
     let techTelegramChatId: string | null = null;
 
-    if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk menolak laporan tiket.')) {
+    if (dbOnline) {
       try {
         const dbTicket = await prisma.ticket.findFirst({
           where: { OR: [{ id: ticketId }, { ticketNumber: ticketId }] },
           include: { assignedTech: true },
         });
-        if (dbTicket) {
-          techTelegramChatId = dbTicket.assignedTech?.telegramChatId || null;
-          const updatedDbTicket = await prisma.$transaction(async (tx) => {
-            await tx.activityLog.create({
-              data: {
-                actorUserId: adminId,
-                actorRole: 'CS / Pusat Lintasarta',
-                actionType: 'TICKET_REJECTED_BY_ADMIN',
-                targetEntity: 'ticket',
-                targetId: dbTicket.id,
-                newPayload: {
-                  status: 'IN_PROGRESS',
-                  rejectedBy: adminUser,
-                  reason,
-                },
-              },
-            });
-
-            return await tx.ticket.update({
-              where: { id: dbTicket.id },
-              data: {
-                status: 'IN_PROGRESS',
-                rejectionReason: reason,
-                pendingPayload: Prisma.DbNull,
-              },
-              include: {
-                customer: { include: { cluster: true, splitter: true } },
-                assignedTech: true,
-              },
-            });
+        if (!dbTicket) {
+          throw Object.assign(new Error(`Tiket ${ticketId} tidak ditemukan`), {
+            statusCode: 404,
+            code: ERROR_CODES.TICKET_NOT_FOUND,
           });
-          resolvedDto = mapDbTicketToDto(updatedDbTicket);
         }
+        if (dbTicket.status !== 'PENDING_APPROVAL') {
+          throw Object.assign(
+            new Error(
+              `Tiket ${dbTicket.ticketNumber} berstatus ${dbTicket.status}, hanya tiket PENDING_APPROVAL yang dapat ditolak.`,
+            ),
+            { statusCode: 409, code: ERROR_CODES.VALIDATION_ERROR },
+          );
+        }
+        techTelegramChatId = dbTicket.assignedTech?.telegramChatId || null;
+        const updatedDbTicket = await prisma.$transaction(async (tx) => {
+          await tx.activityLog.create({
+            data: {
+              actorUserId: adminId,
+              actorRole: 'CS / Pusat Lintasarta',
+              actionType: 'TICKET_REJECTED_BY_ADMIN',
+              targetEntity: 'ticket',
+              targetId: dbTicket.id,
+              newPayload: {
+                status: 'IN_PROGRESS',
+                rejectedBy: adminUser,
+                reason,
+              },
+            },
+          });
+
+          return await tx.ticket.update({
+            where: { id: dbTicket.id },
+            data: {
+              status: 'IN_PROGRESS',
+              rejectionReason: reason,
+              pendingPayload: Prisma.DbNull,
+            },
+            include: {
+              customer: { include: { cluster: true, splitter: true } },
+              assignedTech: true,
+            },
+          });
+        });
+        resolvedDto = mapDbTicketToDto(updatedDbTicket);
       } catch (err) {
+        const errMsg = (err as Error).message || '';
+        if (errMsg.includes('PENDING_APPROVAL') || errMsg.includes('tidak ditemukan')) {
+          throw err;
+        }
         rethrowIfStrictDatabaseError(err, 'Gagal mencatat penolakan tiket ke PostgreSQL.');
       }
     }
 
     if (!resolvedDto && !ticket) {
-      throw new Error(`Tiket ${ticketId} tidak ditemukan`);
+      throw Object.assign(new Error(`Tiket ${ticketId} tidak ditemukan`), {
+        statusCode: 404,
+        code: ERROR_CODES.TICKET_NOT_FOUND,
+      });
+    }
+
+    if (ticket && ticket.status !== 'Menunggu verifikasi') {
+      throw Object.assign(
+        new Error(
+          `Tiket ${ticket.ticketNumber} berstatus ${ticket.status}, hanya tiket Menunggu verifikasi yang dapat ditolak.`,
+        ),
+        { statusCode: 409, code: ERROR_CODES.VALIDATION_ERROR },
+      );
     }
 
     if (ticket) {

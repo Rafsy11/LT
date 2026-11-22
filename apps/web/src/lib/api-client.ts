@@ -11,6 +11,7 @@ import {
   type AppError,
 } from '@/lib/error-normalizer';
 import { ERROR_CATEGORY_DICTIONARY } from '@/lib/error-dictionary';
+import { clearQueryCache } from '@/lib/query-cache';
 
 export type ApiClientError = AppError;
 
@@ -87,6 +88,7 @@ class WebApiClient {
     try {
       const response = await fetch(endpoint, {
         ...fetchOptions,
+        credentials: fetchOptions.credentials ?? 'include',
         headers,
         signal: controller.signal,
       });
@@ -111,6 +113,7 @@ class WebApiClient {
 
       // 1. HTTP 401 Unauthorized Interceptor
       if (response.status === 401) {
+        clearQueryCache();
         if (typeof window !== 'undefined' && !skipAuthRedirect && !this.isRedirecting) {
           this.isRedirecting = true;
           try {

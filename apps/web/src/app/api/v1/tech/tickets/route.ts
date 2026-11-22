@@ -1,24 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma, isDatabaseAvailable, markDatabaseUnavailable } from '@repo/database';
+import { prisma, markDatabaseUnavailable } from '@repo/database';
 import { TicketService, DbTicketPendingSubmission } from '@/server/services/ticket.service';
 import { NetworkService } from '@/server/services/network.service';
+import { matchesAssignedClusters } from '@/server/lib/admin-auth';
+import { isStrictLiveMode, requireLiveDatabase } from '@/server/lib/live-data';
 import {
   resolveTechActor,
   normalizeTechUsernameAlias,
   handleTechRouteError,
 } from '@/server/lib/tech-auth';
+import type { UserSessionContext } from '@repo/shared';
 
 export async function GET(request: NextRequest) {
   try {
     const actor = await resolveTechActor(request);
     const searchParams = request.nextUrl.searchParams;
-    const queryTech = searchParams.get('tech');
-    const isSuperAdminViewer = actor.userType === 'SUPER_ADMIN' && !queryTech;
+    const effectiveQueryTech =
+      actor.userType === 'SUPER_ADMIN' ? searchParams.get('tech') : null;
+    const isSuperAdminViewer = actor.userType === 'SUPER_ADMIN' && !effectiveQueryTech;
 
-    const dbOnline = await isDatabaseAvailable();
+    const dbOnline = await requireLiveDatabase(
+      'Database PostgreSQL tidak tersedia untuk memuat tiket.',
+    );
 
-    // 2. Resolve target technician user (strictly bound to actor unless SUPER_ADMIN views all)
-    let techUser = null;
+    // Resolve target technician user (strictly bound to verified actor unless SUPER_ADMIN views all)
+    let techUser: {
+      id: string;
+      username: string;
+      fullName: string;
+      assignedClusters: string[];
+    } | null = null;
     if (dbOnline && !isSuperAdminViewer) {
       try {
         if (actor.userId) {
@@ -33,11 +44,9 @@ export async function GET(request: NextRequest) {
             include: { role: true },
           });
         }
-        if (!techUser && queryTech) {
+        if (!techUser && effectiveQueryTech && actor.userType === 'SUPER_ADMIN') {
           techUser = await prisma.user.findFirst({
-            where: {
-              OR: [{ username: queryTech }, { fullName: { contains: queryTech, mode: 'insensitive' } }],
-            },
+            where: { username: effectiveQueryTech },
             include: { role: true },
           });
         }
@@ -80,10 +89,11 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // 3. Fetch active & pending approval assigned tickets from Prisma DB
+    // Fetch active & pending approval assigned tickets from Prisma DB
     let activeTickets: MobileTicketDto[] = [];
+    let dbTicketQuerySucceeded = false;
 
-    if ((techUser || isSuperAdminViewer) && (await isDatabaseAvailable())) {
+    if (dbOnline && (techUser || isSuperAdminViewer)) {
       try {
         const tickets = await prisma.ticket.findMany({
           where: {
@@ -106,6 +116,7 @@ export async function GET(request: NextRequest) {
           },
           orderBy: { createdAt: 'desc' },
         });
+        dbTicketQuerySucceeded = true;
 
         activeTickets = tickets.map((t) => {
           const hist = t.customer.attenuations.map((a) => Number(a.newAttenuation));
@@ -176,10 +187,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fallback if DB empty or offline
-    if (activeTickets.length === 0) {
+    // Fallback ONLY when DB is offline and strict mode is disabled
+    if (!dbOnline && !dbTicketQuerySucceeded && !isStrictLiveMode() && activeTickets.length === 0) {
       const allTickets = await TicketService.listTickets();
-      const targetUser = normalizeTechUsernameAlias(queryTech || actor.username);
+      const targetUser = normalizeTechUsernameAlias(
+        effectiveQueryTech || actor.canonicalUsername || actor.username,
+      );
       const targetFullName = (actor.fullName || '').trim().toLowerCase();
 
       activeTickets = allTickets
@@ -194,8 +207,7 @@ export async function GET(request: NextRequest) {
 
           return (
             ticketTechUser === targetUser ||
-            (targetFullName.length > 0 && ticketTechName === targetFullName) ||
-            ticketTechName.includes(targetUser.replace('.', ' '))
+            (targetFullName.length > 0 && ticketTechName === targetFullName)
           );
         })
         .map((t) => ({
@@ -242,7 +254,25 @@ export async function GET(request: NextRequest) {
         }));
     }
 
-    // 4. Fetch ODP Splitters & port occupancy for related clusters
+    // Build cluster-scoping context for splitters
+    const allowedClusters = Array.from(
+      new Set([
+        ...(techUser?.assignedClusters || []),
+        ...activeTickets.map((t) => t.customer.clusterCode).filter(Boolean),
+      ]),
+    ).filter((c) => c.trim().toLowerCase() !== 'global scope');
+
+    const techScopeContext: UserSessionContext = {
+      userId: actor.userId,
+      username: actor.username,
+      fullName: actor.fullName || actor.username,
+      role: 'Technician',
+      userType: actor.userType,
+      hierarchyLevel: actor.userType === 'SUPER_ADMIN' ? 100 : 10,
+      assignedClusters: allowedClusters,
+    };
+
+    // Fetch ODP Splitters & port occupancy scoped to technician clusters
     interface SplitterDto {
       id: string;
       splitterCode: string;
@@ -255,9 +285,17 @@ export async function GET(request: NextRequest) {
       availablePorts: number[];
     }
     let splittersData: SplitterDto[] = [];
-    if (await isDatabaseAvailable()) {
+    if (dbOnline && (actor.userType === 'SUPER_ADMIN' || allowedClusters.length > 0)) {
       try {
         const splitters = await prisma.networkSplitter.findMany({
+          where:
+            actor.userType === 'SUPER_ADMIN'
+              ? undefined
+              : {
+                  cluster: {
+                    clusterCode: { in: allowedClusters },
+                  },
+                },
           include: {
             cluster: true,
             customers: {
@@ -268,50 +306,61 @@ export async function GET(request: NextRequest) {
         });
 
         if (splitters.length > 0) {
-          splittersData = splitters.map((s) => {
-            const occupiedPorts = s.customers
-              .map((c) => c.portNumber)
-              .filter((p): p is number => p !== null);
+          splittersData = splitters
+            .map((s) => {
+              const occupiedPorts = s.customers
+                .map((c) => c.portNumber)
+                .filter((p): p is number => p !== null);
 
-            const availablePorts: number[] = [];
-            for (let p = 1; p <= s.maxPorts; p++) {
-              if (!occupiedPorts.includes(p)) {
-                availablePorts.push(p);
+              const availablePorts: number[] = [];
+              for (let p = 1; p <= s.maxPorts; p++) {
+                if (!occupiedPorts.includes(p)) {
+                  availablePorts.push(p);
+                }
               }
-            }
 
-            return {
-              id: s.id,
-              splitterCode: s.splitterCode,
-              clusterName: s.cluster?.name || 'Cluster',
-              clusterCode: s.cluster?.clusterCode || 'BDG',
-              lat: Number(s.lat),
-              lng: Number(s.lng),
-              maxPorts: s.maxPorts,
-              occupiedPorts,
-              availablePorts,
-            };
-          });
+              return {
+                id: s.id,
+                splitterCode: s.splitterCode,
+                clusterName: s.cluster?.name || 'Cluster',
+                clusterCode: s.cluster?.clusterCode || 'BDG',
+                lat: Number(s.lat),
+                lng: Number(s.lng),
+                maxPorts: s.maxPorts,
+                occupiedPorts,
+                availablePorts,
+              };
+            })
+            .filter(
+              (s) =>
+                actor.userType === 'SUPER_ADMIN' ||
+                matchesAssignedClusters(techScopeContext, s.clusterCode, s.clusterName),
+            );
         }
       } catch (err) {
         markDatabaseUnavailable(err);
-        // Handled by NetworkService fallback
       }
     }
 
-    if (splittersData.length === 0) {
+    if (!dbOnline && !isStrictLiveMode() && splittersData.length === 0) {
       const clusters = await NetworkService.listClusters();
-      splittersData = clusters.map((c) => ({
-        id: c.splitterCode,
-        splitterCode: c.splitterCode,
-        clusterName: c.name,
-        clusterCode: c.clusterCode,
-        lat: c.lat,
-        lng: c.lng,
-        maxPorts: c.maxPorts,
-        occupiedPorts: c.ports.filter((p) => p.isOccupied).map((p) => p.portNumber),
-        availablePorts: c.ports.filter((p) => !p.isOccupied).map((p) => p.portNumber),
-      }));
+      splittersData = clusters
+        .filter(
+          (c) =>
+            actor.userType === 'SUPER_ADMIN' ||
+            matchesAssignedClusters(techScopeContext, c.clusterCode, c.name),
+        )
+        .map((c) => ({
+          id: c.splitterCode,
+          splitterCode: c.splitterCode,
+          clusterName: c.name,
+          clusterCode: c.clusterCode,
+          lat: c.lat,
+          lng: c.lng,
+          maxPorts: c.maxPorts,
+          occupiedPorts: c.ports.filter((p) => p.isOccupied).map((p) => p.portNumber),
+          availablePorts: c.ports.filter((p) => !p.isOccupied).map((p) => p.portNumber),
+        }));
     }
 
     return NextResponse.json({

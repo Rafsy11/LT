@@ -55,7 +55,9 @@ export function rethrowIfStrictDatabaseError(err: unknown, contextMessage?: stri
   if (err instanceof ServiceUnavailableError) {
     throw err;
   }
-  markDatabaseUnavailable(err);
+  if (isStrictLiveMode() || process.env.NODE_ENV !== 'test') {
+    markDatabaseUnavailable(err);
+  }
   if (isStrictLiveMode() && isPrismaConnectionError(err)) {
     throw new ServiceUnavailableError(contextMessage);
   }

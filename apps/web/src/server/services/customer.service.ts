@@ -8,6 +8,7 @@ import {
   type UpdateCustomerInput,
   type UserSessionContext,
 } from '@repo/shared';
+import { AuthHttpError, matchesAssignedClusters } from '../lib/admin-auth';
 import {
   isStrictLiveMode,
   requireLiveDatabase,
@@ -19,7 +20,7 @@ const DEFAULT_CUSTOMER_LIST_LIMIT = 1000;
 
 async function resolvePhotoUrl(photoObjectKey: string | null | undefined): Promise<string | null> {
   if (!photoObjectKey) return null;
-  if (photoObjectKey.startsWith('https://') || photoObjectKey.startsWith('/assets/')) {
+  if (photoObjectKey.startsWith('/assets/')) {
     return photoObjectKey;
   }
   try {
@@ -562,13 +563,14 @@ export class CustomerService {
     newSplitterCode: string,
     newPortNumber: number,
     actorId = 'superadmin',
+    actorContext?: UserSessionContext,
   ) {
     if (await requireLiveDatabase('Koneksi database PostgreSQL diperlukan untuk memutasikan port.')) {
       try {
         return await prisma.$transaction(async (tx) => {
           const customer = await tx.customer.findUnique({
             where: { siaNumber },
-            include: { splitter: true },
+            include: { cluster: true, splitter: true },
           });
 
           if (!customer) {
@@ -579,10 +581,53 @@ export class CustomerService {
             where: {
               OR: [{ id: newSplitterCode }, { splitterCode: newSplitterCode }],
             },
+            include: { cluster: true },
           });
 
           if (!targetSplitter) {
             throw new Error(`ODP Splitter ${newSplitterCode} tidak ditemukan`);
+          }
+
+          const customerClusterId = customer.clusterId ?? customer.cluster?.id ?? null;
+          const targetClusterId = targetSplitter.clusterId ?? targetSplitter.cluster?.id ?? null;
+          const customerClusterCode = customer.cluster?.clusterCode ?? null;
+          const targetClusterCode = targetSplitter.cluster?.clusterCode ?? null;
+
+          const idMismatch =
+            Boolean(customerClusterId && targetClusterId) &&
+            customerClusterId !== targetClusterId;
+          const codeMismatch =
+            Boolean(customerClusterCode && targetClusterCode) &&
+            customerClusterCode!.toLowerCase() !== targetClusterCode!.toLowerCase();
+
+          if (
+            idMismatch ||
+            codeMismatch ||
+            (!customerClusterId && !customerClusterCode) ||
+            (!targetClusterId && !targetClusterCode)
+          ) {
+            throw new AuthHttpError(
+              403,
+              ERROR_CODES.FORBIDDEN,
+              'Akses ditolak: ODP Splitter tujuan berada di cluster yang berbeda dengan pelanggan.',
+            );
+          }
+
+          if (
+            actorContext &&
+            !matchesAssignedClusters(
+              actorContext,
+              targetClusterCode,
+              targetSplitter.cluster?.name,
+              customerClusterCode,
+              customer.cluster?.name,
+            )
+          ) {
+            throw new AuthHttpError(
+              403,
+              ERROR_CODES.FORBIDDEN,
+              'Akses ditolak: ODP Splitter tujuan berada di luar cakupan cluster Anda.',
+            );
           }
 
           if (newPortNumber > targetSplitter.maxPorts) {
@@ -661,6 +706,9 @@ export class CustomerService {
           };
         });
       } catch (err) {
+        if (err instanceof AuthHttpError) {
+          throw err;
+        }
         if (
           (err as Error).message.includes(ERROR_CODES.PORT_OCCUPIED) ||
           (err as Error).message.includes('kapasitas') ||
@@ -723,6 +771,13 @@ export class CustomerService {
         if (!cluster) {
           throw new Error(`Cluster "${input.clusterCode}" tidak ditemukan.`);
         }
+        if (!matchesAssignedClusters(actor, cluster.clusterCode, cluster.name)) {
+          throw new AuthHttpError(
+            403,
+            ERROR_CODES.FORBIDDEN,
+            `Akses ditolak: Cluster "${cluster.clusterCode}" berada di luar cakupan Anda.`,
+          );
+        }
 
         const created = await prisma.$transaction(async (tx) => {
           let splitterId: string | null = null;
@@ -730,9 +785,22 @@ export class CustomerService {
           if (input.splitterCode) {
             const sp = await tx.networkSplitter.findFirst({
               where: { splitterCode: { equals: input.splitterCode, mode: 'insensitive' } },
+              include: { cluster: true },
             });
             if (!sp) {
               throw new Error(`ODP Splitter "${input.splitterCode}" tidak ditemukan.`);
+            }
+            if (
+              (sp.clusterId && sp.clusterId !== cluster.id) ||
+              (sp.cluster?.clusterCode &&
+                sp.cluster.clusterCode.toLowerCase() !== cluster.clusterCode.toLowerCase()) ||
+              !matchesAssignedClusters(actor, sp.cluster?.clusterCode ?? cluster.clusterCode, sp.cluster?.name ?? cluster.name)
+            ) {
+              throw new AuthHttpError(
+                403,
+                ERROR_CODES.FORBIDDEN,
+                'Akses ditolak: ODP Splitter harus berada pada cluster yang sama dengan pelanggan.',
+              );
             }
             if (input.portNumber && input.status === 'ACTIVE') {
               if (input.portNumber > sp.maxPorts) {
@@ -848,6 +916,9 @@ export class CustomerService {
           updatedAt: created.customer.updatedAt.toISOString(),
         };
       } catch (err) {
+        if (err instanceof AuthHttpError) {
+          throw err;
+        }
         if (
           err instanceof Error &&
           (err.message.includes('sudah terdaftar') ||
@@ -921,6 +992,13 @@ export class CustomerService {
         if (!existing) {
           throw new Error(`Pelanggan dengan SIA "${input.siaNumber}" tidak ditemukan.`);
         }
+        if (!matchesAssignedClusters(actor, existing.cluster?.clusterCode, existing.cluster?.name)) {
+          throw new AuthHttpError(
+            403,
+            ERROR_CODES.FORBIDDEN,
+            'Akses ditolak: Data pelanggan berada di luar cakupan cluster Anda.',
+          );
+        }
 
         const nextStatus = input.status ?? existing.status;
         const shouldReleasePort = nextStatus === 'DISMANTLED';
@@ -945,9 +1023,27 @@ export class CustomerService {
                     { id: input.splitterCode },
                   ],
                 },
+                include: { cluster: true },
               });
               if (!targetSplitter) {
                 throw new Error(`ODP Splitter "${input.splitterCode}" tidak ditemukan.`);
+              }
+              const existingClusterId = existing.clusterId ?? existing.cluster?.id ?? null;
+              const targetClusterId = targetSplitter.clusterId ?? targetSplitter.cluster?.id ?? null;
+              const existingClusterCode = existing.cluster?.clusterCode ?? null;
+              const targetClusterCode = targetSplitter.cluster?.clusterCode ?? null;
+              if (
+                (existingClusterId && targetClusterId && existingClusterId !== targetClusterId) ||
+                (existingClusterCode &&
+                  targetClusterCode &&
+                  existingClusterCode.toLowerCase() !== targetClusterCode.toLowerCase()) ||
+                !matchesAssignedClusters(actor, targetClusterCode, targetSplitter.cluster?.name)
+              ) {
+                throw new AuthHttpError(
+                  403,
+                  ERROR_CODES.FORBIDDEN,
+                  'Akses ditolak: ODP Splitter tujuan berada di cluster yang berbeda dengan pelanggan.',
+                );
               }
               if (resolvedPortNumber !== null && resolvedPortNumber > targetSplitter.maxPorts) {
                 throw new Error(
@@ -1134,6 +1230,9 @@ export class CustomerService {
           updatedAt: updated.updatedAt.toISOString(),
         };
       } catch (err) {
+        if (err instanceof AuthHttpError) {
+          throw err;
+        }
         if (
           err instanceof Error &&
           (err.message.includes('tidak ditemukan') ||

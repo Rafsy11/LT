@@ -60,8 +60,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         if (ticket) {
           if (
             actor.userType !== 'SUPER_ADMIN' &&
-            ticket.assignedTechId &&
-            ticket.assignedTechId !== actor.userId
+            (!ticket.assignedTechId || ticket.assignedTechId !== actor.userId)
           ) {
             return NextResponse.json(
               {

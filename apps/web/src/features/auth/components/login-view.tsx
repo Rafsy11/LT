@@ -52,9 +52,9 @@ export function LoginView() {
 
   return (
     <main id="main-content" className="auth-page" aria-label="Portal Kendali NOC FiberOps">
-      <MobileDevToolsGuard isBlocked={isDevToolsBlocked} onRecheck={recheckDevTools} />
       <h1 className="sr-only">Masuk ke Portal Kendali NOC FiberOps</h1>
-      <article className="auth-card" aria-hidden={isDevToolsBlocked || undefined}>
+      <MobileDevToolsGuard isBlocked={isDevToolsBlocked} onRecheck={recheckDevTools}>
+        <article className="auth-card">
         <header className="auth-header">
           <div className="auth-brand-bar">
             <Image
@@ -261,6 +261,7 @@ export function LoginView() {
           </fieldset>
         </form>
       </article>
+      </MobileDevToolsGuard>
 
       <footer className="auth-meta">
         <span>Autentikasi 2FA Telegram • Sesi Aman Terenkripsi</span>
