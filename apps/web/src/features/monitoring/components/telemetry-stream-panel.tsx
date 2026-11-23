@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useRef } from 'react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Icon } from '@/components/ui/Icon';
