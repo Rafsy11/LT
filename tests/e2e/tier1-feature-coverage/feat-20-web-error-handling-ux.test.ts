@@ -289,6 +289,14 @@ describe('Tier 1: Feature 20 - Web Error Handling & Humane Microcopy UX', () => 
     assert.match(toastProviderSrc, /persist\?:/);
     assert.match(toastProviderSrc, /popover:\s*'manual'/);
     assert.match(toastProviderSrc, /lastExternalFocusRef/);
+    assert.match(toastProviderSrc, /className="toast-message"[\s\S]*className="toast-ref"/);
+
+    const errorCssSrc = fs.readFileSync(
+      path.join(webSrc, 'styles', 'components', 'error-ux.css'),
+      'utf-8',
+    );
+    assert.match(errorCssSrc, /\.toast-ref\s*\{[^}]*align-self:\s*flex-start/);
+    assert.doesNotMatch(errorCssSrc, /\.toast-ref\s*\{[^}]*margin-left:\s*auto/);
 
     const rolesViewSrc = fs.readFileSync(
       path.join(webSrc, 'features', 'roles', 'components', 'roles-view.tsx'),

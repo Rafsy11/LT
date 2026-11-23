@@ -397,9 +397,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                           ? 'Perhatian'
                           : 'Informasi')}
                 </span>
-                {toast.refCode && <span className="toast-ref">Ref: {toast.refCode}</span>}
               </div>
               <p className="toast-message">{toast.message}</p>
+              {toast.refCode && <span className="toast-ref">Ref: {toast.refCode}</span>}
               {toast.action && (
                 <div className="toast-action-row">
                   <button
