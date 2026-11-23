@@ -602,4 +602,175 @@ describe('Tier 1: Feature 20 - Web Error Handling & Humane Microcopy UX', () => 
     assert.match(routeSrc, /matchesAssignedClusters/);
     assert.match(routeSrc, /RATE_LIMIT_PROFILES\.REPORT_EXPORT/);
   });
+
+  it('enforces honest /monitoring telemetry classification, accessible semantics, and token CSS', async () => {
+    const telemetryMod = await import(
+      '../../../apps/web/src/features/monitoring/utils/monitoring-telemetry'
+    );
+    const {
+      classifyMonitoringDbm,
+      getCriticalReason,
+      getSpectrumMeterPercentage,
+      matchesClusterSelection,
+      resolveValidationSummary,
+    } = telemetryMod;
+
+    // 0 dBm / missing attenuation must NEVER be falsely classified as Critical
+    assert.strictEqual(classifyMonitoringDbm(0), 'Unmeasured');
+    assert.strictEqual(classifyMonitoringDbm(null), 'Unmeasured');
+    assert.strictEqual(classifyMonitoringDbm(undefined), 'Unmeasured');
+    assert.strictEqual(classifyMonitoringDbm(-20.4), 'Normal');
+    assert.strictEqual(classifyMonitoringDbm(-26.5), 'Warning');
+    assert.strictEqual(classifyMonitoringDbm(-29.2), 'Critical');
+    assert.strictEqual(classifyMonitoringDbm(-8.5), 'Critical');
+
+    assert.strictEqual(getCriticalReason(0), null);
+    assert.strictEqual(getCriticalReason(-29.2), 'low');
+    assert.strictEqual(getCriticalReason(-8.5), 'overpower');
+
+    // Spectrum percentage aligned strictly to [-35 dBm, -10 dBm]
+    assert.strictEqual(getSpectrumMeterPercentage(0), 0);
+    assert.strictEqual(getSpectrumMeterPercentage(-28), 28);
+    assert.strictEqual(getSpectrumMeterPercentage(-25), 40);
+    assert.strictEqual(getSpectrumMeterPercentage(-10), 100);
+
+    // Honest validation summary without fabricated 18m / OS Verified / MinIO Verified
+    const unsubmitted = resolveValidationSummary({
+      id: 'm-1',
+      ticketNumber: 'WO-2026-101',
+      customerName: 'PT Telkom Test',
+      siaNumber: '2026000111',
+      ticketType: 'Maintenance',
+      cluster: 'Palembang Ilir',
+      clusterCode: 'PLB-ILR',
+      assignedTech: 'Andi Pratama',
+      techInitials: 'AP',
+      status: 'Menunggu',
+      currentAttenuation: 0,
+      createdAt: '2026-11-23T08:00:00.000Z',
+    });
+    assert.strictEqual(unsubmitted.gpsStatus, 'missing');
+    assert.strictEqual(unsubmitted.gpsCompactLabel, 'Belum ada GPS');
+    assert.strictEqual(unsubmitted.opmStatus, 'missing');
+
+    const flaggedPending = resolveValidationSummary({
+      id: 'm-2',
+      ticketNumber: 'WO-2026-102',
+      customerName: 'PT Maju Jaya',
+      siaNumber: '2026000222',
+      ticketType: 'Pasang baru',
+      cluster: 'Palembang Ilir',
+      clusterCode: 'PLB-ILR',
+      assignedTech: 'Rizky Maulana',
+      techInitials: 'RM',
+      status: 'Menunggu verifikasi',
+      currentAttenuation: -29.4,
+      createdAt: '2026-11-23T08:15:00.000Z',
+      pendingSubmission: {
+        submissionId: 'sub-1',
+        splitterId: 'sp-1',
+        splitterCode: 'ODP-PLB-01',
+        portNumber: 4,
+        attenuationDbm: -29.4,
+        photoObjectKey: 'opm/sub-1.jpg',
+        submittedLat: -2.97,
+        submittedLng: 104.77,
+        distanceToSplitterM: 145,
+        isLocationFlagged: true,
+        submittedAt: '2026-11-23T08:20:00.000Z',
+        techUsername: 'rizky',
+        techFullName: 'Rizky Maulana',
+      },
+    });
+    assert.strictEqual(flaggedPending.gpsStatus, 'warn');
+    assert.strictEqual(flaggedPending.geofenceStatus, 'warn');
+    assert.strictEqual(flaggedPending.opmStatus, 'pending_review');
+
+    assert.strictEqual(
+      matchesClusterSelection(
+        {
+          id: 'm-3',
+          ticketNumber: 'WO-3',
+          customerName: 'A',
+          siaNumber: '1',
+          ticketType: 'Maintenance',
+          cluster: 'Palembang Ilir',
+          clusterCode: 'PLB-ILR',
+          assignedTech: 'Budi',
+          techInitials: 'BD',
+          status: 'Selesai',
+          currentAttenuation: -19.5,
+          createdAt: '2026-11-23T08:00:00.000Z',
+        },
+        'PLB-ILR',
+      ),
+      true,
+    );
+
+    // Source contracts: zero fabricated fallbacks, zero infra leaks, proper A11y & native <dialog>
+    const monitoringDir = path.join(webSrc, 'features', 'monitoring');
+    const hookSrc = fs.readFileSync(path.join(monitoringDir, 'hooks', 'use-monitoring.ts'), 'utf-8');
+    const viewSrc = fs.readFileSync(
+      path.join(monitoringDir, 'components', 'monitoring-view.tsx'),
+      'utf-8',
+    );
+    const statsSrc = fs.readFileSync(
+      path.join(monitoringDir, 'components', 'monitoring-stats.tsx'),
+      'utf-8',
+    );
+    const incidentSrc = fs.readFileSync(
+      path.join(monitoringDir, 'components', 'monitoring-incident-bar.tsx'),
+      'utf-8',
+    );
+    const streamSrc = fs.readFileSync(
+      path.join(monitoringDir, 'components', 'telemetry-stream-panel.tsx'),
+      'utf-8',
+    );
+    const hudSrc = fs.readFileSync(
+      path.join(monitoringDir, 'components', 'telemetry-inspector-hud.tsx'),
+      'utf-8',
+    );
+    const monitoringCss = fs.readFileSync(
+      path.join(webSrc, 'styles', 'features', 'monitoring.css'),
+      'utf-8',
+    );
+
+    const combinedMonitoringSrc = [hookSrc, viewSrc, statsSrc, incidentSrc, streamSrc, hudSrc].join(
+      '\n',
+    );
+    assert.doesNotMatch(
+      combinedMonitoringSrc,
+      /\?\?\s*18|ODP-CMH-02|Negatif \(OS Verified\)|MinIO Verified|Nginx Unbuffered|Redis Bus Aktif|replace\('Bandung '/,
+      '/monitoring must not contain fabricated fallbacks or internal infrastructure jargon',
+    );
+    assert.doesNotMatch(
+      statsSrc,
+      /<article[^>]+role="button"/,
+      'MonitoringStats KPI cards must use native <button> elements instead of <article role="button">',
+    );
+    assert.match(statsSrc, /aria-pressed=/);
+    assert.doesNotMatch(
+      streamSrc,
+      /<li[^>]+role="button"/,
+      'TelemetryStreamPanel must not nest buttons inside <li role="button">',
+    );
+    assert.match(streamSrc, /<table className="noc-stream-table">/);
+    assert.match(streamSrc, /ArrowRight/);
+    assert.match(viewSrc, /<dialog/);
+    assert.match(viewSrc, /showModal\(\)/);
+    assert.match(viewSrc, /<SafeErrorState/);
+    assert.doesNotMatch(
+      viewSrc,
+      /<dialog[^>]+(?:role="dialog"|aria-modal)/,
+      'Native modal <dialog> must not duplicate role="dialog" or aria-modal',
+    );
+    assert.match(monitoringCss, /@container\s*\(width\s*<\s*720px\)/);
+    assert.match(monitoringCss, /\.noc-inspector-dialog:modal[\s\S]*overscroll-behavior:\s*contain/);
+    assert.match(
+      monitoringCss,
+      /\.noc-inspector-dialog::backdrop[\s\S]*overscroll-behavior:\s*contain/,
+    );
+    assert.match(monitoringCss, /\.noc-tab-btn\[aria-selected='true'\]::after/);
+    assert.doesNotMatch(monitoringCss, /html\.dark\s+\.hud-spec-grid/);
+  });
 });

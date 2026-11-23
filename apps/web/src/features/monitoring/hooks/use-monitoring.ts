@@ -1,46 +1,85 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { classifyDbm } from '@repo/shared';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { webApiClient } from '@/lib/api-client';
 import { normalizeAppError } from '@/lib/error-normalizer';
 import { fetchWithCache, getCachedData } from '@/lib/query-cache';
 import { useToast } from '@/providers';
+import {
+  classifyMonitoringDbm,
+  getSpectrumMeterPercentage,
+  isAttenuationMeasured,
+  matchesClusterSelection,
+  type LiveReportItem,
+  type MonitoringTab,
+} from '../utils/monitoring-telemetry';
+
+export type { LiveReportItem, MonitoringTab };
 
 const TICKETS_CACHE_KEY = '/api/v1/admin/tickets';
-
-export interface LiveReportItem {
-  id: string;
-  ticketNumber: string;
-  customerName: string;
-  siaNumber: string;
-  ticketType: 'Pasang baru' | 'Perbaikan' | 'Maintenance' | 'Instalasi';
-  cluster: string;
-  assignedTech: string;
-  techInitials: string;
-  status: 'Menunggu' | 'Dalam proses' | 'Selesai' | 'Dibatalkan';
-  priority?: 'Normal' | 'High' | 'Low';
-  currentAttenuation: number;
-  adminNotes?: string;
-  createdAt: string;
-  completedAt?: string;
-  splitterCode?: string;
-  portNumber?: number;
-  distanceToSplitterM?: number;
-  isLocationFlagged?: boolean;
-  isLiveIncoming?: boolean;
-}
+const SSE_SYNC_DEBOUNCE_MS = 1200;
+const MAX_RECONNECT_DELAY_MS = 30000;
 
 export type SseState = 'CONNECTING' | 'LIVE_CONNECTED' | 'DISCONNECTED' | 'RECONNECTING';
 
+interface IncomingSseReportPayload {
+  id?: string;
+  ticketNumber?: string;
+  title?: string;
+  customerName?: string;
+  siaNumber?: string;
+  clusterName?: string;
+  clusterCode?: string;
+  technicianName?: string;
+  techInitials?: string;
+  attenuationDbm?: number | string;
+  type?: string;
+  splitterCode?: string;
+  portNumber?: number | string;
+  distanceMeters?: number | string;
+  isLocationFlagged?: boolean;
+}
+
+function formatWibClock(date: Date): string {
+  return (
+    date.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }) + ' WIB'
+  );
+}
+
 function pickInitialReport(items: LiveReportItem[] | null): LiveReportItem | null {
   if (!items || items.length === 0) return null;
-  const crit = items.find((r) => classifyDbm(r.currentAttenuation) === 'Critical');
-  return crit || items[0];
+  const critical = items.find((r) => classifyMonitoringDbm(r.currentAttenuation) === 'Critical');
+  return critical || items[0];
+}
+
+function inferSseStatus(
+  title: string | undefined,
+  existingStatus: LiveReportItem['status'] | undefined,
+): LiveReportItem['status'] {
+  const lower = (title || '').toLowerCase();
+  if (lower.includes('menunggu verifikasi')) return 'Menunggu verifikasi';
+  if (lower.includes('disetujui') || lower.includes('selesai')) return 'Selesai';
+  if (lower.includes('ditolak') || lower.includes('proses')) return 'Dalam proses';
+  return existingStatus ?? 'Dalam proses';
+}
+
+function inferTicketType(
+  rawType: string | undefined,
+  existingType: LiveReportItem['ticketType'] | undefined,
+): LiveReportItem['ticketType'] {
+  if (rawType === 'Pasang baru') return 'Pasang baru';
+  if (rawType === 'Maintenance') return 'Maintenance';
+  if (rawType === 'Perbaikan') return 'Perbaikan';
+  if (rawType === 'Instalasi') return 'Instalasi';
+  return existingType ?? 'Maintenance';
 }
 
 export function useMonitoring() {
-  const [tab, setTab] = useState<'Semua' | 'Normal' | 'Warning' | 'Critical'>('Semua');
+  const [tab, setTab] = useState<MonitoringTab>('Semua');
   const [search, setSearch] = useState('');
   const [cluster, setCluster] = useState('Semua cluster');
   const [typeFilter, setTypeFilter] = useState('Semua tipe');
@@ -51,59 +90,99 @@ export function useMonitoring() {
   const [loading, setLoading] = useState<boolean>(
     () => !getCachedData<LiveReportItem[]>(TICKETS_CACHE_KEY),
   );
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<unknown>(null);
   const [selectedTicket, setSelectedTicket] = useState<LiveReportItem | null>(() =>
     pickInitialReport(getCachedData<LiveReportItem[]>(TICKETS_CACHE_KEY)),
   );
   const [modalTicket, setModalTicket] = useState<LiveReportItem | null>(null);
   const [sseState, setSseState] = useState<SseState>('CONNECTING');
   const [reconnectCountdown, setReconnectCountdown] = useState<number>(0);
-  const [lastHeartbeat, setLastHeartbeat] = useState<string>('Memulai koneksi...');
+  const [lastHeartbeat, setLastHeartbeat] = useState<string>('Menunggu sinkronisasi...');
+  const [autoFollowLive, setAutoFollowLive] = useState(false);
+  const [pendingLiveUpdates, setPendingLiveUpdates] = useState(0);
+  const [latestLiveTicketNumber, setLatestLiveTicketNumber] = useState<string | null>(null);
+  const [activeCriticalIndex, setActiveCriticalIndex] = useState(0);
+  const [streamGeneration, setStreamGeneration] = useState(0);
+
   const { showError } = useToast();
 
-  const fetchInitialReports = useCallback(async (force = false) => {
-    try {
-      if (!getCachedData<LiveReportItem[]>(TICKETS_CACHE_KEY)) {
-        setLoading(true);
-      }
-      const data = await fetchWithCache<LiveReportItem[]>(
-        TICKETS_CACHE_KEY,
-        async () => {
-          const json = await webApiClient.get<LiveReportItem[]>(TICKETS_CACHE_KEY);
-          if (!json.success || !Array.isArray(json.data)) {
-            throw normalizeAppError(!json.success ? json.error : null, {
-              fallbackMessage: 'Data pantauan tiket belum dapat dimuat saat ini.',
-            });
-          }
-          return json.data;
-        },
-        { force },
-      );
+  const autoFollowLiveRef = useRef(autoFollowLive);
+  const selectedTicketNumberRef = useRef<string | null>(selectedTicket?.ticketNumber ?? null);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-      setReports(data);
-      if (data.length > 0) {
-        setSelectedTicket((prev) => prev ?? pickInitialReport(data));
+  useEffect(() => {
+    autoFollowLiveRef.current = autoFollowLive;
+  }, [autoFollowLive]);
+
+  useEffect(() => {
+    selectedTicketNumberRef.current = selectedTicket?.ticketNumber ?? null;
+  }, [selectedTicket]);
+
+  const fetchInitialReports = useCallback(
+    async (force = false) => {
+      try {
+        if (!getCachedData<LiveReportItem[]>(TICKETS_CACHE_KEY)) {
+          setLoading(true);
+        } else if (force) {
+          setIsRefreshing(true);
+        }
+
+        const data = await fetchWithCache<LiveReportItem[]>(
+          TICKETS_CACHE_KEY,
+          async () => {
+            const json = await webApiClient.get<LiveReportItem[]>(TICKETS_CACHE_KEY);
+            if (!json.success || !Array.isArray(json.data)) {
+              throw normalizeAppError(!json.success ? json.error : null, {
+                fallbackMessage: 'Data pantauan redaman belum dapat dimuat saat ini.',
+              });
+            }
+            return json.data;
+          },
+          { force },
+        );
+
+        setLoadError(null);
+        setReports(data);
+        setLastHeartbeat(formatWibClock(new Date()));
+        if (data.length > 0) {
+          setSelectedTicket((prev) => prev ?? pickInitialReport(data));
+        }
+      } catch (err) {
+        const normalized = normalizeAppError(err);
+        setLoadError(normalized);
+        showError(normalized, {
+          onRetry:
+            normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
+              ? () => void fetchInitialReports(true)
+              : undefined,
+        });
+      } finally {
+        setLoading(false);
+        setIsRefreshing(false);
       }
-    } catch (err) {
-      const normalized = normalizeAppError(err);
-      showError(normalized, {
-        onRetry:
-          normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
-            ? () => void fetchInitialReports(true)
-            : undefined,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [showError]);
+    },
+    [showError],
+  );
+
+  useEffect(() => {
+    void fetchInitialReports();
+  }, [fetchInitialReports]);
 
   useEffect(() => {
     let isDisposed = false;
-    fetchInitialReports();
-
     let eventSource: EventSource | null = null;
-    let retryTimeout: NodeJS.Timeout | null = null;
-    let countdownInterval: NodeJS.Timeout | null = null;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let countdownInterval: ReturnType<typeof setInterval> | null = null;
     let retryCount = 0;
+
+    const markConnected = () => {
+      if (isDisposed) return;
+      retryCount = 0;
+      setReconnectCountdown(0);
+      setSseState('LIVE_CONNECTED');
+      setLastHeartbeat(formatWibClock(new Date()));
+    };
 
     const connectSSE = () => {
       if (isDisposed) return;
@@ -111,85 +190,100 @@ export function useMonitoring() {
         setSseState('CONNECTING');
         eventSource = new EventSource('/api/v1/admin/stream/reports');
 
-        eventSource.onopen = () => {
-          if (isDisposed) return;
-          retryCount = 0;
-          setSseState('LIVE_CONNECTED');
-          setLastHeartbeat(
-            new Date().toLocaleTimeString('id-ID', {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-            }) + ' WIB',
-          );
-        };
-
-        eventSource.addEventListener('connected', () => {
-          if (isDisposed) return;
-          retryCount = 0;
-          setSseState('LIVE_CONNECTED');
-          setLastHeartbeat(
-            new Date().toLocaleTimeString('id-ID', {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-            }) + ' WIB',
-          );
-        });
-
-        eventSource.addEventListener('ping', () => {
-          if (isDisposed) return;
-          retryCount = 0;
-          setSseState('LIVE_CONNECTED');
-          setLastHeartbeat(
-            new Date().toLocaleTimeString('id-ID', {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-            }) + ' WIB',
-          );
-        });
+        eventSource.onopen = markConnected;
+        eventSource.addEventListener('connected', markConnected);
+        eventSource.addEventListener('ping', markConnected);
 
         eventSource.addEventListener('report', (e) => {
           if (isDisposed) return;
           try {
-            const item = JSON.parse(e.data);
-            const rawDbm = Number(item.attenuationDbm);
-            const distance = item.distanceMeters !== undefined ? Number(item.distanceMeters) : 18;
-            const isLocationFlagged = item.isLocationFlagged ?? distance > 100;
+            const item = JSON.parse(e.data) as IncomingSseReportPayload;
+            if (!item.ticketNumber) return;
 
-            const newReport: LiveReportItem = {
-              id: item.id || `live-${Date.now()}`,
-              ticketNumber: item.ticketNumber,
-              customerName: item.customerName,
-              siaNumber: item.siaNumber,
-              ticketType: item.type === 'Pasang baru' ? 'Pasang baru' : 'Maintenance',
-              cluster: item.clusterName,
-              assignedTech: item.technicianName,
-              techInitials: item.techInitials || 'TK',
-              status: 'Selesai',
-              currentAttenuation: rawDbm,
-              createdAt: new Date().toISOString(),
-              completedAt: new Date().toISOString(),
-              splitterCode: item.splitterCode || 'ODP-LIVE',
-              portNumber: item.portNumber || 1,
-              distanceToSplitterM: distance,
-              isLocationFlagged,
-              isLiveIncoming: true,
-            };
+            const parsedDbm = Number(item.attenuationDbm);
+            const attenuationValue = Number.isFinite(parsedDbm) ? parsedDbm : 0;
+            const parsedDistance =
+              item.distanceMeters !== undefined && item.distanceMeters !== null
+                ? Number(item.distanceMeters)
+                : undefined;
+            const parsedPort =
+              item.portNumber !== undefined && item.portNumber !== null
+                ? Number(item.portNumber)
+                : undefined;
 
-            setReports((prev) => [
-              newReport,
-              ...prev.filter((r) => r.ticketNumber !== newReport.ticketNumber),
-            ]);
-            setSelectedTicket(newReport);
-            setLastHeartbeat(
-              new Date().toLocaleTimeString('id-ID', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-              }) + ' WIB',
-            );
+            let mergedReport: LiveReportItem | null = null;
+
+            setReports((prev) => {
+              const existing = prev.find(
+                (r) =>
+                  r.ticketNumber === item.ticketNumber ||
+                  (Boolean(item.id) && r.id === item.id),
+              );
+
+              const nextDistance =
+                parsedDistance !== undefined && Number.isFinite(parsedDistance)
+                  ? parsedDistance
+                  : existing?.distanceToSplitterM;
+
+              const nextStatus = inferSseStatus(item.title, existing?.status);
+
+              const candidate: LiveReportItem = {
+                ...(existing ?? {}),
+                id: item.id || existing?.id || `live-${Date.now()}`,
+                ticketNumber: item.ticketNumber!,
+                customerName: item.customerName || existing?.customerName || 'Pelanggan',
+                siaNumber: item.siaNumber || existing?.siaNumber || '',
+                ticketType: inferTicketType(item.type, existing?.ticketType),
+                cluster: item.clusterName || existing?.cluster || '',
+                clusterCode: item.clusterCode || existing?.clusterCode,
+                assignedTech: item.technicianName || existing?.assignedTech || 'Belum ditugaskan',
+                techInitials: item.techInitials || existing?.techInitials || 'TK',
+                status: nextStatus,
+                currentAttenuation: attenuationValue,
+                createdAt: existing?.createdAt || new Date().toISOString(),
+                completedAt:
+                  nextStatus === 'Selesai'
+                    ? existing?.completedAt || new Date().toISOString()
+                    : existing?.completedAt,
+                splitterCode: item.splitterCode || existing?.splitterCode,
+                portNumber:
+                  parsedPort !== undefined && Number.isFinite(parsedPort) && parsedPort > 0
+                    ? parsedPort
+                    : existing?.portNumber,
+                distanceToSplitterM: nextDistance,
+                isLocationFlagged: item.isLocationFlagged ?? existing?.isLocationFlagged,
+                isLiveIncoming: true,
+              };
+
+              mergedReport = candidate;
+              return [
+                candidate,
+                ...prev.filter((r) => r.ticketNumber !== candidate.ticketNumber),
+              ];
+            });
+
+            if (mergedReport) {
+              const currentSelection = selectedTicketNumberRef.current;
+              const isSameTicket = currentSelection === item.ticketNumber;
+              if (autoFollowLiveRef.current || !currentSelection || isSameTicket) {
+                setSelectedTicket(mergedReport);
+              } else {
+                setPendingLiveUpdates((count) => count + 1);
+                setLatestLiveTicketNumber(item.ticketNumber);
+              }
+            }
+
+            setLastHeartbeat(formatWibClock(new Date()));
+
+            // Debounced server sync hydrates full metadata (GPS, ODP, pending OPM photo)
+            if (syncTimerRef.current) {
+              clearTimeout(syncTimerRef.current);
+            }
+            syncTimerRef.current = setTimeout(() => {
+              if (!isDisposed) {
+                void fetchInitialReports(true);
+              }
+            }, SSE_SYNC_DEBOUNCE_MS);
           } catch (err) {
             console.error('[Monitoring] Parse error pada SSE report event:', err);
           }
@@ -200,8 +294,8 @@ export function useMonitoring() {
             eventSource.close();
           }
           if (isDisposed) return;
-          retryCount++;
-          const delayMs = Math.min(1000 * Math.pow(2, retryCount), 30000);
+          retryCount += 1;
+          const delayMs = Math.min(1000 * Math.pow(2, retryCount), MAX_RECONNECT_DELAY_MS);
           const delaySec = Math.ceil(delayMs / 1000);
           setSseState('RECONNECTING');
           setReconnectCountdown(delaySec);
@@ -242,22 +336,31 @@ export function useMonitoring() {
       if (countdownInterval) {
         clearInterval(countdownInterval);
       }
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+      }
     };
+  }, [fetchInitialReports, streamGeneration]);
+
+  const reconnectStream = useCallback(() => {
+    setStreamGeneration((prev) => prev + 1);
+    void fetchInitialReports(true);
   }, [fetchInitialReports]);
 
   const availableTechs = useMemo(() => {
     const set = new Set<string>();
     reports.forEach((r) => {
-      if (r.assignedTech && r.assignedTech !== 'Belum Ditugaskan') set.add(r.assignedTech);
+      if (r.assignedTech && r.assignedTech !== 'Belum Ditugaskan' && r.assignedTech !== 'Belum ditugaskan') {
+        set.add(r.assignedTech);
+      }
     });
     return Array.from(set).sort();
   }, [reports]);
 
   const scopedReports = useMemo(() => {
+    const trimmedSearch = search.trim().toLowerCase();
     return reports.filter((r) => {
-      const matchesCluster =
-        cluster === 'Semua cluster' ||
-        r.cluster.toLowerCase().includes(cluster.replace('Bandung ', '').toLowerCase());
+      const matchesCluster = matchesClusterSelection(r, cluster);
       const matchesType =
         typeFilter === 'Semua tipe' ||
         (typeFilter === 'Pasang baru' &&
@@ -266,38 +369,74 @@ export function useMonitoring() {
           (r.ticketType === 'Maintenance' || r.ticketType === 'Perbaikan'));
       const matchesTech = techFilter === 'Semua teknisi' || r.assignedTech === techFilter;
       const matchesSearch =
-        search.trim() === '' ||
-        r.customerName.toLowerCase().includes(search.toLowerCase()) ||
-        r.ticketNumber.toLowerCase().includes(search.toLowerCase()) ||
-        r.siaNumber.toLowerCase().includes(search.toLowerCase()) ||
-        (r.splitterCode && r.splitterCode.toLowerCase().includes(search.toLowerCase())) ||
-        r.assignedTech.toLowerCase().includes(search.toLowerCase());
+        trimmedSearch === '' ||
+        r.customerName.toLowerCase().includes(trimmedSearch) ||
+        r.ticketNumber.toLowerCase().includes(trimmedSearch) ||
+        r.siaNumber.toLowerCase().includes(trimmedSearch) ||
+        (Boolean(r.splitterCode) && r.splitterCode!.toLowerCase().includes(trimmedSearch)) ||
+        r.assignedTech.toLowerCase().includes(trimmedSearch);
 
       return matchesCluster && matchesType && matchesTech && matchesSearch;
     });
   }, [reports, cluster, typeFilter, techFilter, search]);
 
+  const severityCounts = useMemo(() => {
+    let normal = 0;
+    let warning = 0;
+    let critical = 0;
+    let unmeasured = 0;
+
+    for (const report of scopedReports) {
+      const severity = classifyMonitoringDbm(report.currentAttenuation);
+      if (severity === 'Normal') normal += 1;
+      else if (severity === 'Warning') warning += 1;
+      else if (severity === 'Critical') critical += 1;
+      else unmeasured += 1;
+    }
+
+    return {
+      normal,
+      warning,
+      critical,
+      unmeasured,
+      measured: normal + warning + critical,
+    };
+  }, [scopedReports]);
+
   const filteredReports = useMemo(() => {
     if (tab === 'Semua') return scopedReports;
-    return scopedReports.filter((r) => classifyDbm(r.currentAttenuation) === tab);
+    return scopedReports.filter((r) => classifyMonitoringDbm(r.currentAttenuation) === tab);
   }, [scopedReports, tab]);
 
-  const normalCount = useMemo(
-    () => scopedReports.filter((r) => classifyDbm(r.currentAttenuation) === 'Normal').length,
-    [scopedReports],
-  );
-  const warningCount = useMemo(
-    () => scopedReports.filter((r) => classifyDbm(r.currentAttenuation) === 'Warning').length,
-    [scopedReports],
-  );
-  const criticalCount = useMemo(
-    () => scopedReports.filter((r) => classifyDbm(r.currentAttenuation) === 'Critical').length,
-    [scopedReports],
-  );
-
-  const pinnedCriticalReport = useMemo(() => {
-    return scopedReports.find((r) => classifyDbm(r.currentAttenuation) === 'Critical') || null;
+  const criticalReports = useMemo(() => {
+    return scopedReports
+      .filter((r) => classifyMonitoringDbm(r.currentAttenuation) === 'Critical')
+      .sort((a, b) => {
+        const aVal = isAttenuationMeasured(a.currentAttenuation) ? a.currentAttenuation : 0;
+        const bVal = isAttenuationMeasured(b.currentAttenuation) ? b.currentAttenuation : 0;
+        return aVal - bVal;
+      });
   }, [scopedReports]);
+
+  useEffect(() => {
+    if (criticalReports.length === 0) {
+      setActiveCriticalIndex(0);
+    } else if (activeCriticalIndex >= criticalReports.length) {
+      setActiveCriticalIndex(0);
+    }
+  }, [criticalReports.length, activeCriticalIndex]);
+
+  const pinnedCriticalReport = criticalReports[activeCriticalIndex] ?? criticalReports[0] ?? null;
+
+  const cycleCriticalReport = useCallback(
+    (delta: -1 | 1) => {
+      if (criticalReports.length <= 1) return;
+      setActiveCriticalIndex(
+        (prev) => (prev + delta + criticalReports.length) % criticalReports.length,
+      );
+    },
+    [criticalReports.length],
+  );
 
   const activeReport = useMemo(() => {
     if (selectedTicket) {
@@ -307,22 +446,44 @@ export function useMonitoring() {
     return filteredReports[0] || reports[0] || null;
   }, [selectedTicket, filteredReports, reports]);
 
-  const getMeterPercentage = (dbm: number) => {
-    const min = -30;
-    const max = -10;
-    const pct = ((dbm - min) / (max - min)) * 100;
-    return Math.min(Math.max(pct, 4), 98);
-  };
+  const selectReport = useCallback((report: LiveReportItem) => {
+    setSelectedTicket(report);
+    if (latestLiveTicketNumber && report.ticketNumber === latestLiveTicketNumber) {
+      setPendingLiveUpdates(0);
+      setLatestLiveTicketNumber(null);
+    }
+  }, [latestLiveTicketNumber]);
 
-  const formatTimestamp = (dateStr: string) => {
+  const jumpToLatestLiveReport = useCallback(() => {
+    const target =
+      (latestLiveTicketNumber
+        ? reports.find((r) => r.ticketNumber === latestLiveTicketNumber)
+        : null) ?? reports[0];
+    setPendingLiveUpdates(0);
+    setLatestLiveTicketNumber(null);
+    if (target) {
+      setSelectedTicket(target);
+    }
+    return target ?? null;
+  }, [latestLiveTicketNumber, reports]);
+
+  const toggleAutoFollowLive = useCallback((enabled: boolean) => {
+    setAutoFollowLive(enabled);
+    if (enabled) {
+      setPendingLiveUpdates(0);
+      setLatestLiveTicketNumber(null);
+    }
+  }, []);
+
+  const formatTimestamp = useCallback((dateStr: string) => {
     try {
       const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return 'Baru saja';
+      if (Number.isNaN(d.getTime())) return 'Baru saja';
       return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
     } catch {
       return 'Baru saja';
     }
-  };
+  }, []);
 
   return {
     tab,
@@ -337,22 +498,34 @@ export function useMonitoring() {
     setTechFilter,
     reports,
     loading,
+    isRefreshing,
+    loadError,
     selectedTicket,
-    setSelectedTicket,
+    setSelectedTicket: selectReport,
     modalTicket,
     setModalTicket,
     sseState,
     reconnectCountdown,
     lastHeartbeat,
+    autoFollowLive,
+    setAutoFollowLive: toggleAutoFollowLive,
+    pendingLiveUpdates,
+    jumpToLatestLiveReport,
+    reconnectStream,
     availableTechs,
     scopedReports,
     filteredReports,
-    normalCount,
-    warningCount,
-    criticalCount,
+    normalCount: severityCounts.normal,
+    warningCount: severityCounts.warning,
+    criticalCount: severityCounts.critical,
+    unmeasuredCount: severityCounts.unmeasured,
+    measuredCount: severityCounts.measured,
+    criticalReports,
+    activeCriticalIndex,
+    cycleCriticalReport,
     pinnedCriticalReport,
     activeReport,
-    getMeterPercentage,
+    getMeterPercentage: getSpectrumMeterPercentage,
     formatTimestamp,
     fetchInitialReports,
   };

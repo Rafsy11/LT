@@ -1,58 +1,98 @@
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
-import type { LiveReportItem } from '../hooks/use-monitoring';
+import {
+  getCriticalReason,
+  type LiveReportItem,
+} from '../utils/monitoring-telemetry';
 
 export interface MonitoringIncidentBarProps {
-  pinnedCriticalReport: LiveReportItem | null;
+  criticalReports: LiveReportItem[];
+  activeCriticalIndex: number;
+  onCycleCritical: (delta: -1 | 1) => void;
   onFocusReport: (report: LiveReportItem) => void;
   onOpenModal: (report: LiveReportItem) => void;
 }
 
 export function MonitoringIncidentBar({
-  pinnedCriticalReport,
+  criticalReports,
+  activeCriticalIndex,
+  onCycleCritical,
   onFocusReport,
   onOpenModal,
 }: MonitoringIncidentBarProps) {
-  if (!pinnedCriticalReport) return null;
+  if (criticalReports.length === 0) return null;
+
+  const safeIndex = Math.min(activeCriticalIndex, criticalReports.length - 1);
+  const current = criticalReports[safeIndex];
+  if (!current) return null;
+
+  const reason = getCriticalReason(current.currentAttenuation);
+  const reasonLead =
+    reason === 'overpower' ? 'Daya optik berlebih (overpower) pada' : 'Redaman kritis pada';
+  const odpText = current.splitterCode
+    ? `${current.splitterCode}${current.portNumber ? ` Port ${current.portNumber}` : ''}`
+    : 'ODP belum ditautkan';
+  const techText = current.assignedTech || 'Belum ditugaskan';
 
   return (
-    <aside className="noc-incident-bar" aria-label="Notifikasi Insiden Kritis">
+    <aside className="noc-incident-bar" role="region" aria-label="Peringatan Insiden Redaman Kritis">
       <div className="noc-incident-left">
-        <span className="noc-incident-badge">
-          <span className="noc-incident-dot" aria-hidden="true" />
-          INSIDEN KRITIS
-        </span>
-        <div className="noc-incident-summary">
-          Sinyal drop terdeteksi pada <b>{pinnedCriticalReport.customerName}</b> (
-          {pinnedCriticalReport.siaNumber}) · {pinnedCriticalReport.splitterCode || 'ODP-CMH-02'}{' '}
-          Port {pinnedCriticalReport.portNumber || 7} ({pinnedCriticalReport.cluster}) · Teknisi:{' '}
-          {pinnedCriticalReport.assignedTech}
+        <div className="noc-incident-badge-group">
+          <span className="noc-incident-badge">
+            <Icon name="alert" size={13} />
+            <span>INSIDEN KRITIS</span>
+          </span>
+          {criticalReports.length > 1 && (
+            <div className="noc-incident-pager" aria-label="Navigasi antar insiden kritis">
+              <button
+                type="button"
+                className="noc-incident-nav-btn"
+                onClick={() => onCycleCritical(-1)}
+                aria-label="Insiden kritis sebelumnya"
+              >
+                <Icon name="chevronLeft" size={14} />
+              </button>
+              <span className="noc-incident-counter">
+                {safeIndex + 1} / {criticalReports.length}
+              </span>
+              <button
+                type="button"
+                className="noc-incident-nav-btn"
+                onClick={() => onCycleCritical(1)}
+                aria-label="Insiden kritis berikutnya"
+              >
+                <Icon name="chevronRight" size={14} />
+              </button>
+            </div>
+          )}
         </div>
+
+        <p className="noc-incident-summary">
+          {reasonLead} <strong>{current.customerName}</strong>
+          {current.siaNumber ? ` (${current.siaNumber})` : ''} · {odpText}
+          {current.cluster ? ` (${current.cluster})` : ''} · Teknisi: {techText}
+        </p>
       </div>
 
-      <nav className="noc-incident-right" aria-label="Aksi Insiden Kritis">
-        <span className="noc-incident-dbm">
-          {pinnedCriticalReport.currentAttenuation.toFixed(1)} dBm
-        </span>
-        <button
-          className="noc-incident-btn"
-          onClick={() => onFocusReport(pinnedCriticalReport)}
-          type="button"
-          title="Fokuskan inspektor HUD ke tiket ini"
-        >
-          <span>Investigasi Cepat</span>
-          <Icon name="chevron" size={12} />
-        </button>
-        <button
-          className="noc-incident-btn noc-incident-btn-primary"
-          onClick={() => onOpenModal(pinnedCriticalReport)}
-          type="button"
-          title="Buka rincian tiket lengkap"
-        >
-          <span>Buka Tiket</span>
-          <Icon name="arrow" size={12} />
-        </button>
-      </nav>
+      <div className="noc-incident-right">
+        <span className="noc-incident-dbm">{current.currentAttenuation.toFixed(1)} dBm</span>
+        <div className="noc-incident-actions">
+          <button
+            className="noc-incident-btn"
+            onClick={() => onFocusReport(current)}
+            type="button"
+          >
+            <span>Inspeksi</span>
+          </button>
+          <button
+            className="noc-incident-btn noc-incident-btn-primary"
+            onClick={() => onOpenModal(current)}
+            type="button"
+          >
+            <span>Buka Tiket</span>
+          </button>
+        </div>
+      </div>
     </aside>
   );
 }

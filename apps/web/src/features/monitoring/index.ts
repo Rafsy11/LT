@@ -4,3 +4,4 @@ export * from './components/monitoring-incident-bar';
 export * from './components/telemetry-stream-panel';
 export * from './components/telemetry-inspector-hud';
 export * from './hooks/use-monitoring';
+export * from './utils/monitoring-telemetry';

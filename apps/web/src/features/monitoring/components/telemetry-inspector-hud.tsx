@@ -1,60 +1,155 @@
 import React from 'react';
 import Link from 'next/link';
-import { classifyDbm, dbmTone } from '@repo/shared';
-import type { LiveReportItem } from '../hooks/use-monitoring';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Icon } from '@/components/ui/Icon';
+import {
+  SPECTRUM_MAX_DBM,
+  SPECTRUM_MIN_DBM,
+  classifyMonitoringDbm,
+  getCriticalReason,
+  getSeverityLabel,
+  isAttenuationMeasured,
+  resolveValidationSummary,
+  type LiveReportItem,
+} from '../utils/monitoring-telemetry';
 
 export interface TelemetryInspectorHudProps {
   activeReport: LiveReportItem | null;
-  getMeterPercentage: (dbm: number) => number;
+  getMeterPercentage: (dbm: number | null | undefined) => number;
   onOpenModal: (report: LiveReportItem) => void;
+  inDialog?: boolean;
+  titleId?: string;
+  onCloseDialog?: () => void;
 }
 
 export function TelemetryInspectorHud({
   activeReport,
   getMeterPercentage,
   onOpenModal,
+  inDialog = false,
+  titleId = 'noc-inspector-heading',
+  onCloseDialog,
 }: TelemetryInspectorHudProps) {
-  if (!activeReport) return null;
+  const ContainerTag = inDialog ? 'div' : 'aside';
+  const containerClass = inDialog
+    ? 'noc-inspector-panel noc-inspector-panel--dialog'
+    : 'noc-inspector-panel';
 
-  const status = classifyDbm(activeReport.currentAttenuation);
-  const tone = dbmTone(activeReport.currentAttenuation);
+  if (!activeReport) {
+    return (
+      <ContainerTag className={containerClass} aria-labelledby={titleId}>
+        <header className="noc-inspector-header">
+          <h2 id={titleId} className="noc-inspector-title">
+            Inspektor Telemetri
+          </h2>
+          {inDialog && onCloseDialog && (
+            <button
+              type="button"
+              className="noc-dialog-close-btn"
+              onClick={onCloseDialog}
+              aria-label="Tutup inspektor telemetri"
+            >
+              <Icon name="x" size={16} />
+            </button>
+          )}
+        </header>
+        <div className="noc-inspector-body noc-inspector-body--empty">
+          <EmptyState
+            icon="activity"
+            title="Belum ada laporan dipilih"
+            description="Pilih salah satu laporan di daftar telemetri untuk melihat rincian redaman, validasi lokasi, dan tautan tindak lanjut."
+            size="compact"
+          />
+        </div>
+      </ContainerTag>
+    );
+  }
+
+  const severity = classifyMonitoringDbm(activeReport.currentAttenuation);
+  const severityClass = severity.toLowerCase();
+  const isMeasured = isAttenuationMeasured(activeReport.currentAttenuation);
+  const criticalReason = getCriticalReason(activeReport.currentAttenuation);
   const meterPct = getMeterPercentage(activeReport.currentAttenuation);
+  const validation = resolveValidationSummary(activeReport);
+
+  const badgeText =
+    severity === 'Normal'
+      ? 'OPTIMAL'
+      : severity === 'Warning'
+        ? 'PERLU PANTAU'
+        : severity === 'Critical'
+          ? criticalReason === 'overpower'
+            ? 'KRITIS · OVERPOWER'
+            : 'KRITIS · DROP'
+          : 'BELUM DIUKUR';
+
+  const networkHref = activeReport.splitterCode
+    ? `/network?odp=${encodeURIComponent(activeReport.splitterCode)}`
+    : `/network?cluster=${encodeURIComponent(activeReport.clusterCode || activeReport.cluster)}`;
 
   return (
-    <aside className="noc-inspector-panel" aria-label="Inspektor Telemetri Real-Time">
+    <ContainerTag className={containerClass} aria-labelledby={titleId}>
       <header className="noc-inspector-header">
-        <h2 className="noc-inspector-title" style={{ margin: 0 }}>INSPEKTOR TELEMETRI</h2>
-        <span className="ticket-tag-mono">{activeReport.ticketNumber}</span>
+        <div className="noc-inspector-header-main">
+          <h2 id={titleId} className="noc-inspector-title">
+            Inspektor Telemetri
+          </h2>
+          <span className="ticket-tag-mono">{activeReport.ticketNumber}</span>
+        </div>
+        {inDialog && onCloseDialog && (
+          <button
+            type="button"
+            className="noc-dialog-close-btn"
+            onClick={onCloseDialog}
+            aria-label="Tutup inspektor telemetri"
+          >
+            <Icon name="x" size={16} />
+          </button>
+        )}
       </header>
 
       <div className="noc-inspector-body">
-        {/* Optical HUD Gauge Card */}
-        <section className={`hud-gauge-card ${status.toLowerCase()}`} aria-label="Pengukur Redaman Optik">
+        {/* Optical Gauge Card */}
+        <section
+          className={`hud-gauge-card hud-gauge-card--${severityClass}`}
+          aria-label="Pengukur Redaman Optik"
+        >
           <div className="hud-gauge-top">
-            <div className={`hud-dbm-big ${tone}`}>
-              {activeReport.currentAttenuation.toFixed(1)} <small>dBm</small>
+            <div className={`hud-dbm-big hud-dbm-big--${severityClass}`}>
+              {isMeasured ? (
+                <>
+                  {activeReport.currentAttenuation.toFixed(1)} <small>dBm</small>
+                </>
+              ) : (
+                <span className="hud-dbm-unmeasured">Belum diukur</span>
+              )}
             </div>
-            <span className={`hud-status-badge ${status.toLowerCase()}`}>
-              {status === 'Normal' && 'OPTIMAL'}
-              {status === 'Warning' && 'PERLU PANTAU'}
-              {status === 'Critical' && 'KRITIS - DROP'}
+            <span className={`hud-status-badge hud-status-badge--${severityClass}`}>
+              {badgeText}
             </span>
           </div>
 
           <div
             className="hud-spectrum-bar"
-            title={`Posisi spektrum ukur: ${activeReport.currentAttenuation} dBm`}
             role="progressbar"
-            aria-valuenow={activeReport.currentAttenuation}
-            aria-valuemin={-30}
-            aria-valuemax={-10}
-            aria-label="Spektrum redaman"
+            aria-valuemin={SPECTRUM_MIN_DBM}
+            aria-valuemax={SPECTRUM_MAX_DBM}
+            aria-valuenow={isMeasured ? activeReport.currentAttenuation : undefined}
+            aria-valuetext={
+              isMeasured
+                ? `${activeReport.currentAttenuation.toFixed(1)} dBm (${getSeverityLabel(severity)})`
+                : 'Belum diukur'
+            }
+            aria-label="Spektrum redaman optik"
           >
+            <span className="hud-spectrum-tick hud-spectrum-tick--crit" aria-hidden="true" />
+            <span className="hud-spectrum-tick hud-spectrum-tick--warn" aria-hidden="true" />
             <div
-              className={`hud-spectrum-fill ${status.toLowerCase()}`}
+              className={`hud-spectrum-fill hud-spectrum-fill--${severityClass}`}
               style={{ width: `${meterPct}%` }}
             />
           </div>
+
           <div className="hud-spectrum-labels" aria-hidden="true">
             <span>-35 dBm</span>
             <span>-28.0</span>
@@ -63,22 +158,31 @@ export function TelemetryInspectorHud({
           </div>
 
           <p className="hud-diagnostic-text">
-            {status === 'Normal' && (
+            {severity === 'Unmeasured' &&
+              'Pengukuran OPM belum dikirim dari lapangan. Nilai redaman akan muncul otomatis setelah teknisi mengirim hasil ukur.'}
+            {severity === 'Normal' && (
               <>
-                Sinyal redaman optik berada di rentang ideal (<b>-10.0 s/d -25.0 dBm</b>) untuk
-                transmisi GPON tanpa <i>packet loss</i>.
+                Sinyal optik berada pada rentang operasional ideal (<strong>-10,0 s/d -25,0 dBm</strong>)
+                untuk layanan FTTH yang stabil.
               </>
             )}
-            {status === 'Warning' && (
+            {severity === 'Warning' && (
               <>
-                Sinyal masih dalam batas layak 28 dB (<b>-25.1 s/d -28.0 dBm</b>). Disarankan
-                pemantauan berkala pada konektor patch cord dan adaptor ODP.
+                Redaman mendekati ambang batas maksimal 28 dB (<strong>-25,1 s/d -28,0 dBm</strong>).
+                Disarankan pengecekan konektor patch cord atau kelengkungan kabel.
               </>
             )}
-            {status === 'Critical' && (
+            {severity === 'Critical' && criticalReason === 'overpower' && (
               <>
-                Sinyal redaman jelek/kritis (<b>&lt; -28.0 dBm / di atas 28 dB</b>). Risiko tinggi
-                terjadi degradasi layanan pelanggan atau link optik terputus.
+                Daya terima optik terlalu tinggi (<strong>&gt; -10,0 dBm</strong>). Periksa attenuator
+                optik dan konfigurasi daya port OLT untuk mencegah kerusakan ONT.
+              </>
+            )}
+            {severity === 'Critical' && criticalReason !== 'overpower' && (
+              <>
+                Redaman melebihi batas toleransi maksimal (<strong>&lt; -28,0 dBm</strong>). Risiko
+                tinggi degradasi layanan atau link terputus; diperlukan pengecekan jalur atau
+                penyambungan ulang.
               </>
             )}
           </p>
@@ -86,86 +190,127 @@ export function TelemetryInspectorHud({
 
         {/* Customer & Physical Network Spec */}
         <section aria-labelledby="hud-identitas-label">
-          <h3 id="hud-identitas-label" className="hud-section-label">IDENTITAS FISIK &amp; JARINGAN</h3>
-          <div className="hud-spec-grid">
+          <h3 id="hud-identitas-label" className="hud-section-label">
+            Identitas &amp; Jaringan
+          </h3>
+          <dl className="hud-spec-grid">
             <div className="hud-spec-item full-width">
-              <div className="hud-spec-key">Nama Pelanggan</div>
-              <div className="hud-spec-val">{activeReport.customerName}</div>
+              <dt className="hud-spec-key">Pelanggan</dt>
+              <dd className="hud-spec-val">{activeReport.customerName}</dd>
             </div>
             <div className="hud-spec-item">
-              <div className="hud-spec-key">Nomor SIA</div>
-              <div className="hud-spec-val">
-                <code>{activeReport.siaNumber}</code>
-              </div>
+              <dt className="hud-spec-key">Nomor SIA</dt>
+              <dd className="hud-spec-val">
+                <code>{activeReport.siaNumber || 'Tidak tersedia'}</code>
+              </dd>
             </div>
             <div className="hud-spec-item">
-              <div className="hud-spec-key">Cluster Area</div>
-              <div className="hud-spec-val">{activeReport.cluster}</div>
+              <dt className="hud-spec-key">Status Tiket</dt>
+              <dd className="hud-spec-val">{activeReport.status}</dd>
             </div>
             <div className="hud-spec-item">
-              <div className="hud-spec-key">Splitter ODP Fisik</div>
-              <div className="hud-spec-val">
-                <code>{activeReport.splitterCode || '-'}</code>
-              </div>
+              <dt className="hud-spec-key">Cluster Area</dt>
+              <dd className="hud-spec-val">{activeReport.cluster || 'Belum ditentukan'}</dd>
             </div>
             <div className="hud-spec-item">
-              <div className="hud-spec-key">Alokasi Port</div>
-              <div className="hud-spec-val">
-                {activeReport.portNumber ? `Port ${activeReport.portNumber}` : '-'}
-              </div>
+              <dt className="hud-spec-key">Tipe Pekerjaan</dt>
+              <dd className="hud-spec-val">{activeReport.ticketType}</dd>
             </div>
-          </div>
+            <div className="hud-spec-item">
+              <dt className="hud-spec-key">Splitter ODP</dt>
+              <dd className="hud-spec-val">
+                {activeReport.splitterCode ? (
+                  <code>{activeReport.splitterCode}</code>
+                ) : (
+                  <span className="hud-muted-val">Belum ditautkan</span>
+                )}
+              </dd>
+            </div>
+            <div className="hud-spec-item">
+              <dt className="hud-spec-key">Alokasi Port</dt>
+              <dd className="hud-spec-val">
+                {activeReport.portNumber ? (
+                  `Port ${activeReport.portNumber}`
+                ) : (
+                  <span className="hud-muted-val">Belum dialokasikan</span>
+                )}
+              </dd>
+            </div>
+          </dl>
         </section>
 
-        {/* Field Security & Verification (PRD 3.3) */}
-        <section aria-labelledby="hud-security-label">
-          <h3 id="hud-security-label" className="hud-section-label">INTEGRITAS LAPANGAN &amp; ANTI-FAKE GPS</h3>
-          <div className="hud-security-box">
+        {/* Field Validation Box */}
+        <section aria-labelledby="hud-validation-label">
+          <h3 id="hud-validation-label" className="hud-section-label">
+            Status Validasi Lapangan
+          </h3>
+          <dl className="hud-security-box">
             <div className="hud-sec-row">
-              <span className="hud-sec-label">Teknisi Bertugas</span>
-              <span className="hud-sec-val">{activeReport.assignedTech}</span>
+              <dt className="hud-sec-label">Teknisi Bertugas</dt>
+              <dd className="hud-sec-val">{activeReport.assignedTech || 'Belum ditugaskan'}</dd>
             </div>
             <div className="hud-sec-row">
-              <span className="hud-sec-label">Jarak ke Titik ODP</span>
-              {activeReport.distanceToSplitterM && activeReport.distanceToSplitterM > 100 ? (
-                <span className="hud-sec-val warning">
-                  {activeReport.distanceToSplitterM}m (Mismatch)
-                </span>
-              ) : (
-                <span className="hud-sec-val verified">
-                  {activeReport.distanceToSplitterM ?? 18}m (Toleransi OK)
-                </span>
-              )}
+              <dt className="hud-sec-label">Jarak ke Titik ODP</dt>
+              <dd className={`hud-sec-val hud-sec-val--${validation.gpsStatus}`}>
+                {validation.gpsDetailLabel}
+              </dd>
             </div>
             <div className="hud-sec-row">
-              <span className="hud-sec-label">Deteksi Mock GPS</span>
-              <span className="hud-sec-val verified">Negatif (OS Verified)</span>
+              <dt className="hud-sec-label">Status Geofence</dt>
+              <dd className={`hud-sec-val hud-sec-val--${validation.geofenceStatus}`}>
+                {validation.geofenceDetailLabel}
+              </dd>
             </div>
             <div className="hud-sec-row">
-              <span className="hud-sec-label">Bukti Foto OPM</span>
-              <span className="hud-sec-val verified">MinIO Verified</span>
+              <dt className="hud-sec-label">Bukti Foto OPM</dt>
+              <dd className={`hud-sec-val hud-sec-val--${validation.opmStatus}`}>
+                {validation.opmDetailLabel}
+              </dd>
             </div>
-          </div>
+          </dl>
         </section>
 
-        {/* Action Buttons */}
-        <nav className="hud-actions" aria-label="Aksi Inspeksi Telemetri">
+        {/* Action Navigation */}
+        <nav className="hud-actions" aria-label="Tindak lanjut laporan">
           <button
             className="hud-btn-primary"
             onClick={() => onOpenModal(activeReport)}
             type="button"
           >
-            <span>Lihat Rincian Lengkap Tiket</span>
+            <Icon name="fileText" size={14} />
+            <span>Lihat Rincian Tiket</span>
           </button>
 
-          <Link
-            href={`/network?search=${encodeURIComponent(activeReport.cluster)}`}
-            className="hud-btn-secondary"
-          >
-            <span>Buka di Master Jaringan</span>
-          </Link>
+          <div className="hud-secondary-links">
+            {activeReport.siaNumber && (
+              <Link
+                href={`/customers/${encodeURIComponent(activeReport.siaNumber)}`}
+                className="hud-btn-secondary"
+                onClick={onCloseDialog}
+              >
+                <Icon name="user" size={14} />
+                <span>Profil Pelanggan</span>
+              </Link>
+            )}
+
+            <Link href={networkHref} className="hud-btn-secondary" onClick={onCloseDialog}>
+              <Icon name="network" size={14} />
+              <span>Master Jaringan</span>
+            </Link>
+
+            {activeReport.splitterCode && (
+              <Link
+                href={`/maps?odp=${encodeURIComponent(activeReport.splitterCode)}`}
+                className="hud-btn-secondary"
+                onClick={onCloseDialog}
+              >
+                <Icon name="map" size={14} />
+                <span>Lihat di Peta</span>
+              </Link>
+            )}
+          </div>
         </nav>
       </div>
-    </aside>
+    </ContainerTag>
   );
 }

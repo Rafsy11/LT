@@ -194,49 +194,61 @@ export function OverviewTableSkeletonRows({ count = DEFAULT_TABLE_ROWS }: { coun
 }
 
 /**
- * Shared Skeleton Rows for Live Telemetry Stream (`noc-stream-list`).
+ * Shared Skeleton Rows for Live Telemetry Stream (`noc-stream-table`).
  *
  * @example
- * <ol className="noc-stream-list"><TelemetryStreamSkeletonRows count={5} /></ol>
+ * <tbody><TelemetryStreamSkeletonRows count={5} /></tbody>
  */
 export function TelemetryStreamSkeletonRows({ count = DEFAULT_STREAM_ROWS }: { count?: number }) {
   return (
     <>
       {Array.from({ length: count }).map((_, idx) => (
-        <li
+        <tr
           key={idx}
           className="noc-stream-row skeleton-stream-row"
           aria-hidden="true"
           style={{ cursor: 'default' }}
         >
-          <div className="col-time-status">
-            <Skeleton width={7} height={7} borderRadius="50%" style={{ flexShrink: 0 }} />
-            <Skeleton width={56} height={13} />
-          </div>
-          <div className="col-customer">
-            <Skeleton width="78%" height={14} />
-            <Skeleton width="58%" height={11} />
-          </div>
-          <div className="col-network">
-            <Skeleton width="74%" height={14} />
-            <Skeleton width="54%" height={11} />
-          </div>
-          <div className="col-tech">
-            <Skeleton width={22} height={22} borderRadius="50%" style={{ flexShrink: 0 }} />
-            <Skeleton width={68} height={13} />
-          </div>
-          <div className="col-signal">
-            <Skeleton width={58} height={14} style={{ marginBottom: '4px' }} />
-            <Skeleton width={76} height={4} borderRadius={2} />
-          </div>
-          <div className="col-validation">
-            <Skeleton width={66} height={18} borderRadius={4} style={{ marginBottom: '3px' }} />
-            <Skeleton width={56} height={11} />
-          </div>
-          <div className="col-action" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Skeleton width={52} height={24} borderRadius={4} />
-          </div>
-        </li>
+          <td>
+            <div className="col-time-status">
+              <Skeleton width={8} height={8} borderRadius="50%" style={{ flexShrink: 0 }} />
+              <Skeleton width={56} height={13} />
+            </div>
+          </td>
+          <th scope="row">
+            <div className="col-customer">
+              <Skeleton width="78%" height={14} />
+              <Skeleton width="58%" height={11} />
+            </div>
+          </th>
+          <td>
+            <div className="col-network">
+              <Skeleton width="74%" height={14} />
+              <Skeleton width="54%" height={11} />
+            </div>
+          </td>
+          <td>
+            <div className="col-tech">
+              <Skeleton width={24} height={24} borderRadius="50%" style={{ flexShrink: 0 }} />
+              <Skeleton width={68} height={13} />
+            </div>
+          </td>
+          <td>
+            <div className="col-signal">
+              <Skeleton width={62} height={14} style={{ marginBottom: '4px' }} />
+              <Skeleton width={96} height={4} borderRadius={2} />
+            </div>
+          </td>
+          <td>
+            <div className="col-validation">
+              <Skeleton width={76} height={16} borderRadius={4} style={{ marginBottom: '3px' }} />
+              <Skeleton width={90} height={11} />
+            </div>
+          </td>
+          <td className="col-action">
+            <Skeleton width={66} height={32} borderRadius={6} style={{ marginLeft: 'auto' }} />
+          </td>
+        </tr>
       ))}
     </>
   );
@@ -590,15 +602,15 @@ export function OverviewSkeleton() {
  */
 export function MonitoringSkeleton() {
   return (
-    <main className="monitoring-page" aria-busy="true" aria-label="Memuat Live Monitoring Redaman">
-      <header className="overview-header">
+    <main className="monitoring-page" aria-busy="true" aria-label="Memuat Pantauan Redaman Langsung">
+      <header className="overview-header monitoring-header">
         <div className="overview-header-copy">
-          <Skeleton width="min(100%, 230px)" height={12} style={{ marginBottom: '4px' }} />
-          <Skeleton width="min(100%, 290px)" height={30} style={{ marginBottom: '4px' }} />
-          <Skeleton width="min(100%, 480px)" height={16} />
+          <Skeleton width="min(100%, 280px)" height={28} style={{ marginBottom: '6px' }} />
+          <Skeleton width="min(100%, 440px)" height={16} />
         </div>
-        <div className="overview-toolbar">
-          <Skeleton width={148} height={30} borderRadius={9999} />
+        <div className="overview-toolbar monitoring-toolbar">
+          <Skeleton width={118} height={36} borderRadius={6} />
+          <Skeleton width={112} height={36} borderRadius={6} />
         </div>
       </header>
 
@@ -609,122 +621,118 @@ export function MonitoringSkeleton() {
         <StatCardSkeleton />
       </section>
 
-      <aside className="noc-incident-bar skeleton-card" aria-hidden="true">
-        <div className="noc-incident-left">
-          <Skeleton width={116} height={24} borderRadius={5} style={{ flexShrink: 0 }} />
-          <Skeleton width="min(100%, 420px)" height={15} />
-        </div>
-        <div className="noc-incident-right" style={{ flexWrap: 'wrap' }}>
-          <Skeleton width={68} height={18} />
-          <Skeleton width={124} height={28} borderRadius={6} />
-          <Skeleton width={96} height={28} borderRadius={6} />
-        </div>
-      </aside>
-
       <section className="noc-console-layout" aria-label="Memuat Konsol Pemantauan Redaman">
         <section className="noc-stream-panel skeleton-card">
           <header className="noc-stream-toolbar">
             <div className="noc-toolbar-top">
-              <Skeleton width="min(100%, 300px)" height={30} borderRadius={6} />
+              <Skeleton width="min(100%, 300px)" height={36} borderRadius={6} />
               <div className="noc-filters-group">
-                <Skeleton width={120} height={29} borderRadius={6} />
-                <Skeleton width={148} height={29} borderRadius={6} />
-                <Skeleton width={148} height={29} borderRadius={6} />
+                <Skeleton width={132} height={36} borderRadius={6} />
+                <Skeleton width={132} height={36} borderRadius={6} />
+                <Skeleton width={132} height={36} borderRadius={6} />
               </div>
             </div>
             <div className="noc-toolbar-bottom">
-              <Skeleton width="min(100%, 360px)" height={30} borderRadius={6} />
-              <Skeleton width={165} height={14} />
+              <Skeleton width="min(100%, 420px)" height={36} borderRadius={6} />
+              <Skeleton width={180} height={14} />
             </div>
           </header>
 
           <div className="noc-stream-scroll-wrap">
-            <div className="noc-stream-table-header" aria-hidden="true">
-              <Skeleton width={48} height={12} />
-              <Skeleton width={110} height={12} />
-              <Skeleton width={98} height={12} />
-              <Skeleton width={64} height={12} />
-              <Skeleton width={66} height={12} />
-              <Skeleton width={62} height={12} />
-              <Skeleton width={36} height={12} style={{ marginLeft: 'auto' }} />
-            </div>
-
-            <ol className="noc-stream-list">
-              <TelemetryStreamSkeletonRows count={DEFAULT_STREAM_ROWS} />
-            </ol>
+            <table className="noc-stream-table" aria-hidden="true">
+              <thead>
+                <tr>
+                  <th><Skeleton width={48} height={12} /></th>
+                  <th><Skeleton width={110} height={12} /></th>
+                  <th><Skeleton width={88} height={12} /></th>
+                  <th><Skeleton width={64} height={12} /></th>
+                  <th><Skeleton width={68} height={12} /></th>
+                  <th><Skeleton width={64} height={12} /></th>
+                  <th className="col-action-head"><Skeleton width={36} height={12} style={{ marginLeft: 'auto' }} /></th>
+                </tr>
+              </thead>
+              <tbody>
+                <TelemetryStreamSkeletonRows count={DEFAULT_STREAM_ROWS} />
+              </tbody>
+            </table>
           </div>
 
           <footer className="monitoring-info-strip">
-            <Skeleton width="min(100%, 280px)" height={12} />
-            <Skeleton width={175} height={12} />
+            <Skeleton width="min(100%, 210px)" height={12} />
+            <Skeleton width={185} height={12} />
           </footer>
         </section>
 
-        <aside className="noc-inspector-panel skeleton-card">
-          <header className="noc-inspector-header">
-            <Skeleton width={132} height={12} />
-            <Skeleton width={82} height={20} borderRadius={4} />
-          </header>
+        <div className="noc-inspector-desktop-slot">
+          <aside className="noc-inspector-panel skeleton-card">
+            <header className="noc-inspector-header">
+              <Skeleton width={132} height={14} />
+              <Skeleton width={88} height={22} borderRadius={4} />
+            </header>
 
-          <div className="noc-inspector-body">
-            <section className="hud-gauge-card">
-              <div className="hud-gauge-top">
-                <Skeleton width={96} height={28} />
-                <Skeleton width={84} height={22} borderRadius={4} />
-              </div>
-              <Skeleton width="100%" height={5} borderRadius={3} style={{ margin: '10px 0 6px' }} />
-              <div className="hud-spectrum-labels" style={{ marginBottom: '10px' }}>
-                <Skeleton width={42} height={10} />
-                <Skeleton width={32} height={10} />
-                <Skeleton width={32} height={10} />
-                <Skeleton width={42} height={10} />
-              </div>
-              <Skeleton width="95%" height={11} style={{ marginBottom: '4px' }} />
-              <Skeleton width="72%" height={11} />
-            </section>
+            <div className="noc-inspector-body">
+              <section className="hud-gauge-card">
+                <div className="hud-gauge-top">
+                  <Skeleton width={104} height={28} />
+                  <Skeleton width={88} height={22} borderRadius={4} />
+                </div>
+                <Skeleton width="100%" height={7} borderRadius={3} />
+                <div className="hud-spectrum-labels">
+                  <Skeleton width={42} height={10} />
+                  <Skeleton width={32} height={10} />
+                  <Skeleton width={32} height={10} />
+                  <Skeleton width={42} height={10} />
+                </div>
+                <Skeleton width="94%" height={12} />
+                <Skeleton width="72%" height={12} />
+              </section>
 
-            <section>
-              <Skeleton width={160} height={12} style={{ marginBottom: '8px' }} />
-              <div className="hud-spec-grid">
-                <div className="hud-spec-item full-width">
-                  <Skeleton width={92} height={11} style={{ marginBottom: '4px' }} />
-                  <Skeleton width="68%" height={15} />
+              <section>
+                <Skeleton width={140} height={12} style={{ marginBottom: '8px' }} />
+                <div className="hud-spec-grid">
+                  <div className="hud-spec-item full-width">
+                    <Skeleton width={82} height={11} style={{ marginBottom: '4px' }} />
+                    <Skeleton width="68%" height={15} />
+                  </div>
+                  <div className="hud-spec-item">
+                    <Skeleton width={68} height={11} style={{ marginBottom: '4px' }} />
+                    <Skeleton width="78%" height={14} />
+                  </div>
+                  <div className="hud-spec-item">
+                    <Skeleton width={72} height={11} style={{ marginBottom: '4px' }} />
+                    <Skeleton width="72%" height={14} />
+                  </div>
+                  <div className="hud-spec-item">
+                    <Skeleton width={88} height={11} style={{ marginBottom: '4px' }} />
+                    <Skeleton width="64%" height={14} />
+                  </div>
+                  <div className="hud-spec-item">
+                    <Skeleton width={70} height={11} style={{ marginBottom: '4px' }} />
+                    <Skeleton width="52%" height={14} />
+                  </div>
                 </div>
-                <div className="hud-spec-item">
-                  <Skeleton width={68} height={11} style={{ marginBottom: '4px' }} />
-                  <Skeleton width="78%" height={14} />
+              </section>
+
+              <section>
+                <Skeleton width={168} height={12} style={{ marginBottom: '8px' }} />
+                <div className="hud-security-box" style={{ padding: '10px 12px', gap: '10px' }}>
+                  <Skeleton width="100%" height={14} />
+                  <Skeleton width="100%" height={14} />
+                  <Skeleton width="100%" height={14} />
+                  <Skeleton width="100%" height={14} />
                 </div>
-                <div className="hud-spec-item">
-                  <Skeleton width={72} height={11} style={{ marginBottom: '4px' }} />
-                  <Skeleton width="72%" height={14} />
-                </div>
-                <div className="hud-spec-item">
-                  <Skeleton width={88} height={11} style={{ marginBottom: '4px' }} />
-                  <Skeleton width="64%" height={14} />
-                </div>
-                <div className="hud-spec-item">
-                  <Skeleton width={70} height={11} style={{ marginBottom: '4px' }} />
-                  <Skeleton width="52%" height={14} />
+              </section>
+
+              <div className="hud-actions">
+                <Skeleton width="100%" height={40} borderRadius={6} />
+                <div className="hud-secondary-links">
+                  <Skeleton width="100%" height={38} borderRadius={6} />
+                  <Skeleton width="100%" height={38} borderRadius={6} />
                 </div>
               </div>
-            </section>
-
-            <section>
-              <Skeleton width={196} height={12} style={{ marginBottom: '8px' }} />
-              <div className="hud-security-box" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <Skeleton width="100%" height={14} />
-                <Skeleton width="100%" height={14} />
-                <Skeleton width="100%" height={14} />
-                <Skeleton width="100%" height={14} />
-              </div>
-            </section>
-
-            <div className="hud-actions">
-              <Skeleton width="100%" height={36} borderRadius={6} />
-              <Skeleton width="100%" height={36} borderRadius={6} />
             </div>
-          </div>
-        </aside>
+          </aside>
+        </div>
       </section>
     </main>
   );

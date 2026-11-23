@@ -1,140 +1,138 @@
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
+import type { MonitoringTab } from '../utils/monitoring-telemetry';
 
 export interface MonitoringStatsProps {
   totalCount: number;
+  measuredCount: number;
+  unmeasuredCount: number;
   normalCount: number;
   warningCount: number;
   criticalCount: number;
-  activeTab?: 'Semua' | 'Normal' | 'Warning' | 'Critical';
-  onSelectTab: (tab: 'Semua' | 'Normal' | 'Warning' | 'Critical') => void;
+  activeTab: MonitoringTab;
+  onSelectTab: (tab: MonitoringTab) => void;
+}
+
+function formatMeasuredShare(count: number, measuredCount: number): string {
+  if (measuredCount <= 0) return 'Belum ada pengukuran';
+  const pct = Math.round((count / measuredCount) * 100);
+  return `${pct}% dari terukur`;
 }
 
 export function MonitoringStats({
   totalCount,
+  measuredCount,
+  unmeasuredCount,
   normalCount,
   warningCount,
   criticalCount,
   activeTab,
   onSelectTab,
 }: MonitoringStatsProps) {
+  const totalSummary =
+    totalCount === 0
+      ? 'Belum ada laporan pada filter ini'
+      : unmeasuredCount > 0
+        ? `${measuredCount} terukur · ${unmeasuredCount} belum diukur`
+        : `${measuredCount} laporan sudah terukur OPM`;
+
   return (
-    <section className="monitoring-stats-grid" aria-label="Statistik Telemetri Redaman Optik">
-      <article
-        className={`stat-card ${activeTab === 'Semua' ? 'active' : ''}`}
+    <section className="monitoring-stats-grid" aria-label="Ringkasan Kondisi Redaman Optik">
+      <button
+        type="button"
+        className={`stat-card stat-card--total ${activeTab === 'Semua' ? 'active' : ''}`}
         onClick={() => onSelectTab('Semua')}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onSelectTab('Semua');
-          }
-        }}
-        aria-label="Filter semua laporan masuk"
+        aria-pressed={activeTab === 'Semua'}
       >
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round">
+            <span className="stat-card-icon-round" aria-hidden="true">
               <Icon name="activity" size={17} />
             </span>
             <div className="stat-card-text">
-              <span className="stat-card-label">Total Laporan Masuk</span>
-              <div className="stat-card-value">{totalCount}</div>
+              <span className="stat-card-label">Total Laporan</span>
+              <span className="stat-card-value">{totalCount}</span>
             </div>
           </div>
           <div className="stat-card-footer">
-            <span className="caption">Stream aktif via Redis Pub/Sub</span>
+            <span className="caption">{totalSummary}</span>
           </div>
         </div>
-      </article>
+      </button>
 
-      <article
-        className={`stat-card ${activeTab === 'Normal' ? 'active' : ''}`}
+      <button
+        type="button"
+        className={`stat-card stat-card--normal ${activeTab === 'Normal' ? 'active' : ''}`}
         onClick={() => onSelectTab('Normal')}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onSelectTab('Normal');
-          }
-        }}
-        aria-label="Filter laporan redaman normal"
+        aria-pressed={activeTab === 'Normal'}
       >
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round">
+            <span className="stat-card-icon-round" aria-hidden="true">
               <Icon name="check" size={17} />
             </span>
             <div className="stat-card-text">
               <span className="stat-card-label">Normal (-10 s/d -25 dBm)</span>
-              <div className="stat-card-value">{normalCount}</div>
+              <span className="stat-card-value">{normalCount}</span>
             </div>
           </div>
           <div className="stat-card-footer">
-            <span className="caption">Optimal · Kualitas optik standar</span>
+            <span className="caption">
+              {formatMeasuredShare(normalCount, measuredCount)} · Kondisi optimal
+            </span>
           </div>
         </div>
-      </article>
+      </button>
 
-      <article
-        className={`stat-card ${activeTab === 'Warning' ? 'active' : ''}`}
+      <button
+        type="button"
+        className={`stat-card stat-card--warning ${activeTab === 'Warning' ? 'active' : ''}`}
         onClick={() => onSelectTab('Warning')}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onSelectTab('Warning');
-          }
-        }}
-        aria-label="Filter laporan redaman warning"
+        aria-pressed={activeTab === 'Warning'}
       >
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round">
+            <span className="stat-card-icon-round" aria-hidden="true">
               <Icon name="alert" size={17} />
             </span>
             <div className="stat-card-text">
-              <span className="stat-card-label">Mendekati Batas (-25.1 s/d -28 dBm)</span>
-              <div className="stat-card-value">{warningCount}</div>
+              <span className="stat-card-label">Peringatan (-25,1 s/d -28 dBm)</span>
+              <span className="stat-card-value">{warningCount}</span>
             </div>
           </div>
           <div className="stat-card-footer">
-            <span className="caption">Masih layak (≤ 28 dB) · Perlu pantau</span>
+            <span className="caption">
+              {formatMeasuredShare(warningCount, measuredCount)} · Mendekati ambang batas
+            </span>
           </div>
         </div>
-      </article>
+      </button>
 
-      <article
-        className={`stat-card ${activeTab === 'Critical' ? 'active' : ''}`}
+      <button
+        type="button"
+        className={`stat-card stat-card--critical ${activeTab === 'Critical' ? 'active' : ''}`}
         onClick={() => onSelectTab('Critical')}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onSelectTab('Critical');
-          }
-        }}
-        aria-label="Filter laporan redaman kritis"
+        aria-pressed={activeTab === 'Critical'}
       >
         <div className="stat-card-inner">
           <div className="stat-card-top">
-            <span className="stat-card-icon-round">
+            <span className="stat-card-icon-round" aria-hidden="true">
               <Icon name="zap" size={17} />
             </span>
             <div className="stat-card-text">
-              <span className="stat-card-label">Jelek / Kritis (&lt; -28 dBm / &gt; 28 dB)</span>
-              <div className="stat-card-value">{criticalCount}</div>
+              <span className="stat-card-label">Kritis (&lt; -28 atau &gt; -10 dBm)</span>
+              <span className="stat-card-value">{criticalCount}</span>
             </div>
           </div>
           <div className="stat-card-footer">
-            <span className="caption">Insiden Drop · Investigasi segera NOC</span>
+            <span className="caption">
+              {criticalCount > 0
+                ? `${formatMeasuredShare(criticalCount, measuredCount)} · Perlu investigasi segera`
+                : 'Tidak ada insiden redaman kritis'}
+            </span>
           </div>
         </div>
-      </article>
+      </button>
     </section>
   );
 }
