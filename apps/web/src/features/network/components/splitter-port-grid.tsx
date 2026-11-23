@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { useToast } from '@/providers';
 import {
   ATTENUATION_THRESHOLDS,
   isAttenuationBad,
@@ -10,7 +11,15 @@ import {
   type CreateTicketInput,
 } from '@repo/shared';
 import { SignalStrengthBars } from '@/features/customers';
-import { escapeCsvRowsAsync } from '@/lib/csv';
+import {
+  buildOdpInspectionReportRows,
+  DEFAULT_EXCEL_CSV_DELIMITER,
+  downloadBlobFile,
+  escapeCsvRowsAsync,
+  EXCEL_CSV_LINE_ENDING,
+  ODP_INSPECTION_REPORT_HEADERS,
+} from '@/lib/csv';
+import { normalizeAppError } from '@/lib/error-normalizer';
 import type {
   AttenuationMeta,
   OdpHistoryLogItem,
@@ -81,6 +90,8 @@ export function SplitterPortGrid({
   canCreateTicket,
 }: SplitterPortGridProps) {
   const goodLimitDb = ATTENUATION_THRESHOLDS.GOOD_MAX_LOSS_DB;
+  const { showError } = useToast();
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
 
   const occupiedPorts = activeSplitter.ports.filter((p) => p.isOccupied);
   const availablePortsCount = activeSplitter.ports.length - occupiedPorts.length;
@@ -94,38 +105,72 @@ export function SplitterPortGrid({
       : null;
 
   const handleDownloadInspectionCsv = async () => {
-    const headers = [
-      'ODP',
-      'Port',
-      'Status',
-      'Pelanggan',
-      'SIA',
-      'Redaman (dBm)',
-      'Terakhir Dicek',
-      'Teknisi',
-      'Catatan',
-    ];
-    const rows = activeSplitter.ports.map((port) => [
-      activeSplitter.splitterCode,
-      port.portNumber,
-      port.isOccupied ? 'Terisi' : 'Siap PSB',
-      port.customerName || '-',
-      port.siaNumber || '-',
-      port.attenuation != null ? Number(port.attenuation.toFixed(1)) : '-',
-      port.lastActivity?.date || '-',
-      port.lastActivity?.technician || '-',
-      port.lastActivity?.notes || '-',
-    ]);
+    try {
+      const rows = buildOdpInspectionReportRows(activeSplitter);
+      const csvContent = await escapeCsvRowsAsync(ODP_INSPECTION_REPORT_HEADERS, rows, {
+        delimiter: DEFAULT_EXCEL_CSV_DELIMITER,
+        includeBom: true,
+        lineEnding: EXCEL_CSV_LINE_ENDING,
+      });
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      downloadBlobFile(
+        blob,
+        `inspeksi-${activeSplitter.splitterCode}-${new Date().toISOString().slice(0, 10)}.csv`,
+      );
+      showSuccess(`Laporan inspeksi teknis ${activeSplitter.splitterCode} diunduh (CSV).`);
+    } catch (err: unknown) {
+      showError(
+        normalizeAppError(err, {
+          fallbackMessage: 'Gagal membuat berkas inspeksi CSV.',
+        }),
+      );
+    }
+  };
 
-    const csvContent = await escapeCsvRowsAsync(headers, rows);
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `inspeksi-${activeSplitter.splitterCode}-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showSuccess(`Laporan inspeksi teknis ${activeSplitter.splitterCode} diunduh (CSV).`);
+  const handleDownloadInspectionExcel = async () => {
+    setIsExportingExcel(true);
+    try {
+      const params = new URLSearchParams({
+        type: 'odp',
+        splitterCode: activeSplitter.splitterCode,
+      });
+      const res = await fetch(`/api/v1/admin/reports/export?${params.toString()}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        let payload: unknown = null;
+        try {
+          payload = await res.json();
+        } catch {
+          payload = null;
+        }
+        const errorObj =
+          payload && typeof payload === 'object' && 'error' in payload
+            ? (payload as { error: unknown }).error
+            : { statusCode: res.status };
+        throw normalizeAppError(errorObj, {
+          fallbackMessage: 'Gagal mengunduh laporan inspeksi Excel.',
+        });
+      }
+
+      const blob = await res.blob();
+      const disposition = res.headers.get('content-disposition') || '';
+      const matchedName = disposition.match(/filename="([^"]+)"/i)?.[1];
+      const filename =
+        matchedName ||
+        `inspeksi-${activeSplitter.splitterCode}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      downloadBlobFile(blob, filename);
+      showSuccess(`Laporan inspeksi teknis ${activeSplitter.splitterCode} diunduh (Excel .xlsx).`);
+    } catch (err: unknown) {
+      showError(
+        normalizeAppError(err, {
+          fallbackMessage: 'Gagal mengunduh laporan inspeksi Excel (.xlsx).',
+        }),
+      );
+    } finally {
+      setIsExportingExcel(false);
+    }
   };
 
   const handleSelectPortTile = (portNumber: number) => {
@@ -182,7 +227,21 @@ export function SplitterPortGrid({
           <button
             type="button"
             className="btn-inspect-detail-action"
-            onClick={handleDownloadInspectionCsv}
+            onClick={() => void handleDownloadInspectionExcel()}
+            disabled={isExportingExcel}
+          >
+            <Icon
+              name={isExportingExcel ? 'refresh' : 'fileText'}
+              size={13}
+              className={isExportingExcel ? 'icon-spin' : ''}
+            />
+            <span>{isExportingExcel ? 'Menyiapkan...' : 'Unduh Excel'}</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn-inspect-detail-action"
+            onClick={() => void handleDownloadInspectionCsv()}
           >
             <Icon name="download" size={13} />
             <span>Unduh CSV</span>

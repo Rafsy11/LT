@@ -4,7 +4,14 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth, useToast } from '@/providers';
 import { useClusterOptions } from '@/hooks/use-cluster-options';
 import { webApiClient } from '@/lib/api-client';
-import { escapeCsvRowsAsync } from '@/lib/csv';
+import {
+  buildOverviewReportRows,
+  DEFAULT_EXCEL_CSV_DELIMITER,
+  downloadBlobFile,
+  escapeCsvRowsAsync,
+  EXCEL_CSV_LINE_ENDING,
+  OVERVIEW_REPORT_HEADERS,
+} from '@/lib/csv';
 import { normalizeAppError } from '@/lib/error-normalizer';
 import {
   classifyDbm,
@@ -88,9 +95,10 @@ export function useOverview() {
     () => !getCachedData<OdpRadarPayload>(ODP_RADAR_CACHE_KEY),
   );
   const [radarError, setRadarError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { canCreateTicket, hasPermission, user } = useAuth();
-  const { showError } = useToast();
+  const { showError, showSuccess, showWarning } = useToast();
   const { clusters: clusterOptions } = useClusterOptions();
   const canReadNetwork = hasPermission(PERMISSIONS.NETWORK_READ);
 
@@ -287,12 +295,7 @@ export function useOverview() {
       cluster === 'Semua cluster' ||
       t.cluster === cluster ||
       t.clusterCode === cluster;
-    const matchesStatus =
-      statusFilter === 'Semua' ||
-      (statusFilter === 'Menunggu' &&
-        (t.status === 'Menunggu' || t.status === 'Menunggu verifikasi')) ||
-      (statusFilter === 'Dalam proses' && t.status === 'Menunggu verifikasi') ||
-      (statusFilter === 'Selesai' && t.status === 'Selesai');
+    const matchesStatus = statusFilter === 'Semua' || t.status === statusFilter;
     const matchesQuery =
       query === '' ||
       t.ticketNumber.toLowerCase().includes(query.toLowerCase()) ||
@@ -304,35 +307,80 @@ export function useOverview() {
   });
 
   const exportCsv = async () => {
-    const headers = [
-      'Tiket',
-      'Pelanggan',
-      'Nomor SIA',
-      'Tipe Pekerjaan',
-      'Cluster',
-      'Teknisi',
-      'Status',
-      'Redaman (dBm)',
-    ];
-    const rows = filteredTickets.map((r) => [
-      r.ticketNumber,
-      r.customerName,
-      r.siaNumber,
-      r.ticketType,
-      r.cluster,
-      r.assignedTech,
-      r.status,
-      r.currentAttenuation,
-    ]);
+    if (filteredTickets.length === 0) {
+      showWarning('Tidak ada data tiket yang sesuai filter untuk diekspor.');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const rows = buildOverviewReportRows(filteredTickets);
+      const csvContent = await escapeCsvRowsAsync(OVERVIEW_REPORT_HEADERS, rows, {
+        delimiter: DEFAULT_EXCEL_CSV_DELIMITER,
+        includeBom: true,
+        lineEnding: EXCEL_CSV_LINE_ENDING,
+      });
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      downloadBlobFile(blob, `laporan-operasional-${new Date().toISOString().slice(0, 10)}.csv`);
+      showSuccess(`Laporan CSV (${filteredTickets.length} tiket) berhasil diunduh.`);
+    } catch (err: unknown) {
+      showError(
+        normalizeAppError(err, {
+          fallbackMessage: 'Gagal membuat berkas laporan CSV.',
+        }),
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
-    const csvContent = await escapeCsvRowsAsync(headers, rows);
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `laporan-operasional-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportExcel = async () => {
+    if (filteredTickets.length === 0) {
+      showWarning('Tidak ada data tiket yang sesuai filter untuk diekspor.');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams({ type: 'overview' });
+      if (cluster && cluster !== 'Semua cluster') params.set('cluster', cluster);
+      if (statusFilter && statusFilter !== 'Semua') params.set('status', statusFilter);
+      if (query.trim()) params.set('query', query.trim());
+
+      const res = await fetch(`/api/v1/admin/reports/export?${params.toString()}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        let payload: unknown = null;
+        try {
+          payload = await res.json();
+        } catch {
+          payload = null;
+        }
+        const errorObj =
+          payload && typeof payload === 'object' && 'error' in payload
+            ? (payload as { error: unknown }).error
+            : { statusCode: res.status };
+        throw normalizeAppError(errorObj, {
+          fallbackMessage: 'Gagal mengunduh laporan Excel dari server.',
+        });
+      }
+
+      const blob = await res.blob();
+      const disposition = res.headers.get('content-disposition') || '';
+      const matchedName = disposition.match(/filename="([^"]+)"/i)?.[1];
+      const filename =
+        matchedName || `laporan-operasional-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      downloadBlobFile(blob, filename);
+      showSuccess(`Laporan Excel (${filteredTickets.length} tiket) berhasil diunduh.`);
+    } catch (err: unknown) {
+      showError(
+        normalizeAppError(err, {
+          fallbackMessage: 'Gagal mengunduh laporan Excel (.xlsx).',
+        }),
+      );
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const selectedClusterCode = useMemo(() => {
@@ -419,5 +467,7 @@ export function useOverview() {
     fetchTickets: refreshAllOverview,
     handleCreateTicket,
     exportCsv,
+    exportExcel,
+    isExporting,
   };
 }

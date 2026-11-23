@@ -19,6 +19,23 @@ import {
   formatRateLimitDuration,
   formatRetryCountdownMessage,
 } from '../../../apps/web/src/lib/error-dictionary';
+import {
+  buildOdpInspectionReportRows,
+  buildOverviewReportRows,
+  DEFAULT_EXCEL_CSV_DELIMITER,
+  escapeCsvRowsAsync,
+  EXCEL_CSV_BOM,
+  EXCEL_CSV_LINE_ENDING,
+  formatReportAttenuation,
+  normalizeReportText,
+  ODP_INSPECTION_REPORT_HEADERS,
+  OVERVIEW_REPORT_HEADERS,
+} from '../../../apps/web/src/lib/csv';
+import {
+  ReportExportService,
+  sanitizeExportFilenameSegment,
+} from '../../../apps/web/src/server/services/report-export.service';
+import ExcelJS from 'exceljs';
 
 function resolveRepoRoot(): string {
   const candidates = [
@@ -426,5 +443,135 @@ describe('Tier 1: Feature 20 - Web Error Handling & Humane Microcopy UX', () => 
     assert.match(shellCssSrc, /fiberops-sidebar-gradient\.svg\?v=6/);
     assert.match(shellCssSrc, /fiberops-sidebar-gradient-dark\.svg\?v=3/);
     assert.match(shellCssSrc, /\.sidebar-header-row\s*\{[^}]*background:\s*transparent/);
+  });
+
+  it('produces Excel-ready UTF-8 BOM semicolon CSV and styled XLSX reports without formula or placeholder artifacts', async () => {
+    assert.strictEqual(normalizeReportText('-', ''), '');
+    assert.strictEqual(normalizeReportText('Baris 1\nBaris\t2  extra'), 'Baris 1 Baris 2 extra');
+    assert.deepStrictEqual(formatReportAttenuation(0), { numeric: '', label: 'Belum Diukur' });
+    assert.deepStrictEqual(formatReportAttenuation(-19.456), { numeric: -19.46, label: 'Normal' });
+    assert.deepStrictEqual(formatReportAttenuation(-29.1), { numeric: -29.1, label: 'Kritis' });
+
+    const sampleTickets = [
+      {
+        id: 't-1',
+        ticketNumber: 'TKT-2026-001',
+        customerName: '=CMD|"/C calc"!A0; PT Sinar',
+        siaNumber: '001234567890123',
+        ticketType: 'Maintenance' as const,
+        cluster: 'Palembang Tengah',
+        clusterCode: 'PLB-TGH',
+        assignedTech: '',
+        techInitials: '--',
+        status: 'Menunggu verifikasi' as const,
+        priority: 'High' as const,
+        currentAttenuation: 0,
+        complaintSummary: 'Redaman drop\ndi ujung kabel',
+        createdAt: '2026-11-23T05:30:00.000Z',
+        splitterCode: 'ODP-PLB-01',
+        portNumber: 3,
+        isLocationFlagged: true,
+        distanceToSplitterM: 185,
+      },
+    ];
+
+    const overviewRows = buildOverviewReportRows(sampleTickets);
+    assert.strictEqual(overviewRows[0][6], 'ODP-PLB-01 / P03');
+    assert.strictEqual(overviewRows[0][7], 'Belum ditugaskan');
+    assert.strictEqual(overviewRows[0][10], '');
+    assert.strictEqual(overviewRows[0][11], 'Belum Diukur');
+    assert.match(String(overviewRows[0][12]), /WIB$/);
+    assert.match(String(overviewRows[0][13]), /Anomali Lokasi \(185 m\)/);
+
+    const csv = await escapeCsvRowsAsync(OVERVIEW_REPORT_HEADERS, overviewRows, {
+      delimiter: DEFAULT_EXCEL_CSV_DELIMITER,
+      includeBom: true,
+      lineEnding: EXCEL_CSV_LINE_ENDING,
+    });
+    assert.ok(csv.startsWith(EXCEL_CSV_BOM), 'Excel CSV must start with UTF-8 BOM');
+    assert.ok(csv.includes('\r\n'), 'Excel CSV must use CRLF line endings');
+    assert.ok(csv.includes("'=CMD"), 'CWE-1236 formula prefix must remain neutralized');
+    assert.doesNotMatch(csv, /"'-"/, 'Empty placeholders must not emit literal \'-\' artifacts');
+
+    const sampleSplitter = {
+      id: 's-1',
+      clusterCode: 'PLB-TGH',
+      name: 'Palembang Tengah',
+      splitterCode: 'ODP-PLB-01',
+      locationName: 'Jl. Sudirman KM 4',
+      usedPorts: 1,
+      maxPorts: 8,
+      lat: -2.976,
+      lng: 104.775,
+      ports: [
+        {
+          portNumber: 1,
+          isOccupied: true,
+          customerName: 'PT Maju Bersama',
+          siaNumber: '009876543210',
+          attenuation: -21.5,
+          lastActivity: {
+            type: 'MAINTENANCE' as const,
+            date: '2026-11-23T04:00:00.000Z',
+            technician: 'Andi Saputra',
+            notes: 'Ganti pigtail\nnormal',
+          },
+        },
+        {
+          portNumber: 2,
+          isOccupied: false,
+        },
+      ],
+    };
+
+    const odpRows = buildOdpInspectionReportRows(sampleSplitter);
+    assert.strictEqual(odpRows[0][2], 'P01');
+    assert.strictEqual(odpRows[1][4], '');
+    const odpCsv = await escapeCsvRowsAsync(ODP_INSPECTION_REPORT_HEADERS, odpRows, {
+      delimiter: DEFAULT_EXCEL_CSV_DELIMITER,
+      includeBom: true,
+      lineEnding: EXCEL_CSV_LINE_ENDING,
+    });
+    assert.doesNotMatch(odpCsv, /"'-"/, 'Unoccupied ODP ports must not emit \'-\' artifacts');
+
+    // Verify ExcelJS workbook output is valid PK ZIP XLSX with neutralized formulas and text SIA
+    const xlsxBuffer = await ReportExportService.generateOverviewWorkbook(sampleTickets, {
+      clusterLabel: 'Palembang Tengah',
+      statusLabel: 'Menunggu verifikasi',
+      exportedBy: 'Super Admin',
+    });
+    assert.strictEqual(xlsxBuffer[0], 0x50);
+    assert.strictEqual(xlsxBuffer[1], 0x4b);
+
+    const parsedWorkbook = new ExcelJS.Workbook();
+    await parsedWorkbook.xlsx.load(xlsxBuffer as unknown as ArrayBuffer);
+    const sheet = parsedWorkbook.getWorksheet('Laporan Operasional');
+    assert.ok(sheet, 'Overview workbook must contain Laporan Operasional worksheet');
+    assert.ok(sheet.autoFilter, 'Overview worksheet must enable autoFilter');
+    const firstDataRow = sheet.getRow(6);
+    assert.strictEqual(String(firstDataRow.getCell(3).value).startsWith("'="), true);
+    assert.strictEqual(firstDataRow.getCell(4).numFmt, '@');
+
+    const odpXlsxBuffer = await ReportExportService.generateOdpInspectionWorkbook(sampleSplitter, {
+      exportedBy: 'Super Admin',
+    });
+    assert.strictEqual(odpXlsxBuffer[0], 0x50);
+    assert.strictEqual(odpXlsxBuffer[1], 0x4b);
+    assert.strictEqual(sanitizeExportFilenameSegment('ODP/../evil\r\n.xlsx'), 'ODP-evil-.xlsx');
+
+    const useOverviewSrc = fs.readFileSync(
+      path.join(webSrc, 'features', 'overview', 'hooks', 'use-overview.ts'),
+      'utf-8',
+    );
+    assert.match(useOverviewSrc, /statusFilter === 'Semua' \|\| t\.status === statusFilter/);
+    assert.match(useOverviewSrc, /exportExcel/);
+
+    const routeSrc = fs.readFileSync(
+      path.join(webSrc, 'app', 'api', 'v1', 'admin', 'reports', 'export', 'route.ts'),
+      'utf-8',
+    );
+    assert.match(routeSrc, /requireAdminActor/);
+    assert.match(routeSrc, /matchesAssignedClusters/);
+    assert.match(routeSrc, /RATE_LIMIT_PROFILES\.REPORT_EXPORT/);
   });
 });

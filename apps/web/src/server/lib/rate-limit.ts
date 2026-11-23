@@ -160,4 +160,7 @@ export const RATE_LIMIT_PROFILES = {
 
   /** POST /api/v1/admin/network/import: Maksimal 8 import Datek per menit per Admin + IP */
   NETWORK_IMPORT: { windowMs: 60_000, maxRequests: 8 } as const,
+
+  /** GET /api/v1/admin/reports/export: Maksimal 20 ekspor laporan Excel per menit per Admin + IP */
+  REPORT_EXPORT: { windowMs: 60_000, maxRequests: 20 } as const,
 } as const;

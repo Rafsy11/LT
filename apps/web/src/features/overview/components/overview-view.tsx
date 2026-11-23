@@ -46,6 +46,8 @@ export function OverviewView() {
     fetchTickets,
     handleCreateTicket,
     exportCsv,
+    exportExcel,
+    isExporting,
   } = useOverview();
 
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
@@ -170,18 +172,39 @@ export function OverviewView() {
 
                 <button
                   type="button"
+                  disabled={isExporting}
+                  className="action-dropdown-item"
+                  onClick={() => {
+                    void exportExcel();
+                    setActionMenuOpen(false);
+                  }}
+                >
+                  <div className="action-item-icon export">
+                    <Icon name={isExporting ? 'refresh' : 'fileText'} size={15} className={isExporting ? 'icon-spin' : ''} />
+                  </div>
+                  <div className="action-item-info">
+                    <span className="action-item-title">
+                      {isExporting ? 'Menyiapkan Laporan...' : 'Export Laporan (Excel .xlsx)'}
+                    </span>
+                    <span className="action-item-desc">Tabel terformat rapi, siap cetak &amp; Excel</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isExporting}
                   className="action-dropdown-item"
                   onClick={() => {
                     void exportCsv();
                     setActionMenuOpen(false);
                   }}
                 >
-                  <div className="action-item-icon export">
+                  <div className="action-item-icon export-csv">
                     <Icon name="download" size={15} />
                   </div>
                   <div className="action-item-info">
-                    <span className="action-item-title">Export Laporan</span>
-                    <span className="action-item-desc">Unduh berkas rekapitulasi data (CSV)</span>
+                    <span className="action-item-title">Export Data CSV (Excel)</span>
+                    <span className="action-item-desc">Berkas CSV UTF-8 berpemisah titik koma</span>
                   </div>
                 </button>
               </div>
