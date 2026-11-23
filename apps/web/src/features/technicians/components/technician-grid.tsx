@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import {
   type TechnicianListItem,
@@ -9,14 +11,13 @@ import { TechnicianCard } from './technician-card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SafeErrorState } from '@/components/ui/SafeErrorState';
 import { TechnicianCardSkeleton } from '@/components/ui/PageSkeleton';
+import type { TechnicianModalIntent } from '../utils/technician-session';
 
-interface TechnicianGridProps {
+export interface TechnicianGridProps {
   technicians: TechnicianListItem[];
   processingUser: string | null;
   canManageTech: boolean;
-  onSelectTech: (tech: TechnicianListItem) => void;
-  onForceLogout: (usernameOrId: string) => void;
-  onToggleAccount: (usernameOrId: string) => void;
+  onOpenModal: (tech: TechnicianListItem, intent?: TechnicianModalIntent) => void;
   loading?: boolean;
   loadError?: string | null;
   onRetry?: () => void;
@@ -30,9 +31,7 @@ export function TechnicianGrid({
   technicians,
   processingUser,
   canManageTech,
-  onSelectTech,
-  onForceLogout,
-  onToggleAccount,
+  onOpenModal,
   loading,
   loadError,
   onRetry,
@@ -41,11 +40,7 @@ export function TechnicianGrid({
 }: TechnicianGridProps) {
   if (loading) {
     return (
-      <section
-        className="technicians-cards-grid"
-        aria-label="Memuat Teknisi"
-        aria-busy="true"
-      >
+      <section className="technicians-cards-grid" aria-label="Memuat daftar teknisi" aria-busy="true">
         {Array.from({ length: TECHNICIAN_SKELETON_COUNT }).map((_, idx) => (
           <TechnicianCardSkeleton key={idx} />
         ))}
@@ -88,19 +83,14 @@ export function TechnicianGrid({
   }
 
   return (
-    <section
-      className="technicians-cards-grid"
-      aria-label="Daftar Teknisi"
-    >
+    <section className="technicians-cards-grid" aria-label="Daftar Teknisi Lapangan">
       {technicians.map((tech) => (
         <TechnicianCard
           key={tech.id || tech.username}
           tech={tech}
           isProcessing={processingUser === tech.username || processingUser === tech.id}
           canManageTech={canManageTech}
-          onSelectTech={onSelectTech}
-          onForceLogout={onForceLogout}
-          onToggleAccount={onToggleAccount}
+          onOpenModal={onOpenModal}
         />
       ))}
     </section>

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { TechniciansSkeleton } from '@/components/ui/PageSkeleton';
 import { useTechnicians } from '../hooks/use-technicians';
@@ -20,10 +20,13 @@ export function TechniciansView() {
     setActiveTab,
     technicians,
     loading,
+    isRefreshing,
     loadError,
     processingUser,
     selectedTech,
-    setSelectedTech,
+    modalIntent,
+    openTechModal,
+    closeTechModal,
     canManageTech,
     fetchTechs,
     handleForceLogout,
@@ -36,9 +39,9 @@ export function TechniciansView() {
     displayedTechs,
   } = useTechnicians();
 
-  React.useEffect(() => {
+  useEffect(() => {
     function handleGlobalRefresh() {
-      fetchTechs(true);
+      void fetchTechs(true);
     }
     window.addEventListener('app:refresh-data', handleGlobalRefresh);
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
@@ -48,73 +51,67 @@ export function TechniciansView() {
     return <TechniciansSkeleton />;
   }
 
+  const statusTone = loadError ? 'warn' : loading ? 'loading' : 'ok';
+  const statusLabel = loadError
+    ? 'Pemantauan Sesi: Gangguan'
+    : loading
+      ? 'Pemantauan Sesi: Memuat...'
+      : 'Pemantauan Sesi: Aktif';
+
   return (
     <main className="technicians-page" id="main-content">
-      {/* Page Heading & Redis Telemetry Beacon */}
-      <header className="overview-header" style={{ marginBottom: '28px' }}>
+      {/* Page Header */}
+      <header className="overview-header technicians-header">
         <div className="overview-header-copy">
-          <h1 className="overview-greeting">Manajemen Teknisi & Sesi Perangkat</h1>
+          <h1 className="overview-greeting">Teknisi Lapangan &amp; Sesi Perangkat</h1>
           <p className="overview-subtitle">
-            Kendali sesi mobile short-lived JWT/Redis, pengikatan perangkat (device binding), dan
-            perlindungan integritas lapangan.
+            Pantau status sesi aplikasi mobile, pengikatan perangkat, dan beban tiket aktif teknisi
+            lapangan.
           </p>
         </div>
 
-        <nav className="overview-toolbar" aria-label="Aksi bilah status teknisi">
-          <div className="overview-status-pill">
-            <span
-              className={`status-dot ${loadError ? 'status-dot--warn' : 'status-dot--ok'}`}
-              style={
-                loadError
-                  ? { background: '#d97706' }
-                  : { boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.2)' }
-              }
-            />
-            {loadError
-              ? 'Pemantauan Sesi Perangkat: Gangguan'
-              : loading
-                ? 'Pemantauan Sesi Perangkat: Memuat...'
-                : 'Pemantauan Sesi Perangkat: Aktif'}
+        <div className="overview-toolbar technicians-toolbar" role="toolbar" aria-label="Kontrol halaman teknisi">
+          <div className={`tech-header-status tech-header-status--${statusTone}`} role="status" aria-live="polite">
+            <span className="tech-header-status-dot" aria-hidden="true" />
+            <span>{statusLabel}</span>
           </div>
 
-
-        </nav>
+          <button
+            type="button"
+            className="tech-refresh-btn"
+            onClick={() => void fetchTechs(true)}
+            disabled={isRefreshing}
+          >
+            <Icon name="refresh" size={14} />
+            <span>{isRefreshing ? 'Memuat...' : 'Muat Ulang'}</span>
+          </button>
+        </div>
       </header>
 
-      {/* Permission Guard Banner */}
+      {/* Permission Guard Notice */}
       {!canManageTech && (
-        <aside
-          className="info-strip ui-alert-banner ui-alert-banner--warn"
-          role="alert"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginBottom: '20px',
-            padding: '10px 14px',
-            fontSize: '12.5px',
-          }}
-        >
-          <Icon name="lock" size={16} />
+        <aside className="tech-readonly-banner" role="status">
+          <Icon name="lock" size={15} />
           <span>
-            <b>Mode Peninjauan (Read-Only):</b> Akun Anda tidak memiliki izin{' '}
-            <code>tech:manage</code>. Tombol Force Logout dan Kunci Akun dinonaktifkan secara
-            kondisional.
+            <strong>Mode Peninjauan:</strong> Akun Anda hanya memiliki akses lihat. Aksi cabut sesi
+            dan kunci akun teknisi hanya tersedia untuk administrator yang berwenang.
           </span>
         </aside>
       )}
 
-      {/* 4 Telemetry Metric Cards */}
+      {/* Interactive 4 KPI Cards */}
       <TechnicianStats
         totalCount={clusterScoped.length}
         activeSessionsCount={activeSessionsCount}
         busyCount={busyCount}
         revokedCount={revokedCount}
         disabledCount={disabledCount}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
       />
 
-      {/* Main Panel */}
-      <section className="panel" style={{ padding: '16px 20px 24px' }}>
+      {/* Directory Panel */}
+      <section className="panel technicians-directory-panel" aria-label="Direktori teknisi lapangan">
         <TechnicianFilters
           search={search}
           setSearch={setSearch}
@@ -129,14 +126,11 @@ export function TechniciansView() {
           disabledCount={disabledCount}
         />
 
-        {/* Technician Cards Grid */}
         <TechnicianGrid
           technicians={displayedTechs}
           processingUser={processingUser}
           canManageTech={canManageTech}
-          onSelectTech={setSelectedTech}
-          onForceLogout={handleForceLogout}
-          onToggleAccount={handleToggleAccount}
+          onOpenModal={openTechModal}
           loading={loading}
           loadError={loadError}
           onRetry={() => void fetchTechs(true)}
@@ -151,11 +145,12 @@ export function TechniciansView() {
         />
       </section>
 
-      {/* Technician Detail & Hardware Inspection Modal */}
+      {/* Technician Session Detail & Action Confirmation Modal */}
       {selectedTech && (
         <TechnicianDetailModal
           technician={selectedTech}
-          onClose={() => setSelectedTech(null)}
+          initialIntent={modalIntent}
+          onClose={closeTechModal}
           onForceLogout={handleForceLogout}
           onToggleAccount={handleToggleAccount}
           canManageTech={canManageTech}

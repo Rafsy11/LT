@@ -111,30 +111,30 @@ export function TicketCardSkeleton() {
 export function TechnicianCardSkeleton() {
   return (
     <article className="technician-card skeleton-card" aria-hidden="true">
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-          <Skeleton width={30} height={30} borderRadius="50%" style={{ flexShrink: 0 }} />
+      <header className="tech-card-header">
+        <div className="tech-card-identity">
+          <Skeleton width={36} height={36} borderRadius="50%" style={{ flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <Skeleton width="72%" height={15} style={{ marginBottom: '4px' }} />
             <Skeleton width="48%" height={11} />
           </div>
         </div>
-        <Skeleton width={74} height={20} borderRadius={4} style={{ flexShrink: 0 }} />
+        <Skeleton width={76} height={22} borderRadius={4} style={{ flexShrink: 0 }} />
       </header>
 
       <div className="tech-spec-strip">
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
-          <Skeleton width={72} height={16} borderRadius={3} />
+          <Skeleton width={76} height={18} borderRadius={4} />
           <Skeleton width={46} height={12} />
           <Skeleton width={58} height={12} />
         </div>
-        <Skeleton width={72} height={17} borderRadius={3} style={{ flexShrink: 0 }} />
+        <Skeleton width={76} height={20} borderRadius={4} style={{ flexShrink: 0 }} />
       </div>
 
       <footer className="tech-card-footer">
-        <Skeleton width="100%" height={28} borderRadius={5} style={{ flex: 1 }} />
-        <Skeleton width={28} height={28} borderRadius={5} style={{ flexShrink: 0 }} />
-        <Skeleton width={28} height={28} borderRadius={5} style={{ flexShrink: 0 }} />
+        <Skeleton width="100%" height={36} borderRadius={6} style={{ flex: 1 }} />
+        <Skeleton width={36} height={36} borderRadius={6} style={{ flexShrink: 0 }} />
+        <Skeleton width={36} height={36} borderRadius={6} style={{ flexShrink: 0 }} />
       </footer>
     </article>
   );
@@ -815,13 +815,14 @@ export function CustomersSkeleton() {
 export function TechniciansSkeleton() {
   return (
     <main className="technicians-page" aria-busy="true" aria-label="Memuat Teknisi Lapangan">
-      <header className="overview-header">
+      <header className="overview-header technicians-header">
         <div className="overview-header-copy">
-          <Skeleton width="min(100%, 310px)" height={30} style={{ marginBottom: '4px' }} />
+          <Skeleton width="min(100%, 310px)" height={28} style={{ marginBottom: '6px' }} />
           <Skeleton width="min(100%, 440px)" height={16} />
         </div>
-        <div className="overview-toolbar">
-          <Skeleton width={196} height={30} borderRadius={6} />
+        <div className="overview-toolbar technicians-toolbar">
+          <Skeleton width={176} height={36} borderRadius={6} />
+          <Skeleton width={112} height={36} borderRadius={6} />
         </div>
       </header>
 
@@ -832,14 +833,14 @@ export function TechniciansSkeleton() {
         <StatCardSkeleton />
       </section>
 
-      <section className="panel skeleton-card" style={{ padding: '16px 20px 24px' }}>
-        <nav className="technician-sub-toolbar" aria-hidden="true">
-          <Skeleton width="min(100%, 260px)" height={32} borderRadius={6} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <Skeleton width={135} height={31} borderRadius={6} />
-            <Skeleton width="min(100%, 420px)" height={31} borderRadius={6} />
+      <section className="panel technicians-directory-panel skeleton-card">
+        <div className="technician-sub-toolbar" aria-hidden="true">
+          <div className="technician-toolbar-top">
+            <Skeleton width="min(100%, 340px)" height={38} borderRadius={6} />
+            <Skeleton width={160} height={38} borderRadius={6} />
           </div>
-        </nav>
+          <Skeleton width="min(100%, 460px)" height={36} borderRadius={6} />
+        </div>
 
         <section className="technicians-cards-grid">
           {Array.from({ length: DEFAULT_CARD_COUNT }).map((_, i) => (

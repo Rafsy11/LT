@@ -16,12 +16,43 @@ import {
 
 export type { TechnicianListItem };
 
+const MS_PER_MINUTE = 60_000;
+const MS_PER_HOUR = 3_600_000;
+const MS_PER_DAY = 86_400_000;
+const RELATIVE_TIME_MAX_DAYS = 7;
+
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) {
     return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }
   return name.slice(0, 2).toUpperCase();
+}
+
+function formatRelativeActivityId(date: Date, now: Date): string {
+  const diffMs = Math.max(0, now.getTime() - date.getTime());
+  if (diffMs < MS_PER_MINUTE) {
+    return 'baru saja';
+  }
+  if (diffMs < MS_PER_HOUR) {
+    return `${Math.floor(diffMs / MS_PER_MINUTE)} menit yang lalu`;
+  }
+  if (diffMs < MS_PER_DAY) {
+    return `${Math.floor(diffMs / MS_PER_HOUR)} jam yang lalu`;
+  }
+  const days = Math.floor(diffMs / MS_PER_DAY);
+  if (days <= RELATIVE_TIME_MAX_DAYS) {
+    return `${days} hari yang lalu`;
+  }
+  return (
+    date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }) + ' WIB'
+  );
 }
 
 const FALLBACK_TECHS: TechnicianListItem[] = [
@@ -209,7 +240,8 @@ export class TechnicianService {
   }
 
   /**
-   * Retrieves technicians list with real-time active/completed ticket counts from PostgreSQL.
+   * Retrieves technicians list with real-time session status, bound device metadata,
+   * and active/completed ticket counts from PostgreSQL.
    */
   public static async listTechnicians(
     search = '',
@@ -217,12 +249,43 @@ export class TechnicianService {
   ): Promise<TechnicianListItem[]> {
     if (await requireLiveDatabase('Database PostgreSQL diperlukan untuk memuat daftar teknisi.')) {
       try {
+        const now = new Date();
         const techs = await prisma.user.findMany({
           where: { userType: 'TECHNICIAN' },
           include: {
             role: true,
+            sessions: {
+              orderBy: { createdAt: 'desc' },
+              take: 5,
+              select: {
+                id: true,
+                deviceId: true,
+                deviceModel: true,
+                appVersion: true,
+                createdAt: true,
+                expiresAt: true,
+                revokedAt: true,
+              },
+            },
             assignedTickets: {
-              select: { id: true, status: true },
+              orderBy: { createdAt: 'desc' },
+              select: {
+                id: true,
+                ticketNumber: true,
+                ticketType: true,
+                status: true,
+                customer: {
+                  select: {
+                    fullName: true,
+                    portNumber: true,
+                    splitter: {
+                      select: {
+                        splitterCode: true,
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
           orderBy: { fullName: 'asc' },
@@ -230,12 +293,49 @@ export class TechnicianService {
 
         if (isStrictLiveMode() || techs.length > 0) {
           const result: TechnicianListItem[] = techs.map((t) => {
-            const activeTicketsCount = t.assignedTickets.filter(
-              (ticket) => ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS',
-            ).length;
+            const activeTickets = t.assignedTickets.filter(
+              (ticket) =>
+                ticket.status === 'OPEN' ||
+                ticket.status === 'IN_PROGRESS' ||
+                ticket.status === 'PENDING_APPROVAL',
+            );
             const completedTicketsCount = t.assignedTickets.filter(
               (ticket) => ticket.status === 'COMPLETED',
             ).length;
+
+            const sessions = Array.isArray(t.sessions) ? t.sessions : [];
+            const activeSession = sessions.find(
+              (s) => s.revokedAt === null && new Date(s.expiresAt) > now,
+            );
+            const latestSession = activeSession ?? sessions[0] ?? null;
+
+            const sessionStatus: TechnicianListItem['sessionStatus'] = activeSession
+              ? 'ACTIVE_SESSION'
+              : latestSession?.revokedAt
+                ? 'REVOKED'
+                : 'NO_SESSION';
+
+            const latestTimestamp = activeSession
+              ? activeSession.createdAt
+              : latestSession?.revokedAt ?? latestSession?.createdAt ?? null;
+
+            const boundDeviceId =
+              latestSession?.deviceId && latestSession.deviceId !== 'web-browser'
+                ? latestSession.deviceId
+                : undefined;
+
+            const activeWorkOrders = activeTickets.map((ticket) => {
+              const rawSplitter = ticket.customer?.splitter?.splitterCode;
+              const rawPort = ticket.customer?.portNumber;
+              return {
+                ticketNumber: ticket.ticketNumber,
+                customerName: ticket.customer?.fullName || 'Pelanggan',
+                ticketType: ticket.ticketType === 'PSB' ? 'Pasang baru' : 'Maintenance',
+                splitterCode: rawSplitter
+                  ? `${rawSplitter}${rawPort ? ` P${rawPort}` : ''}`
+                  : undefined,
+              };
+            });
 
             const clusterName = t.assignedClusters.length > 0 ? t.assignedClusters[0] : '-';
 
@@ -249,24 +349,38 @@ export class TechnicianService {
               cluster: clusterName,
               initials: getInitials(t.fullName),
               isActive: t.isActive,
-              activeTicketsCount,
+              activeTicketsCount: activeTickets.length,
               completedTicketsCount,
+              deviceModel: latestSession?.deviceModel ?? undefined,
+              deviceId: boundDeviceId,
+              appVersion: latestSession?.appVersion ?? undefined,
+              sessionStatus,
+              lastActiveAt: latestTimestamp
+                ? formatRelativeActivityId(new Date(latestTimestamp), now)
+                : undefined,
+              isMockLocationDetected: false,
+              activeWorkOrders,
             };
           });
 
           let filtered = result;
           if (cluster && cluster !== 'Semua cluster') {
-            filtered = filtered.filter((t) =>
-              t.cluster.toLowerCase().includes(cluster.replace(/^Bandung\s+/i, '').toLowerCase()),
-            );
+            const target = cluster.trim().toLowerCase();
+            filtered = filtered.filter((t) => {
+              const current = t.cluster.trim().toLowerCase();
+              return current === target || current.includes(target) || target.includes(current);
+            });
           }
           if (search.trim()) {
-            const q = search.toLowerCase();
+            const q = search.trim().toLowerCase();
             filtered = filtered.filter(
               (t) =>
                 t.fullName.toLowerCase().includes(q) ||
                 t.username.toLowerCase().includes(q) ||
-                t.cluster.toLowerCase().includes(q),
+                t.cluster.toLowerCase().includes(q) ||
+                Boolean(t.nik && t.nik.toLowerCase().includes(q)) ||
+                Boolean(t.vendorCompany && t.vendorCompany.toLowerCase().includes(q)) ||
+                Boolean(t.deviceId && t.deviceId.toLowerCase().includes(q)),
             );
           }
           return filtered;
@@ -279,15 +393,22 @@ export class TechnicianService {
     // Graceful fallback
     let fallback = [...FALLBACK_TECHS];
     if (cluster && cluster !== 'Semua cluster') {
-      fallback = fallback.filter((t) => t.cluster.includes(cluster.replace('Bandung ', '')));
+      const target = cluster.trim().toLowerCase();
+      fallback = fallback.filter((t) => {
+        const current = t.cluster.trim().toLowerCase();
+        return current === target || current.includes(target) || target.includes(current);
+      });
     }
     if (search.trim()) {
-      const q = search.toLowerCase();
+      const q = search.trim().toLowerCase();
       fallback = fallback.filter(
         (t) =>
           t.fullName.toLowerCase().includes(q) ||
           t.username.toLowerCase().includes(q) ||
-          t.cluster.toLowerCase().includes(q),
+          t.cluster.toLowerCase().includes(q) ||
+          Boolean(t.nik && t.nik.toLowerCase().includes(q)) ||
+          Boolean(t.vendorCompany && t.vendorCompany.toLowerCase().includes(q)) ||
+          Boolean(t.deviceId && t.deviceId.toLowerCase().includes(q)),
       );
     }
     return fallback;

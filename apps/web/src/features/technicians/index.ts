@@ -5,3 +5,4 @@ export * from './components/technician-card';
 export * from './components/technician-grid';
 export * from './components/technician-detail-modal';
 export * from './hooks/use-technicians';
+export * from './utils/technician-session';

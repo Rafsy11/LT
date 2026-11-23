@@ -9,9 +9,15 @@ import type { TechnicianFilterTab } from '../components/technician-filters';
 import { webApiClient } from '@/lib/api-client';
 import { normalizeAppError } from '@/lib/error-normalizer';
 import { fetchWithCache, getCachedData, invalidateQueryCache } from '@/lib/query-cache';
+import {
+  matchesTechnicianCluster,
+  matchesTechnicianSearch,
+  type TechnicianModalIntent,
+} from '../utils/technician-session';
 
 const TECHNICIANS_CACHE_KEY = '/api/v1/admin/technicians';
 const OVERVIEW_CACHE_KEY = '/api/v1/admin/overview';
+const DEFAULT_FORCE_LOGOUT_REASON = 'Admin Force Logout (Sesi Dicabut)';
 
 export function useTechnicians() {
   const [search, setSearch] = useState('');
@@ -23,9 +29,11 @@ export function useTechnicians() {
   const [loading, setLoading] = useState<boolean>(
     () => !getCachedData<TechnicianListItem[]>(TECHNICIANS_CACHE_KEY),
   );
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [processingUser, setProcessingUser] = useState<string | null>(null);
-  const [selectedTech, setSelectedTech] = useState<TechnicianListItem | null>(null);
+  const [selectedTechKey, setSelectedTechKey] = useState<string | null>(null);
+  const [modalIntent, setModalIntent] = useState<TechnicianModalIntent>('inspect');
 
   const actionLockRef = useRef<boolean>(false);
 
@@ -38,7 +46,10 @@ export function useTechnicians() {
         setLoadError(null);
         if (!getCachedData<TechnicianListItem[]>(TECHNICIANS_CACHE_KEY)) {
           setLoading(true);
+        } else if (force) {
+          setIsRefreshing(true);
         }
+
         const data = await fetchWithCache<TechnicianListItem[]>(
           TECHNICIANS_CACHE_KEY,
           async () => {
@@ -66,6 +77,7 @@ export function useTechnicians() {
         });
       } finally {
         setLoading(false);
+        setIsRefreshing(false);
       }
     },
     [showError],
@@ -75,151 +87,146 @@ export function useTechnicians() {
     void fetchTechs();
   }, [fetchTechs]);
 
+  // Always derive selected technician from the latest list so modal state never goes stale
+  const selectedTech = useMemo(() => {
+    if (!selectedTechKey) return null;
+    return (
+      technicians.find((t) => t.id === selectedTechKey || t.username === selectedTechKey) ?? null
+    );
+  }, [technicians, selectedTechKey]);
+
+  const openTechModal = useCallback(
+    (tech: TechnicianListItem, intent: TechnicianModalIntent = 'inspect') => {
+      setSelectedTechKey(tech.id || tech.username);
+      setModalIntent(intent);
+    },
+    [],
+  );
+
+  const closeTechModal = useCallback(() => {
+    setSelectedTechKey(null);
+    setModalIntent('inspect');
+  }, []);
+
   /**
    * Instant Session Revocation (Force Logout) guarded by `tech:manage` permission.
    */
   const handleForceLogout = useCallback(
-    async (usernameOrId: string) => {
+    async (usernameOrId: string, reason?: string): Promise<boolean> => {
       if (!canManageTech) {
         showError({
           code: 'FORBIDDEN',
           message: 'Akun Anda belum memiliki izin untuk mencabut sesi perangkat teknisi.',
         });
-        return;
+        return false;
       }
 
-      if (actionLockRef.current) return;
+      if (actionLockRef.current) return false;
       actionLockRef.current = true;
       setProcessingUser(usernameOrId);
 
       try {
+        const sanitizedReason = reason?.trim() || DEFAULT_FORCE_LOGOUT_REASON;
         const json = await webApiClient.post(
           `/api/v1/admin/technicians/${encodeURIComponent(usernameOrId)}/force-logout`,
-          { reason: 'Admin Force Logout (Sesi Dicabut)' },
+          { reason: sanitizedReason },
         );
 
         if (json.success) {
-          showSuccess(`Sesi perangkat teknisi ${usernameOrId} berhasil dicabut.`);
+          showSuccess(`Sesi perangkat teknisi @${usernameOrId} berhasil dicabut.`);
           invalidateQueryCache(TECHNICIANS_CACHE_KEY, OVERVIEW_CACHE_KEY);
           await fetchTechs(true);
-
-          if (
-            selectedTech &&
-            (selectedTech.username === usernameOrId || selectedTech.id === usernameOrId)
-          ) {
-            setSelectedTech((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    sessionStatus: 'REVOKED',
-                    lastActiveAt: 'Baru saja dicabut oleh Admin',
-                  }
-                : null,
-            );
-          }
-        } else {
-          showError(json.error);
+          return true;
         }
+        showError(json.error);
+        return false;
       } catch (e: unknown) {
         showError(e);
+        return false;
       } finally {
         actionLockRef.current = false;
         setProcessingUser(null);
       }
     },
-    [canManageTech, fetchTechs, selectedTech, showError, showSuccess],
+    [canManageTech, fetchTechs, showError, showSuccess],
   );
 
   /**
-   * Toggles account active status (Lock / Unlock account).
+   * Toggles account active status (Lock / Unlock account) with optional audit reason.
    */
   const handleToggleAccount = useCallback(
-    async (usernameOrId: string) => {
+    async (usernameOrId: string, reason?: string): Promise<boolean> => {
       if (!canManageTech) {
         showError({
           code: 'FORBIDDEN',
           message: 'Akun Anda belum memiliki izin untuk mengubah status akun teknisi.',
         });
-        return;
+        return false;
       }
 
-      if (actionLockRef.current) return;
+      if (actionLockRef.current) return false;
       actionLockRef.current = true;
       setProcessingUser(usernameOrId);
 
       try {
+        const payload: { reason?: string } = {};
+        if (reason?.trim()) {
+          payload.reason = reason.trim();
+        }
         const json = await webApiClient.post(
           `/api/v1/admin/technicians/${encodeURIComponent(usernameOrId)}/toggle`,
-          {},
+          payload,
         );
 
         if (json.success) {
-          showSuccess(`Status akun teknisi ${usernameOrId} berhasil diperbarui.`);
+          showSuccess(`Status akun teknisi @${usernameOrId} berhasil diperbarui.`);
           invalidateQueryCache(TECHNICIANS_CACHE_KEY, OVERVIEW_CACHE_KEY);
           await fetchTechs(true);
-
-          if (
-            selectedTech &&
-            (selectedTech.username === usernameOrId || selectedTech.id === usernameOrId)
-          ) {
-            setSelectedTech((prev) => (prev ? { ...prev, isActive: !prev.isActive } : null));
-          }
-        } else {
-          showError(json.error);
+          return true;
         }
+        showError(json.error);
+        return false;
       } catch (e: unknown) {
         showError(e);
+        return false;
       } finally {
         actionLockRef.current = false;
         setProcessingUser(null);
       }
     },
-    [canManageTech, fetchTechs, selectedTech, showError, showSuccess],
+    [canManageTech, fetchTechs, showError, showSuccess],
   );
 
-  // Scoped by Cluster & Search
   const clusterScoped = useMemo(() => {
-    return technicians.filter((t) => {
-      const matchesCluster =
-        cluster === 'Semua cluster' ||
-        t.cluster.toLowerCase().includes(cluster.toLowerCase().replace('bandung ', ''));
-      const matchesSearch =
-        search === '' ||
-        t.fullName.toLowerCase().includes(search.toLowerCase()) ||
-        t.username.toLowerCase().includes(search.toLowerCase()) ||
-        t.cluster.toLowerCase().includes(search.toLowerCase()) ||
-        (t.deviceId && t.deviceId.toLowerCase().includes(search.toLowerCase()));
-      return matchesCluster && matchesSearch;
-    });
+    return technicians.filter(
+      (t) => matchesTechnicianCluster(t, cluster) && matchesTechnicianSearch(t, search),
+    );
   }, [technicians, cluster, search]);
 
-  // Telemetry Counts
-  const activeSessionsCount = useMemo(
-    () => clusterScoped.filter((t) => t.sessionStatus === 'ACTIVE_SESSION').length,
-    [clusterScoped],
-  );
-  const busyCount = useMemo(
-    () => clusterScoped.filter((t) => t.activeTicketsCount > 0).length,
-    [clusterScoped],
-  );
-  const revokedCount = useMemo(
-    () => clusterScoped.filter((t) => t.sessionStatus === 'REVOKED').length,
-    [clusterScoped],
-  );
-  const disabledCount = useMemo(
-    () => clusterScoped.filter((t) => !t.isActive).length,
-    [clusterScoped],
-  );
+  const counts = useMemo(() => {
+    let activeSessions = 0;
+    let busy = 0;
+    let revoked = 0;
+    let disabled = 0;
 
-  // Tab Filtering
+    for (const tech of clusterScoped) {
+      if (tech.isActive && tech.sessionStatus === 'ACTIVE_SESSION') activeSessions += 1;
+      if (tech.activeTicketsCount > 0) busy += 1;
+      if (tech.isActive && tech.sessionStatus === 'REVOKED') revoked += 1;
+      if (!tech.isActive) disabled += 1;
+    }
+
+    return { activeSessions, busy, revoked, disabled };
+  }, [clusterScoped]);
+
   const displayedTechs = useMemo(() => {
     switch (activeTab) {
       case 'active_session':
-        return clusterScoped.filter((t) => t.sessionStatus === 'ACTIVE_SESSION');
+        return clusterScoped.filter((t) => t.isActive && t.sessionStatus === 'ACTIVE_SESSION');
       case 'busy':
         return clusterScoped.filter((t) => t.activeTicketsCount > 0);
       case 'revoked':
-        return clusterScoped.filter((t) => t.sessionStatus === 'REVOKED');
+        return clusterScoped.filter((t) => t.isActive && t.sessionStatus === 'REVOKED');
       case 'inactive':
         return clusterScoped.filter((t) => !t.isActive);
       case 'all':
@@ -237,19 +244,22 @@ export function useTechnicians() {
     setActiveTab,
     technicians,
     loading,
+    isRefreshing,
     loadError,
     processingUser,
     selectedTech,
-    setSelectedTech,
+    modalIntent,
+    openTechModal,
+    closeTechModal,
     canManageTech,
     fetchTechs,
     handleForceLogout,
     handleToggleAccount,
     clusterScoped,
-    activeSessionsCount,
-    busyCount,
-    revokedCount,
-    disabledCount,
+    activeSessionsCount: counts.activeSessions,
+    busyCount: counts.busy,
+    revokedCount: counts.revoked,
+    disabledCount: counts.disabled,
     displayedTechs,
   };
 }

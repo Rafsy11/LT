@@ -773,4 +773,103 @@ describe('Tier 1: Feature 20 - Web Error Handling & Humane Microcopy UX', () => 
     assert.match(monitoringCss, /\.noc-tab-btn\[aria-selected='true'\]::after/);
     assert.doesNotMatch(monitoringCss, /html\.dark\s+\.hud-spec-grid/);
   });
+
+  it('enforces /technicians live session hydration, safe Detail Sesi modal confirmation, and Light/Dark token CSS', async () => {
+    const techSessionMod = await import(
+      '../../../apps/web/src/features/technicians/utils/technician-session'
+    );
+    const {
+      formatTechnicianActivityText,
+      matchesTechnicianCluster,
+      matchesTechnicianSearch,
+      resolveTechnicianVisualState,
+    } = techSessionMod;
+
+    const baseTech = {
+      id: 't-1',
+      nik: '882043',
+      username: 'andi.pratama',
+      fullName: 'Andi Pratama',
+      vendorCompany: 'PT Mitra Fiber',
+      telegramBound: true,
+      cluster: 'Palembang Ilir',
+      initials: 'AP',
+      isActive: true,
+      activeTicketsCount: 1,
+      completedTicketsCount: 5,
+      sessionStatus: 'NO_SESSION' as const,
+      lastActiveAt: '3 hari yang lalu',
+    };
+
+    assert.strictEqual(resolveTechnicianVisualState(baseTech).state, 'idle');
+    assert.strictEqual(formatTechnicianActivityText(baseTech), 'Terakhir aktif: 3 hari yang lalu');
+    assert.doesNotMatch(formatTechnicianActivityText(baseTech), /^Online /);
+
+    const lockedTech = { ...baseTech, isActive: false, sessionStatus: 'ACTIVE_SESSION' as const };
+    assert.strictEqual(resolveTechnicianVisualState(lockedTech).state, 'locked');
+
+    const activeTech = { ...baseTech, sessionStatus: 'ACTIVE_SESSION' as const, lastActiveAt: '4 menit yang lalu' };
+    assert.strictEqual(resolveTechnicianVisualState(activeTech).state, 'active');
+    assert.strictEqual(formatTechnicianActivityText(activeTech), 'Aktif 4 menit yang lalu');
+
+    assert.strictEqual(matchesTechnicianSearch(baseTech, '882043'), true);
+    assert.strictEqual(matchesTechnicianSearch(baseTech, 'Mitra Fiber'), true);
+    assert.strictEqual(matchesTechnicianCluster(baseTech, 'Palembang Ilir'), true);
+
+    const techDir = path.join(webSrc, 'features', 'technicians');
+    const techServiceSrc = fs.readFileSync(
+      path.join(webSrc, 'server', 'services', 'technician.service.ts'),
+      'utf-8',
+    );
+    const viewSrc = fs.readFileSync(path.join(techDir, 'components', 'technicians-view.tsx'), 'utf-8');
+    const statsSrc = fs.readFileSync(path.join(techDir, 'components', 'technician-stats.tsx'), 'utf-8');
+    const filtersSrc = fs.readFileSync(path.join(techDir, 'components', 'technician-filters.tsx'), 'utf-8');
+    const cardSrc = fs.readFileSync(path.join(techDir, 'components', 'technician-card.tsx'), 'utf-8');
+    const gridSrc = fs.readFileSync(path.join(techDir, 'components', 'technician-grid.tsx'), 'utf-8');
+    const modalSrc = fs.readFileSync(
+      path.join(techDir, 'components', 'technician-detail-modal.tsx'),
+      'utf-8',
+    );
+    const techCss = fs.readFileSync(path.join(webSrc, 'styles', 'features', 'technicians.css'), 'utf-8');
+
+    // Live PostgreSQL query must hydrate sessions and active work orders including PENDING_APPROVAL
+    assert.match(techServiceSrc, /sessions:\s*\{/);
+    assert.match(techServiceSrc, /PENDING_APPROVAL/);
+    assert.match(techServiceSrc, /activeWorkOrders,/);
+
+    // Every client component re-exported by barrel must carry 'use client'
+    for (const [name, src] of [
+      ['technicians-view.tsx', viewSrc],
+      ['technician-stats.tsx', statsSrc],
+      ['technician-filters.tsx', filtersSrc],
+      ['technician-card.tsx', cardSrc],
+      ['technician-grid.tsx', gridSrc],
+      ['technician-detail-modal.tsx', modalSrc],
+    ] as const) {
+      assert.match(src, /^'use client';/, `${name} must declare 'use client' for Next.js 15 barrel safety`);
+    }
+
+    // Zero fabricated placeholders or leaked internal PRD/Redis/code jargon
+    const combinedTechUi = [viewSrc, statsSrc, filtersSrc, cardSrc, modalSrc].join('\n');
+    assert.doesNotMatch(
+      combinedTechUi,
+      /DEV-UNBOUND|\+62 8xx-xxxx-xxxx|ODP Target|PRD 3\.3|location\.mocked = true|Redis Session Store|Token JWT sah tersinkron di Redis/,
+      '/technicians UI and Detail Sesi modal must not contain fabricated fallbacks or internal infra jargon',
+    );
+
+    // Accessible controls, 2-step confirmation in Detail Sesi modal, and copy support
+    assert.match(statsSrc, /<button[\s\S]*?aria-pressed=/);
+    assert.doesNotMatch(statsSrc, /<article className="stat-card">/);
+    assert.match(filtersSrc, /ArrowRight/);
+    assert.match(modalSrc, /tech-confirm-panel/);
+    assert.match(modalSrc, /cancelConfirmBtnRef/);
+    assert.match(modalSrc, /copyTextToClipboard/);
+    assert.match(modalSrc, /aria-label="Tutup detail sesi teknisi"/);
+
+    // Token-driven CSS: zero hardcoded dark mobile #0b1329 override, full Light/Dark banners & dialog backdrop
+    assert.doesNotMatch(techCss, /#0b1329|#060b18|#111e3f/);
+    assert.match(techCss, /\.technician-banner--active\s*\{/);
+    assert.match(techCss, /\.technician-tab-btn\[aria-selected='true'\]::after/);
+    assert.match(techCss, /dialog\.tech-modal-overlay::backdrop[\s\S]*overscroll-behavior:\s*contain/);
+  });
 });
