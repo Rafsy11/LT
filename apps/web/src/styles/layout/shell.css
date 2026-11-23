@@ -28,12 +28,18 @@ main > *,
 }
 
 .sidebar {
+  --sidebar-bg-color: #d7edfe;
+  --sidebar-bg-image: url('/assets/fiberops-sidebar-gradient.svg?v=6');
   width: 250px;
   max-width: 80vw;
   height: 100vh;
   height: 100dvh;
   flex-shrink: 0;
-  background: #cce7fd url('/assets/fiberops-sidebar-gradient.svg?v=5') center / 100% 100% no-repeat;
+  background-color: var(--sidebar-bg-color);
+  background-image: var(--sidebar-bg-image);
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border-right: 1px solid #b6defc;
@@ -52,12 +58,25 @@ main > *,
   overflow-y: auto;
 }
 
+@supports (background-image: light-dark(url('a'), url('b'))) {
+  .sidebar {
+    --sidebar-bg-image: light-dark(
+      url('/assets/fiberops-sidebar-gradient.svg?v=6'),
+      url('/assets/fiberops-sidebar-gradient-dark.svg?v=3')
+    );
+  }
+}
+
 .sidebar.open {
   transform: translateX(0);
   visibility: visible;
   pointer-events: auto;
   box-shadow: 4px 0 24px rgba(15, 23, 42, 0.15);
-  background: #cce7fd url('/assets/fiberops-sidebar-gradient.svg?v=5') center / 100% 100% no-repeat;
+  background-color: var(--sidebar-bg-color);
+  background-image: var(--sidebar-bg-image);
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -85,6 +104,7 @@ main > *,
   justify-content: center;
   width: 100%;
   margin-bottom: 14px;
+  background: transparent;
 }
 
 .sidebar-close-btn {
@@ -1516,15 +1536,25 @@ html.dark .theme-item-check,
 
 html.dark .sidebar,
 [data-theme='dark'] .sidebar {
-  background: #0f172a url('/assets/fiberops-sidebar-gradient-dark.svg?v=2') center / 100% 100%
-    no-repeat !important;
+  --sidebar-bg-color: #0f172a;
+  --sidebar-bg-image: url('/assets/fiberops-sidebar-gradient-dark.svg?v=3');
+  background-color: var(--sidebar-bg-color) !important;
+  background-image: var(--sidebar-bg-image) !important;
+  background-position: center !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
   border-right: 1px solid #1e293b !important;
 }
 
 html.dark .sidebar.open,
 [data-theme='dark'] .sidebar.open {
-  background: #0f172a url('/assets/fiberops-sidebar-gradient-dark.svg?v=2') center / 100% 100%
-    no-repeat !important;
+  --sidebar-bg-color: #0f172a;
+  --sidebar-bg-image: url('/assets/fiberops-sidebar-gradient-dark.svg?v=3');
+  background-color: var(--sidebar-bg-color) !important;
+  background-image: var(--sidebar-bg-image) !important;
+  background-position: center !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
   border-right: 1px solid #1e293b !important;
   box-shadow: 4px 0 24px rgba(2, 6, 23, 0.6) !important;
 }

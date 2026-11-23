@@ -410,4 +410,21 @@ describe('Tier 1: Feature 20 - Web Error Handling & Humane Microcopy UX', () => 
     assert.match(settingsCssSrc, /\.settings-tab-btn::after/);
     assert.doesNotMatch(settingsCssSrc, /#0b1329|#0066ff|9999px/i);
   });
+
+  it('renders seamless full-height sidebar gradient SVG without top clipping seam behind logo', () => {
+    const darkSvgSrc = fs.readFileSync(
+      path.join(webSrc, '..', 'public', 'assets', 'fiberops-sidebar-gradient-dark.svg'),
+      'utf-8',
+    );
+    assert.match(darkSvgSrc, /<rect width="320" height="1200" fill="url\(#sideCloudGlow\)"\/>/);
+    assert.doesNotMatch(darkSvgSrc, /y="200"\s+fill="url\(#sideCloudGlow\)"/);
+
+    const shellCssSrc = fs.readFileSync(
+      path.join(webSrc, 'styles', 'layout', 'shell.css'),
+      'utf-8',
+    );
+    assert.match(shellCssSrc, /fiberops-sidebar-gradient\.svg\?v=6/);
+    assert.match(shellCssSrc, /fiberops-sidebar-gradient-dark\.svg\?v=3/);
+    assert.match(shellCssSrc, /\.sidebar-header-row\s*\{[^}]*background:\s*transparent/);
+  });
 });

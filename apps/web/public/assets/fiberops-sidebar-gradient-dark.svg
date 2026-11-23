@@ -24,8 +24,8 @@
       <stop offset="100%" stop-color="#1E293B" stop-opacity="0.45"/>
     </linearGradient>
 
-    <!-- Ambient Subtle Cloud Swell Gradient -->
-    <radialGradient id="sideCloudGlow" cx="80%" cy="35%" r="60%">
+    <!-- Ambient Subtle Cloud Swell Gradient (full-canvas userSpaceOnUse to prevent horizontal clip seams) -->
+    <radialGradient id="sideCloudGlow" cx="256" cy="410" r="390" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#1E293B" stop-opacity="0.35"/>
       <stop offset="50%" stop-color="#1E3A5F" stop-opacity="0.18"/>
       <stop offset="100%" stop-color="#0F172A" stop-opacity="0"/>
@@ -36,7 +36,7 @@
   <rect width="320" height="1200" fill="url(#sideDarkBase)"/>
 
   <!-- Subtle Ambient Mid-Height Cloud Glow -->
-  <rect width="320" height="600" y="200" fill="url(#sideCloudGlow)"/>
+  <rect width="320" height="1200" fill="url(#sideCloudGlow)"/>
 
   <!-- Upper-Right Subtle Cloud Swell -->
   <path d="M320 400 C220 445, 200 525, 320 590 Z" fill="#1E293B" opacity="0.32"/>
