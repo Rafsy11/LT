@@ -342,4 +342,72 @@ describe('Tier 1: Feature 20 - Web Error Handling & Humane Microcopy UX', () => 
     assert.match(promptInputSrc, /isComposing/);
     assert.match(promptInputSrc, /className="sr-only"/);
   });
+
+  it('enforces accessible WAI-ARIA tabs, real telemetry honesty, and token-driven styles on /settings', () => {
+    const settingsViewSrc = fs.readFileSync(
+      path.join(webSrc, 'features', 'settings', 'components', 'settings-view.tsx'),
+      'utf-8',
+    );
+    assert.match(settingsViewSrc, /role="tabpanel"/);
+    assert.match(settingsViewSrc, /noValidate/);
+    assert.match(settingsViewSrc, /handleResetChanges/);
+    assert.doesNotMatch(settingsViewSrc, /window\.location\.reload/);
+
+    const settingsTabsSrc = fs.readFileSync(
+      path.join(webSrc, 'features', 'settings', 'components', 'settings-tabs.tsx'),
+      'utf-8',
+    );
+    assert.match(settingsTabsSrc, /ArrowRight/);
+    assert.match(settingsTabsSrc, /ArrowLeft/);
+    assert.match(settingsTabsSrc, /aria-selected=\{active\}/);
+    assert.match(settingsTabsSrc, /tabIndex=\{active \? 0 : -1\}/);
+
+    const settingsHeaderSrc = fs.readFileSync(
+      path.join(webSrc, 'features', 'settings', 'components', 'settings-header.tsx'),
+      'utf-8',
+    );
+    assert.match(settingsHeaderSrc, /Layanan Normal/);
+    assert.doesNotMatch(settingsHeaderSrc, /Docker: 6 Normal/);
+
+    const infraSrc = fs.readFileSync(
+      path.join(webSrc, 'features', 'settings', 'components', 'infrastructure-panel.tsx'),
+      'utf-8',
+    );
+    assert.match(infraSrc, /telemetry\?\.uptimeSeconds/);
+    assert.match(infraSrc, /telemetry\?\.hostPlatform/);
+    assert.match(infraSrc, /maxConcurrentAiQueries/);
+    assert.match(infraSrc, /<fieldset/);
+    assert.doesNotMatch(infraSrc, /42 Hari 18 Jam|RTX 4060 Ti|142\.8 Mbps|Valid s\/d 2027|Ubuntu 24\.04 LTS/);
+
+    const geofencingSrc = fs.readFileSync(
+      path.join(webSrc, 'features', 'settings', 'components', 'geofencing-panel.tsx'),
+      'utf-8',
+    );
+    assert.match(geofencingSrc, /role="switch"/);
+
+    const backupSrc = fs.readFileSync(
+      path.join(webSrc, 'features', 'settings', 'components', 'backup-panel.tsx'),
+      'utf-8',
+    );
+    assert.match(backupSrc, /role="switch"/);
+    assert.match(backupSrc, /compressionEncrypted/);
+    assert.match(backupSrc, /<EmptyState/);
+
+    const networkSrc = fs.readFileSync(
+      path.join(webSrc, 'features', 'settings', 'components', 'network-settings-panel.tsx'),
+      'utf-8',
+    );
+    assert.match(networkSrc, /companyName/);
+    assert.doesNotMatch(networkSrc, /AGENT\.md|PRD 7\.2|PRD 7\.3/);
+
+    const settingsCssSrc = fs.readFileSync(
+      path.join(webSrc, 'styles', 'features', 'settings.css'),
+      'utf-8',
+    );
+    assert.match(settingsCssSrc, /var\(--color-surface-card\)/);
+    assert.match(settingsCssSrc, /\.settings-status-pill\.critical/);
+    assert.match(settingsCssSrc, /\.settings-switch/);
+    assert.match(settingsCssSrc, /\.settings-tab-btn::after/);
+    assert.doesNotMatch(settingsCssSrc, /#0b1329|#0066ff|9999px/i);
+  });
 });

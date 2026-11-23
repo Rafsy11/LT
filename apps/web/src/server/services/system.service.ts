@@ -251,6 +251,10 @@ export class SystemService {
           : undefined,
       gpuVramTotalGb: isGpu && ollamaStatus.vramUsedGb ? currentSettings.aiMemoryLimitGb : undefined,
       gpuVramUsedGb: ollamaStatus.vramUsedGb,
+      hostPlatform: `${os.type()} ${os.release()}`,
+      uptimeSeconds: Math.max(0, Math.floor(os.uptime())),
+      ollamaHealthy: ollamaStatus.healthy,
+      ollamaActiveModel: ollamaStatus.activeModel,
       containers: [
         {
           name: 'postgres-db',

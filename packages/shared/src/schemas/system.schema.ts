@@ -64,6 +64,10 @@ export interface SystemTelemetryData {
   gpuModel?: string;
   gpuVramTotalGb?: number;
   gpuVramUsedGb?: number;
+  hostPlatform?: string;
+  uptimeSeconds?: number;
+  ollamaHealthy?: boolean;
+  ollamaActiveModel?: string;
   containers: ContainerHealth[];
   backupHistory: BackupSnapshotItem[];
 }

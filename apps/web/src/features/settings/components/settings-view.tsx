@@ -22,15 +22,21 @@ export function SettingsView() {
     settings,
     telemetry,
     loading,
+    isRefreshingTelemetry,
     loadError,
     forbiddenError,
+    fieldErrors,
     isSaving,
     isBackingUp,
     backupCooldownSeconds,
     hasChanges,
+    changedFieldCount,
+    dirtyTabs,
+    errorTabs,
     isSuperAdmin,
     user,
     handleChange,
+    handleResetChanges,
     handleSaveSettings,
     handleTriggerBackup,
     fetchSettings,
@@ -38,7 +44,7 @@ export function SettingsView() {
 
   React.useEffect(() => {
     function handleGlobalRefresh() {
-      fetchSettings(true);
+      void fetchSettings(true);
     }
     window.addEventListener('app:refresh-data', handleGlobalRefresh);
     return () => window.removeEventListener('app:refresh-data', handleGlobalRefresh);
@@ -79,81 +85,98 @@ export function SettingsView() {
   }
 
   return (
-    <main
-      id="main-content"
-      className="settings-page"
-    >
+    <main id="main-content" className="settings-page">
       {/* Overview Command Header */}
       <SettingsHeader
+        telemetry={telemetry}
         isSuperAdmin={isSuperAdmin}
         roleName={user.roleName}
-        isSaving={isSaving}
-        hasChanges={hasChanges}
-        onSave={() => handleSaveSettings()}
+        isRefreshing={isRefreshingTelemetry}
+        onRefresh={() => void fetchSettings(true)}
       />
 
-      {/* Modern Hairline Navigation Tabs */}
-      <SettingsTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* WAI-ARIA Navigation Tabs with Dirty & Validation Indicators */}
+      <SettingsTabs
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        dirtyTabs={dirtyTabs}
+        errorTabs={errorTabs}
+      />
 
-      <form onSubmit={handleSaveSettings}>
-        {/* Tab 1: Infrastruktur & Komputasi AI */}
-        {activeTab === 'infrastruktur' && (
-          <InfrastructurePanel
-            settings={settings}
-            telemetry={telemetry}
-            isSuperAdmin={isSuperAdmin}
-            handleChange={handleChange}
-          />
-        )}
-
-        {/* Tab 2: Validasi Lapangan & Geofencing */}
-        {activeTab === 'geofencing' && (
-          <GeofencingPanel
-            settings={settings}
-            isSuperAdmin={isSuperAdmin}
-            handleChange={handleChange}
-          />
-        )}
-
-        {/* Tab 3: Disaster Recovery & Backup 3-2-1 */}
-        {activeTab === 'backup' && (
-          <>
-            {backupCooldownSeconds > 0 && (
-              <div style={{ marginBottom: '14px' }}>
-                <RateLimitNotice
-                  remainingSeconds={backupCooldownSeconds}
-                  message="Permintaan pencadangan data sedang dibatasi sementara"
-                />
-              </div>
-            )}
-            <BackupPanel
+      <form onSubmit={handleSaveSettings} noValidate>
+        <div
+          role="tabpanel"
+          id={`settings-tabpanel-${activeTab}`}
+          aria-labelledby={`settings-tab-${activeTab}`}
+          className="settings-tabpanel"
+        >
+          {/* Tab 1: Infrastruktur & Komputasi AI */}
+          {activeTab === 'infrastruktur' && (
+            <InfrastructurePanel
               settings={settings}
               telemetry={telemetry}
-              isBackingUp={isBackingUp || backupCooldownSeconds > 0}
+              fieldErrors={fieldErrors}
               isSuperAdmin={isSuperAdmin}
-              onTriggerBackup={handleTriggerBackup}
               handleChange={handleChange}
             />
-          </>
-        )}
+          )}
 
-        {/* Tab 4: Jaringan & Distribusi APK */}
-        {activeTab === 'jaringan' && (
-          <NetworkSettingsPanel
-            settings={settings}
-            isSuperAdmin={isSuperAdmin}
-            handleChange={handleChange}
-          />
-        )}
+          {/* Tab 2: Validasi Lapangan & Geofencing */}
+          {activeTab === 'geofencing' && (
+            <GeofencingPanel
+              settings={settings}
+              fieldErrors={fieldErrors}
+              isSuperAdmin={isSuperAdmin}
+              handleChange={handleChange}
+            />
+          )}
 
-        {/* Integrated Clean Section Footer / Mobile Sticky Action Bar */}
+          {/* Tab 3: Disaster Recovery & Backup 3-2-1 */}
+          {activeTab === 'backup' && (
+            <>
+              {backupCooldownSeconds > 0 && (
+                <div className="settings-rate-limit-wrap">
+                  <RateLimitNotice
+                    remainingSeconds={backupCooldownSeconds}
+                    message="Permintaan pencadangan data sedang dibatasi sementara"
+                  />
+                </div>
+              )}
+              <BackupPanel
+                settings={settings}
+                telemetry={telemetry}
+                fieldErrors={fieldErrors}
+                isBackingUp={isBackingUp || backupCooldownSeconds > 0}
+                isSuperAdmin={isSuperAdmin}
+                onTriggerBackup={handleTriggerBackup}
+                handleChange={handleChange}
+              />
+            </>
+          )}
+
+          {/* Tab 4: Profil, Jaringan & Distribusi APK */}
+          {activeTab === 'jaringan' && (
+            <NetworkSettingsPanel
+              settings={settings}
+              fieldErrors={fieldErrors}
+              isSuperAdmin={isSuperAdmin}
+              handleChange={handleChange}
+            />
+          )}
+        </div>
+
+        {/* Unified Section Footer / Mobile Sticky Action Bar */}
         <footer
           className={`settings-save-footer ${hasChanges ? 'has-unsaved-changes' : ''}`}
+          aria-live="polite"
         >
           <div className="settings-footer-copy">
             {hasChanges ? (
               <span className="settings-footer-alert">
-                ● Terdapat perubahan konfigurasi yang belum disimpan.
+                <span className="status-dot status-dot--warn" aria-hidden="true" />
+                <span>
+                  {changedFieldCount} perubahan konfigurasi belum disimpan ke server operasional.
+                </span>
               </span>
             ) : (
               <span className="settings-footer-text">
@@ -162,14 +185,18 @@ export function SettingsView() {
             )}
           </div>
 
-          <div role="group" aria-label="Aksi simpan konfigurasi" className="settings-footer-actions">
+          <div
+            role="group"
+            aria-label="Aksi simpan konfigurasi"
+            className="settings-footer-actions"
+          >
             <button
               type="button"
-              onClick={() => window.location.reload()}
+              onClick={handleResetChanges}
               disabled={loading || isSaving || !hasChanges}
               className="settings-reset-btn"
             >
-              Reset
+              Batalkan
             </button>
 
             <button
@@ -177,7 +204,7 @@ export function SettingsView() {
               disabled={!isSuperAdmin || isSaving || !hasChanges}
               className="settings-submit-btn"
             >
-              {isSaving && <Icon name="refresh" size={13} className="spin" />}
+              {isSaving && <Icon name="refresh" size={13} className="icon-spin" />}
               <span>{isSaving ? 'Menyimpan...' : 'Simpan Konfigurasi'}</span>
             </button>
           </div>

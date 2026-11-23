@@ -1,10 +1,14 @@
 'use client';
 
 import React from 'react';
+import { Icon } from '@/components/ui/Icon';
+import { FieldError } from '@/components/ui/FieldError';
 import { SystemSettingsInput } from '@repo/shared';
+import type { SettingsFieldErrors } from '../hooks/use-settings';
 
 export interface GeofencingPanelProps {
   settings: SystemSettingsInput;
+  fieldErrors: SettingsFieldErrors;
   isSuperAdmin: boolean;
   handleChange: <K extends keyof SystemSettingsInput>(
     field: K,
@@ -12,7 +16,30 @@ export interface GeofencingPanelProps {
   ) => void;
 }
 
-export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: GeofencingPanelProps) {
+const RADIUS_PRESETS = [
+  {
+    val: 50,
+    title: '50 Meter',
+    desc: 'Kawasan perkotaan padat dan deretan ruko dengan jarak tiang berdekatan.',
+  },
+  {
+    val: 100,
+    title: '100 Meter (Rekomendasi)',
+    desc: 'Standar toleransi operasional FTTH untuk akurasi GPS lapangan.',
+  },
+  {
+    val: 200,
+    title: '200 Meter',
+    desc: 'Wilayah sub-urban dan area dengan jarak antar tiang ODP lebih renggang.',
+  },
+] as const;
+
+export function GeofencingPanel({
+  settings,
+  fieldErrors,
+  isSuperAdmin,
+  handleChange,
+}: GeofencingPanelProps) {
   return (
     <section
       className="settings-panel-grid"
@@ -20,126 +47,136 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
     >
       {/* Left: Geofencing Radius & Location Policy */}
       <article className="settings-card">
-        <header>
-          <h2 className="ui-settings-heading">
-            Batas Toleransi Geofencing Teknisi Lapangan
-          </h2>
-          <p className="ui-settings-sub" style={{ margin: '0 0 16px 0' }}>
-            Jarak maksimal yang diizinkan antara koordinat GPS ponsel teknisi dengan koordinat tiang
-            ODP saat menekan tombol Submit.
-          </p>
+        <header className="settings-card-header">
+          <div>
+            <h2 className="settings-section-heading">
+              Batas Toleransi Geofencing Teknisi Lapangan
+            </h2>
+            <p className="settings-section-subheading">
+              Jarak maksimal yang diizinkan antara koordinat GPS perangkat teknisi dengan titik
+              tiang ODP saat mengirim laporan penyelesaian.
+            </p>
+          </div>
+          <span className="settings-version-pill">{settings.geofenceRadiusMeters} m</span>
         </header>
 
-        {/* 3 Radius Option Cards */}
-        <fieldset
-          aria-label="Batas Jarak Radius ODP"
-          className="settings-three-col-grid"
-          style={{
-            border: 0,
-            margin: 0,
-            padding: 0,
-            marginBottom: '22px',
-          }}
-        >
-          {[
-            {
-              val: 50,
-              title: '50 Meter',
-              desc: 'Kawasan perkotaan padat & perumahan ruko sempit.',
-            },
-            {
-              val: 100,
-              title: '100 Meter (Rekomendasi)',
-              desc: 'Standar toleransi operasional FTTH umum.',
-            },
-            {
-              val: 200,
-              title: '200 Meter',
-              desc: 'Wilayah sub-urban dan pedesaan dengan titik tiang berjauhan.',
-            },
-          ].map((item) => (
-            <div
-              key={item.val}
-              onClick={() => isSuperAdmin && handleChange('geofenceRadiusMeters', item.val)}
-              className={`settings-option-card ${settings.geofenceRadiusMeters === item.val ? 'active' : ''}`}
-              style={{
-                cursor: isSuperAdmin ? 'pointer' : 'default',
-              }}
-            >
-              <div className="settings-option-title">
-                {item.title}
-              </div>
-              <div className="settings-option-desc">
-                {item.desc}
-              </div>
-            </div>
-          ))}
+        {/* 3 Radius Preset Radio Cards */}
+        <fieldset className="settings-fieldset" disabled={!isSuperAdmin}>
+          <legend className="settings-fieldset-legend">Preset Radius ODP</legend>
+          <div className="settings-three-col-grid">
+            {RADIUS_PRESETS.map((item) => {
+              const selected = settings.geofenceRadiusMeters === item.val;
+              return (
+                <label
+                  key={item.val}
+                  className={`settings-option-card ${selected ? 'active' : ''} ${!isSuperAdmin ? 'is-readonly' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="geofenceRadiusPreset"
+                    value={item.val}
+                    checked={selected}
+                    disabled={!isSuperAdmin}
+                    onChange={() => handleChange('geofenceRadiusMeters', item.val)}
+                    className="sr-only"
+                  />
+                  <div className="settings-option-card-top">
+                    <span className="settings-option-title">
+                      {selected && <Icon name="check" size={13} />}
+                      <span>{item.title}</span>
+                    </span>
+                  </div>
+                  <span className="settings-option-desc">{item.desc}</span>
+                </label>
+              );
+            })}
+          </div>
         </fieldset>
 
+        {/* Custom Radius Meter Input */}
+        <div className="settings-field-group settings-form-row">
+          <label htmlFor="settings-geofence-radius" className="settings-input-label">
+            Radius Kustom (10 – 1000 Meter)
+          </label>
+          <div className="settings-input-unit-row">
+            <input
+              id="settings-geofence-radius"
+              name="geofenceRadiusMeters"
+              type="number"
+              min={10}
+              max={1000}
+              value={
+                Number.isNaN(settings.geofenceRadiusMeters) ? '' : settings.geofenceRadiusMeters
+              }
+              disabled={!isSuperAdmin}
+              aria-invalid={Boolean(fieldErrors.geofenceRadiusMeters)}
+              aria-describedby={
+                fieldErrors.geofenceRadiusMeters ? 'settings-geofence-radius-err' : undefined
+              }
+              onChange={(e) => {
+                const parsed = Number.parseInt(e.target.value, 10);
+                handleChange('geofenceRadiusMeters', Number.isNaN(parsed) ? 0 : parsed);
+              }}
+              className={`settings-number-input ${fieldErrors.geofenceRadiusMeters ? 'ui-input-invalid' : ''}`}
+            />
+            <span className="settings-subtext-mono">meter dari koordinat ODP</span>
+          </div>
+          <FieldError
+            id="settings-geofence-radius-err"
+            message={fieldErrors.geofenceRadiusMeters}
+          />
+        </div>
+
         {/* Policy Selection */}
-        <fieldset
-          aria-label="Kebijakan Penanganan Laporan di Luar Radius"
-          className="ui-divider-top"
-          style={{ border: 0, margin: 0, padding: 0, paddingTop: '18px' }}
-        >
-          <legend
-            style={{
-              display: 'block',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: 'var(--color-text)',
-              marginBottom: '4px',
-            }}
-          >
+        <fieldset className="settings-fieldset settings-fieldset-divided" disabled={!isSuperAdmin}>
+          <legend className="settings-fieldset-legend">
             Kebijakan Penanganan Laporan di Luar Radius ODP
           </legend>
-          <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '0 0 12px 0' }}>
-            Respon sistem saat teknisi berada di luar radius geofencing yang telah dikonfigurasi.
+          <p className="settings-field-helper">
+            Tindakan sistem saat lokasi pengiriman laporan teknisi berada di luar batas radius.
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="settings-radio-stack">
             <label
-              className={`settings-policy-radio-card ${settings.locationViolationPolicy === 'SOFT_WARNING' ? 'active' : ''}`}
-              style={{ cursor: isSuperAdmin ? 'pointer' : 'default' }}
+              className={`settings-policy-radio-card ${settings.locationViolationPolicy === 'SOFT_WARNING' ? 'active' : ''} ${!isSuperAdmin ? 'is-readonly' : ''}`}
             >
               <input
                 type="radio"
-                name="policy"
+                name="locationViolationPolicy"
+                value="SOFT_WARNING"
                 checked={settings.locationViolationPolicy === 'SOFT_WARNING'}
                 disabled={!isSuperAdmin}
                 onChange={() => handleChange('locationViolationPolicy', 'SOFT_WARNING')}
-                style={{ marginTop: '2px' }}
               />
               <div>
                 <div className="settings-policy-radio-title">
-                  Tandai untuk Ditinjau Admin (Soft Warning · LOCATION_MISMATCH_WARNING)
+                  Tandai Anomali untuk Ditinjau Admin (Peringatan Lunak)
                 </div>
                 <div className="settings-policy-radio-desc">
-                  Laporan tetap tersimpan ke PostgreSQL agar pekerjaan lapangan tidak tertunda,
-                  namun disorot dengan badge merah pada Live Monitoring untuk verifikasi Admin/NOC.
+                  Laporan tetap diterima agar pekerjaan lapangan tidak terhenti, namun ditandai
+                  khusus pada halaman Pantauan Langsung untuk diverifikasi NOC.
                 </div>
               </div>
             </label>
 
             <label
-              className={`settings-policy-radio-card ${settings.locationViolationPolicy === 'HARD_BLOCK' ? 'active' : ''}`}
-              style={{ cursor: isSuperAdmin ? 'pointer' : 'default' }}
+              className={`settings-policy-radio-card ${settings.locationViolationPolicy === 'HARD_BLOCK' ? 'active' : ''} ${!isSuperAdmin ? 'is-readonly' : ''}`}
             >
               <input
                 type="radio"
-                name="policy"
+                name="locationViolationPolicy"
+                value="HARD_BLOCK"
                 checked={settings.locationViolationPolicy === 'HARD_BLOCK'}
                 disabled={!isSuperAdmin}
                 onChange={() => handleChange('locationViolationPolicy', 'HARD_BLOCK')}
-                style={{ marginTop: '2px' }}
               />
               <div>
                 <div className="settings-policy-radio-title">
-                  Tolak Laporan Langsung (Hard Block · HTTP 400 Out of Geofence)
+                  Tolak Pengiriman Secara Langsung (Blokir Ketat)
                 </div>
                 <div className="settings-policy-radio-desc">
-                  Backend langsung menolak transaksi dan aplikasi mobile menampilkan peringatan agar
-                  teknisi berpindah mendekati tiang ODP yang benar sebelum mengirim data.
+                  Server menolak laporan dan aplikasi lapangan meminta teknisi berpindah mendekati
+                  lokasi tiang ODP yang sesuai sebelum mengirim ulang.
                 </div>
               </div>
             </label>
@@ -148,90 +185,73 @@ export function GeofencingPanel({ settings, isSuperAdmin, handleChange }: Geofen
       </article>
 
       {/* Right: Security & App Version Gate */}
-      <aside
-        aria-label="Perlindungan Integritas & Anti-Fake GPS"
-        style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
-      >
-        <article className="settings-card">
-          <header>
-            <h3 className="ui-settings-subheading">
-              Perlindungan Integritas &amp; Anti-Fake GPS
-            </h3>
+      <div className="settings-col-stack">
+        <aside aria-label="Perlindungan Integritas & Anti-Fake GPS" className="settings-card">
+          <header className="settings-card-header">
+            <div>
+              <h3 className="settings-section-heading">
+                Perlindungan Integritas &amp; Anti-Fake GPS
+              </h3>
+              <p className="settings-section-subheading">
+                Pengamanan aplikasi lapangan terhadap manipulasi koordinat dan versi aplikasi usang.
+              </p>
+            </div>
           </header>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '10px',
-                fontSize: '12.5px',
-                color: 'var(--color-text-body)',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={settings.blockMockLocation}
-                disabled={!isSuperAdmin}
-                onChange={(e) => handleChange('blockMockLocation', e.target.checked)}
-                style={{ width: '16px', height: '16px', marginTop: '2px' }}
-              />
-              <div>
-                <span style={{ fontWeight: 600, color: 'var(--color-text)', display: 'block' }}>
-                  Kunci Otomatis Aplikasi jika Terdeteksi Mock Location
-                </span>
-                <span
-                  style={{
-                    fontSize: '12px',
-                    color: 'var(--color-text-muted)',
-                    lineHeight: 1.4,
-                    display: 'block',
-                    marginTop: '2px',
-                  }}
-                >
-                  Memeriksa bendera sistem operasi Android (
-                  <code className="settings-inline-code">location.mocked</code>
-                  ). Tombol submit dikunci seketika jika aplikasi fake GPS aktif.
-                </span>
-              </div>
-            </label>
-
-            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '14px' }}>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '12.5px',
-                  fontWeight: 600,
-                  color: 'inherit',
-                  marginBottom: '4px',
-                }}
-              >
-                Batas Versi Minimum Aplikasi Mobile (App Version Gate)
+          <div className="settings-switch-row">
+            <div className="settings-switch-copy">
+              <label htmlFor="settings-block-mock-gps" className="settings-switch-title">
+                Kunci Otomatis jika Terdeteksi Lokasi Palsu (Mock GPS)
               </label>
-              <p style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', margin: '0 0 8px 0' }}>
-                Request dari aplikasi mobile yang menyertakan header{' '}
-                <code className="settings-inline-code">X-App-Version</code> di
-                bawah versi ini akan menerima respon <b>HTTP 426 Upgrade Required</b>.
-              </p>
-              <input
-                type="text"
-                value={settings.minAppVersion}
-                disabled={!isSuperAdmin}
-                onChange={(e) => handleChange('minAppVersion', e.target.value)}
-                placeholder="1.0.0"
-                className="settings-mono-input"
-                style={{
-                  width: '120px',
-                  padding: '7px 10px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontFamily: 'monospace',
-                }}
-              />
+              <span className="settings-field-helper">
+                Memeriksa sinyal sistem perangkat (
+                <code className="settings-inline-code">location.mocked</code>). Tombol kirim
+                laporan dikunci seketika apabila aplikasi pengubah lokasi aktif.
+              </span>
             </div>
+            <input
+              id="settings-block-mock-gps"
+              name="blockMockLocation"
+              type="checkbox"
+              role="switch"
+              checked={settings.blockMockLocation}
+              disabled={!isSuperAdmin}
+              onChange={(e) => handleChange('blockMockLocation', e.target.checked)}
+              className="settings-switch"
+              {...({ switch: '' } as Record<string, string>)}
+            />
           </div>
-        </article>
-      </aside>
+
+          <div className="settings-field-group settings-fieldset-divided">
+            <label htmlFor="settings-min-app-version" className="settings-input-label">
+              Versi Minimum Aplikasi Mobile (App Version Gate)
+            </label>
+            <p className="settings-field-helper">
+              Aplikasi teknisi dengan header{' '}
+              <code className="settings-inline-code">X-App-Version</code> lebih rendah dari versi
+              ini akan diminta memperbarui aplikasi terlebih dahulu.
+            </p>
+            <input
+              id="settings-min-app-version"
+              name="minAppVersion"
+              type="text"
+              value={settings.minAppVersion}
+              disabled={!isSuperAdmin}
+              aria-invalid={Boolean(fieldErrors.minAppVersion)}
+              aria-describedby={
+                fieldErrors.minAppVersion ? 'settings-min-app-version-err' : undefined
+              }
+              onChange={(e) => handleChange('minAppVersion', e.target.value)}
+              placeholder="1.0.0"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              className={`settings-mono-input settings-version-input ${fieldErrors.minAppVersion ? 'ui-input-invalid' : ''}`}
+            />
+            <FieldError id="settings-min-app-version-err" message={fieldErrors.minAppVersion} />
+          </div>
+        </aside>
+      </div>
     </section>
   );
 }

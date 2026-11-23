@@ -2,11 +2,15 @@
 
 import React from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { FieldError } from '@/components/ui/FieldError';
 import { SystemSettingsInput, SystemTelemetryData } from '@repo/shared';
+import type { SettingsFieldErrors } from '../hooks/use-settings';
 
 export interface BackupPanelProps {
   settings: SystemSettingsInput;
   telemetry: SystemTelemetryData | null;
+  fieldErrors: SettingsFieldErrors;
   isBackingUp: boolean;
   isSuperAdmin: boolean;
   onTriggerBackup: () => void;
@@ -19,33 +23,24 @@ export interface BackupPanelProps {
 export function BackupPanel({
   settings,
   telemetry,
+  fieldErrors,
   isBackingUp,
   isSuperAdmin,
   onTriggerBackup,
   handleChange,
 }: BackupPanelProps) {
+  const backupHistory = telemetry?.backupHistory ?? [];
+
   return (
-    <section
-      aria-label="Disaster Recovery & Backup 3-2-1"
-      style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
-    >
-      {/* Top 3-2-1 Architecture Strip */}
+    <section aria-label="Disaster Recovery & Backup 3-2-1" className="settings-col-stack">
+      {/* Top 3-2-1 Architecture & Schedule Card */}
       <article className="settings-card">
-        <header
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            marginBottom: '16px',
-          }}
-        >
+        <header className="settings-card-header">
           <div>
-            <h2 className="ui-settings-heading">
-              Strategi Disaster Recovery 3-2-1
-            </h2>
-            <p className="ui-settings-sub">
-              Perlindungan master data FTTH terhadap kegagalan hardware fisik dengan 3 salinan data,
-              2 media penyimpanan, dan 1 salinan off-site.
+            <h2 className="settings-section-heading">Strategi Disaster Recovery 3-2-1</h2>
+            <p className="settings-section-subheading">
+              Perlindungan master data operasional terhadap kegagalan perangkat keras dengan 3
+              salinan data, 2 media penyimpanan, dan 1 salinan luar lokasi.
             </p>
           </div>
 
@@ -53,140 +48,148 @@ export function BackupPanel({
             type="button"
             onClick={onTriggerBackup}
             disabled={isBackingUp || !isSuperAdmin}
-            className="button primary ui-btn-solid-primary"
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              fontSize: '12.5px',
-              fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: isBackingUp || !isSuperAdmin ? 'not-allowed' : 'pointer',
-              opacity: isBackingUp ? 0.7 : 1,
-              boxShadow: '0 1px 3px rgba(14, 91, 146, 0.25)',
-            }}
+            className="settings-backup-trigger-btn"
           >
-            <Icon name="refresh" size={14} className={isBackingUp ? 'spin' : ''} />
+            <Icon name="refresh" size={14} className={isBackingUp ? 'icon-spin' : ''} />
             <span>{isBackingUp ? 'Memproses Snapshot...' : 'Jalankan Backup Sekarang'}</span>
           </button>
         </header>
 
-        {/* 3-2-1 Architecture Pill Cards */}
-        <section
-          aria-label="Arsitektur 3-2-1"
-          className="settings-three-col-grid"
-          style={{ marginBottom: '20px' }}
-        >
+        {/* 3-2-1 Architecture Info Strip */}
+        <div className="settings-three-col-grid settings-form-row">
           <div className="settings-architecture-card">
-            <div className="settings-architecture-title">
-              3 SALINAN DATA
-            </div>
+            <div className="settings-architecture-title">3 SALINAN DATA</div>
             <div className="settings-architecture-desc">
-              Database Utama PostgreSQL + Snapshot Harian Terenkripsi + Replika Remote NAS.
+              Database utama aktif, arsip snapshot harian terenkripsi, dan replika penyimpanan
+              cadangan.
             </div>
           </div>
 
           <div className="settings-architecture-card">
-            <div className="settings-architecture-title">
-              2 MEDIA BERBEDA
-            </div>
+            <div className="settings-architecture-title">2 MEDIA BERBEDA</div>
             <div className="settings-architecture-desc">
-              Penyimpanan Internal NVMe SSD Server + Storage Appliance Terpisah (NAS/S3).
+              Penyimpanan internal server aplikasi serta media arsip terpisah (NAS / S3 Bucket).
             </div>
           </div>
 
           <div className="settings-architecture-card">
-            <div className="settings-architecture-title">
-              1 SALINAN OFF-SITE
-            </div>
+            <div className="settings-architecture-title">1 SALINAN OFF-SITE</div>
             <div className="settings-architecture-desc">
-              Penyimpanan cadangan ditempatkan di luar gedung server utama untuk proteksi bencana
+              Salinan cadangan disimpan di luar lokasi server utama untuk ketahanan terhadap insiden
               fisik.
             </div>
           </div>
-        </section>
+        </div>
 
         {/* Backup Settings Form */}
         <fieldset
           aria-label="Jadwal dan Target Penyimpanan Backup"
-          style={{ border: 0, margin: 0, padding: 0 }}
+          className="settings-fieldset"
+          disabled={!isSuperAdmin}
         >
-          <div
-            className="settings-two-col-grid"
-            style={{ marginBottom: '14px' }}
-          >
-            <div>
-              <label className="settings-input-label">
+          <div className="settings-two-col-grid settings-form-row">
+            <div className="settings-field-group">
+              <label htmlFor="settings-cron-schedule" className="settings-input-label">
                 Jadwal Cronjob Otomatis Harian
               </label>
               <input
+                id="settings-cron-schedule"
+                name="cronSchedule"
                 type="text"
                 value={settings.cronSchedule}
                 disabled={!isSuperAdmin}
+                aria-invalid={Boolean(fieldErrors.cronSchedule)}
+                aria-describedby={
+                  fieldErrors.cronSchedule ? 'settings-cron-schedule-err' : undefined
+                }
                 onChange={(e) => handleChange('cronSchedule', e.target.value)}
-                className="settings-text-input mono"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  fontSize: '12.5px',
-                }}
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                className={`settings-text-input mono ${fieldErrors.cronSchedule ? 'ui-input-invalid' : ''}`}
               />
-              <span
-                style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', display: 'block', marginTop: '4px' }}
-              >
-                Format cron: Pukul 02:00 WIB dini hari (
-                <code className="settings-inline-code">0 2 * * *</code>)
+              <span className="settings-field-helper">
+                Contoh pukul 02:00 WIB setiap hari:{' '}
+                <code className="settings-inline-code">0 2 * * *</code>
               </span>
+              <FieldError id="settings-cron-schedule-err" message={fieldErrors.cronSchedule} />
             </div>
 
-            <div>
-              <label className="settings-input-label">
+            <div className="settings-field-group">
+              <label htmlFor="settings-backup-target" className="settings-input-label">
                 Target Penyimpanan Kedua
               </label>
               <select
+                id="settings-backup-target"
+                name="secondaryBackupTarget"
                 value={settings.secondaryBackupTarget}
                 disabled={!isSuperAdmin}
                 onChange={(e) =>
                   handleChange(
                     'secondaryBackupTarget',
-                    e.target.value as 'EXTERNAL_NAS' | 'ENCRYPTED_CLOUD_BUCKET' | 'OFFLINE_COLD_STORAGE',
+                    e.target.value as
+                      | 'EXTERNAL_NAS'
+                      | 'ENCRYPTED_CLOUD_BUCKET'
+                      | 'OFFLINE_COLD_STORAGE',
                   )
                 }
                 className="settings-select"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  fontSize: '12.5px',
-                }}
               >
                 <option value="EXTERNAL_NAS">NAS Eksternal (Gedung Terpisah · Rekomendasi)</option>
                 <option value="ENCRYPTED_CLOUD_BUCKET">
-                  Encrypted Cloud Storage Bucket (S3 Compatible)
+                  Cloud Storage Bucket Terenkripsi (Kompatibel S3)
                 </option>
                 <option value="OFFLINE_COLD_STORAGE">Cold Offline Hard Drive Vault</option>
               </select>
             </div>
           </div>
 
-          <div>
-            <label className="settings-input-label">
+          <div className="settings-field-group settings-form-row">
+            <label htmlFor="settings-storage-path" className="settings-input-label">
               Lokasi / Path Penyimpanan Cadangan
             </label>
             <input
+              id="settings-storage-path"
+              name="secondaryStoragePath"
               type="text"
               value={settings.secondaryStoragePath}
               disabled={!isSuperAdmin}
+              aria-invalid={Boolean(fieldErrors.secondaryStoragePath)}
+              aria-describedby={
+                fieldErrors.secondaryStoragePath ? 'settings-storage-path-err' : undefined
+              }
               onChange={(e) => handleChange('secondaryStoragePath', e.target.value)}
-              className="settings-text-input mono"
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                fontSize: '12.5px',
-              }}
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              className={`settings-text-input mono ${fieldErrors.secondaryStoragePath ? 'ui-input-invalid' : ''}`}
+            />
+            <FieldError
+              id="settings-storage-path-err"
+              message={fieldErrors.secondaryStoragePath}
+            />
+          </div>
+
+          <div className="settings-switch-row settings-fieldset-divided">
+            <div className="settings-switch-copy">
+              <label htmlFor="settings-backup-encryption" className="settings-switch-title">
+                Enkripsi &amp; Kompresi Arsip Cadangan (AES-256-GCM)
+              </label>
+              <span className="settings-field-helper">
+                Mengompresi snapshot menggunakan gzip lalu mengenkripsinya dengan kunci server
+                sebelum disimpan ke media cadangan.
+              </span>
+            </div>
+            <input
+              id="settings-backup-encryption"
+              name="compressionEncrypted"
+              type="checkbox"
+              role="switch"
+              checked={settings.compressionEncrypted}
+              disabled={!isSuperAdmin}
+              onChange={(e) => handleChange('compressionEncrypted', e.target.checked)}
+              className="settings-switch"
+              {...({ switch: '' } as Record<string, string>)}
             />
           </div>
         </fieldset>
@@ -194,75 +197,83 @@ export function BackupPanel({
 
       {/* Snapshot History Table */}
       <article className="settings-card">
-        <header>
-          <h3 className="settings-section-heading" style={{ margin: '0 0 12px 0' }}>
-            Riwayat Snapshot Backup Terenkripsi
-          </h3>
+        <header className="settings-card-header">
+          <div>
+            <h3 className="settings-section-heading">Riwayat Snapshot Backup Terenkripsi</h3>
+            <p className="settings-section-subheading">
+              Catatan arsip snapshot terakhir beserta ukuran berkas dan status sinkronisasi.
+            </p>
+          </div>
+          <span className="settings-subtext-mono">{backupHistory.length} arsip tercatat</span>
         </header>
 
-        <div
-          className="table-scroll"
-          style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}
-          tabIndex={0}
-          role="region"
-          aria-label="Tabel Riwayat Snapshot Backup"
-        >
-          <table
-            className="lintasarta-table"
-            style={{
-              width: '100%',
-              minWidth: '640px',
-              borderCollapse: 'collapse',
-              textAlign: 'left',
-              fontSize: '12px',
-            }}
+        {backupHistory.length === 0 ? (
+          <EmptyState
+            icon="download"
+            title="Belum ada riwayat cadangan"
+            description="Belum terdapat arsip snapshot yang tercatat pada server. Jalankan pencadangan manual pertama atau tunggu jadwal cron harian."
+            size="compact"
+            action={
+              isSuperAdmin
+                ? {
+                    label: isBackingUp ? 'Memproses...' : 'Jalankan Backup Pertama',
+                    onClick: onTriggerBackup,
+                    icon: 'refresh',
+                    variant: 'primary',
+                  }
+                : undefined
+            }
+          />
+        ) : (
+          <div
+            className="table-scroll"
+            tabIndex={0}
+            role="region"
+            aria-label="Tabel Riwayat Snapshot Backup"
           >
-            <thead>
-              <tr className="settings-table-header-row">
-                <th scope="col" style={{ padding: '8px 12px', fontWeight: 600 }}>
-                  Waktu Eksekusi
-                </th>
-                <th scope="col" style={{ padding: '8px 12px', fontWeight: 600 }}>
-                  Nama Berkas
-                </th>
-                <th scope="col" style={{ padding: '8px 12px', fontWeight: 600 }}>
-                  Ukuran
-                </th>
-                <th scope="col" style={{ padding: '8px 12px', fontWeight: 600 }}>
-                  Foto Disinkronkan
-                </th>
-                <th scope="col" style={{ padding: '8px 12px', fontWeight: 600 }}>
-                  Target Sinkronisasi
-                </th>
-                <th scope="col" style={{ padding: '8px 12px', fontWeight: 600 }}>
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {telemetry?.backupHistory.map((b) => (
-                <tr key={b.id} className="settings-table-row">
-                  <td style={{ padding: '9px 12px', fontWeight: 500 }}>
-                    {b.timestamp}
-                  </td>
-                  <td className="settings-file-mono" style={{ padding: '9px 12px' }}>
-                    {b.filename}
-                  </td>
-                  <td style={{ padding: '9px 12px' }}>{b.sizeMb} MB</td>
-                  <td style={{ padding: '9px 12px' }}>
-                    {b.photosCount} Foto MinIO
-                  </td>
-                  <td style={{ padding: '9px 12px' }}>{b.target}</td>
-                  <td style={{ padding: '9px 12px' }}>
-                    <span className="settings-status-pill healthy">
-                      Tersinkron
-                    </span>
-                  </td>
+            <table className="lintasarta-table settings-backup-table">
+              <thead>
+                <tr className="settings-table-header-row">
+                  <th scope="col">Waktu Eksekusi</th>
+                  <th scope="col">Nama Berkas</th>
+                  <th scope="col">Ukuran</th>
+                  <th scope="col">Foto Disinkronkan</th>
+                  <th scope="col">Target Sinkronisasi</th>
+                  <th scope="col">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {backupHistory.map((b) => {
+                  const badgeTone =
+                    b.status === 'FAILED'
+                      ? 'critical'
+                      : b.status === 'IN_PROGRESS'
+                        ? 'warning'
+                        : 'healthy';
+                  const badgeLabel =
+                    b.status === 'FAILED'
+                      ? 'Gagal'
+                      : b.status === 'IN_PROGRESS'
+                        ? 'Memproses'
+                        : 'Tersinkron';
+
+                  return (
+                    <tr key={b.id} className="settings-table-row">
+                      <td className="settings-td-time">{b.timestamp}</td>
+                      <td className="settings-file-mono">{b.filename}</td>
+                      <td className="settings-td-num">{b.sizeMb} MB</td>
+                      <td className="settings-td-num">{b.photosCount} Foto</td>
+                      <td>{b.target}</td>
+                      <td>
+                        <span className={`settings-status-pill ${badgeTone}`}>{badgeLabel}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </article>
     </section>
   );
