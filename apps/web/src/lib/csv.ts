@@ -3,7 +3,7 @@ import { classifyDbm, type ClusterListItem, type DbTicket } from '@repo/shared';
 export type CsvDelimiter = ',' | ';';
 
 export const EXCEL_CSV_BOM = '\uFEFF';
-export const DEFAULT_EXCEL_CSV_DELIMITER: CsvDelimiter = ';';
+export const DEFAULT_EXCEL_CSV_DELIMITER: CsvDelimiter = ',';
 export const EXCEL_CSV_LINE_ENDING = '\r\n';
 
 export interface CsvSerializeOptions {

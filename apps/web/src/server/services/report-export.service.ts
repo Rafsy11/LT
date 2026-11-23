@@ -119,13 +119,13 @@ function applySemanticBadgeStyle(cell: ExcelJS.Cell, rawLabel: string): void {
   cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 }
 
-function autoFitColumns(
-  sheet: ExcelJS.Worksheet,
+function computeColumnWidths(
   headers: string[],
   rows: (string | number)[][],
   minWidths: number[],
   maxWidths: number[],
-): void {
+): number[] {
+  const widths: number[] = [];
   for (let colIdx = 0; colIdx < headers.length; colIdx++) {
     let maxLen = headers[colIdx]?.length ?? 10;
     for (const row of rows) {
@@ -134,9 +134,37 @@ function autoFitColumns(
     }
     const minW = minWidths[colIdx] ?? 10;
     const maxW = maxWidths[colIdx] ?? 40;
-    const column = sheet.getColumn(colIdx + 1);
-    column.width = Math.max(minW, Math.min(maxW, maxLen + 4));
+    widths.push(Math.max(minW, Math.min(maxW, maxLen + 4)));
   }
+  return widths;
+}
+
+function applyColumnWidths(sheet: ExcelJS.Worksheet, widths: number[]): void {
+  for (let colIdx = 0; colIdx < widths.length; colIdx++) {
+    sheet.getColumn(colIdx + 1).width = widths[colIdx];
+  }
+}
+
+/**
+ * Estimates wrapped line count across all cells in a row so Excel row height never clips
+ * multi-line descriptions (e.g., Keterangan / Anomali or Catatan Inspeksi).
+ */
+function calculateWrappedRowHeight(rowValues: (string | number)[], colWidths: number[]): number {
+  let maxLines = 1;
+  for (let i = 0; i < rowValues.length; i++) {
+    const text = String(rowValues[i] ?? '');
+    if (!text) continue;
+    const effectiveCharsPerLine = Math.max(8, Math.floor((colWidths[i] ?? 20) - 5));
+    const segments = text.split(/\r?\n/);
+    let totalLines = 0;
+    for (const seg of segments) {
+      totalLines += Math.max(1, Math.ceil(seg.length / effectiveCharsPerLine));
+    }
+    if (totalLines > maxLines) {
+      maxLines = totalLines;
+    }
+  }
+  return Math.max(24, maxLines * 16 + 10);
 }
 
 export class ReportExportService {
@@ -186,9 +214,16 @@ export class ReportExportService {
       `Ringkasan: Total ${tickets.length} Tiket  •  Selesai: ${completedCount}  •  Dalam Proses: ${inProgressCount}  •  Menunggu Verifikasi: ${pendingVerifyCount}  •  Redaman Buruk (> 28 dB): ${criticalAttCount}  •  Anomali Lokasi: ${flaggedCount}`,
     );
 
+    const colWidths = computeColumnWidths(
+      headers,
+      rawRows,
+      [6, 16, 22, 16, 15, 20, 18, 18, 18, 11, 15, 18, 22, 34],
+      [8, 22, 34, 22, 20, 28, 24, 24, 22, 14, 18, 22, 24, 58],
+    );
+
     const headerRowIndex = sheet.rowCount + 1;
     const headerRow = sheet.addRow(headers);
-    headerRow.height = 26;
+    headerRow.height = 28;
     headerRow.eachCell((cell) => {
       cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: HEADER_TEXT_COLOR } };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_HEADER_FILL } };
@@ -199,7 +234,7 @@ export class ReportExportService {
     rawRows.forEach((rawRow, idx) => {
       const safeRow = rawRow.map((cell) => sanitizeWorkbookCellValue(cell));
       const excelRow = sheet.addRow(safeRow);
-      excelRow.height = 22;
+      excelRow.height = calculateWrappedRowHeight(safeRow, colWidths);
       const isEven = idx % 2 === 1;
 
       excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
@@ -243,13 +278,7 @@ export class ReportExportService {
     };
     sheet.views = [{ state: 'frozen', ySplit: headerRowIndex }];
 
-    autoFitColumns(
-      sheet,
-      headers,
-      rawRows,
-      [6, 16, 22, 16, 15, 20, 18, 18, 18, 11, 15, 18, 22, 28],
-      [8, 22, 34, 22, 20, 28, 24, 24, 22, 14, 18, 22, 24, 48],
-    );
+    applyColumnWidths(sheet, colWidths);
 
     const arrayBuffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(arrayBuffer);
@@ -301,9 +330,16 @@ export class ReportExportService {
       `Ringkasan Port: Terisi ${splitter.usedPorts} / ${splitter.maxPorts}  •  Siap PSB: ${Math.max(0, splitter.maxPorts - splitter.usedPorts)}  •  Rata-rata Redaman: ${avgDbm !== null ? `${avgDbm} dBm` : 'Belum diukur'}  •  Port > 28 dB: ${badPortsCount}`,
     );
 
+    const colWidths = computeColumnWidths(
+      headers,
+      rawRows,
+      [18, 16, 8, 13, 22, 16, 15, 18, 22, 18, 34],
+      [28, 22, 10, 16, 34, 22, 18, 22, 24, 24, 58],
+    );
+
     const headerRowIndex = sheet.rowCount + 1;
     const headerRow = sheet.addRow(headers);
-    headerRow.height = 26;
+    headerRow.height = 28;
     headerRow.eachCell((cell) => {
       cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: HEADER_TEXT_COLOR } };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_HEADER_FILL } };
@@ -314,7 +350,7 @@ export class ReportExportService {
     rawRows.forEach((rawRow, idx) => {
       const safeRow = rawRow.map((cell) => sanitizeWorkbookCellValue(cell));
       const excelRow = sheet.addRow(safeRow);
-      excelRow.height = 22;
+      excelRow.height = calculateWrappedRowHeight(safeRow, colWidths);
       const isEven = idx % 2 === 1;
 
       excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
@@ -352,13 +388,7 @@ export class ReportExportService {
     };
     sheet.views = [{ state: 'frozen', ySplit: headerRowIndex }];
 
-    autoFitColumns(
-      sheet,
-      headers,
-      rawRows,
-      [18, 16, 8, 13, 22, 16, 15, 18, 22, 18, 28],
-      [28, 22, 10, 16, 34, 22, 18, 22, 24, 24, 50],
-    );
+    applyColumnWidths(sheet, colWidths);
 
     const arrayBuffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(arrayBuffer);

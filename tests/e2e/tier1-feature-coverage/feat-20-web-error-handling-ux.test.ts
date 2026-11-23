@@ -488,8 +488,10 @@ describe('Tier 1: Feature 20 - Web Error Handling & Humane Microcopy UX', () => 
       includeBom: true,
       lineEnding: EXCEL_CSV_LINE_ENDING,
     });
+    assert.strictEqual(DEFAULT_EXCEL_CSV_DELIMITER, ',');
     assert.ok(csv.startsWith(EXCEL_CSV_BOM), 'Excel CSV must start with UTF-8 BOM');
     assert.ok(csv.includes('\r\n'), 'Excel CSV must use CRLF line endings');
+    assert.ok(csv.includes('No,No. Tiket,Pelanggan,Nomor SIA'), 'CSV header must be comma-delimited');
     assert.ok(csv.includes("'=CMD"), 'CWE-1236 formula prefix must remain neutralized');
     assert.doesNotMatch(csv, /"'-"/, 'Empty placeholders must not emit literal \'-\' artifacts');
 
@@ -551,6 +553,32 @@ describe('Tier 1: Feature 20 - Web Error Handling & Humane Microcopy UX', () => 
     const firstDataRow = sheet.getRow(6);
     assert.strictEqual(String(firstDataRow.getCell(3).value).startsWith("'="), true);
     assert.strictEqual(firstDataRow.getCell(4).numFmt, '@');
+    assert.ok(
+      typeof firstDataRow.height === 'number' && firstDataRow.height >= 24,
+      `Wrapped Excel row height must be dynamically sized (>= 24pt), got ${firstDataRow.height}`,
+    );
+
+    // Multi-line long note must expand row height beyond single-line height
+    const longNoteTickets = [
+      {
+        ...sampleTickets[0],
+        complaintSummary:
+          'Kabel dropcore tertabrak kendaraan di jalur utama, perlu pergantian jalur, penyambungan ulang splice box, dan pengukuran OPM ulang.',
+      },
+    ];
+    const longXlsx = await ReportExportService.generateOverviewWorkbook(longNoteTickets, {
+      clusterLabel: 'Palembang Tengah',
+      statusLabel: 'Semua',
+      exportedBy: 'Super Admin',
+    });
+    const parsedLong = new ExcelJS.Workbook();
+    await parsedLong.xlsx.load(longXlsx as unknown as ArrayBuffer);
+    const longSheet = parsedLong.getWorksheet('Laporan Operasional');
+    assert.ok(longSheet);
+    assert.ok(
+      (longSheet.getRow(6).height ?? 0) >= 42,
+      `Multi-line Keterangan row must expand height to avoid clipping, got ${longSheet.getRow(6).height}`,
+    );
 
     const odpXlsxBuffer = await ReportExportService.generateOdpInspectionWorkbook(sampleSplitter, {
       exportedBy: 'Super Admin',

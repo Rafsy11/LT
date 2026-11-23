@@ -203,8 +203,8 @@ export function OverviewView() {
                     <Icon name="download" size={15} />
                   </div>
                   <div className="action-item-info">
-                    <span className="action-item-title">Export Data CSV (Excel)</span>
-                    <span className="action-item-desc">Berkas CSV UTF-8 berpemisah titik koma</span>
+                    <span className="action-item-title">Export Data CSV</span>
+                    <span className="action-item-desc">Berkas CSV UTF-8 standar (RFC 4180)</span>
                   </div>
                 </button>
               </div>
