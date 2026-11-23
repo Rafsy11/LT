@@ -1,0 +1,696 @@
+/* ==========================================================================
+   FiberOps Field Mobile Simulator Stylesheet
+   Path: apps/web/src/styles/features/mobile-simulator.css
+   Compliance: DESIGN.md (ENERGY 1 / RHYTHM 2 / MOTION 1, radii 4/6/8px, no 9999px)
+   ========================================================================== */
+
+:root {
+  --sim-scale: 1;
+  --sim-phone-width: 390px;
+  --sim-phone-height: 844px;
+}
+
+.mobile-shell-root {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  background-color: #F1F5F9;
+  background-image: radial-gradient(circle at 50% 0%, #E2E8F0 1px, transparent 1px);
+  background-size: 24px 24px;
+  padding: 24px 16px 40px;
+  box-sizing: border-box;
+  overflow-x: clip;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  color: #0F172A;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] {
+  background-color: #020617;
+  background-image: radial-gradient(circle at 50% 0%, #1E293B 1px, transparent 1px);
+  color: #F8FAFC;
+}
+
+/* --------------------------------------------------------------------------
+   Workbench Header
+   -------------------------------------------------------------------------- */
+.mobile-sim-workbench {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: center;
+}
+
+.mobile-sim-topbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  box-sizing: border-box;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-topbar {
+  background: #0B1329;
+  border-color: #1E293B;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.mobile-sim-branding {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-sim-logo-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #0E5B92;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mobile-sim-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mobile-sim-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #0F172A;
+  text-wrap: balance;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-title {
+  color: #F8FAFC;
+}
+
+.mobile-sim-subtitle {
+  margin: 0;
+  font-size: 11px;
+  color: #64748B;
+  text-wrap: pretty;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-subtitle {
+  color: #94A3B8;
+}
+
+.mobile-sim-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobile-sim-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1E40AF;
+  letter-spacing: 0.02em;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-badge {
+  background: #172554;
+  border-color: #1E3A8A;
+  color: #93C5FD;
+}
+
+.mobile-sim-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: #2563EB;
+}
+
+.mobile-sim-nav-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  color: #334155;
+  transition: all 150ms ease;
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+.mobile-sim-nav-back:hover {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+  color: #0F172A;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-nav-back {
+  background: #10192D;
+  border-color: #334155;
+  color: #CBD5E1;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-nav-back:hover {
+  background: #162238;
+  border-color: #475569;
+  color: #FFFFFF;
+}
+
+/* --------------------------------------------------------------------------
+   Workspace Layout (Center Device & Right Deck)
+   -------------------------------------------------------------------------- */
+.mobile-sim-stage {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.mobile-sim-device-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  transform: scale(var(--sim-scale));
+  transform-origin: top center;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* --------------------------------------------------------------------------
+   Realistic Hardware Phone Bezel
+   -------------------------------------------------------------------------- */
+.mobile-device-bezel {
+  width: var(--sim-phone-width);
+  height: var(--sim-phone-height);
+  border-radius: 36px;
+  background: #0F172A;
+  border: 10px solid #1E293B;
+  box-shadow:
+    0 25px 60px -15px rgba(15, 23, 42, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.15) inset,
+    0 4px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-device-bezel {
+  border-color: #0A0F1D;
+  background: #020617;
+  box-shadow:
+    0 25px 60px -15px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Side button accents on hardware frame */
+.mobile-device-bezel::before {
+  content: '';
+  position: absolute;
+  top: 110px;
+  left: -13px;
+  width: 4px;
+  height: 44px;
+  background: #334155;
+  border-radius: 2px 0 0 2px;
+}
+
+.mobile-device-bezel::after {
+  content: '';
+  position: absolute;
+  top: 100px;
+  right: -13px;
+  width: 4px;
+  height: 56px;
+  background: #334155;
+  border-radius: 0 2px 2px 0;
+}
+
+/* --------------------------------------------------------------------------
+   Simulated Native Phone Status Bar
+   -------------------------------------------------------------------------- */
+.mobile-sim-statusbar {
+  width: 100%;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  box-sizing: border-box;
+  font-size: 12px;
+  font-weight: 600;
+  background: #FFFFFF;
+  color: #0F172A;
+  z-index: 20;
+  user-select: none;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.mobile-shell-viewport[data-mobile-theme='dark'] ~ .mobile-sim-statusbar,
+.mobile-device-bezel[data-theme='dark'] .mobile-sim-statusbar {
+  background: #080E1A;
+  color: #F8FAFC;
+  border-bottom-color: rgba(255, 255, 255, 0.04);
+}
+
+.mobile-device-bezel[data-outdoor='true'] .mobile-sim-statusbar {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+  border-bottom: 2px solid #000000 !important;
+}
+
+.mobile-sim-status-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mobile-sim-status-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Punch-hole / Dynamic island capsule */
+.mobile-sim-island {
+  width: 90px;
+  height: 18px;
+  border-radius: 6px;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+}
+
+.mobile-sim-island-lens {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #111827;
+  border: 1px solid #1F2937;
+}
+
+.mobile-sim-status-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-sim-carrier {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0.9;
+}
+
+.mobile-sim-signal-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5px;
+  height: 10px;
+}
+
+.mobile-sim-signal-bar {
+  width: 2.5px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.3;
+}
+
+.mobile-sim-signal-bar.is-active {
+  opacity: 1;
+}
+
+.mobile-sim-signal-bar:nth-child(1) { height: 3px; }
+.mobile-sim-signal-bar:nth-child(2) { height: 5px; }
+.mobile-sim-signal-bar:nth-child(3) { height: 7.5px; }
+.mobile-sim-signal-bar:nth-child(4) { height: 10px; }
+
+.mobile-sim-battery-icon {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.mobile-sim-battery-cell {
+  width: 18px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  padding: 1px;
+  display: flex;
+  align-items: center;
+}
+
+.mobile-sim-battery-fill {
+  height: 100%;
+  width: 85%;
+  background: currentColor;
+  border-radius: 1px;
+}
+
+.mobile-sim-battery-tip {
+  width: 1.5px;
+  height: 4px;
+  background: currentColor;
+  border-radius: 0 1px 1px 0;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Shell Viewport (Required by feat-23)
+   -------------------------------------------------------------------------- */
+.mobile-shell-viewport {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+  border: none;
+  overflow-y: auto;
+  overflow-x: clip;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+}
+
+.mobile-shell-viewport[data-mobile-theme='dark'] {
+  background: #080E1A;
+}
+
+.mobile-device-bezel[data-outdoor='true'] .mobile-shell-viewport {
+  background: #FFFFFF !important;
+}
+
+/* --------------------------------------------------------------------------
+   Simulated Home Gesture Indicator Bar
+   -------------------------------------------------------------------------- */
+.mobile-sim-homebar {
+  width: 100%;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FFFFFF;
+  z-index: 20;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.mobile-shell-viewport[data-mobile-theme='dark'] ~ .mobile-sim-homebar,
+.mobile-device-bezel[data-theme='dark'] .mobile-sim-homebar {
+  background: #080E1A;
+}
+
+.mobile-device-bezel[data-outdoor='true'] .mobile-sim-homebar {
+  background: #FFFFFF !important;
+  border-top: 2px solid #000000 !important;
+}
+
+.mobile-sim-homebar-pill {
+  width: 120px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.mobile-shell-viewport[data-mobile-theme='dark'] ~ .mobile-sim-homebar .mobile-sim-homebar-pill,
+.mobile-device-bezel[data-theme='dark'] .mobile-sim-homebar-pill {
+  background: rgba(248, 250, 252, 0.4);
+}
+
+/* --------------------------------------------------------------------------
+   Simulator Control Deck
+   -------------------------------------------------------------------------- */
+.mobile-sim-dock {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  padding: 18px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  box-sizing: border-box;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-dock {
+  background: #0B1329;
+  border-color: #1E293B;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.mobile-sim-dock-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobile-sim-dock-heading {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748B;
+  margin: 0;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-dock-heading {
+  color: #94A3B8;
+}
+
+.mobile-sim-button-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.mobile-sim-button-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.mobile-sim-btn {
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid #CBD5E1;
+  background: #F8FAFC;
+  color: #334155;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transition: all 120ms ease;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.mobile-sim-btn:hover {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+  color: #0F172A;
+}
+
+.mobile-sim-btn.is-active {
+  background: #0E5B92;
+  border-color: #0E5B92;
+  color: #FFFFFF;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-btn {
+  background: #10192D;
+  border-color: #334155;
+  color: #CBD5E1;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-btn:hover {
+  background: #162238;
+  border-color: #475569;
+  color: #FFFFFF;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-btn.is-active {
+  background: #0E5B92;
+  border-color: #38BDF8;
+  color: #FFFFFF;
+}
+
+.mobile-sim-btn-sub {
+  font-size: 10px;
+  opacity: 0.8;
+  font-weight: 500;
+}
+
+.mobile-sim-divider {
+  height: 1px;
+  background: #E2E8F0;
+  margin: 4px 0;
+  border: none;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-divider {
+  background: #1E293B;
+}
+
+.mobile-sim-info-box {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #475569;
+  box-sizing: border-box;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-info-box {
+  background: #10192D;
+  border-color: #1E293B;
+  color: #94A3B8;
+}
+
+.mobile-sim-copy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.mobile-sim-copy-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  background: #E2E8F0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #0F172A;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-copy-code {
+  background: #1E293B;
+  color: #F8FAFC;
+}
+
+.mobile-sim-mini-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  color: #0F172A;
+  cursor: pointer;
+  flex-shrink: 0;
+  min-height: 24px;
+}
+
+.mobile-shell-root[data-mobile-theme='dark'] .mobile-sim-mini-btn {
+  background: #10192D;
+  border-color: #334155;
+  color: #F8FAFC;
+}
+
+/* --------------------------------------------------------------------------
+   Direct Native Mobile Fallback (@media max-width: 768px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .mobile-shell-root {
+    padding: 0 !important;
+    background: #FFFFFF !important;
+    display: block !important;
+    min-height: 100vh !important;
+    overflow-x: clip !important;
+  }
+
+  .mobile-shell-root[data-mobile-theme='dark'] {
+    background: #080E1A !important;
+  }
+
+  .mobile-sim-topbar,
+  .mobile-sim-dock,
+  .mobile-sim-statusbar,
+  .mobile-sim-homebar,
+  .mobile-device-bezel::before,
+  .mobile-device-bezel::after {
+    display: none !important;
+  }
+
+  .mobile-sim-workbench,
+  .mobile-sim-stage,
+  .mobile-sim-device-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    transform: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  .mobile-device-bezel {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .mobile-shell-viewport {
+    max-width: 100% !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow-y: visible !important;
+    overflow-x: clip !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  }
+}

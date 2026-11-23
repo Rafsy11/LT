@@ -94,12 +94,20 @@ export interface AppProps {
   initialThemeMode?: ThemeMode;
   themePreference?: ThemePreference;
   onThemePreferenceChange?: (preference: ThemePreference) => void;
+  outdoorModeOverride?: boolean;
+  simulatedNetwork?: 'online' | 'flaky' | 'offline';
+  simulatedGpsPreset?: 'valid' | 'outOfRange' | 'mock';
+  onDeviceIdLoaded?: (id: string) => void;
 }
 
 export default function App({
   initialThemeMode,
   themePreference: controlledThemePreference,
   onThemePreferenceChange,
+  outdoorModeOverride,
+  simulatedNetwork,
+  simulatedGpsPreset,
+  onDeviceIdLoaded,
 }: AppProps = {}) {
   const [securityState, setSecurityState] = useState<AppSecurityState>('CHECKING_INTEGRITY');
   const [integrityReport, setIntegrityReport] = useState<DeviceIntegrityReport | null>(null);
@@ -182,16 +190,24 @@ export default function App({
   );
 
   const themeMode: ThemeMode =
-    initialThemeMode === 'outdoorSunlight' && !controlledThemePreference
+    outdoorModeOverride
       ? 'outdoorSunlight'
-      : controlledThemePreference
-        ? initialThemeMode ??
-          (controlledThemePreference === 'system' ? systemThemeMode : controlledThemePreference)
-        : activeThemePreference === 'system'
-          ? systemThemeMode
-          : activeThemePreference;
+      : initialThemeMode === 'outdoorSunlight' && !controlledThemePreference
+        ? 'outdoorSunlight'
+        : controlledThemePreference
+          ? initialThemeMode ??
+            (controlledThemePreference === 'system' ? systemThemeMode : controlledThemePreference)
+          : activeThemePreference === 'system'
+            ? systemThemeMode
+            : activeThemePreference;
 
   const theme = getThemeTokens(themeMode);
+
+  useEffect(() => {
+    if (installationDeviceId && onDeviceIdLoaded) {
+      onDeviceIdLoaded(installationDeviceId);
+    }
+  }, [installationDeviceId, onDeviceIdLoaded]);
 
   const isCompromisedDevice = useCallback((report: DeviceIntegrityReport | null): boolean => {
     if (!report) return false;
@@ -783,6 +799,25 @@ export default function App({
         fontFamily: theme.typography.fontFamily.sans,
       }}
     >
+      {simulatedNetwork === 'offline' && (
+        <div
+          role="status"
+          style={{
+            background: '#DC2626',
+            color: '#FFFFFF',
+            padding: '6px 12px',
+            fontSize: '11px',
+            fontWeight: 700,
+            textAlign: 'center',
+            letterSpacing: '0.02em',
+            zIndex: 9998,
+            boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+          }}
+        >
+          SIMULASI OFFLINE: PENGIRIMAN DIALIHKAN KE ANTREAN LOKAL
+        </div>
+      )}
+
       {toastMessage && (
         <div
           role="status"
