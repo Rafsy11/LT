@@ -38,7 +38,7 @@ class WebApiClient {
    * - 409 Conflict -> Triggers `onConflict` refetch callback
    * - 413 Payload Too Large / 415 Unsupported File -> Explicit file limit/format guidance
    * - 429 Too Many Requests -> Extracts `Retry-After` cooldown seconds
-   * - 503 Service Unavailable -> Emits maintenance/overload state to GlobalNetworkBanner
+   * - 503 Service Unavailable -> Emits maintenance/overload state to persistent ToastNotification
    * - 5xx Server Error -> Masks internals and attaches `Ref: #ERR-XXXX`
    */
   public async request<T = unknown>(

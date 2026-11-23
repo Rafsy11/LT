@@ -14,7 +14,9 @@ import {
   getCachedData,
   subscribeQueryCache,
 } from '@/lib/query-cache';
+import { ERROR_CATEGORY_DICTIONARY } from '@/lib/error-dictionary';
 import { useAuth } from '@/providers';
+import { useNetworkStatus } from '@/providers/network-status-provider';
 import '@/styles/layout/shell.css';
 import '@/styles/components/primitives.css';
 
@@ -47,6 +49,7 @@ function formatNotificationTime(iso?: string): string {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { isOnline, serviceUnavailable } = useNetworkStatus();
   const activeCacheKey = ADMIN_TICKETS_CACHE_KEY;
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
@@ -239,6 +242,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [user.id, user.userType]);
 
   const notifications = useMemo<HeaderNotificationItem[]>(() => {
+    const systemItems: HeaderNotificationItem[] = [];
+    if (!isOnline) {
+      systemItems.push({
+        id: 'system-status-offline',
+        title: ERROR_CATEGORY_DICTIONARY.OFFLINE.title,
+        message: ERROR_CATEGORY_DICTIONARY.OFFLINE.message,
+        timestamp: 'Saat ini',
+        href: pathname || '/',
+        severity: 'warning',
+        isUnread: true,
+      });
+    }
+    if (serviceUnavailable.active) {
+      systemItems.push({
+        id: 'system-status-maintenance',
+        title: ERROR_CATEGORY_DICTIONARY.SERVICE_UNAVAILABLE.title,
+        message: ERROR_CATEGORY_DICTIONARY.SERVICE_UNAVAILABLE.message,
+        timestamp: 'Saat ini',
+        href: pathname || '/',
+        severity: 'critical',
+        isUnread: true,
+      });
+    }
+
     const ticketItems: HeaderNotificationItem[] = [];
 
     const relevant = cachedTickets.filter((t) => {
@@ -296,12 +323,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       });
     }
 
-    const merged = [...streamAlerts, ...ticketItems].slice(0, MAX_VISIBLE_NOTIFICATIONS);
+    const merged = [...systemItems, ...streamAlerts, ...ticketItems].slice(
+      0,
+      MAX_VISIBLE_NOTIFICATIONS,
+    );
     return merged.map((item) => ({
       ...item,
-      isUnread: !readNotificationIds.has(item.id),
+      isUnread:
+        item.id.startsWith('system-status-') ? true : !readNotificationIds.has(item.id),
     }));
-  }, [cachedTickets, readNotificationIds, streamAlerts]);
+  }, [
+    cachedTickets,
+    isOnline,
+    pathname,
+    readNotificationIds,
+    serviceUnavailable.active,
+    streamAlerts,
+  ]);
 
   const persistReadIds = useCallback((next: Set<string>) => {
     try {

@@ -1,147 +1,6 @@
 /* FiberOps Modular Stylesheet: components/error-ux.css */
 
-/* 1. Global Network & Maintenance Status Banner (Offline / Reconnected / 503) */
-.global-network-banner {
-  position: sticky;
-  top: 0;
-  z-index: 65;
-  width: 100%;
-  border-bottom: 1px solid var(--color-border-strong);
-  box-sizing: border-box;
-}
-
-.global-network-banner--offline {
-  background: var(--color-warning-bg);
-  border-bottom-color: var(--color-warning-border);
-  color: var(--color-warning-text);
-}
-
-.global-network-banner--reconnected {
-  background: var(--color-success-bg);
-  border-bottom-color: var(--color-success-border);
-  color: var(--color-success-text);
-}
-
-.global-network-banner--maintenance {
-  background: var(--color-critical-bg);
-  border-bottom-color: var(--color-critical-border);
-  color: var(--color-critical-text);
-}
-
-.global-network-banner-inner {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 10px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.global-network-banner-leading {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  min-width: 0;
-  flex: 1;
-}
-
-.global-network-banner-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 1px;
-  flex-shrink: 0;
-}
-
-.global-network-banner-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.global-network-banner-title {
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.global-network-banner-desc {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.45;
-  color: inherit;
-  opacity: 0.92;
-}
-
-.global-network-banner-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.global-network-banner-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1px solid currentColor;
-  background: rgba(255, 255, 255, 0.72);
-  color: inherit;
-  cursor: pointer;
-  transition: background-color 150ms ease, opacity 150ms ease;
-}
-
-html.dark .global-network-banner-btn,
-[data-theme='dark'] .global-network-banner-btn {
-  background: rgba(15, 23, 42, 0.55);
-}
-
-.global-network-banner-btn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.global-network-banner-dismiss {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  min-height: 36px;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-@media (max-width: 640px) {
-  .global-network-banner-inner {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 10px 12px;
-  }
-
-  .global-network-banner-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
-  .global-network-banner-btn,
-  .global-network-banner-dismiss {
-    min-height: 44px;
-    min-width: 44px;
-  }
-}
-
-/* 2. Inline Field Validation Error */
+/* 1. Inline Field Validation Error */
 .ui-field-error {
   display: flex;
   align-items: flex-start;
@@ -489,10 +348,22 @@ html.dark .not-found-btn--primary,
   cursor: pointer;
 }
 
+.toast-action-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .toast-action-btn:hover {
+  .toast-action-btn:hover:not(:disabled) {
     border-color: var(--color-primary);
     color: var(--color-primary-text);
+  }
+}
+
+@media (max-width: 640px) {
+  .toast-action-btn {
+    min-height: 44px;
+    padding: 8px 14px;
   }
 }
 

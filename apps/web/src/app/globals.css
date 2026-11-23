@@ -390,7 +390,7 @@ button:disabled {
   flex-direction: column-reverse;
   gap: 10px;
   z-index: var(--z-toast, 9999);
-  max-width: 440px;
+  max-width: min(440px, calc(100vw - 32px));
   width: calc(100% - 48px);
   pointer-events: none;
 }
@@ -404,8 +404,29 @@ button:disabled {
   inset: auto auto 24px 24px;
 }
 
-.toast-container[popover]:not(:popover-open) {
-  display: none;
+@supports selector(:popover-open) {
+  .toast-container[popover]:not(:popover-open) {
+    display: none;
+  }
+
+  .toast-container[popover]:is(:popover-open, .\:popover-open) {
+    display: flex;
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+      opacity 180ms ease,
+      transform 180ms ease,
+      overlay 180ms ease,
+      display 180ms ease;
+    transition-behavior: allow-discrete;
+  }
+
+  @starting-style {
+    .toast-container[popover]:is(:popover-open, .\:popover-open) {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
 }
 
 .toast-card {
@@ -420,6 +441,8 @@ button:disabled {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .toast-card.toast-error {
@@ -448,11 +471,13 @@ html.dark .toast-card,
 
 .toast-content {
   flex: 1;
+  min-width: 0;
 }
 
 .toast-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 4px;
 }
@@ -461,6 +486,7 @@ html.dark .toast-card,
   width: 7px;
   height: 7px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .toast-error .toast-indicator {
@@ -483,6 +509,7 @@ html.dark .toast-card,
   font-weight: 700;
   font-size: 13px;
   color: var(--color-text);
+  overflow-wrap: anywhere;
 }
 
 .toast-code {
@@ -501,11 +528,13 @@ html.dark .toast-card,
   font-size: 12px;
   line-height: 1.5;
   color: var(--color-text-muted);
+  overflow-wrap: anywhere;
 }
 
 .toast-close {
   background: none;
   border: none;
+  border-radius: 6px;
   font-size: 18px;
   line-height: 1;
   color: var(--color-text-muted);
@@ -513,11 +542,36 @@ html.dark .toast-card,
   padding: 0 4px;
   min-width: 28px;
   min-height: 28px;
+  flex-shrink: 0;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .toast-close:hover {
     color: var(--color-text);
+  }
+}
+
+@media (max-width: 767px) {
+  .toast-container,
+  .toast-container[popover] {
+    left: 12px;
+    right: 12px;
+    bottom: 84px;
+    inset: auto 12px 84px 12px;
+    width: auto;
+    max-width: calc(100vw - 24px);
+  }
+
+  .toast-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-container[popover]:is(:popover-open, .\:popover-open) {
+    transition: none;
+    transform: none;
   }
 }
 

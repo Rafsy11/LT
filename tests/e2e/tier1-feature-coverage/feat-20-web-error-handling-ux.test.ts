@@ -270,4 +270,31 @@ describe('Tier 1: Feature 20 - Web Error Handling & Humane Microcopy UX', () => 
     assert.doesNotMatch(errorCssSrc, /9999px/);
     assert.match(errorCssSrc, /min-height:\s*44px/);
   });
+
+  it('routes above-header network/503 and RolesView errors consistently through ToastProvider', () => {
+    const globalBannerSrc = fs.readFileSync(
+      path.join(webSrc, 'components', 'ui', 'GlobalNetworkBanner.tsx'),
+      'utf-8',
+    );
+    assert.match(globalBannerSrc, /useToast\s*\(/);
+    assert.match(globalBannerSrc, /upsertToast\s*\(/);
+    assert.match(globalBannerSrc, /return null;/);
+    assert.doesNotMatch(globalBannerSrc, /global-network-banner/);
+
+    const toastProviderSrc = fs.readFileSync(
+      path.join(webSrc, 'providers', 'toast-provider.tsx'),
+      'utf-8',
+    );
+    assert.match(toastProviderSrc, /upsertToast/);
+    assert.match(toastProviderSrc, /persist\?:/);
+    assert.match(toastProviderSrc, /popover:\s*'manual'/);
+    assert.match(toastProviderSrc, /lastExternalFocusRef/);
+
+    const rolesViewSrc = fs.readFileSync(
+      path.join(webSrc, 'features', 'roles', 'components', 'roles-view.tsx'),
+      'utf-8',
+    );
+    assert.doesNotMatch(rolesViewSrc, /<ErrorBanner/);
+    assert.match(rolesViewSrc, /<SafeErrorState/);
+  });
 });

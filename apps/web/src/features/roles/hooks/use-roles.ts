@@ -216,7 +216,10 @@ export function useRoles() {
           setLoadError(normalized);
           showError(normalized, {
             onRetry:
-              normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
+              normalized.retryable ||
+              normalized.category === 'TIMEOUT' ||
+              normalized.category === 'OFFLINE' ||
+              normalized.category === 'SERVER_ERROR'
                 ? () => void fetchRoles(true)
                 : undefined,
           });

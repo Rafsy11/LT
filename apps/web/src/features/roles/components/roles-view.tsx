@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { AccessDeniedState } from '@/components/ui/AccessDeniedState';
-import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { RateLimitNotice } from '@/components/ui/RateLimitNotice';
+import { SafeErrorState } from '@/components/ui/SafeErrorState';
 import { useRoles, UserAccessItem } from '../hooks/use-roles';
 import { RoleHeader } from './role-header';
 import { RoleStats } from './role-stats';
@@ -86,18 +86,6 @@ export function RolesView() {
 
   return (
     <main className="roles-page" id="main-content" style={{ paddingBottom: '32px' }}>
-      {Boolean(loadError) && (
-        <div style={{ marginBottom: '16px' }}>
-          <ErrorBanner error={loadError} onRetry={() => void fetchRoles(true)} />
-        </div>
-      )}
-
-      {rateLimitSeconds > 0 && (
-        <div style={{ marginBottom: '16px' }}>
-          <RateLimitNotice remainingSeconds={rateLimitSeconds} />
-        </div>
-      )}
-
       {/* Overview Header */}
       <RoleHeader
         isFetching={isFetching}
@@ -115,91 +103,108 @@ export function RolesView() {
 
       {/* Main Container Card */}
       <section className="panel" style={{ padding: '20px 24px' }}>
-        {/* Navigation Toolbar */}
-        <header
-          className="ui-divider-bottom"
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-            marginBottom: '20px',
-            paddingBottom: '16px',
-          }}
-        >
-          {/* Segmented View Switcher */}
-          <nav
-            role="tablist"
-            aria-label="Navigasi Tampilan Peran"
-            className="roles-tab-list"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeView === 'users'}
-              onClick={() => setActiveView('users')}
-              className={`roles-nav-tab ${activeView === 'users' ? 'active' : ''}`}
-            >
-              <span>Direktori Pengguna &amp; Akses</span>
-              <span className="roles-tab-badge">{userList.length}</span>
-            </button>
-
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeView === 'matrix'}
-              onClick={() => setActiveView('matrix')}
-              className={`roles-nav-tab ${activeView === 'matrix' ? 'active' : ''}`}
-            >
-              <span>Konfigurasi Matriks Izin</span>
-              <span className="roles-tab-badge">{roleList.length} Peran</span>
-            </button>
-          </nav>
-        </header>
-
-        {/* View 1: User Directory & Access Management */}
-        {activeView === 'users' && (
-          <RoleDirectoryTable
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            roleFilter={roleFilter}
-            setRoleFilter={setRoleFilter}
-            clusterFilter={clusterFilter}
-            setClusterFilter={setClusterFilter}
-            roleList={roleList}
-            clusterOptions={clusterOptions}
-            filteredUsers={filteredUsers}
-            totalUsersCount={userList.length}
-            currentUsername={user.username}
-            actionInProgress={actionInProgress}
-            onToggleUserStatus={handleToggleUserStatus}
-            onInspectRolePermissions={handleInspectRolePermissions}
-            onEditUserRole={(u) => {
-              setEditingUser(u);
-              const matchingRole = roleList.find((r) => r.name === u.role);
-              setTargetRoleId(matchingRole?.id || '');
-            }}
-            onOpenTelegramGuide={(u) => setTelegramGuideUser(u)}
-            getRoleBadgeStyle={getRoleBadgeStyle}
-          />
+        {rateLimitSeconds > 0 && (
+          <div style={{ marginBottom: '16px' }}>
+            <RateLimitNotice remainingSeconds={rateLimitSeconds} />
+          </div>
         )}
 
-        {/* View 2: Role Permission Matrix */}
-        {activeView === 'matrix' && (
-          <PermissionMatrixPanel
-            roleList={roleList}
-            selectedRole={selectedRole}
-            onSelectRole={(name) => setSelectedRoleName(name)}
-            categories={categories}
-            activePermissions={activePermissions}
-            isSuperAdminRole={isSuperAdminRole}
-            isEditable={isEditable}
-            isLoading={isLoading}
-            onTogglePermission={handleTogglePermission}
-            onSavePermissions={handleSavePermissions}
-            onBackToDirectory={() => setActiveView('users')}
+        {Boolean(loadError) && roleList.length === 0 && userList.length === 0 ? (
+          <SafeErrorState
+            error={loadError}
+            title="Data Peran & Pengguna Belum Dapat Dimuat"
+            onRetry={() => void fetchRoles(true)}
+            variant="panel"
           />
+        ) : (
+          <>
+            {/* Navigation Toolbar */}
+            <header
+              className="ui-divider-bottom"
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px',
+                marginBottom: '20px',
+                paddingBottom: '16px',
+              }}
+            >
+              {/* Segmented View Switcher */}
+              <nav
+                role="tablist"
+                aria-label="Navigasi Tampilan Peran"
+                className="roles-tab-list"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeView === 'users'}
+                  onClick={() => setActiveView('users')}
+                  className={`roles-nav-tab ${activeView === 'users' ? 'active' : ''}`}
+                >
+                  <span>Direktori Pengguna &amp; Akses</span>
+                  <span className="roles-tab-badge">{userList.length}</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeView === 'matrix'}
+                  onClick={() => setActiveView('matrix')}
+                  className={`roles-nav-tab ${activeView === 'matrix' ? 'active' : ''}`}
+                >
+                  <span>Konfigurasi Matriks Izin</span>
+                  <span className="roles-tab-badge">{roleList.length} Peran</span>
+                </button>
+              </nav>
+            </header>
+
+            {/* View 1: User Directory & Access Management */}
+            {activeView === 'users' && (
+              <RoleDirectoryTable
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                roleFilter={roleFilter}
+                setRoleFilter={setRoleFilter}
+                clusterFilter={clusterFilter}
+                setClusterFilter={setClusterFilter}
+                roleList={roleList}
+                clusterOptions={clusterOptions}
+                filteredUsers={filteredUsers}
+                totalUsersCount={userList.length}
+                currentUsername={user.username}
+                actionInProgress={actionInProgress}
+                onToggleUserStatus={handleToggleUserStatus}
+                onInspectRolePermissions={handleInspectRolePermissions}
+                onEditUserRole={(u) => {
+                  setEditingUser(u);
+                  const matchingRole = roleList.find((r) => r.name === u.role);
+                  setTargetRoleId(matchingRole?.id || '');
+                }}
+                onOpenTelegramGuide={(u) => setTelegramGuideUser(u)}
+                getRoleBadgeStyle={getRoleBadgeStyle}
+              />
+            )}
+
+            {/* View 2: Role Permission Matrix */}
+            {activeView === 'matrix' && (
+              <PermissionMatrixPanel
+                roleList={roleList}
+                selectedRole={selectedRole}
+                onSelectRole={(name) => setSelectedRoleName(name)}
+                categories={categories}
+                activePermissions={activePermissions}
+                isSuperAdminRole={isSuperAdminRole}
+                isEditable={isEditable}
+                isLoading={isLoading}
+                onTogglePermission={handleTogglePermission}
+                onSavePermissions={handleSavePermissions}
+                onBackToDirectory={() => setActiveView('users')}
+              />
+            )}
+          </>
         )}
       </section>
 

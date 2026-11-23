@@ -1,16 +1,19 @@
 'use client';
 
-import React from 'react';
-import { Icon } from '@/components/ui/Icon';
+import { useEffect, useRef } from 'react';
 import { ERROR_CATEGORY_DICTIONARY } from '@/lib/error-dictionary';
 import { useNetworkStatus } from '@/providers/network-status-provider';
-import '@/styles/components/error-ux.css';
+import { SYSTEM_TOAST_IDS, useToast } from '@/providers/toast-provider';
+
+const RECONNECTED_TOAST_DURATION_MS = 3500;
 
 /**
- * Global non-intrusive top status banner for:
- * - Browser offline connectivity (preserves user inputs/drafts)
- * - Auto-dismissing reconnected confirmation
- * - HTTP 503 Service Unavailable (maintenance or overload)
+ * Headless network & HTTP 503 status bridge that routes connectivity alerts into the
+ * unified ToastProvider stack (without rendering a layout-shifting banner above Header).
+ *
+ * - Offline (`!isOnline`): persistent warning toast with "Periksa Koneksi" action
+ * - Reconnected (`wasOffline`): transient success toast auto-dismissing after 3.5s
+ * - HTTP 503 (`serviceUnavailable.active`): persistent deduplicated error toast
  */
 export function GlobalNetworkBanner() {
   const {
@@ -21,120 +24,82 @@ export function GlobalNetworkBanner() {
     checkConnection,
     dismissMaintenance,
   } = useNetworkStatus();
+  const { upsertToast, dismissToast } = useToast();
+  const offlineDismissedRef = useRef(false);
 
-  if (!isOnline) {
-    return (
-      <section
-        className="global-network-banner global-network-banner--offline"
-        role="status"
-        aria-live="assertive"
-        aria-label="Status Koneksi Internet"
-      >
-        <div className="global-network-banner-inner">
-          <div className="global-network-banner-leading">
-            <span className="global-network-banner-icon" aria-hidden="true">
-              <Icon name="wifiOff" size={18} />
-            </span>
-            <div className="global-network-banner-copy">
-              <strong className="global-network-banner-title">
-                {ERROR_CATEGORY_DICTIONARY.OFFLINE.title}
-              </strong>
-              <p className="global-network-banner-desc">
-                {ERROR_CATEGORY_DICTIONARY.OFFLINE.message}
-              </p>
-            </div>
-          </div>
-          <div className="global-network-banner-actions">
-            <button
-              type="button"
-              className="global-network-banner-btn"
-              onClick={() => void checkConnection()}
-              disabled={isChecking}
-            >
-              <Icon name="refresh" size={14} />
-              <span>{isChecking ? 'Memeriksa...' : ERROR_CATEGORY_DICTIONARY.OFFLINE.actionLabel}</span>
-            </button>
-          </div>
-        </div>
-      </section>
-    );
-  }
+  useEffect(() => {
+    if (!isOnline) {
+      dismissToast(SYSTEM_TOAST_IDS.RECONNECTED);
+      if (!offlineDismissedRef.current) {
+        upsertToast({
+          id: SYSTEM_TOAST_IDS.OFFLINE,
+          type: 'warning',
+          title: ERROR_CATEGORY_DICTIONARY.OFFLINE.title,
+          message: ERROR_CATEGORY_DICTIONARY.OFFLINE.message,
+          persist: true,
+          onDismiss: () => {
+            offlineDismissedRef.current = true;
+          },
+          action: {
+            label: isChecking ? 'Memeriksa...' : ERROR_CATEGORY_DICTIONARY.OFFLINE.actionLabel,
+            disabled: isChecking,
+            keepOpen: true,
+            onClick: () => {
+              void checkConnection();
+            },
+          },
+        });
+      }
+      return;
+    }
 
-  if (wasOffline) {
-    return (
-      <section
-        className="global-network-banner global-network-banner--reconnected"
-        role="status"
-        aria-live="polite"
-        aria-label="Koneksi Internet Kembali Tersambung"
-      >
-        <div className="global-network-banner-inner">
-          <div className="global-network-banner-leading">
-            <span className="global-network-banner-icon" aria-hidden="true">
-              <Icon name="wifi" size={18} />
-            </span>
-            <div className="global-network-banner-copy">
-              <strong className="global-network-banner-title">Koneksi Kembali Terhubung</strong>
-              <p className="global-network-banner-desc">
-                Jaringan telah pulih. Anda dapat melanjutkan pekerjaan Anda kembali.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
+    offlineDismissedRef.current = false;
+    dismissToast(SYSTEM_TOAST_IDS.OFFLINE);
 
-  if (serviceUnavailable.active) {
-    return (
-      <section
-        className="global-network-banner global-network-banner--maintenance"
-        role="alert"
-        aria-live="assertive"
-        aria-label="Status Pemeliharaan Layanan"
-      >
-        <div className="global-network-banner-inner">
-          <div className="global-network-banner-leading">
-            <span className="global-network-banner-icon" aria-hidden="true">
-              <Icon name="alert" size={18} />
-            </span>
-            <div className="global-network-banner-copy">
-              <strong className="global-network-banner-title">
-                {ERROR_CATEGORY_DICTIONARY.SERVICE_UNAVAILABLE.title}
-              </strong>
-              <p className="global-network-banner-desc">
-                {ERROR_CATEGORY_DICTIONARY.SERVICE_UNAVAILABLE.message}
-              </p>
-            </div>
-          </div>
-          <div className="global-network-banner-actions">
-            <button
-              type="button"
-              className="global-network-banner-btn"
-              onClick={() => void checkConnection()}
-              disabled={isChecking}
-            >
-              <Icon name="refresh" size={14} />
-              <span>
-                {isChecking
-                  ? 'Memeriksa...'
-                  : ERROR_CATEGORY_DICTIONARY.SERVICE_UNAVAILABLE.actionLabel}
-              </span>
-            </button>
-            <button
-              type="button"
-              className="global-network-banner-dismiss"
-              onClick={dismissMaintenance}
-              aria-label="Tutup pemberitahuan layanan"
-              title="Tutup"
-            >
-              <Icon name="x" size={15} />
-            </button>
-          </div>
-        </div>
-      </section>
-    );
-  }
+    if (wasOffline) {
+      upsertToast({
+        id: SYSTEM_TOAST_IDS.RECONNECTED,
+        type: 'success',
+        title: 'Koneksi Kembali Terhubung',
+        message: 'Jaringan telah pulih. Anda dapat melanjutkan pekerjaan Anda kembali.',
+        durationMs: RECONNECTED_TOAST_DURATION_MS,
+      });
+    }
+  }, [isOnline, wasOffline, isChecking, checkConnection, upsertToast, dismissToast]);
+
+  useEffect(() => {
+    if (isOnline && serviceUnavailable.active) {
+      upsertToast({
+        id: SYSTEM_TOAST_IDS.SERVICE_UNAVAILABLE,
+        type: 'error',
+        title: ERROR_CATEGORY_DICTIONARY.SERVICE_UNAVAILABLE.title,
+        message: ERROR_CATEGORY_DICTIONARY.SERVICE_UNAVAILABLE.message,
+        persist: true,
+        onDismiss: dismissMaintenance,
+        action: {
+          label: isChecking
+            ? 'Memeriksa...'
+            : ERROR_CATEGORY_DICTIONARY.SERVICE_UNAVAILABLE.actionLabel,
+          disabled: isChecking,
+          keepOpen: true,
+          onClick: () => {
+            void checkConnection();
+          },
+        },
+      });
+      return;
+    }
+
+    dismissToast(SYSTEM_TOAST_IDS.SERVICE_UNAVAILABLE);
+  }, [
+    isOnline,
+    serviceUnavailable.active,
+    isChecking,
+    checkConnection,
+    dismissMaintenance,
+    upsertToast,
+    dismissToast,
+  ]);
 
   return null;
 }

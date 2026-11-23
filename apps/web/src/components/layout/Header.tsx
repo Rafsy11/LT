@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuth, useTheme } from '@/providers';
+import { useNetworkStatus } from '@/providers/network-status-provider';
 import { PERMISSIONS } from '@repo/shared';
 
 export interface HeaderNotificationItem {
@@ -49,6 +50,7 @@ export function Header({
   const pathname = usePathname();
   const { hasPermission, user, logout, isLoggingOut } = useAuth();
   const { theme, resolvedTheme, setTheme } = useTheme();
+  const { isOnline, serviceUnavailable, checkConnection } = useNetworkStatus();
 
   useEffect(() => {
     if (!notice) return;
@@ -95,6 +97,9 @@ export function Header({
 
   const handleRefresh = () => {
     setIsRefreshing(true);
+    if (!isOnline || serviceUnavailable.active) {
+      void checkConnection();
+    }
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('app:refresh-data'));
     }

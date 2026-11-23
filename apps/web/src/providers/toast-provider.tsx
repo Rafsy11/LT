@@ -7,6 +7,9 @@ import '@/styles/components/error-ux.css';
 export interface ToastAction {
   label: string;
   onClick: () => void;
+  disabled?: boolean;
+  /** When true, clicking the action keeps the toast open instead of dismissing immediately. */
+  keepOpen?: boolean;
 }
 
 export interface ToastItem {
@@ -16,8 +19,24 @@ export interface ToastItem {
   refCode?: string;
   message: string;
   action?: ToastAction;
+  /** Persistent toasts stay visible until explicitly dismissed or cleared programmatically. */
+  persist?: boolean;
+  /** Optional auto-dismiss override in milliseconds (ignored when persist is true). */
+  durationMs?: number;
+  /** Optional callback triggered only when the user manually closes this toast. */
+  onDismiss?: () => void;
   createdAt: number;
 }
+
+export type UpsertToastInput = Omit<ToastItem, 'id' | 'createdAt'> & {
+  id?: string;
+};
+
+export const SYSTEM_TOAST_IDS = {
+  OFFLINE: 'system-network-offline',
+  RECONNECTED: 'system-network-reconnected',
+  SERVICE_UNAVAILABLE: 'system-service-unavailable',
+} as const;
 
 export interface ShowErrorOptions {
   fallbackCode?: string;
@@ -32,6 +51,7 @@ interface ToastContextType {
   showError: (error: unknown, optionsOrFallbackCode?: string | ShowErrorOptions) => void;
   showWarning: (message: string) => void;
   showInfo: (message: string) => void;
+  upsertToast: (toast: UpsertToastInput) => string;
   dismissToast: (id: string) => void;
 }
 
@@ -60,8 +80,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const toastsRef = useRef<ToastItem[]>([]);
+  const lastExternalFocusRef = useRef<HTMLElement | null>(null);
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const pausedIdsRef = useRef<Set<string>>(new Set());
+
+  toastsRef.current = toasts;
 
   const clearToastTimer = useCallback((id: string) => {
     const existing = timersRef.current.get(id);
@@ -71,13 +95,24 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const dismissToast = useCallback(
-    (id: string) => {
+  const dismissToastInternal = useCallback(
+    (id: string, isManual: boolean) => {
       clearToastTimer(id);
       pausedIdsRef.current.delete(id);
+      const target = toastsRef.current.find((t) => t.id === id);
       setToasts((prev) => prev.filter((t) => t.id !== id));
+      if (isManual) {
+        target?.onDismiss?.();
+      }
     },
     [clearToastTimer],
+  );
+
+  const dismissToast = useCallback(
+    (id: string) => {
+      dismissToastInternal(id, false);
+    },
+    [dismissToastInternal],
   );
 
   const scheduleAutoDismiss = useCallback(
@@ -85,11 +120,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       clearToastTimer(id);
       if (pausedIdsRef.current.has(id)) return;
       const timer = globalThis.setTimeout(() => {
-        dismissToast(id);
+        dismissToastInternal(id, false);
       }, durationMs);
       timersRef.current.set(id, timer);
     },
-    [clearToastTimer, dismissToast],
+    [clearToastTimer, dismissToastInternal],
   );
 
   const pauseToastDismiss = useCallback(
@@ -101,9 +136,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 
   const resumeToastDismiss = useCallback(
-    (id: string, hasAction: boolean) => {
-      pausedIdsRef.current.delete(id);
-      scheduleAutoDismiss(id, hasAction ? TOAST_AUTO_DISMISS_MS : TOAST_RESUME_DISMISS_MS);
+    (toast: ToastItem) => {
+      pausedIdsRef.current.delete(toast.id);
+      if (toast.persist) return;
+      scheduleAutoDismiss(
+        toast.id,
+        toast.action ? TOAST_AUTO_DISMISS_MS : TOAST_RESUME_DISMISS_MS,
+      );
     },
     [scheduleAutoDismiss],
   );
@@ -144,21 +183,68 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }
   }, [toasts]);
 
-  const addToast = useCallback(
-    (toast: Omit<ToastItem, 'id' | 'createdAt'>) => {
-      const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      const newToast: ToastItem = { ...toast, id, createdAt: Date.now() };
+  const upsertToast = useCallback(
+    (toast: UpsertToastInput): string => {
+      const id =
+        toast.id || `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const existing = toastsRef.current.find((t) => t.id === id);
 
-      setToasts((prev) => [newToast, ...prev].slice(0, 5));
+      const mergedToast: ToastItem = existing
+        ? {
+            ...existing,
+            ...toast,
+            id,
+            refCode: toast.refCode ?? existing.refCode,
+            onDismiss: toast.onDismiss ?? existing.onDismiss,
+            action: toast.action ?? (existing.persist ? existing.action : undefined),
+            persist: toast.persist ?? existing.persist,
+            createdAt: existing.createdAt,
+          }
+        : {
+            ...toast,
+            id,
+            createdAt: Date.now(),
+          };
 
-      const spoken = toast.title ? `${toast.title}: ${toast.message}` : toast.message;
-      setLiveAnnouncement(toast.action ? `${spoken}. Aksi tersedia.` : spoken);
-      announceToast(spoken, Boolean(toast.action));
+      setToasts((prev) => {
+        const idx = prev.findIndex((t) => t.id === id);
+        if (idx !== -1) {
+          const next = [...prev];
+          next[idx] = mergedToast;
+          return next;
+        }
+        const combined = [mergedToast, ...prev];
+        if (combined.length <= 5) return combined;
+        const persistent = combined.filter((t) => t.persist);
+        const transient = combined.filter((t) => !t.persist);
+        return [...persistent, ...transient].slice(0, Math.max(5, persistent.length));
+      });
 
-      const duration = toast.action ? TOAST_WITH_ACTION_DISMISS_MS : TOAST_AUTO_DISMISS_MS;
-      scheduleAutoDismiss(id, duration);
+      const contentChanged =
+        !existing ||
+        existing.title !== mergedToast.title ||
+        existing.message !== mergedToast.message;
+
+      if (contentChanged) {
+        const spoken = mergedToast.title
+          ? `${mergedToast.title}: ${mergedToast.message}`
+          : mergedToast.message;
+        setLiveAnnouncement(mergedToast.action ? `${spoken}. Aksi tersedia.` : spoken);
+        announceToast(spoken, Boolean(mergedToast.action));
+      }
+
+      if (mergedToast.persist) {
+        clearToastTimer(id);
+      } else {
+        const duration =
+          mergedToast.durationMs ??
+          (mergedToast.action ? TOAST_WITH_ACTION_DISMISS_MS : TOAST_AUTO_DISMISS_MS);
+        scheduleAutoDismiss(id, duration);
+      }
+
+      return id;
     },
-    [scheduleAutoDismiss],
+    [clearToastTimer, scheduleAutoDismiss],
   );
 
   const handleManualDismiss = useCallback(
@@ -169,20 +255,24 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         (cardEl?.previousElementSibling as HTMLElement | null);
       const nextCloseBtn = nextCard?.querySelector<HTMLButtonElement>('.toast-close');
 
-      dismissToast(id);
+      dismissToastInternal(id, true);
 
       if (nextCloseBtn) {
         requestAnimationFrame(() => nextCloseBtn.focus());
+      } else if (lastExternalFocusRef.current?.isConnected) {
+        const priorFocus = lastExternalFocusRef.current;
+        lastExternalFocusRef.current = null;
+        requestAnimationFrame(() => priorFocus.focus());
       }
     },
-    [dismissToast],
+    [dismissToastInternal],
   );
 
   const showSuccess = useCallback(
     (message: string) => {
-      addToast({ type: 'success', title: 'Berhasil', message });
+      upsertToast({ type: 'success', title: 'Berhasil', message });
     },
-    [addToast],
+    [upsertToast],
   );
 
   /**
@@ -211,7 +301,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         normalized.category === 'RATE_LIMITED' ||
         normalized.category === 'CONFLICT';
 
-      addToast({
+      const dedupSystemId =
+        normalized.category === 'SERVICE_UNAVAILABLE'
+          ? SYSTEM_TOAST_IDS.SERVICE_UNAVAILABLE
+          : normalized.category === 'OFFLINE'
+            ? SYSTEM_TOAST_IDS.OFFLINE
+            : undefined;
+
+      upsertToast({
+        id: dedupSystemId,
+        persist: Boolean(dedupSystemId),
         type: isWarningTone ? 'warning' : 'error',
         title: normalized.title,
         refCode: shouldShowRef ? normalized.refCode : undefined,
@@ -224,21 +323,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           : undefined,
       });
     },
-    [addToast],
+    [upsertToast],
   );
 
   const showWarning = useCallback(
     (message: string) => {
-      addToast({ type: 'warning', title: 'Perhatian', message });
+      upsertToast({ type: 'warning', title: 'Perhatian', message });
     },
-    [addToast],
+    [upsertToast],
   );
 
   const showInfo = useCallback(
     (message: string) => {
-      addToast({ type: 'info', title: 'Informasi', message });
+      upsertToast({ type: 'info', title: 'Informasi', message });
     },
-    [addToast],
+    [upsertToast],
   );
 
   return (
@@ -249,10 +348,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         showError,
         showWarning,
         showInfo,
+        upsertToast,
         dismissToast,
       }}
     >
       {children}
+      <p className="sr-only">Pemberitahuan sistem</p>
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {liveAnnouncement}
       </div>
@@ -261,19 +362,25 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         className="toast-container"
         role="region"
         aria-label="Notifikasi sistem"
+        onFocusCapture={(e) => {
+          const prior = e.relatedTarget;
+          if (prior instanceof HTMLElement && !containerRef.current?.contains(prior)) {
+            lastExternalFocusRef.current = prior;
+          }
+        }}
         {...({ popover: 'manual' } as Record<string, string>)}
       >
         {toasts.map((toast) => (
           <div
             key={toast.id}
             className={`toast-card toast-${toast.type}`}
-            role="status"
+            role={toast.type === 'error' ? 'alert' : 'status'}
             onMouseEnter={() => pauseToastDismiss(toast.id)}
-            onMouseLeave={() => resumeToastDismiss(toast.id, Boolean(toast.action))}
+            onMouseLeave={() => resumeToastDismiss(toast)}
             onFocusCapture={() => pauseToastDismiss(toast.id)}
             onBlurCapture={(e) => {
               if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                resumeToastDismiss(toast.id, Boolean(toast.action));
+                resumeToastDismiss(toast);
               }
             }}
           >
@@ -298,9 +405,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   <button
                     type="button"
                     className="toast-action-btn"
+                    disabled={toast.action.disabled}
                     onClick={() => {
                       const handler = toast.action?.onClick;
-                      dismissToast(toast.id);
+                      if (!toast.action?.keepOpen) {
+                        dismissToastInternal(toast.id, false);
+                      }
                       handler?.();
                     }}
                   >
