@@ -1,17 +1,74 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { DraftActionCardData } from '@repo/shared';
+import { useState, useRef, useCallback } from 'react';
+import { DraftActionCardData, ERROR_CODES } from '@repo/shared';
 import { useRateLimitCountdown } from '@/hooks/use-rate-limit-countdown';
 import { webApiClient } from '@/lib/api-client';
-import { normalizeAppError } from '@/lib/error-normalizer';
+import {
+  AI_ATTACHMENT_RULE,
+  normalizeAppError,
+  validateUploadFile,
+} from '@/lib/error-normalizer';
 import { useToast } from '@/providers';
+
+const MAX_AI_PROMPT_LENGTH = 4000;
+const MAX_ATTACHMENT_EXCERPT_CHARS = 2800;
+const DEFAULT_ATTACHMENT_PROMPT =
+  'Analisis isi berkas terlampir dan berikan ringkasan temuan operasional NOC.';
+const TRUNCATION_NOTICE = '\n[... sebagian isi berkas dipotong agar sesuai batas 4000 karakter]';
+const CONTROL_AND_BIDI_RE =
+  /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g;
+
+export interface AiPromptAttachment {
+  name: string;
+  size: number;
+  content: string;
+  truncated: boolean;
+}
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
+  attachment?: Pick<AiPromptAttachment, 'name' | 'size' | 'truncated'>;
   draft?: DraftActionCardData;
   timestamp?: string;
+}
+
+function sanitizeAttachmentText(raw: string): string {
+  return raw.replace(CONTROL_AND_BIDI_RE, '').replace(/\r\n/g, '\n').trim();
+}
+
+function composePromptWithAttachment(
+  rawPrompt: string,
+  attachment: AiPromptAttachment | null,
+): string {
+  const basePrompt = rawPrompt.trim() || (attachment ? DEFAULT_ATTACHMENT_PROMPT : '');
+  if (!attachment) return basePrompt;
+
+  const safeFileName = attachment.name
+    .replace(CONTROL_AND_BIDI_RE, '')
+    .replace(/["<>]/g, '')
+    .trim() || 'lampiran.txt';
+  const header = `${basePrompt}\n\nLampiran berkas (${safeFileName}):\n<untrusted_data filename="${safeFileName}">\n`;
+  const footer = '\n</untrusted_data>';
+
+  const maxBodyChars = Math.max(
+    0,
+    MAX_AI_PROMPT_LENGTH - header.length - footer.length,
+  );
+  if (maxBodyChars <= 0) {
+    return basePrompt.slice(0, MAX_AI_PROMPT_LENGTH);
+  }
+
+  let body = attachment.content;
+  if (body.length > maxBodyChars) {
+    const sliceLimit = Math.max(0, maxBodyChars - TRUNCATION_NOTICE.length);
+    body = `${body.slice(0, sliceLimit)}${TRUNCATION_NOTICE}`;
+  } else if (attachment.truncated && body.length + TRUNCATION_NOTICE.length <= maxBodyChars) {
+    body = `${body}${TRUNCATION_NOTICE}`;
+  }
+
+  return `${header}${body}${footer}`;
 }
 
 export interface AiSuggestionItem {
@@ -52,6 +109,7 @@ export const formatPayloadEntry = (key: string, val: unknown) => {
 
 export function useAiAssistant() {
   const [prompt, setPrompt] = useState('');
+  const [attachment, setAttachment] = useState<AiPromptAttachment | null>(null);
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { showError } = useToast();
@@ -68,17 +126,82 @@ export function useAiAssistant() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const sendMessage = async (textToSend: string) => {
-    if (!textToSend.trim() || loading || rateLimit.isLimited) return;
+  const handleAttachFile = useCallback(
+    async (file: File | null | undefined) => {
+      const check = validateUploadFile(file, AI_ATTACHMENT_RULE);
+      if (!check.valid || !file) {
+        showError(
+          check.error ||
+            normalizeAppError('Berkas lampiran belum sesuai format yang didukung.', {
+              statusCode: 400,
+              code: ERROR_CODES.VALIDATION_ERROR,
+            }),
+        );
+        return;
+      }
+
+      try {
+        const rawText = await file.text();
+        const cleaned = sanitizeAttachmentText(rawText);
+        if (!cleaned) {
+          showError(
+            normalizeAppError(
+              'Berkas tidak berisi teks yang dapat dibaca. Pilih berkas data ukur atau log yang valid.',
+              {
+                statusCode: 400,
+                code: ERROR_CODES.VALIDATION_ERROR,
+              },
+            ),
+          );
+          return;
+        }
+
+        const isTruncated = cleaned.length > MAX_ATTACHMENT_EXCERPT_CHARS;
+        setAttachment({
+          name: file.name,
+          size: file.size,
+          content: isTruncated ? cleaned.slice(0, MAX_ATTACHMENT_EXCERPT_CHARS) : cleaned,
+          truncated: isTruncated,
+        });
+      } catch (err: unknown) {
+        showError(err, {
+          fallbackMessage: 'Isi berkas lampiran belum dapat dibaca oleh browser.',
+        });
+      }
+    },
+    [showError],
+  );
+
+  const handleRemoveAttachment = useCallback(() => {
+    setAttachment(null);
+  }, []);
+
+  const sendMessage = async (
+    textToSend: string,
+    attachedOverride?: AiPromptAttachment | null,
+  ) => {
+    const activeAttachment = attachedOverride !== undefined ? attachedOverride : attachment;
+    if ((!textToSend.trim() && !activeAttachment) || loading || rateLimit.isLimited) return;
+
+    const visibleText = textToSend.trim() || DEFAULT_ATTACHMENT_PROMPT;
+    const composedPrompt = composePromptWithAttachment(visibleText, activeAttachment);
 
     const userMsg: ChatMessage = {
       role: 'user',
-      text: textToSend,
+      text: visibleText,
+      attachment: activeAttachment
+        ? {
+            name: activeAttachment.name,
+            size: activeAttachment.size,
+            truncated: activeAttachment.truncated,
+          }
+        : undefined,
       timestamp: formatTime(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setPrompt('');
+    setAttachment(null);
     setLoading(true);
 
     setTimeout(scrollToBottom, 50);
@@ -86,7 +209,7 @@ export function useAiAssistant() {
     try {
       const json = await webApiClient.post<{ content: string; draftCard?: DraftActionCardData }>(
         '/api/v1/admin/ai/chat',
-        { message: textToSend },
+        { message: composedPrompt },
         { timeoutMs: 45_000 },
       );
 
@@ -127,7 +250,7 @@ export function useAiAssistant() {
       showError(normalized, {
         onRetry:
           normalized.category === 'TIMEOUT' || normalized.category === 'OFFLINE'
-            ? () => void sendMessage(textToSend)
+            ? () => void sendMessage(textToSend, activeAttachment)
             : undefined,
       });
     } finally {
@@ -138,11 +261,15 @@ export function useAiAssistant() {
 
   const handleClearChat = () => {
     setMessages([]);
+    setAttachment(null);
   };
 
   return {
     prompt,
     setPrompt,
+    attachment,
+    handleAttachFile,
+    handleRemoveAttachment,
     loading,
     rateLimitSeconds: rateLimit.remainingSeconds,
     messages,

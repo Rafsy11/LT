@@ -4,6 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
+import { formatFileSizeLabel } from '@/lib/error-normalizer';
 import { DraftActionCard } from './draft-action-card';
 import { ChatMessage } from '../hooks/use-ai-assistant';
 
@@ -83,6 +84,16 @@ export function AiMessageList({
                   </time>
                 )}
               </header>
+
+              {m.attachment && (
+                <div className="ai-msg-attachment-chip" title={m.attachment.name}>
+                  <Icon name="paperclip" size={13} />
+                  <span className="ai-msg-attachment-name">{m.attachment.name}</span>
+                  <span className="ai-msg-attachment-size">
+                    {formatFileSizeLabel(m.attachment.size)}
+                  </span>
+                </div>
+              )}
 
               <p className="ai-msg-text">
                 {m.text}

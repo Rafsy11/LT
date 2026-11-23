@@ -450,3 +450,20 @@ export const PHOTO_UPLOAD_RULE: FileValidationRule = {
   allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
   formatLabel: 'JPG, PNG, atau WEBP',
 };
+
+export const AI_ATTACHMENT_RULE: FileValidationRule = {
+  maxSizeBytes: 1 * 1024 * 1024,
+  maxSizeLabel: '1 MB',
+  allowedExtensions: ['.csv', '.txt', '.log', '.json', '.md'],
+  allowedMimeTypes: [
+    'text/csv',
+    'application/csv',
+    'text/plain',
+    'application/json',
+    'text/markdown',
+    'text/x-markdown',
+    'application/vnd.ms-excel',
+    'application/octet-stream',
+  ],
+  formatLabel: '.csv, .txt, .log, .json, atau .md',
+};

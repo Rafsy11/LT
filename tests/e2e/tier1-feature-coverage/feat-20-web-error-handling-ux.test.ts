@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ERROR_CODES } from '@repo/shared';
 import {
+  AI_ATTACHMENT_RULE,
   DATEK_UPLOAD_RULE,
   PHOTO_UPLOAD_RULE,
   extractFieldErrors,
@@ -304,5 +305,41 @@ describe('Tier 1: Feature 20 - Web Error Handling & Humane Microcopy UX', () => 
     );
     assert.doesNotMatch(rolesViewSrc, /<ErrorBanner/);
     assert.match(rolesViewSrc, /<SafeErrorState/);
+  });
+
+  it('validates AI prompt attachment files and wires .ai-prompt-attach-btn to file picker', () => {
+    const validCsv = {
+      name: 'redaman-palembang.csv',
+      size: 2048,
+      type: 'text/csv',
+    } as unknown as File;
+    assert.strictEqual(validateUploadFile(validCsv, AI_ATTACHMENT_RULE).valid, true);
+
+    const oversizedTxt = {
+      name: 'olt-dump.log',
+      size: 2 * 1024 * 1024,
+      type: 'text/plain',
+    } as unknown as File;
+    const sizeCheck = validateUploadFile(oversizedTxt, AI_ATTACHMENT_RULE);
+    assert.strictEqual(sizeCheck.valid, false);
+    assert.strictEqual(sizeCheck.error?.statusCode, 413);
+
+    const unsupportedBin = {
+      name: 'payload.exe',
+      size: 1024,
+      type: 'application/x-msdownload',
+    } as unknown as File;
+    const extCheck = validateUploadFile(unsupportedBin, AI_ATTACHMENT_RULE);
+    assert.strictEqual(extCheck.valid, false);
+    assert.strictEqual(extCheck.error?.statusCode, 415);
+
+    const promptInputSrc = fs.readFileSync(
+      path.join(webSrc, 'features', 'ai', 'components', 'ai-prompt-input.tsx'),
+      'utf-8',
+    );
+    assert.match(promptInputSrc, /type="file"/);
+    assert.match(promptInputSrc, /fileInputRef\.current\?\.click\(\)/);
+    assert.match(promptInputSrc, /isComposing/);
+    assert.match(promptInputSrc, /className="sr-only"/);
   });
 });

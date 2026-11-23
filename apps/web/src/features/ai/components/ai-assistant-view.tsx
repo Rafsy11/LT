@@ -11,6 +11,9 @@ export function AiAssistantView() {
   const {
     prompt,
     setPrompt,
+    attachment,
+    handleAttachFile,
+    handleRemoveAttachment,
     loading,
     messages,
     messagesEndRef,
@@ -43,6 +46,9 @@ export function AiAssistantView() {
         <AiPromptInput
           prompt={prompt}
           setPrompt={setPrompt}
+          attachment={attachment}
+          onSelectFile={handleAttachFile}
+          onRemoveAttachment={handleRemoveAttachment}
           loading={loading}
           onSubmit={(text) => sendMessage(text)}
         />
