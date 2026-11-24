@@ -51,6 +51,13 @@ export default function MobileFieldAppPage() {
   const [deviceId, setDeviceId] = useState<string>('Memuat ID...');
   const [copiedId, setCopiedId] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<string>('09:41');
+  const [serverOrigin, setServerOrigin] = useState<string>('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      setServerOrigin(window.location.origin);
+    }
+  }, []);
 
   // Clock tick for simulated status bar
   useEffect(() => {
@@ -343,6 +350,18 @@ export default function MobileFieldAppPage() {
                     {copiedId ? 'Tersalin!' : 'Salin'}
                   </button>
                 </div>
+                {serverOrigin && (
+                  <div style={{ marginTop: '8px', borderTop: '1px solid var(--color-border)', paddingTop: '6px' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Origin Server Aktif:</div>
+                    <code
+                      className="mobile-sim-copy-code"
+                      style={{ fontSize: '11px', width: '100%', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      title={serverOrigin}
+                    >
+                      {serverOrigin}
+                    </code>
+                  </div>
+                )}
               </div>
 
               <button

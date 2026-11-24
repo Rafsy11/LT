@@ -301,11 +301,15 @@ export default function App({
 
   // Initialize singleton mobile API client with security interceptors
   const apiClient = useMemo(() => {
-    return new ApiClient({
-      baseUrl:
-        process.env.NODE_ENV === 'production'
+    const defaultOrigin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : process.env.NODE_ENV === 'production'
           ? 'https://ftth-ops.lintasarta.co.id'
-          : 'http://localhost:3000',
+          : 'http://localhost:3000';
+
+    return new ApiClient({
+      baseUrl: defaultOrigin,
       deviceId: installationDeviceId,
       appVersion: CURRENT_MOBILE_APP_VERSION,
       onUpgradeRequired: (details) => {

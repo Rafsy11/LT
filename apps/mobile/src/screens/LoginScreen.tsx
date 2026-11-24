@@ -151,12 +151,17 @@ export function LoginScreen({
 
   const [deviceId] = useState(() => defaultDeviceId || generateLoginDeviceId());
   const [deviceModel] = useState('Android Field Terminal');
-  const [serverUrl, setServerUrl] = useState(
-    apiClient.getBaseUrl() ||
+  const [serverUrl, setServerUrl] = useState(() => {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return window.location.origin;
+    }
+    return (
+      apiClient.getBaseUrl() ||
       (process.env.NODE_ENV === 'production'
         ? 'https://ftth-ops.lintasarta.co.id'
-        : 'http://localhost:3000'),
-  );
+        : 'http://localhost:3000')
+    );
+  });
   const __DEV__ =
     Boolean((globalThis as { __DEV__?: boolean }).__DEV__) ||
     process.env.NODE_ENV !== 'production';
@@ -245,6 +250,28 @@ export function LoginScreen({
     Promise.resolve(persistentStorage.getItem(SERVER_URL_STORAGE_KEY)).then((saved) => {
       if (saved && isMounted) {
         try {
+          // If in web browser, prevent stale localhost from breaking Cloudflare tunnel or external access
+          if (typeof window !== 'undefined' && window.location?.origin) {
+            const currentOrigin = window.location.origin;
+            let savedOrigin = '';
+            try {
+              savedOrigin = new URL(saved).origin;
+            } catch {
+              // invalid URL
+            }
+            if (
+              savedOrigin &&
+              savedOrigin !== currentOrigin &&
+              !currentOrigin.includes('localhost') &&
+              !currentOrigin.includes('127.0.0.1') &&
+              (savedOrigin.includes('localhost') || savedOrigin.includes('127.0.0.1'))
+            ) {
+              apiClient.setBaseUrl(currentOrigin);
+              setServerUrl(currentOrigin);
+              void persistentStorage.setItem(SERVER_URL_STORAGE_KEY, currentOrigin);
+              return;
+            }
+          }
           apiClient.setBaseUrl(saved);
           setServerUrl(saved);
         } catch {
@@ -379,6 +406,17 @@ export function LoginScreen({
       return;
     }
 
+    if (
+      msg.toLowerCase().includes('failed to fetch') ||
+      msg.toLowerCase().includes('networkerror') ||
+      msg.toLowerCase().includes('koneksi jaringan gagal')
+    ) {
+      setErrorMessage(
+        `Gagal terhubung ke server (${serverUrl.trim()}). Periksa koneksi internet atau buka Pengaturan Server di bawah.`,
+      );
+      return;
+    }
+
     if (code === ERROR_CODES.INTERNAL_ERROR || code === ERROR_CODES.SERVICE_UNAVAILABLE) {
       setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
       return;
@@ -476,8 +514,19 @@ export function LoginScreen({
       setBotUsername(res.data.botUsername || 'FiberOpsNOCBot');
       setUserNik(res.data.user?.nik || null);
       window.setTimeout(() => otpInputRef.current?.focus(), 40);
-    } catch {
-      setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
+    } catch (err: unknown) {
+      const errMsg = (err as Error)?.message || '';
+      if (
+        errMsg.toLowerCase().includes('failed to fetch') ||
+        errMsg.toLowerCase().includes('networkerror') ||
+        errMsg.toLowerCase().includes('koneksi')
+      ) {
+        setErrorMessage(
+          `Gagal terhubung ke server (${serverUrl.trim()}). Periksa koneksi internet atau buka Pengaturan Server di bawah.`,
+        );
+      } else {
+        setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
+      }
     } finally {
       setIsRequestingOtp(false);
     }
@@ -536,8 +585,19 @@ export function LoginScreen({
       clearMobileCooldowns();
       apiClient.setTokens(tokens);
       onLoginSuccess(res.data.user, tokens);
-    } catch {
-      setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
+    } catch (err: unknown) {
+      const errMsg = (err as Error)?.message || '';
+      if (
+        errMsg.toLowerCase().includes('failed to fetch') ||
+        errMsg.toLowerCase().includes('networkerror') ||
+        errMsg.toLowerCase().includes('koneksi')
+      ) {
+        setErrorMessage(
+          `Gagal terhubung ke server (${serverUrl.trim()}). Periksa koneksi internet atau buka Pengaturan Server di bawah.`,
+        );
+      } else {
+        setErrorMessage(STANDARD_ERROR_MESSAGES.SYSTEM_PROCESSING_ERROR);
+      }
     } finally {
       setIsLoading(false);
     }

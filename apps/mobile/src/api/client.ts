@@ -65,9 +65,11 @@ export class ApiClient {
     onTokensRefreshed?: TokensRefreshedCallback;
   }) {
     const defaultUrl =
-      process.env.NODE_ENV === 'production'
-        ? 'https://ftth-ops.lintasarta.co.id'
-        : 'http://localhost:3000';
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : process.env.NODE_ENV === 'production'
+          ? 'https://ftth-ops.lintasarta.co.id'
+          : 'http://localhost:3000';
     this.baseUrl = this.validateTransportUrl(options.baseUrl || defaultUrl);
     this.deviceId = options.deviceId;
     this.appVersion = options.appVersion || CURRENT_MOBILE_APP_VERSION;
@@ -136,9 +138,11 @@ export class ApiClient {
 
   public setBaseUrl(url: string): void {
     const defaultUrl =
-      process.env.NODE_ENV === 'production'
-        ? 'https://ftth-ops.lintasarta.co.id'
-        : 'http://localhost:3000';
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : process.env.NODE_ENV === 'production'
+          ? 'https://ftth-ops.lintasarta.co.id'
+          : 'http://localhost:3000';
     this.baseUrl = this.validateTransportUrl(url || defaultUrl);
   }
 
