@@ -21,7 +21,7 @@ if (!process.env.DATABASE_URL) {
   }
 }
 
-const DB_TCP_PROBE_TIMEOUT_MS = 250;
+const DB_TCP_PROBE_TIMEOUT_MS = 1000;
 const DB_CACHE_TTL_ONLINE_MS = 5_000;
 const DB_CACHE_TTL_OFFLINE_MS = 15_000;
 const DEFAULT_POSTGRES_PORT = 5432;
@@ -69,7 +69,8 @@ function parseDatabaseEndpoint(): { host: string; port: number } | null {
     if (!parsed.hostname) return null;
     const port = parsed.port ? parseInt(parsed.port, 10) : DEFAULT_POSTGRES_PORT;
     if (Number.isNaN(port) || port <= 0) return null;
-    return { host: parsed.hostname, port };
+    const host = parsed.hostname === 'localhost' ? '127.0.0.1' : parsed.hostname;
+    return { host, port };
   } catch {
     return null;
   }

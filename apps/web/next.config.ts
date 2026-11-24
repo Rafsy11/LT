@@ -50,6 +50,11 @@ function buildContentSecurityPolicy(): string {
 }
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: [
+    '*.trycloudflare.com',
+    'localhost',
+    '127.0.0.1',
+  ],
   reactStrictMode: true,
   poweredByHeader: false,
   output: 'standalone',
