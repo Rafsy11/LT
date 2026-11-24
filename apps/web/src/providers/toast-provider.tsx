@@ -55,9 +55,10 @@ interface ToastContextType {
   dismissToast: (id: string) => void;
 }
 
-const TOAST_AUTO_DISMISS_MS = 5500;
-const TOAST_WITH_ACTION_DISMISS_MS = 9000;
+const TOAST_AUTO_DISMISS_MS = 4500;
+const TOAST_WITH_ACTION_DISMISS_MS = 8000;
 const TOAST_RESUME_DISMISS_MS = 3000;
+const TOAST_EXIT_ANIMATION_MS = 180;
 
 const ToastContext = createContext<ToastContextType | null>(null);
 
@@ -78,14 +79,20 @@ function announceToast(message: string, hasAction: boolean): void {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [cardHeights, setCardHeights] = useState<Record<string, number>>({});
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const toastsRef = useRef<ToastItem[]>([]);
   const lastExternalFocusRef = useRef<HTMLElement | null>(null);
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const pausedIdsRef = useRef<Set<string>>(new Set());
 
   toastsRef.current = toasts;
+  const isExpanded = isHovered || isFocused;
 
   const clearToastTimer = useCallback((id: string) => {
     const existing = timersRef.current.get(id);
@@ -100,10 +107,29 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       clearToastTimer(id);
       pausedIdsRef.current.delete(id);
       const target = toastsRef.current.find((t) => t.id === id);
-      setToasts((prev) => prev.filter((t) => t.id !== id));
+      if (!target) return;
+
       if (isManual) {
-        target?.onDismiss?.();
+        target.onDismiss?.();
       }
+
+      setExitingIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+
+      const exitTimer = globalThis.setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+        setExitingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        cardRefs.current.delete(id);
+      }, TOAST_EXIT_ANIMATION_MS);
+
+      timersRef.current.set(`exit-${id}`, exitTimer);
     },
     [clearToastTimer],
   );
@@ -146,6 +172,50 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     },
     [scheduleAutoDismiss],
   );
+
+  // Measure card heights for dynamic stack expansion offsets
+  useEffect(() => {
+    let changed = false;
+    const nextHeights: Record<string, number> = {};
+    cardRefs.current.forEach((el, id) => {
+      if (el?.offsetHeight) {
+        nextHeights[id] = el.offsetHeight;
+        if (cardHeights[id] !== el.offsetHeight) {
+          changed = true;
+        }
+      }
+    });
+    if (changed) {
+      setCardHeights((prev) => ({ ...prev, ...nextHeights }));
+    }
+  }, [toasts, cardHeights]);
+
+  // Pause timers when tab is hidden, resume when tab is visible
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        toastsRef.current.forEach((t) => {
+          pausedIdsRef.current.add(t.id);
+          clearToastTimer(t.id);
+        });
+      } else {
+        toastsRef.current.forEach((t) => {
+          if (!t.persist) {
+            pausedIdsRef.current.delete(t.id);
+            scheduleAutoDismiss(
+              t.id,
+              t.action ? TOAST_AUTO_DISMISS_MS : TOAST_RESUME_DISMISS_MS,
+            );
+          }
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [clearToastTimer, scheduleAutoDismiss]);
 
   useEffect(() => {
     const timers = timersRef.current;
@@ -340,6 +410,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [upsertToast],
   );
 
+  let runningOffset = 0;
+  const offsets = toasts.map((t, idx) => {
+    if (idx === 0) return 0;
+    const prevToast = toasts[idx - 1];
+    const prevHeight = (prevToast ? cardHeights[prevToast.id] : undefined) ?? 72;
+    runningOffset += prevHeight + 10;
+    return runningOffset;
+  });
+
   return (
     <ToastContext.Provider
       value={{
@@ -360,75 +439,121 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <div
         ref={containerRef}
         className="toast-container"
+        data-stacked={toasts.length > 1 ? 'true' : undefined}
+        data-expanded={isExpanded ? 'true' : 'false'}
         role="region"
         aria-label="Notifikasi sistem"
+        onMouseEnter={() => {
+          setIsHovered(true);
+          toastsRef.current.forEach((t) => pauseToastDismiss(t.id));
+        }}
+        onMouseLeave={() => {
+          setIsHovered(false);
+          toastsRef.current.forEach((t) => resumeToastDismiss(t));
+        }}
         onFocusCapture={(e) => {
+          setIsFocused(true);
+          toastsRef.current.forEach((t) => pauseToastDismiss(t.id));
           const prior = e.relatedTarget;
           if (prior instanceof HTMLElement && !containerRef.current?.contains(prior)) {
             lastExternalFocusRef.current = prior;
           }
         }}
+        onBlurCapture={(e) => {
+          if (!containerRef.current?.contains(e.relatedTarget as Node | null)) {
+            setIsFocused(false);
+            toastsRef.current.forEach((t) => resumeToastDismiss(t));
+          }
+        }}
         {...({ popover: 'manual' } as Record<string, string>)}
       >
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`toast-card toast-${toast.type}`}
-            role={toast.type === 'error' ? 'alert' : 'status'}
-            onMouseEnter={() => pauseToastDismiss(toast.id)}
-            onMouseLeave={() => resumeToastDismiss(toast)}
-            onFocusCapture={() => pauseToastDismiss(toast.id)}
-            onBlurCapture={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                resumeToastDismiss(toast);
+        {toasts.map((toast, index) => {
+          const isExiting = exitingIds.has(toast.id);
+          const offset = offsets[index] ?? 0;
+          return (
+            <div
+              key={toast.id}
+              ref={(el) => {
+                if (el) {
+                  cardRefs.current.set(toast.id, el);
+                } else {
+                  cardRefs.current.delete(toast.id);
+                }
+              }}
+              className={`toast-card toast-${toast.type}`}
+              data-index={index}
+              data-exiting={isExiting ? 'true' : undefined}
+              style={
+                {
+                  '--stack-index': index,
+                  '--stack-offset': `${offset}px`,
+                } as React.CSSProperties
               }
-            }}
-          >
-            <div className="toast-content">
-              <div className="toast-header">
-                <span className="toast-indicator" aria-hidden="true" />
-                <span className="toast-title">
-                  {toast.title ||
-                    (toast.type === 'error'
-                      ? 'Kendala Sementara'
-                      : toast.type === 'success'
-                        ? 'Berhasil'
-                        : toast.type === 'warning'
-                          ? 'Perhatian'
-                          : 'Informasi')}
-                </span>
-              </div>
-              <p className="toast-message">{toast.message}</p>
-              {toast.refCode && <span className="toast-ref">Ref: {toast.refCode}</span>}
-              {toast.action && (
-                <div className="toast-action-row">
-                  <button
-                    type="button"
-                    className="toast-action-btn"
-                    disabled={toast.action.disabled}
-                    onClick={() => {
-                      const handler = toast.action?.onClick;
-                      if (!toast.action?.keepOpen) {
-                        dismissToastInternal(toast.id, false);
-                      }
-                      handler?.();
-                    }}
-                  >
-                    {toast.action.label}
-                  </button>
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              className="toast-close"
-              onClick={(e) => handleManualDismiss(toast.id, e.currentTarget)}
-              aria-label="Tutup notifikasi"
+              role={toast.type === 'error' ? 'alert' : 'status'}
+              onMouseEnter={() => pauseToastDismiss(toast.id)}
+              onMouseLeave={() => resumeToastDismiss(toast)}
+              onFocusCapture={() => pauseToastDismiss(toast.id)}
+              onBlurCapture={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  resumeToastDismiss(toast);
+                }
+              }}
             >
-              ×
-            </button>
-          </div>
-        ))}
+              <div className="toast-content">
+                <div className="toast-header">
+                  <span className="toast-indicator" aria-hidden="true" />
+                  <span className="toast-title">
+                    {toast.title ||
+                      (toast.type === 'error'
+                        ? 'Kendala Sementara'
+                        : toast.type === 'success'
+                          ? 'Berhasil'
+                          : toast.type === 'warning'
+                            ? 'Perhatian'
+                            : 'Informasi')}
+                  </span>
+                  {toasts.length > 1 && index === 0 && (
+                    <span
+                      className="toast-stack-badge"
+                      title={`${toasts.length} notifikasi tersedia`}
+                      aria-label={`${toasts.length} notifikasi`}
+                    >
+                      +{toasts.length - 1}
+                    </span>
+                  )}
+                </div>
+                <p className="toast-message">{toast.message}</p>
+                {toast.refCode && <span className="toast-ref">Ref: {toast.refCode}</span>}
+                {toast.action && (
+                  <div className="toast-action-row">
+                    <button
+                      type="button"
+                      className="toast-action-btn"
+                      disabled={toast.action.disabled}
+                      onClick={() => {
+                        const handler = toast.action?.onClick;
+                        if (!toast.action?.keepOpen) {
+                          dismissToastInternal(toast.id, false);
+                        }
+                        handler?.();
+                      }}
+                    >
+                      {toast.action.label}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="toast-close"
+                onClick={(e) => handleManualDismiss(toast.id, e.currentTarget)}
+                aria-label="Tutup notifikasi"
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
       </div>
     </ToastContext.Provider>
   );
