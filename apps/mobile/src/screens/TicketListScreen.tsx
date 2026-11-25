@@ -498,6 +498,25 @@ function MapPinIcon({ size = 12, color = 'currentColor', style }: { size?: numbe
   );
 }
 
+function HistoryIcon({ size = 20, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function ArrowLeftIcon({ size = 15, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12" />
+      <polyline points="12 19 5 12 12 5" />
+    </svg>
+  );
+}
+
 function formatStatusLabel(status: string): string {
   switch (status) {
     case 'COMPLETED':
@@ -601,7 +620,10 @@ export function TicketListView(props: TicketListScreenProps) {
   const cardSurface = isOutdoor ? '#FFFFFF' : isDark ? '#10192D' : '#FFFFFF';
   const insetSurface = isOutdoor ? '#F3F4F6' : isDark ? '#0A1224' : '#F8FAFC';
   const cardBorder = isOutdoor ? '2px solid #000000' : `1px solid ${theme.border}`;
+  const controlBorderColor = isOutdoor ? '#000000' : isDark ? '#5B6B82' : '#7C8BA1';
+  const controlBorder = isOutdoor ? '2px solid #000000' : `1px solid ${controlBorderColor}`;
   const linkColor = isOutdoor ? '#0047AB' : isDark ? '#60A5FA' : '#1B5CA2';
+  const focusRingColor = isOutdoor ? '#0047AB' : isDark ? '#38BDF8' : '#1B5CA2';
   const primaryAccent = isOutdoor ? '#0047AB' : '#1B5CA2';
   const warningAccent = isOutdoor ? '#92400E' : '#B45309';
 
@@ -620,12 +642,63 @@ export function TicketListView(props: TicketListScreenProps) {
   const [browserOnline, setBrowserOnline] = useState<boolean>(() =>
     typeof navigator === 'undefined' ? true : navigator.onLine,
   );
+  const rootRef = useRef<HTMLDivElement>(null);
   const themeWrapRef = useRef<HTMLDivElement>(null);
-  const activeTabRef = useRef<HTMLButtonElement>(null);
-  const historyTabRef = useRef<HTMLButtonElement>(null);
+  const floatingHistoryBtnRef = useRef<HTMLButtonElement>(null);
+  const historyBackBtnRef = useRef<HTMLButtonElement>(null);
   const modalDialogRef = useRef<HTMLDivElement>(null);
   const modalCloseBtnRef = useRef<HTMLButtonElement>(null);
   const modalTriggerRef = useRef<HTMLElement | null>(null);
+  const copiedSiaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusSwitchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { setActiveTab } = actions;
+
+  const historyCountLabel =
+    state.historyTotalCount > state.historyLimit
+      ? `${state.historyLimit}+`
+      : String(state.totalHistoryCount);
+
+  useEffect(() => {
+    return () => {
+      if (copiedSiaTimerRef.current) {
+        clearTimeout(copiedSiaTimerRef.current);
+      }
+      if (focusSwitchTimerRef.current) {
+        clearTimeout(focusSwitchTimerRef.current);
+      }
+    };
+  }, []);
+
+  const switchViewMode = useCallback(
+    (mode: 'ACTIVE' | 'HISTORY') => {
+      setActiveTab(mode);
+      setIsFilterOpen(false);
+      setIsThemeOpen(false);
+      if (typeof window !== 'undefined') {
+        const viewport = rootRef.current?.closest('.mobile-shell-viewport');
+        if (viewport) {
+          if (typeof viewport.scrollTo === 'function') {
+            viewport.scrollTo({ top: 0, behavior: 'auto' });
+          } else {
+            viewport.scrollTop = 0;
+          }
+        }
+        window.scrollTo({ top: 0, behavior: 'auto' });
+      }
+      if (focusSwitchTimerRef.current) {
+        clearTimeout(focusSwitchTimerRef.current);
+      }
+      focusSwitchTimerRef.current = setTimeout(() => {
+        if (mode === 'HISTORY') {
+          historyBackBtnRef.current?.focus();
+        } else {
+          floatingHistoryBtnRef.current?.focus();
+        }
+      }, 0);
+    },
+    [setActiveTab],
+  );
 
   const openHistoryDetailModal = useCallback((ticket: MobileTicketItem, triggerEl?: HTMLElement | null) => {
     if (typeof document !== 'undefined') {
@@ -862,7 +935,10 @@ export function TicketListView(props: TicketListScreenProps) {
         document.body.removeChild(textArea);
       }
       setCopiedSia(siaNumber);
-      setTimeout(() => {
+      if (copiedSiaTimerRef.current) {
+        clearTimeout(copiedSiaTimerRef.current);
+      }
+      copiedSiaTimerRef.current = setTimeout(() => {
         setCopiedSia((prev) => (prev === siaNumber ? null : prev));
       }, 2000);
       setTimeout(() => {
@@ -877,12 +953,13 @@ export function TicketListView(props: TicketListScreenProps) {
 
   return (
     <div
+      ref={rootRef}
       style={{
         width: '100%',
         minHeight: '100%',
-        flex: 1,
+        flex: '1 0 auto',
         boxSizing: 'border-box',
-        padding: '16px 16px 36px',
+        padding: state.activeTab === 'ACTIVE' ? '16px 16px 88px' : '16px 16px 36px',
         color: theme.textPrimary,
         background: isOutdoor ? '#FFFFFF' : isDark ? '#080E1A' : '#F8FAFC',
         fontFamily: theme.typography.fontFamily.sans,
@@ -890,9 +967,27 @@ export function TicketListView(props: TicketListScreenProps) {
       }}
     >
       <style>{`
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+        }
+        .fiberops-input:focus:not(:focus-visible) {
+          outline: none;
+        }
         .fiberops-input:focus-visible {
-          outline: 2px solid ${primaryAccent};
+          outline: 2px solid ${focusRingColor};
           outline-offset: 1px;
+        }
+        .fiberops-input::placeholder {
+          color: ${isOutdoor ? '#1F2937' : isDark ? '#94A3B8' : '#64748B'};
+          opacity: 1;
         }
         .fiberops-input {
           background-color: ${isOutdoor ? '#FFFFFF' : isDark ? '#10192D' : '#FFFFFF'} !important;
@@ -908,7 +1003,7 @@ export function TicketListView(props: TicketListScreenProps) {
           color: ${isOutdoor ? '#000000' : isDark ? '#F8FAFC' : '#0F172A'} !important;
         }
         .fiberops-theme-option:focus-visible {
-          outline: 2px solid ${primaryAccent};
+          outline: 2px solid ${focusRingColor};
           outline-offset: -2px;
         }
         .fiberops-action-btn:active {
@@ -919,8 +1014,11 @@ export function TicketListView(props: TicketListScreenProps) {
           cursor: not-allowed;
         }
         .fiberops-action-btn:focus-visible {
-          outline: 2px solid ${primaryAccent};
+          outline: 2px solid ${focusRingColor};
           outline-offset: 2px;
+        }
+        .fiberops-fab:hover {
+          background: ${isOutdoor ? '#003380' : isDark ? '#2563EB' : '#0B4671'} !important;
         }
         @keyframes fiberops-spin {
           from { transform: rotate(0deg); }
@@ -929,7 +1027,15 @@ export function TicketListView(props: TicketListScreenProps) {
         .animate-spin-icon {
           animation: fiberops-spin 0.8s linear infinite;
         }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-spin-icon {
+            animation-duration: 1.8s !important;
+            animation-iteration-count: infinite !important;
+          }
+        }
       `}</style>
+
+      <h1 className="sr-only">Daftar Tugas Teknisi</h1>
 
       {/* Top Operator Header Bar */}
       <header
@@ -1026,7 +1132,7 @@ export function TicketListView(props: TicketListScreenProps) {
                     : '#FFFFFF',
                 border: isOutdoor
                   ? `2px solid ${isThemeOpen ? '#0047AB' : '#000000'}`
-                  : `1px solid ${isThemeOpen ? '#2585D0' : isDark ? '#1E293B' : theme.border}`,
+                  : `1px solid ${isThemeOpen ? (isDark ? '#38BDF8' : '#0E5B92') : controlBorderColor}`,
                 borderRadius: '6px',
                 color: isOutdoor
                   ? isThemeOpen
@@ -1165,7 +1271,7 @@ export function TicketListView(props: TicketListScreenProps) {
               minHeight: '44px',
               padding: 0,
               background: cardSurface,
-              border: cardBorder,
+              border: controlBorder,
               borderRadius: '6px',
               color: theme.textSecondary,
               cursor: state.isLoading || state.isSyncing ? 'not-allowed' : 'pointer',
@@ -1174,7 +1280,10 @@ export function TicketListView(props: TicketListScreenProps) {
               justifyContent: 'center',
             }}
           >
-            <span className={state.isLoading || state.isSyncing ? 'animate-spin-icon' : ''}>
+            <span
+              className={state.isLoading || state.isSyncing ? 'animate-spin-icon' : ''}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+            >
               <SyncIcon size={16} color={theme.textSecondary} />
             </span>
           </button>
@@ -1193,7 +1302,7 @@ export function TicketListView(props: TicketListScreenProps) {
               background: cardSurface,
               border: isOutdoor
                 ? '2px solid #991B1B'
-                : `1px solid ${isDark ? 'rgba(239, 68, 68, 0.35)' : '#FECACA'}`,
+                : `1px solid ${isDark ? '#F87171' : '#DC2626'}`,
               borderRadius: '6px',
               color: isOutdoor ? '#991B1B' : isDark ? '#F87171' : '#B91C1C',
               cursor: 'pointer',
@@ -1236,7 +1345,7 @@ export function TicketListView(props: TicketListScreenProps) {
                 padding: '6px 14px',
                 background: isOutdoor ? '#FFFFFF' : isDark ? '#1E293B' : '#FFFFFF',
                 color: theme.textPrimary,
-                border: cardBorder,
+                border: controlBorder,
                 borderRadius: '6px',
                 fontSize: '12px',
                 fontWeight: 700,
@@ -1317,203 +1426,85 @@ export function TicketListView(props: TicketListScreenProps) {
         </div>
       )}
 
-      {/* Segmented Tab Control: Tugas Aktif | Riwayat Selesai */}
-      <div
-        role="tablist"
-        aria-label="Pilihan Jenis Tugas"
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-            e.preventDefault();
-            const nextTab = state.activeTab === 'ACTIVE' ? 'HISTORY' : 'ACTIVE';
-            actions.setActiveTab(nextTab);
-            if (nextTab === 'ACTIVE') {
-              activeTabRef.current?.focus();
-            } else {
-              historyTabRef.current?.focus();
-            }
-          } else if (e.key === 'Home') {
-            e.preventDefault();
-            actions.setActiveTab('ACTIVE');
-            activeTabRef.current?.focus();
-          } else if (e.key === 'End') {
-            e.preventDefault();
-            actions.setActiveTab('HISTORY');
-            historyTabRef.current?.focus();
-          }
-        }}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          background: isOutdoor ? '#FFFFFF' : isDark ? '#10192D' : '#E2E8F0',
-          border: isOutdoor ? '2px solid #000000' : 'none',
-          padding: '4px',
-          borderRadius: '8px',
-          gap: '4px',
-          marginBottom: '14px',
-        }}
-      >
-        <button
-          ref={activeTabRef}
-          id="tab-active"
-          type="button"
-          role="tab"
-          aria-selected={state.activeTab === 'ACTIVE'}
-          aria-controls="panel-tickets"
-          tabIndex={state.activeTab === 'ACTIVE' ? 0 : -1}
-          onClick={() => actions.setActiveTab('ACTIVE')}
-          className="fiberops-action-btn"
+      {/* History Context Bar (Displayed only in Completed History mode) */}
+      {state.activeTab === 'HISTORY' && (
+        <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            justifyContent: 'space-between',
             gap: '8px',
-            padding: '8px 10px',
-            minHeight: '44px',
-            borderRadius: '6px',
-            border: isOutdoor && state.activeTab === 'ACTIVE' ? '2px solid #000000' : 'none',
-            background:
-              state.activeTab === 'ACTIVE'
-                ? isOutdoor
-                  ? '#000000'
-                  : isDark
-                    ? '#1E293B'
-                    : '#FFFFFF'
-                : 'transparent',
-            color:
-              state.activeTab === 'ACTIVE'
-                ? isOutdoor
-                  ? '#FFFFFF'
-                  : isDark
-                    ? '#FFFFFF'
-                    : '#0F172A'
-                : theme.textSecondary,
-            fontWeight: state.activeTab === 'ACTIVE' ? 700 : 600,
-            fontSize: '13px',
-            cursor: 'pointer',
-            boxShadow:
-              state.activeTab === 'ACTIVE' && !isOutdoor
-                ? isDark
-                  ? '0 1px 3px rgba(0,0,0,0.4)'
-                  : '0 1px 3px rgba(15,23,42,0.1)'
-                : 'none',
+            marginBottom: '12px',
+            paddingBottom: '10px',
+            borderBottom: isOutdoor ? '2px solid #000000' : `1px solid ${theme.border}`,
           }}
         >
-          <span>Tugas Aktif</span>
-          <span
+          <button
+            ref={historyBackBtnRef}
+            type="button"
+            className="fiberops-action-btn"
+            onClick={() => switchViewMode('ACTIVE')}
+            aria-label="Kembali ke daftar Tugas Aktif"
             style={{
-              fontFamily: theme.typography.fontFamily.mono,
-              fontSize: '11px',
+              height: '44px',
+              minHeight: '44px',
+              padding: '0 12px',
+              background: cardSurface,
+              border: controlBorder,
+              borderRadius: '6px',
+              color: theme.textPrimary,
+              fontSize: '12px',
               fontWeight: 700,
-              padding: '2px 6px',
-              borderRadius: '4px',
-              background:
-                state.activeTab === 'ACTIVE'
-                  ? primaryAccent
-                  : isOutdoor
-                    ? '#F3F4F6'
-                    : isDark
-                      ? '#1E293B'
-                      : '#CBD5E1',
-              color:
-                state.activeTab === 'ACTIVE'
-                  ? '#FFFFFF'
-                  : isOutdoor
-                    ? '#000000'
-                    : theme.textPrimary,
-              border: isOutdoor && state.activeTab !== 'ACTIVE' ? '1px solid #000000' : 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              flexShrink: 0,
             }}
           >
-            {state.totalTicketsCount}
-          </span>
-        </button>
+            <ArrowLeftIcon size={15} color="currentColor" />
+            <span>Tugas Aktif</span>
+          </button>
 
-        <button
-          ref={historyTabRef}
-          id="tab-history"
-          type="button"
-          role="tab"
-          aria-selected={state.activeTab === 'HISTORY'}
-          aria-controls="panel-tickets"
-          tabIndex={state.activeTab === 'HISTORY' ? 0 : -1}
-          onClick={() => actions.setActiveTab('HISTORY')}
-          className="fiberops-action-btn"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            padding: '8px 10px',
-            minHeight: '44px',
-            borderRadius: '6px',
-            border: isOutdoor && state.activeTab === 'HISTORY' ? '2px solid #000000' : 'none',
-            background:
-              state.activeTab === 'HISTORY'
-                ? isOutdoor
-                  ? '#000000'
-                  : isDark
-                    ? '#1E293B'
-                    : '#FFFFFF'
-                : 'transparent',
-            color:
-              state.activeTab === 'HISTORY'
-                ? isOutdoor
-                  ? '#FFFFFF'
-                  : isDark
-                    ? '#FFFFFF'
-                    : '#0F172A'
-                : theme.textSecondary,
-            fontWeight: state.activeTab === 'HISTORY' ? 700 : 600,
-            fontSize: '13px',
-            cursor: 'pointer',
-            boxShadow:
-              state.activeTab === 'HISTORY' && !isOutdoor
-                ? isDark
-                  ? '0 1px 3px rgba(0,0,0,0.4)'
-                  : '0 1px 3px rgba(15,23,42,0.1)'
-                : 'none',
-          }}
-        >
-          <span>Riwayat Selesai</span>
-          <span
-            style={{
-              fontFamily: theme.typography.fontFamily.mono,
-              fontSize: '11px',
-              fontWeight: 700,
-              padding: '2px 6px',
-              borderRadius: '4px',
-              background:
-                state.activeTab === 'HISTORY'
-                  ? isOutdoor
-                    ? '#14532D'
-                    : isDark
-                      ? '#065F46'
-                      : '#15803D'
-                  : isOutdoor
-                    ? '#F3F4F6'
-                    : isDark
-                      ? '#1E293B'
-                      : '#CBD5E1',
-              color:
-                state.activeTab === 'HISTORY'
-                  ? '#FFFFFF'
-                  : isOutdoor
-                    ? '#000000'
-                    : theme.textPrimary,
-              border: isOutdoor && state.activeTab !== 'HISTORY' ? '1px solid #000000' : 'none',
-            }}
-          >
-            {state.totalHistoryCount}
-          </span>
-        </button>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: '14px',
+                fontWeight: 700,
+                color: theme.textPrimary,
+                lineHeight: 1.2,
+                textWrap: 'wrap',
+              }}
+            >
+              Riwayat Selesai
+            </h2>
+            <span
+              style={{
+                fontFamily: theme.typography.fontFamily.mono,
+                fontSize: '11px',
+                fontWeight: 700,
+                padding: '2px 6px',
+                borderRadius: '4px',
+                background: isOutdoor ? '#14532D' : isDark ? '#065F46' : '#15803D',
+                color: '#FFFFFF',
+                border: isOutdoor ? '2px solid #000000' : 'none',
+                flexShrink: 0,
+              }}
+            >
+              {historyCountLabel}
+            </span>
+          </div>
+        </div>
+      )}
 
-      {/* Filter Button + Search Input + Reset 'X' Button Bar */}
+      {/* Filter Button + Search Input + Conditional Reset 'X' Button Bar */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          marginBottom: isFilterOpen ? '8px' : '14px',
+          marginBottom: isFilterOpen ? '8px' : '12px',
         }}
       >
         {/* Left Filter Toggle Button */}
@@ -1537,7 +1528,7 @@ export function TicketListView(props: TicketListScreenProps) {
               : cardSurface,
             border: isOutdoor
               ? '2px solid #000000'
-              : `1px solid ${state.isFilterActive ? '#1B5CA2' : theme.border}`,
+              : `1px solid ${state.isFilterActive ? (isDark ? '#38BDF8' : '#1B5CA2') : controlBorderColor}`,
             borderRadius: '6px',
             color: state.isFilterActive
               ? isOutdoor
@@ -1609,48 +1600,43 @@ export function TicketListView(props: TicketListScreenProps) {
               fontSize: '13px',
               background: cardSurface,
               color: theme.textPrimary,
-              border: cardBorder,
+              border: controlBorder,
               borderRadius: '6px',
               boxSizing: 'border-box',
-              outline: 'none',
             }}
           />
         </div>
 
-        {/* Right 'X' Reset Button */}
-        <button
-          type="button"
-          className="fiberops-action-btn"
-          onClick={() => {
-            actions.resetAllFilters();
-            setIsFilterOpen(false);
-          }}
-          aria-label="Kembalikan filter dan pencarian ke semula"
-          title="Reset filter & pencarian ke semula"
-          style={{
-            width: '44px',
-            height: '44px',
-            minHeight: '44px',
-            padding: 0,
-            background: cardSurface,
-            border: cardBorder,
-            borderRadius: '6px',
-            color: state.isFilterActive
-              ? isOutdoor
-                ? '#991B1B'
-                : isDark
-                  ? '#FCA5A5'
-                  : '#B91C1C'
-              : theme.textMuted,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
-        >
-          <ClearIcon size={16} color="currentColor" />
-        </button>
+        {/* Right 'X' Reset Button (Visible only when a filter or search query is active) */}
+        {state.isFilterActive && (
+          <button
+            type="button"
+            className="fiberops-action-btn"
+            onClick={() => {
+              actions.resetAllFilters();
+              setIsFilterOpen(false);
+            }}
+            aria-label="Kembalikan filter dan pencarian ke semula"
+            title="Reset filter & pencarian ke semula"
+            style={{
+              width: '44px',
+              height: '44px',
+              minHeight: '44px',
+              padding: 0,
+              background: cardSurface,
+              border: controlBorder,
+              borderRadius: '6px',
+              color: isOutdoor ? '#991B1B' : isDark ? '#FCA5A5' : '#B91C1C',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            <ClearIcon size={16} color="currentColor" />
+          </button>
+        )}
       </div>
 
       {/* Expandable Filter Box Panel */}
@@ -1723,7 +1709,7 @@ export function TicketListView(props: TicketListScreenProps) {
                       borderRadius: '4px',
                       border: isOutdoor
                         ? `2px solid ${isSelected ? '#0047AB' : '#000000'}`
-                        : `1px solid ${isSelected ? '#1B5CA2' : theme.border}`,
+                        : `1px solid ${isSelected ? (isDark ? '#38BDF8' : '#1B5CA2') : controlBorderColor}`,
                       background: isSelected
                         ? primaryAccent
                         : isOutdoor
@@ -1761,7 +1747,7 @@ export function TicketListView(props: TicketListScreenProps) {
                     borderRadius: '4px',
                     border: isOutdoor
                       ? `2px solid ${state.filterOdp === 'ALL' ? '#0047AB' : '#000000'}`
-                      : `1px solid ${state.filterOdp === 'ALL' ? '#1B5CA2' : theme.border}`,
+                      : `1px solid ${state.filterOdp === 'ALL' ? (isDark ? '#38BDF8' : '#1B5CA2') : controlBorderColor}`,
                     background: state.filterOdp === 'ALL' ? primaryAccent : isOutdoor ? '#FFFFFF' : isDark ? '#080E1A' : '#F1F5F9',
                     color: state.filterOdp === 'ALL' ? '#FFFFFF' : theme.textPrimary,
                     fontSize: '12px',
@@ -1785,7 +1771,7 @@ export function TicketListView(props: TicketListScreenProps) {
                         borderRadius: '4px',
                         border: isOutdoor
                           ? `2px solid ${isSelected ? '#0047AB' : '#000000'}`
-                          : `1px solid ${isSelected ? '#1B5CA2' : theme.border}`,
+                          : `1px solid ${isSelected ? (isDark ? '#38BDF8' : '#1B5CA2') : controlBorderColor}`,
                         background: isSelected ? primaryAccent : isOutdoor ? '#FFFFFF' : isDark ? '#080E1A' : '#F1F5F9',
                         color: isSelected ? '#FFFFFF' : theme.textPrimary,
                         fontSize: '12px',
@@ -1819,7 +1805,7 @@ export function TicketListView(props: TicketListScreenProps) {
                     borderRadius: '4px',
                     border: isOutdoor
                       ? `2px solid ${state.filterCustomer === 'ALL' ? '#0047AB' : '#000000'}`
-                      : `1px solid ${state.filterCustomer === 'ALL' ? '#1B5CA2' : theme.border}`,
+                      : `1px solid ${state.filterCustomer === 'ALL' ? (isDark ? '#38BDF8' : '#1B5CA2') : controlBorderColor}`,
                     background: state.filterCustomer === 'ALL' ? primaryAccent : isOutdoor ? '#FFFFFF' : isDark ? '#080E1A' : '#F1F5F9',
                     color: state.filterCustomer === 'ALL' ? '#FFFFFF' : theme.textPrimary,
                     fontSize: '12px',
@@ -1839,15 +1825,20 @@ export function TicketListView(props: TicketListScreenProps) {
                       onClick={() => actions.setFilterCustomer(cust)}
                       style={{
                         minHeight: '44px',
+                        maxWidth: '100%',
                         padding: '6px 10px',
                         borderRadius: '4px',
                         border: isOutdoor
                           ? `2px solid ${isSelected ? '#0047AB' : '#000000'}`
-                          : `1px solid ${isSelected ? '#1B5CA2' : theme.border}`,
+                          : `1px solid ${isSelected ? (isDark ? '#38BDF8' : '#1B5CA2') : controlBorderColor}`,
                         background: isSelected ? primaryAccent : isOutdoor ? '#FFFFFF' : isDark ? '#080E1A' : '#F1F5F9',
                         color: isSelected ? '#FFFFFF' : theme.textPrimary,
                         fontSize: '12px',
                         fontWeight: isSelected ? 700 : 600,
+                        lineHeight: 1.3,
+                        textAlign: 'left',
+                        overflowWrap: 'anywhere',
+                        wordBreak: 'break-word',
                         cursor: 'pointer',
                       }}
                     >
@@ -1896,13 +1887,14 @@ export function TicketListView(props: TicketListScreenProps) {
       )}
 
       {/* Ticket List Cards Container */}
-      <div
-        role="tabpanel"
+      <section
         id="panel-tickets"
-        aria-labelledby={state.activeTab === 'ACTIVE' ? 'tab-active' : 'tab-history'}
+        aria-label={state.activeTab === 'ACTIVE' ? 'Daftar Tugas Aktif' : 'Daftar Riwayat Selesai'}
       >
       {state.activeTab === 'ACTIVE' ? (
-        state.isLoading && state.tickets.length === 0 ? (
+        <>
+        <h2 className="sr-only">Daftar Tugas Aktif</h2>
+        {state.isLoading && state.tickets.length === 0 ? (
           <div
             style={{
               padding: '28px 16px',
@@ -1960,7 +1952,7 @@ export function TicketListView(props: TicketListScreenProps) {
                     background: cardSurface,
                     border: cardBorder,
                     borderRadius: '8px',
-                    padding: '12px 14px',
+                    padding: '10px 12px',
                     boxSizing: 'border-box',
                   }}
                 >
@@ -1975,13 +1967,23 @@ export function TicketListView(props: TicketListScreenProps) {
                     }}
                   >
                     <h3
+                      title={ticket.customer.fullName}
                       style={{
-                        fontSize: '15px',
-                        fontWeight: 800,
+                        fontSize: '13px',
+                        fontWeight: 700,
                         color: theme.textPrimary,
                         margin: 0,
-                        lineHeight: 1.25,
+                        lineHeight: 1.3,
                         letterSpacing: '-0.01em',
+                        flex: 1,
+                        minWidth: 0,
+                        overflowWrap: 'anywhere',
+                        wordBreak: 'break-word',
+                        textWrap: 'wrap',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
                       }}
                     >
                       {ticket.customer.fullName}
@@ -1990,24 +1992,26 @@ export function TicketListView(props: TicketListScreenProps) {
                     <span
                       style={{
                         fontFamily: theme.typography.fontFamily.mono,
-                        fontSize: '12px',
+                        fontSize: '11px',
                         fontWeight: 700,
                         color: theme.textSecondary,
                         flexShrink: 0,
+                        whiteSpace: 'nowrap',
+                        paddingTop: '1px',
                       }}
                     >
                       #{ticket.ticketNumber}
                     </span>
                   </div>
 
-                  {/* 2. Dibawah Nama Pelanggan: Status Tiket + Jenis Tiket + Telemetri */}
+                  {/* 2. Dibawah Nama Pelanggan: Status Tiket + Jenis Tiket */}
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       flexWrap: 'wrap',
                       gap: '6px',
-                      marginBottom: '8px',
+                      marginBottom: '6px',
                     }}
                   >
                     {/* Status Badge */}
@@ -2038,53 +2042,19 @@ export function TicketListView(props: TicketListScreenProps) {
                     >
                       {isMaintenance ? 'Gangguan' : 'Pasang Baru'}
                     </span>
-
-                    {/* Telemetri Redaman (Optical Telemetry) */}
-                    {ticket.customer.currentAttenuation !== null &&
-                      ticket.customer.currentAttenuation !== undefined && (
-                        <div style={{ flexShrink: 0 }}>
-                          {(() => {
-                            const telemetry = formatOpticalTelemetryDbm(
-                              ticket.customer.currentAttenuation,
-                              themeMode,
-                            );
-                            return (
-                              <span
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '2px 6px',
-                                  background: telemetry.bg,
-                                  border: isOutdoor
-                                    ? `2px solid ${telemetry.border}`
-                                    : `1px solid ${telemetry.border}`,
-                                  borderRadius: '4px',
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  color: telemetry.color,
-                                  fontFamily: theme.typography.fontFamily.mono,
-                                }}
-                              >
-                                {telemetry.label}
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      )}
                   </div>
 
                   {/* NOC Rejection Notice if applicable */}
                   {ticket.rejectionReason && (
                     <div
                       style={{
-                        padding: '6px 10px',
+                        padding: '6px 8px',
                         background: isOutdoor ? '#FFFFFF' : isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
                         border: isOutdoor ? '2px solid #991B1B' : `1px solid ${isDark ? 'rgba(239, 68, 68, 0.3)' : '#FECACA'}`,
                         borderRadius: '4px',
                         color: isOutdoor ? '#991B1B' : isDark ? '#FCA5A5' : '#B91C1C',
                         fontSize: '11px',
-                        marginBottom: '8px',
+                        marginBottom: '6px',
                         lineHeight: 1.35,
                       }}
                     >
@@ -2092,75 +2062,21 @@ export function TicketListView(props: TicketListScreenProps) {
                     </div>
                   )}
 
-                  {/* 3. Secara Terstruktur: ODP, SIA, dan Alamat */}
+                  {/* 3. Ringkasan Infrastruktur Ringkas: ODP */}
                   <div
                     style={{
-                      fontSize: '12px',
+                      fontSize: '11.5px',
                       fontFamily: theme.typography.fontFamily.mono,
-                      marginBottom: '6px',
+                      marginBottom: '4px',
                       display: 'flex',
                       alignItems: 'center',
-                      flexWrap: 'wrap',
                       gap: '6px',
                     }}
                   >
                     <span style={{ color: theme.textSecondary }}>ODP:</span>
                     <span style={{ color: theme.textPrimary, fontWeight: 700 }}>
-                      {ticket.customer.splitterCode || 'ODP-PLB-034'}
+                      {ticket.customer.splitterCode || '-'}
                     </span>
-
-                    <span style={{ color: theme.textMuted }} aria-hidden="true">|</span>
-
-                    <span style={{ color: theme.textSecondary }}>SIA:</span>
-                    <span style={{ color: theme.textPrimary, fontWeight: 700 }}>
-                      {ticket.customer.siaNumber}
-                    </span>
-
-                    <button
-                      type="button"
-                      className="fiberops-action-btn"
-                      onClick={(e) => handleCopySia(e, ticket.customer.siaNumber)}
-                      title="Salin nomor SIA"
-                      aria-label={`Salin nomor SIA ${ticket.customer.siaNumber}`}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        minHeight: '44px',
-                        padding: '0 10px',
-                        background:
-                          copiedSia === ticket.customer.siaNumber
-                            ? isOutdoor
-                              ? '#14532D'
-                              : isDark
-                                ? '#065F46'
-                                : '#15803D'
-                            : isOutdoor
-                              ? '#FFFFFF'
-                              : isDark
-                                ? '#1E293B'
-                                : '#F1F5F9',
-                        color:
-                          copiedSia === ticket.customer.siaNumber ? '#FFFFFF' : theme.textPrimary,
-                        border: isOutdoor ? '2px solid #000000' : `1px solid ${theme.border}`,
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {copiedSia === ticket.customer.siaNumber ? (
-                        <>
-                          <CheckIcon size={11} color="#FFFFFF" />
-                          <span>Tersalin</span>
-                        </>
-                      ) : (
-                        <>
-                          <CopyIcon size={11} color="currentColor" />
-                          <span>Salin</span>
-                        </>
-                      )}
-                    </button>
                   </div>
 
                   {/* Alamat Lengkap & Rute Peta Terintegrasi */}
@@ -2174,15 +2090,21 @@ export function TicketListView(props: TicketListScreenProps) {
                       gap: '6px',
                       minHeight: '44px',
                       fontSize: '12px',
-                      color: theme.textSecondary,
-                      lineHeight: 1.4,
-                      marginBottom: ticket.complaintSummary ? '6px' : '10px',
-                      textDecoration: 'none',
+                      color: linkColor,
+                      lineHeight: 1.35,
+                      marginBottom: ticket.complaintSummary ? '6px' : '8px',
+                      textDecoration: 'underline',
+                      textDecorationColor: isOutdoor
+                        ? '#0047AB'
+                        : isDark
+                          ? 'rgba(96, 165, 250, 0.45)'
+                          : 'rgba(27, 92, 162, 0.35)',
+                      textUnderlineOffset: '3px',
                     }}
                     title="Buka navigasi Google Maps"
                   >
                     <MapPinIcon size={14} color={linkColor} style={{ flexShrink: 0 }} />
-                    <span>
+                    <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                       {ticket.locationPlace ? `${ticket.locationPlace} | ` : ''}
                       {ticket.serviceAddress || ticket.customer.address}
                     </span>
@@ -2191,20 +2113,30 @@ export function TicketListView(props: TicketListScreenProps) {
                   {/* Keluhan / Catatan jika tersedia */}
                   {ticket.complaintSummary && (
                     <div
+                      title={ticket.complaintSummary}
                       style={{
                         background: insetSurface,
                         border: cardBorder,
                         borderRadius: '4px',
-                        padding: '8px 10px',
-                        marginBottom: '10px',
+                        padding: '6px 8px',
+                        marginBottom: '8px',
                         fontSize: '11px',
-                        lineHeight: 1.4,
+                        lineHeight: 1.35,
                       }}
                     >
-                      <span style={{ fontWeight: 700, color: theme.textSecondary, marginRight: '4px' }}>
-                        Keluhan:
-                      </span>
-                      <span style={{ color: theme.textPrimary }}>{ticket.complaintSummary}</span>
+                      <div
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <span style={{ fontWeight: 700, color: theme.textSecondary, marginRight: '4px' }}>
+                          Keluhan:
+                        </span>
+                        <span style={{ color: theme.textPrimary }}>{ticket.complaintSummary}</span>
+                      </div>
                     </div>
                   )}
 
@@ -2230,7 +2162,7 @@ export function TicketListView(props: TicketListScreenProps) {
                           padding: 0,
                           background: isOutdoor ? '#FFFFFF' : isDark ? '#1E293B' : '#F1F5F9',
                           color: theme.textPrimary,
-                          border: isOutdoor ? '2px solid #000000' : `1px solid ${isDark ? theme.border : '#CBD5E1'}`,
+                          border: controlBorder,
                           borderRadius: '6px',
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -2255,7 +2187,7 @@ export function TicketListView(props: TicketListScreenProps) {
                           padding: 0,
                           background: isOutdoor ? '#F3F4F6' : isDark ? '#1E293B' : '#F1F5F9',
                           color: theme.textMuted,
-                          border: isOutdoor ? '2px solid #000000' : `1px solid ${isDark ? theme.border : '#CBD5E1'}`,
+                          border: controlBorder,
                           borderRadius: '6px',
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -2300,9 +2232,10 @@ export function TicketListView(props: TicketListScreenProps) {
               );
             })}
           </div>
-        )
+        )}
+        </>
       ) : (
-        /* Riwayat Selesai Tab */
+        /* Riwayat Selesai View */
         state.isLoading && state.historyTickets.length === 0 ? (
           <div
             style={{
@@ -2374,7 +2307,7 @@ export function TicketListView(props: TicketListScreenProps) {
                     background: cardSurface,
                     border: cardBorder,
                     borderRadius: '8px',
-                    padding: '12px 14px',
+                    padding: '10px 12px',
                     boxSizing: 'border-box',
                   }}
                 >
@@ -2389,13 +2322,23 @@ export function TicketListView(props: TicketListScreenProps) {
                     }}
                   >
                     <h3
+                      title={ticket.customer.fullName}
                       style={{
-                        fontSize: '15px',
-                        fontWeight: 800,
+                        fontSize: '13px',
+                        fontWeight: 700,
                         color: theme.textPrimary,
                         margin: 0,
-                        lineHeight: 1.25,
+                        lineHeight: 1.3,
                         letterSpacing: '-0.01em',
+                        flex: 1,
+                        minWidth: 0,
+                        overflowWrap: 'anywhere',
+                        wordBreak: 'break-word',
+                        textWrap: 'wrap',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
                       }}
                     >
                       {ticket.customer.fullName}
@@ -2404,24 +2347,26 @@ export function TicketListView(props: TicketListScreenProps) {
                     <span
                       style={{
                         fontFamily: theme.typography.fontFamily.mono,
-                        fontSize: '12px',
+                        fontSize: '11px',
                         fontWeight: 700,
                         color: theme.textSecondary,
                         flexShrink: 0,
+                        whiteSpace: 'nowrap',
+                        paddingTop: '1px',
                       }}
                     >
                       #{ticket.ticketNumber}
                     </span>
                   </div>
 
-                  {/* 2. Dibawah Nama: Badge SELESAI + Jenis Tiket + Telemetri Redaman */}
+                  {/* 2. Dibawah Nama: Badge SELESAI + Jenis Tiket */}
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       flexWrap: 'wrap',
                       gap: '6px',
-                      marginBottom: '8px',
+                      marginBottom: '6px',
                     }}
                   >
                     {/* Status Badge SELESAI */}
@@ -2454,40 +2399,6 @@ export function TicketListView(props: TicketListScreenProps) {
                     >
                       {isMaintenance ? 'Gangguan' : 'Pasang Baru'}
                     </span>
-
-                    {/* Telemetri Redaman Akhir */}
-                    {ticket.customer.currentAttenuation !== null &&
-                      ticket.customer.currentAttenuation !== undefined && (
-                        <div style={{ flexShrink: 0 }}>
-                          {(() => {
-                            const telemetry = formatOpticalTelemetryDbm(
-                              ticket.customer.currentAttenuation,
-                              themeMode,
-                            );
-                            return (
-                              <span
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '2px 6px',
-                                  background: telemetry.bg,
-                                  border: isOutdoor
-                                    ? `2px solid ${telemetry.border}`
-                                    : `1px solid ${telemetry.border}`,
-                                  borderRadius: '4px',
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  color: telemetry.color,
-                                  fontFamily: theme.typography.fontFamily.mono,
-                                }}
-                              >
-                                {telemetry.label}
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      )}
                   </div>
 
                   {/* Tanggal & Jam Penyelesaian WIB + Persetujuan Admin */}
@@ -2497,7 +2408,7 @@ export function TicketListView(props: TicketListScreenProps) {
                       flexWrap: 'wrap',
                       alignItems: 'center',
                       gap: '8px',
-                      marginBottom: '8px',
+                      marginBottom: '6px',
                       fontSize: '11px',
                       color: theme.textSecondary,
                     }}
@@ -2524,12 +2435,12 @@ export function TicketListView(props: TicketListScreenProps) {
                     )}
                   </div>
 
-                  {/* ODP, Port, SIA */}
+                  {/* ODP & Port Ringkas (SIA & dBm lengkap tersedia di Detail Riwayat) */}
                   <div
                     style={{
-                      fontSize: '12px',
+                      fontSize: '11.5px',
                       fontFamily: theme.typography.fontFamily.mono,
-                      marginBottom: '6px',
+                      marginBottom: '4px',
                       display: 'flex',
                       alignItems: 'center',
                       flexWrap: 'wrap',
@@ -2551,59 +2462,6 @@ export function TicketListView(props: TicketListScreenProps) {
                         </span>
                       </>
                     )}
-
-                    <span style={{ color: theme.textMuted }} aria-hidden="true">|</span>
-
-                    <span style={{ color: theme.textSecondary }}>SIA:</span>
-                    <span style={{ color: theme.textPrimary, fontWeight: 700 }}>
-                      {ticket.customer.siaNumber}
-                    </span>
-
-                    <button
-                      type="button"
-                      className="fiberops-action-btn"
-                      onClick={(e) => handleCopySia(e, ticket.customer.siaNumber)}
-                      title="Salin nomor SIA"
-                      aria-label={`Salin nomor SIA ${ticket.customer.siaNumber}`}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        minHeight: '44px',
-                        padding: '0 10px',
-                        background:
-                          copiedSia === ticket.customer.siaNumber
-                            ? isOutdoor
-                              ? '#14532D'
-                              : isDark
-                                ? '#065F46'
-                                : '#15803D'
-                            : isOutdoor
-                              ? '#FFFFFF'
-                              : isDark
-                                ? '#1E293B'
-                                : '#F1F5F9',
-                        color:
-                          copiedSia === ticket.customer.siaNumber ? '#FFFFFF' : theme.textPrimary,
-                        border: isOutdoor ? '2px solid #000000' : `1px solid ${theme.border}`,
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {copiedSia === ticket.customer.siaNumber ? (
-                        <>
-                          <CheckIcon size={11} color="#FFFFFF" />
-                          <span>Tersalin</span>
-                        </>
-                      ) : (
-                        <>
-                          <CopyIcon size={11} color="currentColor" />
-                          <span>Salin</span>
-                        </>
-                      )}
-                    </button>
                   </div>
 
                   {/* Alamat Lengkap & Maps */}
@@ -2617,15 +2475,21 @@ export function TicketListView(props: TicketListScreenProps) {
                       gap: '6px',
                       minHeight: '44px',
                       fontSize: '12px',
-                      color: theme.textSecondary,
-                      lineHeight: 1.4,
-                      marginBottom: '10px',
-                      textDecoration: 'none',
+                      color: linkColor,
+                      lineHeight: 1.35,
+                      marginBottom: '8px',
+                      textDecoration: 'underline',
+                      textDecorationColor: isOutdoor
+                        ? '#0047AB'
+                        : isDark
+                          ? 'rgba(96, 165, 250, 0.45)'
+                          : 'rgba(27, 92, 162, 0.35)',
+                      textUnderlineOffset: '3px',
                     }}
                     title="Buka navigasi Google Maps"
                   >
                     <MapPinIcon size={14} color={linkColor} style={{ flexShrink: 0 }} />
-                    <span>
+                    <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                       {ticket.locationPlace ? `${ticket.locationPlace} | ` : ''}
                       {ticket.serviceAddress || ticket.customer.address}
                     </span>
@@ -2652,7 +2516,7 @@ export function TicketListView(props: TicketListScreenProps) {
                           padding: 0,
                           background: isOutdoor ? '#FFFFFF' : isDark ? '#1E293B' : '#F1F5F9',
                           color: theme.textPrimary,
-                          border: isOutdoor ? '2px solid #000000' : `1px solid ${isDark ? theme.border : '#CBD5E1'}`,
+                          border: controlBorder,
                           borderRadius: '6px',
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -2677,7 +2541,7 @@ export function TicketListView(props: TicketListScreenProps) {
                         padding: '0 16px',
                         background: isOutdoor ? '#FFFFFF' : isDark ? '#1E293B' : '#F1F5F9',
                         color: theme.textPrimary,
-                        border: isOutdoor ? '2px solid #000000' : `1px solid ${isDark ? theme.border : '#CBD5E1'}`,
+                        border: controlBorder,
                         borderRadius: '6px',
                         fontSize: '12px',
                         fontWeight: 700,
@@ -2697,7 +2561,76 @@ export function TicketListView(props: TicketListScreenProps) {
           </div>
         )
       )}
-      </div>
+      </section>
+
+      {/* Floating History Tab (Bottom-Right Compact 48x48 Square Icon Button + Count Badge) */}
+      {state.activeTab === 'ACTIVE' && !selectedHistoryTicket && !isFilterOpen && (
+        <button
+          ref={floatingHistoryBtnRef}
+          type="button"
+          className="fiberops-action-btn fiberops-fab"
+          data-testid="floating-history-tab"
+          onClick={() => switchViewMode('HISTORY')}
+          aria-label={`Buka Riwayat Selesai (${historyCountLabel} tugas)`}
+          title={`Riwayat Selesai (${historyCountLabel} tugas)`}
+          style={{
+            position: 'fixed',
+            bottom: 'var(--mobile-fab-bottom, calc(16px + env(safe-area-inset-bottom, 0px)))',
+            right: 'var(--mobile-fab-right, 16px)',
+            zIndex: 45,
+            width: '48px',
+            height: '48px',
+            minWidth: '48px',
+            minHeight: '48px',
+            padding: 0,
+            borderRadius: '8px',
+            background: isOutdoor ? '#0047AB' : isDark ? '#1B5CA2' : '#0E5B92',
+            color: '#FFFFFF',
+            border: isOutdoor
+              ? '2px solid #000000'
+              : isDark
+                ? '1px solid #38BDF8'
+                : '1px solid #0B4671',
+            boxShadow: isOutdoor
+              ? 'none'
+              : isDark
+                ? '0 8px 20px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35)'
+                : '0 6px 16px rgba(14, 91, 146, 0.28), 0 2px 6px rgba(15, 23, 42, 0.14)',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxSizing: 'border-box',
+          }}
+        >
+          <HistoryIcon size={20} color="#FFFFFF" />
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: '-6px',
+              right: '-6px',
+              fontFamily: theme.typography.fontFamily.mono,
+              fontSize: '10px',
+              fontWeight: 800,
+              lineHeight: 1.2,
+              padding: '2px 5px',
+              borderRadius: '4px',
+              background: isOutdoor ? '#000000' : isDark ? '#38BDF8' : '#FFFFFF',
+              color: isOutdoor ? '#FFFFFF' : isDark ? '#080E1A' : '#0E5B92',
+              border: isOutdoor
+                ? '2px solid #FFFFFF'
+                : isDark
+                  ? '1px solid #080E1A'
+                  : '1px solid #0E5B92',
+              boxSizing: 'border-box',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {historyCountLabel}
+          </span>
+        </button>
+      )}
 
       {/* Read-Only History Detail Modal */}
       {selectedHistoryTicket && (
@@ -2712,10 +2645,12 @@ export function TicketListView(props: TicketListScreenProps) {
             right: 0,
             bottom: 0,
             background: 'rgba(0, 0, 0, 0.72)',
+            borderRadius: 'var(--mobile-overlay-radius, 0px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '16px',
+            padding: '16px 20px',
+            boxSizing: 'border-box',
             zIndex: 100,
           }}
           onClick={closeHistoryDetailModal}
@@ -2728,7 +2663,7 @@ export function TicketListView(props: TicketListScreenProps) {
               borderRadius: '8px',
               width: '100%',
               maxWidth: '420px',
-              maxHeight: '90vh',
+              maxHeight: '84%',
               display: 'flex',
               flexDirection: 'column',
               boxShadow: isDark
@@ -2780,7 +2715,7 @@ export function TicketListView(props: TicketListScreenProps) {
                 aria-label="Tutup detail riwayat"
                 style={{
                   background: isOutdoor ? '#FFFFFF' : isDark ? '#1E293B' : '#F1F5F9',
-                  border: cardBorder,
+                  border: controlBorder,
                   borderRadius: '6px',
                   width: '44px',
                   height: '44px',
@@ -2924,8 +2859,8 @@ export function TicketListView(props: TicketListScreenProps) {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                    <span style={{ color: theme.textSecondary }}>Admin Pemberi Tugas:</span>
-                    <strong style={{ color: theme.textPrimary, textAlign: 'right' }}>
+                    <span style={{ color: theme.textSecondary, flexShrink: 0 }}>Admin Pemberi Tugas:</span>
+                    <strong style={{ color: theme.textPrimary, textAlign: 'right', minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                       {selectedHistoryTicket.createdByAdmin
                         ? `${selectedHistoryTicket.createdByAdmin.fullName} (${selectedHistoryTicket.createdByAdmin.username})`
                         : '-'}
@@ -2933,8 +2868,8 @@ export function TicketListView(props: TicketListScreenProps) {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                    <span style={{ color: theme.textSecondary }}>Teknisi Pelaksana:</span>
-                    <strong style={{ color: theme.textPrimary, textAlign: 'right' }}>
+                    <span style={{ color: theme.textSecondary, flexShrink: 0 }}>Teknisi Pelaksana:</span>
+                    <strong style={{ color: theme.textPrimary, textAlign: 'right', minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                       {selectedHistoryTicket.assignedTech?.fullName ||
                         props.technicianName ||
                         '-'}
@@ -2943,16 +2878,16 @@ export function TicketListView(props: TicketListScreenProps) {
 
                   {(selectedHistoryTicket.assignedTech?.vendorCompany || selectedHistoryTicket.vendorName) && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                      <span style={{ color: theme.textSecondary }}>Mitra Vendor:</span>
-                      <span style={{ color: theme.textPrimary, textAlign: 'right', fontWeight: 600 }}>
+                      <span style={{ color: theme.textSecondary, flexShrink: 0 }}>Mitra Vendor:</span>
+                      <span style={{ color: theme.textPrimary, textAlign: 'right', fontWeight: 600, minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                         {selectedHistoryTicket.assignedTech?.vendorCompany || selectedHistoryTicket.vendorName}
                       </span>
                     </div>
                   )}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                    <span style={{ color: theme.textSecondary }}>Disetujui Oleh:</span>
-                    <strong style={{ color: theme.textPrimary, textAlign: 'right', fontFamily: theme.typography.fontFamily.mono }}>
+                    <span style={{ color: theme.textSecondary, flexShrink: 0 }}>Disetujui Oleh:</span>
+                    <strong style={{ color: theme.textPrimary, textAlign: 'right', fontFamily: theme.typography.fontFamily.mono, minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                       {selectedHistoryTicket.historyMeta?.approvedBy || '-'}
                     </strong>
                   </div>
@@ -2996,20 +2931,30 @@ export function TicketListView(props: TicketListScreenProps) {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                    <span style={{ color: theme.textSecondary }}>Nama:</span>
-                    <strong style={{ color: theme.textPrimary, textAlign: 'right' }}>
+                    <span style={{ color: theme.textSecondary, flexShrink: 0 }}>Nama:</span>
+                    <strong
+                      style={{
+                        color: theme.textPrimary,
+                        textAlign: 'right',
+                        minWidth: 0,
+                        overflowWrap: 'anywhere',
+                        wordBreak: 'break-word',
+                      }}
+                    >
                       {selectedHistoryTicket.customer.fullName}
                     </strong>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: theme.textSecondary }}>SIA:</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: theme.textSecondary, flexShrink: 0 }}>SIA:</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
                       <span
                         style={{
                           fontFamily: theme.typography.fontFamily.mono,
                           fontWeight: 700,
                           color: theme.textPrimary,
+                          minWidth: 0,
+                          overflowWrap: 'anywhere',
                         }}
                       >
                         {selectedHistoryTicket.customer.siaNumber}
@@ -3036,11 +2981,12 @@ export function TicketListView(props: TicketListScreenProps) {
                             copiedSia === selectedHistoryTicket.customer.siaNumber
                               ? '#FFFFFF'
                               : theme.textPrimary,
-                          border: isOutdoor ? '2px solid #000000' : `1px solid ${theme.border}`,
+                          border: controlBorder,
                           borderRadius: '4px',
                           fontSize: '11px',
                           fontWeight: 700,
                           cursor: 'pointer',
+                          flexShrink: 0,
                         }}
                       >
                         {copiedSia === selectedHistoryTicket.customer.siaNumber ? (
@@ -3080,23 +3026,23 @@ export function TicketListView(props: TicketListScreenProps) {
 
                   {selectedHistoryTicket.locationPlace && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                      <span style={{ color: theme.textSecondary }}>Lokasi / Patokan:</span>
-                      <span style={{ color: theme.textPrimary, textAlign: 'right', maxWidth: '65%', fontWeight: 600 }}>
+                      <span style={{ color: theme.textSecondary, flexShrink: 0 }}>Lokasi / Patokan:</span>
+                      <span style={{ color: theme.textPrimary, textAlign: 'right', maxWidth: '65%', fontWeight: 600, minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                         {selectedHistoryTicket.locationPlace}
                       </span>
                     </div>
                   )}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                    <span style={{ color: theme.textSecondary }}>Alamat:</span>
-                    <span style={{ color: theme.textPrimary, textAlign: 'right', maxWidth: '65%' }}>
+                    <span style={{ color: theme.textSecondary, flexShrink: 0 }}>Alamat:</span>
+                    <span style={{ color: theme.textPrimary, textAlign: 'right', maxWidth: '65%', minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                       {selectedHistoryTicket.serviceAddress || selectedHistoryTicket.customer.address}
                     </span>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: theme.textSecondary }}>Cluster:</span>
-                    <span style={{ color: theme.textPrimary, textAlign: 'right' }}>
+                    <span style={{ color: theme.textSecondary, flexShrink: 0 }}>Cluster:</span>
+                    <span style={{ color: theme.textPrimary, textAlign: 'right', minWidth: 0, overflowWrap: 'anywhere' }}>
                       {selectedHistoryTicket.customer.clusterName} ({selectedHistoryTicket.customer.clusterCode})
                     </span>
                   </div>
@@ -3377,7 +3323,7 @@ export function TicketListView(props: TicketListScreenProps) {
                             padding: '6px 12px',
                             background: cardSurface,
                             color: theme.textPrimary,
-                            border: cardBorder,
+                            border: controlBorder,
                             borderRadius: '6px',
                             fontSize: '12px',
                             fontWeight: 700,
@@ -3411,7 +3357,7 @@ export function TicketListView(props: TicketListScreenProps) {
                   minHeight: '44px',
                   background: isOutdoor ? '#FFFFFF' : isDark ? '#1E293B' : '#E2E8F0',
                   color: theme.textPrimary,
-                  border: isOutdoor ? '2px solid #000000' : `1px solid ${theme.border}`,
+                  border: controlBorder,
                   borderRadius: '6px',
                   fontSize: '13px',
                   fontWeight: 700,

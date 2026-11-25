@@ -154,8 +154,8 @@ export const ENTERPRISE_GEOMETRY_TOKENS = {
 
 export const TYPOGRAPHY_TOKENS = {
   fontFamily: {
-    sans: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    mono: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+    sans: 'var(--font-sans, "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif)',
+    mono: 'var(--font-mono, "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace)',
   },
   fontSize: {
     xs: 12,

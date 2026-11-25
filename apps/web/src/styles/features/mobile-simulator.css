@@ -393,6 +393,9 @@
    Mobile Shell Viewport (Required by feat-23)
    -------------------------------------------------------------------------- */
 .mobile-shell-viewport {
+  --mobile-fab-bottom: 44px;
+  --mobile-fab-right: 28px;
+  --mobile-overlay-radius: 36px;
   width: 100%;
   flex: 1;
   display: flex;
@@ -449,6 +452,10 @@
 .mobile-shell-viewport[data-mobile-theme='dark'] ~ .mobile-sim-homebar .mobile-sim-homebar-pill,
 .mobile-device-bezel[data-theme='dark'] .mobile-sim-homebar-pill {
   background: rgba(248, 250, 252, 0.4);
+}
+
+.mobile-device-bezel[data-outdoor='true'] .mobile-sim-homebar-pill {
+  background: #000000 !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -677,11 +684,15 @@
     border-radius: 0 !important;
     box-shadow: none !important;
     background: transparent !important;
+    overflow: visible !important;
     display: flex !important;
     flex-direction: column !important;
   }
 
   .mobile-shell-viewport {
+    --mobile-fab-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    --mobile-fab-right: 16px;
+    --mobile-overlay-radius: 0px;
     max-width: 100% !important;
     width: 100% !important;
     min-height: 100vh !important;

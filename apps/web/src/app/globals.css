@@ -361,7 +361,8 @@ summary:focus-visible,
   }
 
   .animate-spin,
-  .icon-spin {
+  .icon-spin,
+  .animate-spin-icon {
     animation-duration: 1.8s !important;
     animation-iteration-count: infinite !important;
   }
@@ -960,7 +961,7 @@ html.dark textarea:not(.mobile-shell-viewport *):focus,
 .mobile-shell-viewport:not([data-mobile-theme='dark']):not([data-outdoor='true']) .fiberops-input {
   background-color: #ffffff !important;
   color: #0f172a !important;
-  border-color: #cbd5e1 !important;
+  border-color: #7c8ba1 !important;
 }
 
 .mobile-shell-viewport:not([data-mobile-theme='dark']):not([data-outdoor='true']) input:focus,
@@ -991,6 +992,15 @@ html.dark textarea:not(.mobile-shell-viewport *):focus,
   box-shadow: 0 0 0 2px rgba(0, 71, 171, 0.28) !important;
 }
 
+.mobile-shell-viewport[data-outdoor='true'] button:focus-visible,
+.mobile-shell-viewport[data-outdoor='true'] a:focus-visible,
+.mobile-shell-viewport[data-outdoor='true'] input:focus-visible,
+.mobile-shell-viewport[data-outdoor='true'] select:focus-visible,
+.mobile-shell-viewport[data-outdoor='true'] textarea:focus-visible {
+  outline: 2px solid #0047ab !important;
+  outline-offset: 2px !important;
+}
+
 .mobile-shell-viewport:not([data-mobile-theme='dark']) input:-webkit-autofill,
 .mobile-shell-viewport:not([data-mobile-theme='dark']) input:-webkit-autofill:hover,
 .mobile-shell-viewport:not([data-mobile-theme='dark']) input:-webkit-autofill:focus,
@@ -1000,31 +1010,31 @@ html.dark textarea:not(.mobile-shell-viewport *):focus,
   caret-color: #0f172a !important;
 }
 
-.mobile-shell-viewport[data-mobile-theme='dark'] {
+.mobile-shell-viewport[data-mobile-theme='dark']:not([data-outdoor='true']) {
   color-scheme: dark;
 }
 
-.mobile-shell-viewport[data-mobile-theme='dark'] input,
-.mobile-shell-viewport[data-mobile-theme='dark'] select,
-.mobile-shell-viewport[data-mobile-theme='dark'] textarea,
-.mobile-shell-viewport[data-mobile-theme='dark'] .fiberops-input {
+.mobile-shell-viewport[data-mobile-theme='dark']:not([data-outdoor='true']) input,
+.mobile-shell-viewport[data-mobile-theme='dark']:not([data-outdoor='true']) select,
+.mobile-shell-viewport[data-mobile-theme='dark']:not([data-outdoor='true']) textarea,
+.mobile-shell-viewport[data-mobile-theme='dark']:not([data-outdoor='true']) .fiberops-input {
   background-color: #10192d !important;
   color: #f8fafc !important;
-  border-color: #334155 !important;
+  border-color: #5b6b82 !important;
 }
 
-.mobile-shell-viewport[data-mobile-theme='dark'] input:focus,
-.mobile-shell-viewport[data-mobile-theme='dark'] select:focus,
-.mobile-shell-viewport[data-mobile-theme='dark'] textarea:focus,
-.mobile-shell-viewport[data-mobile-theme='dark'] .fiberops-input:focus {
+.mobile-shell-viewport[data-mobile-theme='dark']:not([data-outdoor='true']) input:focus,
+.mobile-shell-viewport[data-mobile-theme='dark']:not([data-outdoor='true']) select:focus,
+.mobile-shell-viewport[data-mobile-theme='dark']:not([data-outdoor='true']) textarea:focus,
+.mobile-shell-viewport[data-mobile-theme='dark']:not([data-outdoor='true']) .fiberops-input:focus {
   border-color: #38bdf8 !important;
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.22) !important;
 }
 
-.mobile-shell-viewport[data-mobile-theme='dark'] input:-webkit-autofill,
-.mobile-shell-viewport[data-mobile-theme='dark'] input:-webkit-autofill:hover,
-.mobile-shell-viewport[data-mobile-theme='dark'] input:-webkit-autofill:focus,
-.mobile-shell-viewport[data-mobile-theme='dark'] input:-webkit-autofill:active {
+.mobile-shell-viewport[data-mobile-theme='dark']:not([data-outdoor='true']) input:-webkit-autofill,
+.mobile-shell-viewport[data-mobile-theme='dark']:not([data-outdoor='true']) input:-webkit-autofill:hover,
+.mobile-shell-viewport[data-mobile-theme='dark']:not([data-outdoor='true']) input:-webkit-autofill:focus,
+.mobile-shell-viewport[data-mobile-theme='dark']:not([data-outdoor='true']) input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 1000px #10192d inset !important;
   -webkit-text-fill-color: #f8fafc !important;
   caret-color: #f8fafc !important;

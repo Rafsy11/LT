@@ -131,7 +131,7 @@ describe('Tier 1: Feature 16 - Field Ticket List Screen (apps/mobile/src/screens
     }
   });
 
-  it('implements completed history task features, audit details (without geofence), OPM presign, and 50-item cap without pagination', () => {
+  it('implements Floating History Tab, streamlined active/history cards, audit details (without geofence), OPM presign, and 50-item cap without pagination', () => {
     assert.match(fileContent, /STORAGE_KEY_CACHED_HISTORY_TICKETS/);
     assert.match(fileContent, /@fiberops_cached_history_tickets_v1/);
     assert.match(fileContent, /activeTab/);
@@ -142,14 +142,100 @@ describe('Tier 1: Feature 16 - Field Ticket List Screen (apps/mobile/src/screens
     assert.match(fileContent, /setSelectedHistoryTicket\(null\)/);
     assert.match(fileContent, /selectedHistoryTicket/);
     assert.match(fileContent, /e\.key === 'Escape'/);
-    assert.match(fileContent, /role="tabpanel"/);
-    assert.match(fileContent, /ArrowRight/);
-    assert.match(fileContent, /ArrowLeft/);
+    assert.match(fileContent, /function HistoryIcon/);
+    assert.match(fileContent, /function ArrowLeftIcon/);
+    assert.match(fileContent, /data-testid="floating-history-tab"/);
+    assert.match(fileContent, /--mobile-fab-bottom/);
+    assert.match(fileContent, /--mobile-fab-right/);
+    assert.match(fileContent, /switchViewMode/);
+    assert.match(fileContent, /<h1 className="sr-only">/);
+    assert.match(fileContent, /overflowWrap:\s*'anywhere'/);
+    assert.match(fileContent, /textWrap:\s*'wrap'/);
     assert.match(fileContent, /\/api\/v1\/tech\/media\/presign/);
     assert.match(fileContent, /historyMeta\?\.technicianNotes/);
     assert.match(fileContent, /createdByAdmin/);
     assert.match(fileContent, /selectedHistoryTicket\.locationPlace/);
     assert.match(fileContent, /extends MobileTicketItemDto/);
+
+    // Top segmented tab must be completely replaced by the bottom-right Floating History Tab
+    assert.strictEqual(
+      fileContent.includes('role="tablist"'),
+      false,
+      'Top segmented role="tablist" must be removed from TicketListScreen',
+    );
+    assert.strictEqual(
+      fileContent.includes('id="tab-active"') || fileContent.includes('id="tab-history"'),
+      false,
+      'Legacy top tab ids (#tab-active, #tab-history) must be removed',
+    );
+    assert.strictEqual(
+      fileContent.includes('ODP-PLB-034'),
+      false,
+      'TicketListScreen must not fall back to fake ODP code ODP-PLB-034',
+    );
+
+    // Streamlined list cards (both Active and History) must omit SIA copy row and dBm telemetry badges,
+    // while keeping both intact inside the Read-Only History Detail Modal.
+    const listSectionMatch = fileContent.match(
+      /<section[\s\S]*?id="panel-tickets"[\s\S]*?<\/section>/,
+    );
+    assert.ok(listSectionMatch, 'Ticket list section (#panel-tickets) must exist');
+    const listSectionSrc = listSectionMatch[0];
+    assert.strictEqual(
+      listSectionSrc.includes('formatOpticalTelemetryDbm'),
+      false,
+      'Active and history list cards must not render dBm telemetry badges',
+    );
+    assert.strictEqual(
+      listSectionSrc.includes('handleCopySia') || listSectionSrc.includes('>SIA:<'),
+      false,
+      'Active and history list cards must not render SIA number or Salin button',
+    );
+
+    const modalMarkerIdx = fileContent.indexOf('Read-Only History Detail Modal');
+    assert.ok(modalMarkerIdx > -1, 'Read-Only History Detail Modal block must exist');
+    const modalSrc = fileContent.slice(modalMarkerIdx);
+    assert.match(modalSrc, /formatOpticalTelemetryDbm/, 'History Detail Modal must retain dBm telemetry');
+    assert.match(modalSrc, /handleCopySia/, 'History Detail Modal must retain SIA copy control');
+
+    assert.match(fileContent, /flex:\s*'1 0 auto'/);
+    assert.match(fileContent, /\.fiberops-input::placeholder/);
+    assert.strictEqual(
+      fileContent.includes("outline: 'none'"),
+      false,
+      'Search input must not inline outline: none which suppresses :focus-visible rings',
+    );
+    assert.strictEqual(
+      fileContent.includes("maxHeight: '90vh'"),
+      false,
+      'History Detail Modal must use container-relative percentage maxHeight instead of viewport 90vh',
+    );
+    assert.match(fileContent, /maxHeight:\s*'84%'/);
+
+    const appRootPath = path.resolve(process.cwd(), '../../apps/mobile/App.tsx');
+    const appRootContent = fs.readFileSync(appRootPath, 'utf-8');
+    assert.match(appRootContent, /flex:\s*'1 0 auto'/);
+
+    const simCssPath = path.resolve(
+      process.cwd(),
+      'src/styles/features/mobile-simulator.css',
+    );
+    const simCssContent = fs.readFileSync(simCssPath, 'utf-8');
+    assert.match(simCssContent, /--mobile-fab-bottom:\s*44px;/);
+    assert.match(simCssContent, /--mobile-fab-right:\s*28px;/);
+    assert.match(simCssContent, /--mobile-fab-bottom:\s*calc\(16px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+
+    const globalsCssPath = path.resolve(process.cwd(), 'src/app/globals.css');
+    const globalsCssContent = fs.readFileSync(globalsCssPath, 'utf-8');
+    assert.match(globalsCssContent, /\.animate-spin-icon/);
+    assert.match(globalsCssContent, /border-color:\s*#7c8ba1\s*!important;/i);
+    assert.match(globalsCssContent, /border-color:\s*#5b6b82\s*!important;/i);
+    assert.match(
+      globalsCssContent,
+      /\.mobile-shell-viewport\[data-mobile-theme='dark'\]:not\(\[data-outdoor='true'\]\)\s+\.fiberops-input/,
+      'Dark mobile input rules must exclude [data-outdoor="true"] so Outdoor Sunlight stays high-contrast',
+    );
+
     const presignRoutePath = path.resolve(
       process.cwd(),
       'src/app/api/v1/tech/media/presign/route.ts',

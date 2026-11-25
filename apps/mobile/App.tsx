@@ -804,7 +804,7 @@ export default function App({
       style={{
         width: '100%',
         minHeight: '100%',
-        flex: 1,
+        flex: '1 0 auto',
         display: 'flex',
         flexDirection: 'column',
         overflowX: 'clip',

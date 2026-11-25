@@ -350,4 +350,36 @@ describe('Tier 2: Boundary & Corner - Antislop & UI Constraints', () => {
       );
     }
   });
+
+  it('20. verifies WCAG 1.4.11 control borders, Floating History Tab contrast, and DESIGN.md font tokens', () => {
+    const lightBorderOnWhite = calculateContrastRatio('#7C8BA1', '#FFFFFF');
+    const lightBorderOnSurface = calculateContrastRatio('#7C8BA1', '#F8FAFC');
+    const darkBorderOnBg = calculateContrastRatio('#5B6B82', '#080E1A');
+    const darkBorderOnSurface = calculateContrastRatio('#5B6B82', '#10192D');
+
+    assert.ok(lightBorderOnWhite >= 3.0, `Light control border on #FFFFFF (${lightBorderOnWhite.toFixed(2)}:1) must be >= 3.0:1`);
+    assert.ok(lightBorderOnSurface >= 3.0, `Light control border on #F8FAFC (${lightBorderOnSurface.toFixed(2)}:1) must be >= 3.0:1`);
+    assert.ok(darkBorderOnBg >= 3.0, `Dark control border on #080E1A (${darkBorderOnBg.toFixed(2)}:1) must be >= 3.0:1`);
+    assert.ok(darkBorderOnSurface >= 3.0, `Dark control border on #10192D (${darkBorderOnSurface.toFixed(2)}:1) must be >= 3.0:1`);
+
+    const lightFabContrast = calculateContrastRatio('#FFFFFF', '#0E5B92');
+    const darkFabContrast = calculateContrastRatio('#FFFFFF', '#1B5CA2');
+    const darkFabBadgeContrast = calculateContrastRatio('#080E1A', '#38BDF8');
+    const outdoorFabContrast = calculateContrastRatio('#FFFFFF', '#0047AB');
+
+    assert.ok(lightFabContrast >= 4.5, `Light FAB contrast (${lightFabContrast.toFixed(2)}:1) must be >= 4.5:1`);
+    assert.ok(darkFabContrast >= 4.5, `Dark FAB contrast (${darkFabContrast.toFixed(2)}:1) must be >= 4.5:1`);
+    assert.ok(darkFabBadgeContrast >= 7.0, `Dark FAB badge contrast (${darkFabBadgeContrast.toFixed(2)}:1) must be >= 7.0:1`);
+    assert.ok(outdoorFabContrast >= 7.0, `Outdoor FAB contrast (${outdoorFabContrast.toFixed(2)}:1) must be >= 7.0:1`);
+
+    const lightPlaceholderContrast = calculateContrastRatio('#64748B', '#FFFFFF');
+    const darkPlaceholderContrast = calculateContrastRatio('#94A3B8', '#10192D');
+    const outdoorPlaceholderContrast = calculateContrastRatio('#1F2937', '#FFFFFF');
+    assert.ok(lightPlaceholderContrast >= 4.5, `Light search placeholder contrast (${lightPlaceholderContrast.toFixed(2)}:1) must be >= 4.5:1`);
+    assert.ok(darkPlaceholderContrast >= 4.5, `Dark search placeholder contrast (${darkPlaceholderContrast.toFixed(2)}:1) must be >= 4.5:1`);
+    assert.ok(outdoorPlaceholderContrast >= 7.0, `Outdoor search placeholder contrast (${outdoorPlaceholderContrast.toFixed(2)}:1) must be >= 7.0:1`);
+
+    assert.match(tokens.typography.fontFamily.sans, /var\(--font-sans/);
+    assert.match(tokens.typography.fontFamily.mono, /var\(--font-mono/);
+  });
 });
