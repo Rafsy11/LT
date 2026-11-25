@@ -67,7 +67,7 @@ export const DARK_THEME: ThemePalette = {
   surfaceSecondary: '#162035',
   surfaceElevated: '#15223C',
   surfaceInset: '#0A1224',
-  textMuted: '#64748B',
+  textMuted: '#94A3B8',
   borderLight: 'rgba(255, 255, 255, 0.12)',
   borderHighlight: 'rgba(14, 165, 233, 0.35)',
   primaryHover: '#0369A1',
@@ -201,12 +201,15 @@ export interface OpticalDbmTelemetryBadge {
  */
 export function formatOpticalTelemetryDbm(
   value: number | string | null | undefined,
+  themeMode: 'light' | 'dark' | 'outdoorSunlight' = 'light',
 ): OpticalDbmTelemetryBadge {
   const status = classifyDbm(value);
   const num = typeof value === 'number' ? value : Number(value);
   const formattedVal = !isNaN(num) && value !== null && value !== undefined && value !== ''
     ? `${num.toFixed(2)} dBm`
     : 'Belum Terukur';
+  const isOutdoor = themeMode === 'outdoorSunlight';
+  const isDark = themeMode === 'dark';
 
   switch (status) {
     case 'Normal':
@@ -214,9 +217,9 @@ export function formatOpticalTelemetryDbm(
         status: 'Normal',
         label: `${formattedVal} (Optimal)`,
         tone: 'green',
-        color: '#10B981',
-        bg: 'rgba(16, 185, 129, 0.12)',
-        border: 'rgba(16, 185, 129, 0.28)',
+        color: isOutdoor ? '#14532D' : isDark ? '#34D399' : '#15803D',
+        bg: isOutdoor ? '#FFFFFF' : isDark ? 'rgba(16, 185, 129, 0.14)' : '#ECFDF5',
+        border: isOutdoor ? '#14532D' : isDark ? 'rgba(52, 211, 153, 0.35)' : 'rgba(21, 128, 61, 0.28)',
         description: 'Sinyal optik prima sesuai standar FTTH GPON.',
       };
     case 'Warning':
@@ -224,9 +227,9 @@ export function formatOpticalTelemetryDbm(
         status: 'Warning',
         label: `${formattedVal} (Warning)`,
         tone: 'orange',
-        color: '#F59E0B',
-        bg: 'rgba(245, 158, 11, 0.12)',
-        border: 'rgba(245, 158, 11, 0.28)',
+        color: isOutdoor ? '#78350F' : isDark ? '#FBBF24' : '#B45309',
+        bg: isOutdoor ? '#FFFFFF' : isDark ? 'rgba(245, 158, 11, 0.14)' : '#FFFBEB',
+        border: isOutdoor ? '#78350F' : isDark ? 'rgba(251, 191, 36, 0.35)' : 'rgba(180, 83, 9, 0.28)',
         description: 'Redaman mendekati batas toleransi operasi.',
       };
     case 'Critical':
@@ -234,9 +237,9 @@ export function formatOpticalTelemetryDbm(
         status: 'Critical',
         label: `${formattedVal} (Kritis)`,
         tone: 'red',
-        color: '#EF4444',
-        bg: 'rgba(239, 68, 68, 0.12)',
-        border: 'rgba(239, 68, 68, 0.28)',
+        color: isOutdoor ? '#991B1B' : isDark ? '#F87171' : '#B91C1C',
+        bg: isOutdoor ? '#FFFFFF' : isDark ? 'rgba(239, 68, 68, 0.14)' : '#FEF2F2',
+        border: isOutdoor ? '#991B1B' : isDark ? 'rgba(248, 113, 113, 0.35)' : 'rgba(185, 28, 28, 0.28)',
         description: 'Sinyal optik melebihi batas redaman maksimal 28 dB (-28.00 dBm).',
       };
     default:
@@ -244,9 +247,9 @@ export function formatOpticalTelemetryDbm(
         status: 'Neutral',
         label: formattedVal,
         tone: 'gray',
-        color: '#94A3B8',
-        bg: 'rgba(148, 163, 184, 0.1)',
-        border: 'rgba(148, 163, 184, 0.2)',
+        color: isOutdoor ? '#000000' : isDark ? '#CBD5E1' : '#475569',
+        bg: isOutdoor ? '#F3F4F6' : isDark ? '#1E293B' : '#F1F5F9',
+        border: isOutdoor ? '#000000' : isDark ? 'rgba(148, 163, 184, 0.28)' : 'rgba(71, 85, 105, 0.25)',
         description: 'Nilai redaman optik belum terbaca dari OPM.',
       };
   }

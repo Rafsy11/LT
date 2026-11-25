@@ -149,12 +149,21 @@ export async function resolveTechActor(request: NextRequest): Promise<TechActorC
     }
   }
 
+  const resolvedUserType = (userType || 'TECHNICIAN') as UserTypeEnum;
+  if (resolvedUserType !== 'TECHNICIAN') {
+    throw new TechHttpError(
+      403,
+      ERROR_CODES.FORBIDDEN,
+      'Akses ditolak: Hanya akun Teknisi Lapangan yang dapat mengakses endpoint /api/v1/tech.',
+    );
+  }
+
   return {
     userId,
     username,
     canonicalUsername: normalizeTechUsernameAlias(username) || canonicalUsername,
     fullName,
-    userType: (userType || 'TECHNICIAN') as UserTypeEnum,
+    userType: resolvedUserType,
     deviceId: effectiveDeviceId,
     channel: effectiveDeviceId && effectiveDeviceId !== 'web-browser' ? 'MOBILE' : 'WEB',
   };

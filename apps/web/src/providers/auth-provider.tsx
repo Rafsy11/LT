@@ -72,13 +72,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isLoginPath =
       typeof window !== 'undefined' &&
       (window.location.pathname === '/login' || window.location.pathname.startsWith('/login/'));
+    const isMobileShellPath =
+      typeof window !== 'undefined' &&
+      (window.location.pathname === '/mobile' || window.location.pathname.startsWith('/mobile/'));
 
-    if (isLoginPath) {
-      try {
-        window.localStorage.removeItem(AUTH_STORAGE_KEY);
-        window.localStorage.removeItem('fiberops_access_token');
-      } catch {
-        // Ignore storage errors
+    if (isLoginPath || isMobileShellPath) {
+      if (isLoginPath) {
+        try {
+          window.localStorage.removeItem(AUTH_STORAGE_KEY);
+          window.localStorage.removeItem('fiberops_access_token');
+        } catch {
+          // Ignore storage errors
+        }
       }
       clearQueryCache();
       setSessionUser(null);
@@ -130,7 +135,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Ignore storage errors
           }
 
-          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          if (
+            typeof window !== 'undefined' &&
+            window.location.pathname !== '/login' &&
+            !window.location.pathname.startsWith('/mobile')
+          ) {
             const currentPath = `${window.location.pathname}${window.location.search}`;
             window.location.replace(`/login?next=${encodeURIComponent(currentPath)}`);
           }

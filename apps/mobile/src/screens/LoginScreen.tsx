@@ -427,6 +427,16 @@ export function LoginScreen({
       return;
     }
 
+    if (
+      code === ERROR_CODES.FORBIDDEN &&
+      msg &&
+      msg.length < 140 &&
+      msg.toLowerCase().includes('teknisi')
+    ) {
+      setErrorMessage(msg);
+      return;
+    }
+
     const sanitized = sanitizeUiErrorMessage(error);
     setErrorMessage(sanitized.message);
   };
@@ -574,6 +584,16 @@ export function LoginScreen({
 
       if (!res.success) {
         applyAuthApiError(res.error, res.meta);
+        return;
+      }
+
+      if (res.data.user?.userType !== 'TECHNICIAN') {
+        apiClient.setTokens(null);
+        setPreAuthToken(null);
+        setOtpCode('');
+        setErrorMessage(
+          'Akses ditolak: Aplikasi /mobile hanya untuk Teknisi Lapangan. Akun Admin atau Super Admin silakan masuk melalui Dashboard Web.',
+        );
         return;
       }
 

@@ -181,7 +181,11 @@ export default function MobileFieldAppPage() {
               </div>
 
               {/* Viewport Hosting Real Mobile App (feat-23 contract compliance) */}
-              <div className="mobile-shell-viewport" data-mobile-theme={resolvedTheme}>
+              <div
+                className="mobile-shell-viewport"
+                data-mobile-theme={resolvedTheme}
+                data-outdoor={isOutdoorMode ? 'true' : 'false'}
+              >
                 <App
                   initialThemeMode={resolvedTheme}
                   themePreference={theme}

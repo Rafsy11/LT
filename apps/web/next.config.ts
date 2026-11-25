@@ -67,6 +67,21 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  webpack(config) {
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      'react-native$': false,
+      '@react-native-async-storage/async-storage$': false,
+      'expo-image-manipulator$': false,
+      'expo-location$': false,
+      'expo-camera$': false,
+      'expo-device$': false,
+      'expo-secure-store$': false,
+      'expo-updates$': false,
+    };
+    return config;
+  },
   async headers() {
     const cspValue = buildContentSecurityPolicy();
     return [

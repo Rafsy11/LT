@@ -1082,6 +1082,15 @@ export class AuthService {
       throw forbiddenErr;
     }
 
+    if (preAuth.channel === 'mobile' && user.userType !== 'TECHNICIAN') {
+      const forbiddenErr = new Error(
+        'Akses ditolak: Aplikasi /mobile hanya diperuntukkan bagi Teknisi Lapangan.',
+      );
+      (forbiddenErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
+      (forbiddenErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+      throw forbiddenErr;
+    }
+
     let resolvedChatId = resolveTelegramChatId({
       dbChatId: user.telegramChatId,
     });
@@ -1196,6 +1205,15 @@ export class AuthService {
         authErr.code = ERROR_CODES.INVALID_CREDENTIALS;
         authErr.statusCode = 401;
         throw authErr;
+      }
+
+      if (user.userType !== 'TECHNICIAN') {
+        const forbiddenErr = new Error(
+          'Akses ditolak: Hanya akun Teknisi Lapangan yang diizinkan masuk ke aplikasi /mobile.',
+        ) as Error & { code?: string; statusCode?: number };
+        forbiddenErr.code = ERROR_CODES.FORBIDDEN;
+        forbiddenErr.statusCode = 403;
+        throw forbiddenErr;
       }
 
       // Mandatory 2FA OTP via Telegram Bot (same resolution & dev fallback as Web NOC login)
@@ -1339,6 +1357,15 @@ export class AuthService {
         const forbiddenErr = new Error('Akun tidak ditemukan atau telah dinonaktifkan.');
         (forbiddenErr as Error & { code?: string; statusCode?: number }).code = ERROR_CODES.FORBIDDEN;
         (forbiddenErr as Error & { code?: string; statusCode?: number }).statusCode = 403;
+        throw forbiddenErr;
+      }
+
+      if (user.userType !== 'TECHNICIAN') {
+        const forbiddenErr = new Error(
+          'Akses ditolak: Hanya akun Teknisi Lapangan yang diizinkan masuk ke aplikasi /mobile.',
+        ) as Error & { code?: string; statusCode?: number };
+        forbiddenErr.code = ERROR_CODES.FORBIDDEN;
+        forbiddenErr.statusCode = 403;
         throw forbiddenErr;
       }
 
@@ -1552,6 +1579,10 @@ export class AuthService {
       }
 
       if (params.expectedChannel === 'web' && session.user.userType === 'TECHNICIAN') {
+        throw new Error(ERROR_CODES.SESSION_REVOKED);
+      }
+
+      if (params.expectedChannel === 'mobile' && session.user.userType !== 'TECHNICIAN') {
         throw new Error(ERROR_CODES.SESSION_REVOKED);
       }
 

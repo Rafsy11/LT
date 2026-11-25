@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { tokens } from '../../../apps/mobile/src/theme/tokens';
+import {
+  tokens,
+  DARK_THEME,
+  formatOpticalTelemetryDbm,
+} from '../../../apps/mobile/src/theme/tokens';
 
 // WCAG 2.1 Contrast Calculation Helpers
 function hexToRgb(hex: string): [number, number, number] {
@@ -308,5 +312,42 @@ describe('Tier 2: Boundary & Corner - Antislop & UI Constraints', () => {
     assert.ok(goodContrast >= 3.0, `Good status contrast ${goodContrast.toFixed(2)}:1 must be >= 3:1`);
     assert.ok(warningContrast >= 4.5, `Warning status contrast ${warningContrast.toFixed(2)}:1 must be >= 4.5:1`);
     assert.ok(criticalContrast >= 3.0, `Critical status contrast ${criticalContrast.toFixed(2)}:1 must be >= 3:1`);
+  });
+
+  it('18. verifies DARK_THEME.textMuted and formatOpticalTelemetryDbm pass WCAG contrast across Light, Dark, and Outdoor themes', () => {
+    const mutedOnBg = calculateContrastRatio(DARK_THEME.textMuted, DARK_THEME.bg);
+    const mutedOnSurface = calculateContrastRatio(DARK_THEME.textMuted, DARK_THEME.surface);
+    assert.ok(mutedOnBg >= 4.5, `Dark textMuted on bg (${mutedOnBg.toFixed(2)}:1) must be >= 4.5:1`);
+    assert.ok(mutedOnSurface >= 4.5, `Dark textMuted on surface (${mutedOnSurface.toFixed(2)}:1) must be >= 4.5:1`);
+
+    const lightSamples = [-19.2, -26.5, -31.0, null];
+    for (const sample of lightSamples) {
+      const lightBadge = formatOpticalTelemetryDbm(sample, 'light');
+      const lightRatio = calculateContrastRatio(lightBadge.color, lightBadge.bg);
+      assert.ok(
+        lightRatio >= 4.5,
+        `Light OPM ${lightBadge.status} contrast (${lightRatio.toFixed(2)}:1) must be >= 4.5:1`,
+      );
+
+      const outdoorBadge = formatOpticalTelemetryDbm(sample, 'outdoorSunlight');
+      const outdoorRatio = calculateContrastRatio(outdoorBadge.color, outdoorBadge.bg);
+      assert.ok(
+        outdoorRatio >= 7.0,
+        `Outdoor OPM ${outdoorBadge.status} contrast (${outdoorRatio.toFixed(2)}:1) must be >= 7.0:1`,
+      );
+    }
+  });
+
+  it('19. verifies all explicit minHeight targets in TicketListScreen.tsx meet >= 44px touch threshold', () => {
+    const content = readMobileFile('src/screens/TicketListScreen.tsx');
+    const minHeights = content.match(/\bminHeight:\s*['"]?(\d+)px['"]?/g) || [];
+    assert.ok(minHeights.length > 0, 'TicketListScreen.tsx must declare minHeight touch targets');
+    for (const entry of minHeights) {
+      const px = parseInt(entry.replace(/[^0-9]/g, ''), 10);
+      assert.ok(
+        px >= 44,
+        `Touch target ${entry} in TicketListScreen.tsx violates minimum 44px height rule`,
+      );
+    }
   });
 });

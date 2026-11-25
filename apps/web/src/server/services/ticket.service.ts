@@ -1,4 +1,4 @@
-import { prisma, Prisma } from '@repo/database';
+import { prisma, Prisma, markDatabaseUnavailable } from '@repo/database';
 import { redisManager } from '../lib/redis';
 import {
   AuthHttpError,
@@ -16,6 +16,14 @@ import {
   StartTicketExecutionInput,
   SubmitTicketInput,
   TicketQuery,
+  MOBILE_HISTORY_LIMIT,
+  SAFE_TICKET_PHOTO_KEY_RE,
+  MobileTicketQuery,
+  MobileMediaPresignQuery,
+  MobileMediaPresignResponse,
+  MobileTicketItemDto,
+  MobileSplitterItemDto,
+  MobileTechTicketsResponse,
   ActivityFeedItem,
   classifyDbm,
   MAX_GEOFENCE_RADIUS_METERS,
@@ -26,6 +34,12 @@ import {
 } from '@repo/shared';
 import { sseBroadcaster } from './sse.service';
 import { AuthService } from './auth.service';
+import { NetworkService } from './network.service';
+import {
+  TechActorContext,
+  TechHttpError,
+  normalizeTechUsernameAlias,
+} from '../lib/tech-auth';
 import {
   sendVendorTaskDispatchTelegram,
   sendVendorVerificationResultTelegram,
@@ -33,6 +47,7 @@ import {
 
 import { CustomerService } from './customer.service';
 import { withSplitterPortMutex } from '../lib/port-mutex';
+import { minioManager } from '../lib/minio';
 
 export { withSplitterPortMutex };
 export type { DbTicket, DbTicketPendingSubmission };
@@ -175,13 +190,25 @@ const FALLBACK_TICKETS: DbTicket[] = [
     status: 'Selesai',
     priority: 'Low',
     currentAttenuation: -19.4,
+    oldAttenuation: -26.8,
     complaintSummary: 'Perbaikan konektor patchcord ONT longgar.',
     serviceAddress: 'Jl. Raya Rancaekek No. 89, Bandung',
     locationPlace: 'Toko Sejahtera Dekat Pertigaan Dangdeur',
     targetLat: -6.9685,
     targetLng: 107.7685,
-    createdAt: new Date().toISOString(),
-    completedAt: new Date().toISOString(),
+    adminNotes: 'Ganti patchcord SC/APC dan bersihkan adapter ODP port 4.',
+    createdByAdminUsername: 'admin.noc',
+    createdByAdminFullName: 'Admin NOC Pusat',
+    dispatchedAt: new Date(Date.now() - 86400000).toISOString(),
+    startedAt: new Date(Date.now() - 82800000).toISOString(),
+    submittedAt: new Date(Date.now() - 81000000).toISOString(),
+    submissionChannel: 'MOBILE',
+    technicianNotes: 'Patchcord diganti baru, redaman turun normal ke -19.4 dBm.',
+    photoObjectKey: 'seed/t-4-opm.jpg',
+    approvedBy: 'admin.noc',
+    approvedAt: new Date(Date.now() - 79200000).toISOString(),
+    createdAt: new Date(Date.now() - 90000000).toISOString(),
+    completedAt: new Date(Date.now() - 79200000).toISOString(),
     splitterCode: 'ODP-RCK-01',
     portNumber: 4,
     distanceToSplitterM: 32,
@@ -259,19 +286,69 @@ const FALLBACK_TICKETS: DbTicket[] = [
     status: 'Selesai',
     priority: 'Normal',
     currentAttenuation: -18.2,
+    oldAttenuation: -25.1,
     complaintSummary: 'Penyambungan core fiber selesai.',
     customerPhone: '+62 812-7100-2233',
     serviceAddress: 'Jl. R. Sukamto No. 88, Palembang',
     locationPlace: 'Ruko PTC Mall Blok B-12',
     targetLat: -2.9612,
     targetLng: 104.7645,
+    adminNotes: 'Periksa splice closure tiang 4 depan ruko PTC.',
+    createdByAdminUsername: 'superadmin',
+    createdByAdminFullName: 'Super Admin Pusat',
     dispatchedAt: new Date(Date.now() - 7200000).toISOString(),
     startedAt: new Date(Date.now() - 5400000).toISOString(),
+    submittedAt: new Date(Date.now() - 2700000).toISOString(),
+    submissionChannel: 'MOBILE',
+    technicianNotes: 'Re-splicing core 3 pada ODP-PLB-034 selesai dengan loss normal.',
+    photoObjectKey: 'seed/wo-2025-0841-opm.jpg',
+    approvedBy: 'superadmin',
+    approvedAt: new Date(Date.now() - 1800000).toISOString(),
     completedAt: new Date(Date.now() - 1800000).toISOString(),
     createdAt: new Date(Date.now() - 7200000).toISOString(),
     splitterCode: 'ODP-PLB-034',
     portNumber: 3,
     distanceToSplitterM: 12,
+    isLocationFlagged: false,
+  },
+  {
+    id: 'wo-2025-0840',
+    ticketNumber: 'WO-2025-0840',
+    customerName: 'Bank Sumsel Babel Kantor Kas',
+    siaNumber: 'SLA-100243-0840',
+    ticketType: 'Instalasi',
+    cluster: 'Palembang Kota',
+    clusterCode: 'PLB-01',
+    assignedTech: 'Andi Pratama',
+    assignedTechUsername: 'tech.andi',
+    vendorName: 'PT Mitra Fiber Nusantara',
+    techInitials: 'AP',
+    status: 'Selesai',
+    priority: 'Normal',
+    currentAttenuation: -18.7,
+    oldAttenuation: -27.4,
+    complaintSummary: 'Aktivasi link PSB FO FO-1Gbps port 1 selesai dan normal.',
+    customerPhone: '+62 811-7890-4321',
+    serviceAddress: 'Jl. Kapten A. Rivai No. 15, Palembang',
+    locationPlace: 'Kantor Kas BSB Gedung Menara Lt. 1',
+    targetLat: -2.9731,
+    targetLng: 104.7432,
+    adminNotes: 'Pastikan redaman akhir <= -22 dBm di port 1 ODP-PLB-034.',
+    createdByAdminUsername: 'admin.noc',
+    createdByAdminFullName: 'Admin NOC Palembang',
+    dispatchedAt: new Date(Date.now() - 14400000).toISOString(),
+    startedAt: new Date(Date.now() - 10800000).toISOString(),
+    submittedAt: new Date(Date.now() - 5400000).toISOString(),
+    submissionChannel: 'MOBILE',
+    technicianNotes: 'Terminasi pigtail ONT selesai, hasil ukur OPM -18.7 dBm stabil.',
+    photoObjectKey: 'seed/wo-2025-0840-opm.jpg',
+    approvedBy: 'admin.noc',
+    approvedAt: new Date(Date.now() - 3600000).toISOString(),
+    completedAt: new Date(Date.now() - 3600000).toISOString(),
+    createdAt: new Date(Date.now() - 14400000).toISOString(),
+    splitterCode: 'ODP-PLB-034',
+    portNumber: 1,
+    distanceToSplitterM: 18,
     isLocationFlagged: false,
   },
 ];
@@ -1945,6 +2022,11 @@ export class TicketService {
             (dbTicket.customer.currentAttenuation
               ? Number(dbTicket.customer.currentAttenuation)
               : -20.0);
+        const previousAttenuation =
+          dbTicket.customer.currentAttenuation !== null &&
+          dbTicket.customer.currentAttenuation !== undefined
+            ? Number(dbTicket.customer.currentAttenuation)
+            : undefined;
         const finalSplitter =
           effectivePending?.splitterCode ||
           ticket?.splitterCode ||
@@ -1958,6 +2040,19 @@ export class TicketService {
           finalPort,
           async () =>
             prisma.$transaction(async (tx) => {
+          let effectiveAdminId = adminContext?.id;
+          if (!effectiveAdminId) {
+            const fallbackAdmin = await tx.user.findFirst({
+              where: {
+                isActive: true,
+                userType: { in: ['SUPER_ADMIN', 'ADMIN'] },
+              },
+              orderBy: { createdAt: 'asc' },
+              select: { id: true },
+            });
+            effectiveAdminId = fallbackAdmin?.id || dbTicket.createdByAdminId || adminId;
+          }
+
           const splitter = await tx.networkSplitter.findFirst({
             where: {
               OR: [{ id: finalSplitter }, { splitterCode: finalSplitter }],
@@ -1999,7 +2094,8 @@ export class TicketService {
                   submissionId: effectivePending.submissionId,
                   ticketId: dbTicket.id,
                   customerId: dbTicket.customerId,
-                  techId: dbTicket.assignedTechId || adminId,
+                  techId: dbTicket.assignedTechId || effectiveAdminId,
+                  oldAttenuation: previousAttenuation,
                   newAttenuation: finalAttenuation,
                   splitterId: splitter.id,
                   portNumber: finalPort,
@@ -2018,7 +2114,7 @@ export class TicketService {
 
           await tx.activityLog.create({
             data: {
-              actorUserId: adminId,
+              actorUserId: effectiveAdminId,
               actorRole: 'CS / Pusat Lintasarta',
               actionType: 'TICKET_APPROVED_BY_ADMIN',
               targetEntity: 'ticket',
@@ -2365,5 +2461,833 @@ export class TicketService {
     sseBroadcaster.broadcast(liveItem);
 
     return target;
+  }
+
+  /**
+   * Lists active assignments, completed ticket history (capped at 50), and
+   * cluster-scoped ODP splitters strictly for an authenticated TECHNICIAN actor.
+   */
+  public static async listTechnicianTicketsForMobile(
+    actor: TechActorContext,
+    query?: Partial<MobileTicketQuery>,
+  ): Promise<MobileTechTicketsResponse> {
+    if (actor.userType !== 'TECHNICIAN') {
+      throw new TechHttpError(
+        403,
+        ERROR_CODES.FORBIDDEN,
+        'Akses ditolak: Hanya akun Teknisi Lapangan yang dapat mengakses daftar tugas dan riwayat /mobile.',
+      );
+    }
+
+    const parsedLimit = Number(query?.historyLimit ?? MOBILE_HISTORY_LIMIT);
+    const historyLimit = Number.isFinite(parsedLimit)
+      ? Math.min(Math.max(1, Math.trunc(parsedLimit)), MOBILE_HISTORY_LIMIT)
+      : MOBILE_HISTORY_LIMIT;
+
+    const dbOnline = await requireLiveDatabase(
+      'Database PostgreSQL tidak tersedia untuk memuat tiket.',
+    );
+
+    let techUser: {
+      id: string;
+      username: string;
+      fullName: string;
+      vendorCompany?: string | null;
+      assignedClusters: string[];
+    } | null = null;
+
+    if (dbOnline) {
+      try {
+        if (actor.userId) {
+          techUser = await prisma.user.findUnique({
+            where: { id: actor.userId },
+            include: { role: true },
+          });
+        }
+        if (!techUser && actor.canonicalUsername) {
+          techUser = await prisma.user.findUnique({
+            where: { username: actor.canonicalUsername },
+            include: { role: true },
+          });
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+      }
+    }
+
+    let activeTickets: MobileTicketItemDto[] = [];
+    let historyTickets: MobileTicketItemDto[] = [];
+    let historyTotalCount = 0;
+    let dbTicketQuerySucceeded = false;
+
+    if (dbOnline && techUser) {
+      try {
+        const [tickets, completedRows] = await Promise.all([
+          prisma.ticket.findMany({
+            where: {
+              assignedTechId: techUser.id,
+              status: { in: ['OPEN', 'IN_PROGRESS', 'PENDING_APPROVAL'] },
+            },
+            include: {
+              assignedTech: {
+                select: { id: true, username: true, fullName: true, vendorCompany: true },
+              },
+              createdByAdmin: {
+                select: { id: true, username: true, fullName: true },
+              },
+              customer: {
+                include: {
+                  cluster: true,
+                  splitter: true,
+                  attenuations: {
+                    take: 5,
+                    orderBy: { createdAt: 'desc' },
+                    select: { newAttenuation: true },
+                  },
+                },
+              },
+            },
+            orderBy: { createdAt: 'desc' },
+          }),
+          prisma.ticket.findMany({
+            where: {
+              assignedTechId: techUser.id,
+              status: 'COMPLETED',
+            },
+            include: {
+              assignedTech: {
+                select: { id: true, username: true, fullName: true, vendorCompany: true },
+              },
+              createdByAdmin: {
+                select: { id: true, username: true, fullName: true },
+              },
+              customer: {
+                include: {
+                  cluster: true,
+                  splitter: true,
+                },
+              },
+              attenuations: {
+                take: 1,
+                orderBy: { createdAt: 'desc' },
+                include: { splitter: true },
+              },
+            },
+            orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
+            take: historyLimit,
+          }),
+        ]);
+
+        dbTicketQuerySucceeded = true;
+
+        historyTotalCount = completedRows.length;
+        if (completedRows.length === historyLimit) {
+          try {
+            historyTotalCount = await prisma.ticket.count({
+              where: {
+                assignedTechId: techUser.id,
+                status: 'COMPLETED',
+              },
+            });
+          } catch {
+            historyTotalCount = completedRows.length;
+          }
+        }
+
+        const completedIds = completedRows.map((row) => row.id);
+        interface TicketLogPair {
+          submitLog?: {
+            oldPayload: Record<string, unknown> | null;
+            newPayload: Record<string, unknown> | null;
+            createdAt: Date;
+          };
+          approveLog?: {
+            newPayload: Record<string, unknown> | null;
+            createdAt: Date;
+          };
+        }
+        const logsByTicketId = new Map<string, TicketLogPair>();
+
+        if (completedIds.length > 0) {
+          try {
+            const logs = await prisma.activityLog.findMany({
+              where: {
+                targetEntity: 'ticket',
+                targetId: { in: completedIds },
+                actionType: {
+                  in: ['TICKET_SUBMITTED_FOR_VERIFICATION', 'TICKET_APPROVED_BY_ADMIN'],
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+              select: {
+                actionType: true,
+                targetId: true,
+                oldPayload: true,
+                newPayload: true,
+                createdAt: true,
+              },
+            });
+
+            for (const log of logs) {
+              const pair = logsByTicketId.get(log.targetId) || {};
+              const oldPayloadObj =
+                log.oldPayload && typeof log.oldPayload === 'object' && !Array.isArray(log.oldPayload)
+                  ? (log.oldPayload as Record<string, unknown>)
+                  : null;
+              const newPayloadObj =
+                log.newPayload && typeof log.newPayload === 'object' && !Array.isArray(log.newPayload)
+                  ? (log.newPayload as Record<string, unknown>)
+                  : null;
+
+              if (
+                log.actionType === 'TICKET_SUBMITTED_FOR_VERIFICATION' &&
+                !pair.submitLog
+              ) {
+                pair.submitLog = {
+                  oldPayload: oldPayloadObj,
+                  newPayload: newPayloadObj,
+                  createdAt: log.createdAt,
+                };
+              } else if (
+                log.actionType === 'TICKET_APPROVED_BY_ADMIN' &&
+                !pair.approveLog
+              ) {
+                pair.approveLog = {
+                  newPayload: newPayloadObj,
+                  createdAt: log.createdAt,
+                };
+              }
+              logsByTicketId.set(log.targetId, pair);
+            }
+          } catch {
+            // Keep history query resilient if partial test mocks omit activityLog
+          }
+        }
+
+        activeTickets = tickets.map((t) => {
+          const hist = (t.customer?.attenuations || []).map((a) => Number(a.newAttenuation));
+          const curAtt =
+            t.customer?.currentAttenuation !== null && t.customer?.currentAttenuation !== undefined
+              ? Number(t.customer.currentAttenuation)
+              : null;
+          const pendingSubmission =
+            t.pendingPayload && typeof t.pendingPayload === 'object'
+              ? (t.pendingPayload as unknown as DbTicketPendingSubmission)
+              : null;
+
+          return {
+            id: t.id,
+            ticketNumber: t.ticketNumber,
+            ticketType: t.ticketType as 'PSB' | 'MAINTENANCE',
+            status: t.status as 'OPEN' | 'IN_PROGRESS' | 'PENDING_APPROVAL' | 'COMPLETED',
+            vendorName: t.vendorName || t.assignedTech?.vendorCompany || null,
+            complaintSummary: t.complaintSummary || null,
+            customerPhone: t.customerPhone || null,
+            serviceAddress: t.serviceAddress || t.customer.address,
+            locationPlace: t.locationPlace || null,
+            targetLat:
+              t.targetLat !== null && t.targetLat !== undefined
+                ? Number(t.targetLat)
+                : t.customer.lat !== null && t.customer.lat !== undefined
+                  ? Number(t.customer.lat)
+                  : null,
+            targetLng:
+              t.targetLng !== null && t.targetLng !== undefined
+                ? Number(t.targetLng)
+                : t.customer.lng !== null && t.customer.lng !== undefined
+                  ? Number(t.customer.lng)
+                  : null,
+            adminNotes: t.adminNotes ?? null,
+            rejectionReason: t.rejectionReason || null,
+            assignedAt: (t.dispatchedAt || t.assignedAt)?.toISOString() || null,
+            startedAt: t.startedAt?.toISOString() || null,
+            completedAt: t.completedAt?.toISOString() || null,
+            createdAt: t.createdAt.toISOString(),
+            createdByAdmin: t.createdByAdmin
+              ? {
+                  id: t.createdByAdmin.id,
+                  username: t.createdByAdmin.username,
+                  fullName: t.createdByAdmin.fullName,
+                }
+              : null,
+            assignedTech: t.assignedTech
+              ? {
+                  id: t.assignedTech.id,
+                  username: t.assignedTech.username,
+                  fullName: t.assignedTech.fullName,
+                  vendorCompany: t.assignedTech.vendorCompany ?? null,
+                }
+              : null,
+            pendingSubmission,
+            historyMeta: null,
+            customer: {
+              id: t.customer.id,
+              siaNumber: t.customer.siaNumber,
+              fullName: t.customer.fullName,
+              address: t.serviceAddress || t.customer.address,
+              lat:
+                t.targetLat !== null && t.targetLat !== undefined
+                  ? Number(t.targetLat)
+                  : t.customer.lat !== null && t.customer.lat !== undefined
+                    ? Number(t.customer.lat)
+                    : null,
+              lng:
+                t.targetLng !== null && t.targetLng !== undefined
+                  ? Number(t.targetLng)
+                  : t.customer.lng !== null && t.customer.lng !== undefined
+                    ? Number(t.customer.lng)
+                    : null,
+              currentAttenuation: curAtt,
+              attenuationHistory: hist.length > 0 ? hist : curAtt !== null ? [curAtt] : [],
+              clusterName: t.customer.cluster?.name || 'Cluster',
+              clusterCode: t.customer.cluster?.clusterCode || 'BDG',
+              splitterCode: t.customer.splitter?.splitterCode || null,
+              portNumber: t.customer.portNumber ?? null,
+            },
+          };
+        });
+
+        historyTickets = completedRows.map((t) => {
+          const attRecord = t.attenuations && t.attenuations[0] ? t.attenuations[0] : null;
+          const logPair = logsByTicketId.get(t.id);
+          const submitOldPayload = logPair?.submitLog?.oldPayload || null;
+          const submitNewPayload = logPair?.submitLog?.newPayload || null;
+          const approveNewPayload = logPair?.approveLog?.newPayload || null;
+
+          const oldAttenuation =
+            attRecord?.oldAttenuation !== null && attRecord?.oldAttenuation !== undefined
+              ? Number(attRecord.oldAttenuation)
+              : typeof submitOldPayload?.oldAttenuation === 'number'
+                ? submitOldPayload.oldAttenuation
+                : null;
+          const newAttenuation =
+            attRecord?.newAttenuation !== null && attRecord?.newAttenuation !== undefined
+              ? Number(attRecord.newAttenuation)
+              : typeof submitNewPayload?.attenuationDbm === 'number'
+                ? submitNewPayload.attenuationDbm
+                : t.customer.currentAttenuation !== null && t.customer.currentAttenuation !== undefined
+                  ? Number(t.customer.currentAttenuation)
+                  : null;
+
+          const rawChannel = submitNewPayload?.channel;
+          const submissionChannel =
+            rawChannel === 'WEB' || rawChannel === 'MOBILE' || rawChannel === 'TELEGRAM'
+              ? rawChannel
+              : null;
+
+          const technicianNotes =
+            typeof submitNewPayload?.technicianNotes === 'string' &&
+            submitNewPayload.technicianNotes.trim().length > 0
+              ? submitNewPayload.technicianNotes.trim()
+              : null;
+
+          const approvedBy =
+            typeof approveNewPayload?.approvedBy === 'string' &&
+            approveNewPayload.approvedBy.trim().length > 0
+              ? approveNewPayload.approvedBy.trim()
+              : null;
+
+          const submittedAt = logPair?.submitLog?.createdAt
+            ? logPair.submitLog.createdAt.toISOString()
+            : attRecord?.clientRecordedAt
+              ? attRecord.clientRecordedAt.toISOString()
+              : null;
+          const approvedAt = logPair?.approveLog?.createdAt
+            ? logPair.approveLog.createdAt.toISOString()
+            : t.completedAt
+              ? t.completedAt.toISOString()
+              : null;
+
+          const ticketScopedHistory = [oldAttenuation, newAttenuation].filter(
+            (val): val is number => typeof val === 'number' && Number.isFinite(val),
+          );
+
+          return {
+            id: t.id,
+            ticketNumber: t.ticketNumber,
+            ticketType: t.ticketType as 'PSB' | 'MAINTENANCE',
+            status: 'COMPLETED' as const,
+            vendorName: t.vendorName || t.assignedTech?.vendorCompany || null,
+            complaintSummary: t.complaintSummary || null,
+            customerPhone: t.customerPhone || null,
+            serviceAddress: t.serviceAddress || t.customer.address,
+            locationPlace: t.locationPlace || null,
+            targetLat:
+              t.targetLat !== null && t.targetLat !== undefined
+                ? Number(t.targetLat)
+                : t.customer.lat !== null && t.customer.lat !== undefined
+                  ? Number(t.customer.lat)
+                  : null,
+            targetLng:
+              t.targetLng !== null && t.targetLng !== undefined
+                ? Number(t.targetLng)
+                : t.customer.lng !== null && t.customer.lng !== undefined
+                  ? Number(t.customer.lng)
+                  : null,
+            adminNotes: t.adminNotes ?? null,
+            rejectionReason: t.rejectionReason || null,
+            assignedAt: (t.dispatchedAt || t.assignedAt)?.toISOString() || null,
+            startedAt: t.startedAt?.toISOString() || null,
+            completedAt: t.completedAt
+              ? t.completedAt.toISOString()
+              : approvedAt,
+            createdAt: t.createdAt.toISOString(),
+            createdByAdmin: t.createdByAdmin
+              ? {
+                  id: t.createdByAdmin.id,
+                  username: t.createdByAdmin.username,
+                  fullName: t.createdByAdmin.fullName,
+                }
+              : null,
+            assignedTech: t.assignedTech
+              ? {
+                  id: t.assignedTech.id,
+                  username: t.assignedTech.username,
+                  fullName: t.assignedTech.fullName,
+                  vendorCompany: t.assignedTech.vendorCompany ?? null,
+                }
+              : null,
+            pendingSubmission: null,
+            historyMeta: {
+              oldAttenuation,
+              newAttenuation,
+              photoObjectKey: attRecord?.photoObjectKey || null,
+              technicianNotes,
+              submissionChannel,
+              submittedAt,
+              approvedBy,
+              approvedAt,
+            },
+            customer: {
+              id: t.customer.id,
+              siaNumber: t.customer.siaNumber,
+              fullName: t.customer.fullName,
+              address: t.serviceAddress || t.customer.address,
+              lat:
+                t.targetLat !== null && t.targetLat !== undefined
+                  ? Number(t.targetLat)
+                  : t.customer.lat !== null && t.customer.lat !== undefined
+                    ? Number(t.customer.lat)
+                    : null,
+              lng:
+                t.targetLng !== null && t.targetLng !== undefined
+                  ? Number(t.targetLng)
+                  : t.customer.lng !== null && t.customer.lng !== undefined
+                    ? Number(t.customer.lng)
+                    : null,
+              currentAttenuation: newAttenuation,
+              attenuationHistory: ticketScopedHistory,
+              clusterName: t.customer.cluster?.name || 'Cluster',
+              clusterCode: t.customer.cluster?.clusterCode || 'BDG',
+              splitterCode:
+                attRecord?.splitter?.splitterCode ||
+                t.customer.splitter?.splitterCode ||
+                null,
+              portNumber: attRecord?.portNumber ?? t.customer.portNumber ?? null,
+            },
+          };
+        });
+      } catch (err) {
+        markDatabaseUnavailable(err);
+      }
+    }
+
+    // Fallback ONLY when PostgreSQL is offline and strict mode is disabled
+    if (
+      !dbOnline &&
+      !dbTicketQuerySucceeded &&
+      !isStrictLiveMode() &&
+      activeTickets.length === 0 &&
+      historyTickets.length === 0
+    ) {
+      const allTickets = await this.listTickets();
+      const targetUser = normalizeTechUsernameAlias(
+        actor.canonicalUsername || actor.username,
+      );
+      const targetFullName = (actor.fullName || '').trim().toLowerCase();
+
+      const belongsToTechnician = (t: DbTicket): boolean => {
+        const ticketTechUser = normalizeTechUsernameAlias(
+          t.assignedTechUsername || t.assignedTech.toLowerCase().replace(/\s+/g, '.'),
+        );
+        const ticketTechName = t.assignedTech.toLowerCase();
+        return (
+          ticketTechUser === targetUser ||
+          (targetFullName.length > 0 && ticketTechName === targetFullName)
+        );
+      };
+
+      activeTickets = allTickets
+        .filter((t) => {
+          if (t.status === 'Selesai' || t.status === 'Dibatalkan') return false;
+          return belongsToTechnician(t);
+        })
+        .map((t) => ({
+          id: t.id,
+          ticketNumber: t.ticketNumber,
+          ticketType:
+            t.ticketType === 'Maintenance' || t.ticketType === 'Perbaikan'
+              ? 'MAINTENANCE'
+              : 'PSB',
+          status:
+            t.status === 'Menunggu verifikasi'
+              ? 'PENDING_APPROVAL'
+              : t.status === 'Dalam proses'
+                ? 'IN_PROGRESS'
+                : 'OPEN',
+          vendorName: t.vendorName || null,
+          complaintSummary: t.complaintSummary || null,
+          customerPhone: t.customerPhone || null,
+          serviceAddress: t.serviceAddress || 'Alamat belum tercantum',
+          locationPlace: t.locationPlace || null,
+          targetLat: t.targetLat ?? null,
+          targetLng: t.targetLng ?? null,
+          adminNotes: t.adminNotes || null,
+          rejectionReason: t.rejectionReason || null,
+          assignedAt: t.dispatchedAt || t.createdAt,
+          startedAt: t.startedAt || null,
+          completedAt: t.completedAt || null,
+          createdAt: t.createdAt,
+          createdByAdmin:
+            t.createdByAdminUsername || t.createdByAdminFullName
+              ? {
+                  id: `fallback-${t.createdByAdminUsername || 'admin'}`,
+                  username: t.createdByAdminUsername || 'admin.noc',
+                  fullName: t.createdByAdminFullName || t.createdByAdminUsername || 'Admin NOC',
+                }
+              : null,
+          assignedTech: {
+            id: actor.userId,
+            username: actor.username,
+            fullName: t.assignedTech || actor.fullName || actor.username,
+            vendorCompany: t.vendorName || null,
+          },
+          pendingSubmission: t.pendingSubmission || null,
+          historyMeta: null,
+          customer: {
+            id: t.siaNumber,
+            siaNumber: t.siaNumber,
+            fullName: t.customerName,
+            address: t.serviceAddress || 'Alamat belum tercantum',
+            lat: t.targetLat ?? -6.914744,
+            lng: t.targetLng ?? 107.60981,
+            currentAttenuation: t.currentAttenuation,
+            attenuationHistory:
+              typeof t.currentAttenuation === 'number' ? [t.currentAttenuation] : [],
+            clusterName: t.cluster,
+            clusterCode: t.clusterCode || 'BDG-01',
+            splitterCode: t.splitterCode || null,
+            portNumber: t.portNumber ?? null,
+          },
+        }));
+
+      const matchedHistory = allTickets
+        .filter((t) => t.status === 'Selesai' && belongsToTechnician(t))
+        .sort((a, b) => {
+          const aTime = Date.parse(a.completedAt || a.createdAt) || 0;
+          const bTime = Date.parse(b.completedAt || b.createdAt) || 0;
+          return bTime - aTime;
+        });
+
+      historyTotalCount = matchedHistory.length;
+      historyTickets = matchedHistory.slice(0, historyLimit).map((t) => {
+        const oldAtt =
+          typeof t.oldAttenuation === 'number' ? t.oldAttenuation : null;
+        const newAtt =
+          typeof t.currentAttenuation === 'number' ? t.currentAttenuation : null;
+        const scopedHist = [oldAtt, newAtt].filter(
+          (val): val is number => typeof val === 'number' && Number.isFinite(val),
+        );
+        return {
+          id: t.id,
+          ticketNumber: t.ticketNumber,
+          ticketType:
+            t.ticketType === 'Maintenance' || t.ticketType === 'Perbaikan'
+              ? 'MAINTENANCE'
+              : 'PSB',
+          status: 'COMPLETED',
+          vendorName: t.vendorName || null,
+          complaintSummary: t.complaintSummary || null,
+          customerPhone: t.customerPhone || null,
+          serviceAddress: t.serviceAddress || 'Alamat belum tercantum',
+          locationPlace: t.locationPlace || null,
+          targetLat: t.targetLat ?? null,
+          targetLng: t.targetLng ?? null,
+          adminNotes: t.adminNotes || null,
+          rejectionReason: t.rejectionReason || null,
+          assignedAt: t.dispatchedAt || t.createdAt,
+          startedAt: t.startedAt || null,
+          completedAt: t.completedAt || null,
+          createdAt: t.createdAt,
+          createdByAdmin:
+            t.createdByAdminUsername || t.createdByAdminFullName
+              ? {
+                  id: `fallback-${t.createdByAdminUsername || 'admin'}`,
+                  username: t.createdByAdminUsername || 'admin.noc',
+                  fullName: t.createdByAdminFullName || t.createdByAdminUsername || 'Admin NOC',
+                }
+              : null,
+          assignedTech: {
+            id: actor.userId,
+            username: actor.username,
+            fullName: t.assignedTech || actor.fullName || actor.username,
+            vendorCompany: t.vendorName || null,
+          },
+          pendingSubmission: null,
+          historyMeta: {
+            oldAttenuation: oldAtt,
+            newAttenuation: newAtt,
+            photoObjectKey: t.photoObjectKey || null,
+            technicianNotes: t.technicianNotes || null,
+            submissionChannel: t.submissionChannel || 'MOBILE',
+            submittedAt: t.submittedAt || null,
+            approvedBy: t.approvedBy || null,
+            approvedAt: t.approvedAt || t.completedAt || null,
+          },
+          customer: {
+            id: t.siaNumber,
+            siaNumber: t.siaNumber,
+            fullName: t.customerName,
+            address: t.serviceAddress || 'Alamat belum tercantum',
+            lat: t.targetLat ?? -6.914744,
+            lng: t.targetLng ?? 107.60981,
+            currentAttenuation: newAtt,
+            attenuationHistory: scopedHist,
+            clusterName: t.cluster,
+            clusterCode: t.clusterCode || 'BDG-01',
+            splitterCode: t.splitterCode || null,
+            portNumber: t.portNumber ?? null,
+          },
+        };
+      });
+    }
+
+    // Scope splitters strictly from technician's assigned clusters + active assignments only
+    const allowedClusters = Array.from(
+      new Set([
+        ...(techUser?.assignedClusters || []),
+        ...activeTickets.map((t) => t.customer.clusterCode).filter(Boolean),
+      ]),
+    ).filter((c) => c.trim().toLowerCase() !== 'global scope');
+
+    const techScopeContext: UserSessionContext = {
+      userId: actor.userId,
+      username: actor.username,
+      fullName: actor.fullName || actor.username,
+      role: 'Technician',
+      userType: actor.userType,
+      hierarchyLevel: 10,
+      assignedClusters: allowedClusters,
+    };
+
+    let splittersData: MobileSplitterItemDto[] = [];
+    if (dbOnline && allowedClusters.length > 0) {
+      try {
+        const splitters = await prisma.networkSplitter.findMany({
+          where: {
+            cluster: {
+              clusterCode: { in: allowedClusters },
+            },
+          },
+          include: {
+            cluster: true,
+            customers: {
+              where: { status: 'ACTIVE' },
+              select: { portNumber: true, fullName: true, siaNumber: true },
+            },
+          },
+        });
+
+        if (splitters.length > 0) {
+          splittersData = splitters
+            .map((s) => {
+              const occupiedPorts = s.customers
+                .map((c) => c.portNumber)
+                .filter((p): p is number => p !== null);
+
+              const availablePorts: number[] = [];
+              for (let p = 1; p <= s.maxPorts; p++) {
+                if (!occupiedPorts.includes(p)) {
+                  availablePorts.push(p);
+                }
+              }
+
+              return {
+                id: s.id,
+                splitterCode: s.splitterCode,
+                clusterName: s.cluster?.name || 'Cluster',
+                clusterCode: s.cluster?.clusterCode || 'BDG',
+                lat: Number(s.lat),
+                lng: Number(s.lng),
+                maxPorts: s.maxPorts,
+                occupiedPorts,
+                availablePorts,
+              };
+            })
+            .filter((s) => matchesAssignedClusters(techScopeContext, s.clusterCode, s.clusterName));
+        }
+      } catch (err) {
+        markDatabaseUnavailable(err);
+      }
+    }
+
+    if (!dbOnline && !isStrictLiveMode() && splittersData.length === 0) {
+      const clusters = await NetworkService.listClusters();
+      splittersData = clusters
+        .filter((c) => matchesAssignedClusters(techScopeContext, c.clusterCode, c.name))
+        .map((c) => ({
+          id: c.splitterCode,
+          splitterCode: c.splitterCode,
+          clusterName: c.name,
+          clusterCode: c.clusterCode,
+          lat: c.lat,
+          lng: c.lng,
+          maxPorts: c.maxPorts,
+          occupiedPorts: c.ports.filter((p) => p.isOccupied).map((p) => p.portNumber),
+          availablePorts: c.ports.filter((p) => !p.isOccupied).map((p) => p.portNumber),
+        }));
+    }
+
+    return {
+      success: true,
+      data: {
+        tickets: activeTickets,
+        historyTickets,
+        splitters: splittersData,
+      },
+      meta: {
+        activeTicketsCount: activeTickets.length,
+        historyTicketsCount: historyTickets.length,
+        historyTotalCount,
+        historyLimit,
+        splittersCount: splittersData.length,
+      },
+    };
+  }
+
+  /**
+   * Generates a short-lived presigned URL for an OPM proof photo strictly owned
+   * by the authenticated TECHNICIAN actor (Law 1 + Anti-IDOR).
+   */
+  public static async presignTechnicianMedia(
+    actor: TechActorContext,
+    query: MobileMediaPresignQuery,
+  ): Promise<MobileMediaPresignResponse> {
+    if (actor.userType !== 'TECHNICIAN') {
+      throw new TechHttpError(
+        403,
+        ERROR_CODES.FORBIDDEN,
+        'Akses ditolak: Hanya akun Teknisi Lapangan yang dapat mengakses pratinjau bukti foto OPM mobile.',
+      );
+    }
+
+    const { ticketId, key } = query;
+    const dbOnline = await requireLiveDatabase(
+      'Database tidak tersedia untuk memverifikasi kepemilikan foto OPM.',
+    );
+
+    if (dbOnline) {
+      const ticket = await prisma.ticket.findFirst({
+        where: {
+          OR: [{ id: ticketId }, { ticketNumber: ticketId }],
+        },
+        select: {
+          id: true,
+          assignedTechId: true,
+          pendingPayload: true,
+          attenuations: {
+            where: { photoObjectKey: key },
+            select: { id: true, photoObjectKey: true },
+            take: 1,
+          },
+        },
+      });
+
+      if (!ticket) {
+        throw new TechHttpError(404, ERROR_CODES.TICKET_NOT_FOUND, 'Tiket tidak ditemukan.');
+      }
+
+      if (ticket.assignedTechId !== actor.userId) {
+        throw new TechHttpError(
+          403,
+          ERROR_CODES.IDOR_VIOLATION,
+          'Akses ditolak: Anda tidak berwenang mengakses foto bukti OPM milik teknisi lain.',
+        );
+      }
+
+      const pendingKey =
+        ticket.pendingPayload && typeof ticket.pendingPayload === 'object'
+          ? (ticket.pendingPayload as Record<string, unknown>).photoObjectKey
+          : null;
+
+      if (ticket.attenuations.length === 0 && pendingKey !== key) {
+        throw new TechHttpError(
+          404,
+          ERROR_CODES.VALIDATION_ERROR,
+          'Bukti foto OPM tidak tercatat pada tiket tersebut.',
+        );
+      }
+    } else if (!isStrictLiveMode()) {
+      const fallbackTickets = await this.listTickets();
+      const matched = fallbackTickets.find(
+        (t) => t.id === ticketId || t.ticketNumber === ticketId,
+      );
+
+      if (!matched) {
+        throw new TechHttpError(
+          404,
+          ERROR_CODES.TICKET_NOT_FOUND,
+          'Tiket tidak ditemukan pada mode offline.',
+        );
+      }
+
+      const actorCanonical = normalizeTechUsernameAlias(
+        actor.canonicalUsername || actor.username,
+      );
+      const ticketTechCanonical = normalizeTechUsernameAlias(
+        matched.assignedTechUsername || matched.assignedTech.toLowerCase().replace(/\s+/g, '.'),
+      );
+      const actorFullName = (actor.fullName || '').trim().toLowerCase();
+      const ownsTicket =
+        ticketTechCanonical === actorCanonical ||
+        (actorFullName.length > 0 && matched.assignedTech.toLowerCase() === actorFullName);
+
+      if (!ownsTicket) {
+        throw new TechHttpError(
+          403,
+          ERROR_CODES.IDOR_VIOLATION,
+          'Akses ditolak: Anda tidak berwenang mengakses foto bukti OPM milik teknisi lain.',
+        );
+      }
+
+      const fallbackPhotoKey = matched.photoObjectKey || matched.pendingSubmission?.photoObjectKey;
+      if (fallbackPhotoKey !== key) {
+        throw new TechHttpError(
+          404,
+          ERROR_CODES.VALIDATION_ERROR,
+          'Bukti foto OPM tidak tercatat pada tiket tersebut.',
+        );
+      }
+    }
+
+    if (key.startsWith('seed/') || !SAFE_TICKET_PHOTO_KEY_RE.test(key)) {
+      throw new TechHttpError(
+        404,
+        ERROR_CODES.VALIDATION_ERROR,
+        'Foto sampel bawaan belum tersedia pada penyimpanan arsip gambar.',
+      );
+    }
+
+    const url = await minioManager.generatePresignedGetUrl(key);
+    const isMockFallback = !url.includes('X-Amz-Signature');
+
+    return {
+      success: true,
+      data: {
+        key,
+        url,
+        isMockFallback,
+      },
+    };
   }
 }

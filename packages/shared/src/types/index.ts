@@ -301,6 +301,15 @@ export interface DbTicket {
   portNumber?: number;
   distanceToSplitterM?: number;
   isLocationFlagged?: boolean;
+  createdByAdminUsername?: string;
+  createdByAdminFullName?: string;
+  oldAttenuation?: number;
+  photoObjectKey?: string;
+  technicianNotes?: string;
+  submissionChannel?: 'WEB' | 'MOBILE' | 'TELEGRAM';
+  submittedAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
   pendingSubmission?: DbTicketPendingSubmission;
 }
 

@@ -241,6 +241,20 @@ export async function middleware(request: NextRequest) {
     try {
       const payload = await verifyAccessJwt(token, secretBytes);
 
+      if (payload.userType !== 'TECHNICIAN') {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: ERROR_CODES.FORBIDDEN,
+              message:
+                'Akses ditolak: Endpoint aplikasi mobile hanya diperuntukkan bagi akun Teknisi Lapangan.',
+            },
+          },
+          { status: 403 },
+        );
+      }
+
       const requestHeaders = buildVerifiedHeaders(
         request.headers,
         payload as Record<string, unknown>,

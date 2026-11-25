@@ -146,7 +146,7 @@ class WebApiClient {
           }
 
           const currentPath = `${window.location.pathname}${window.location.search}`;
-          if (window.location.pathname !== '/login') {
+          if (window.location.pathname !== '/login' && !window.location.pathname.startsWith('/mobile')) {
             window.location.href = `/login?next=${encodeURIComponent(currentPath)}`;
           } else {
             this.isRedirecting = false;

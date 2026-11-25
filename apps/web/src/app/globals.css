@@ -954,20 +954,41 @@ html.dark textarea:not(.mobile-shell-viewport *):focus,
   color-scheme: light;
 }
 
-.mobile-shell-viewport:not([data-mobile-theme='dark']) input,
-.mobile-shell-viewport:not([data-mobile-theme='dark']) select,
-.mobile-shell-viewport:not([data-mobile-theme='dark']) textarea,
-.mobile-shell-viewport:not([data-mobile-theme='dark']) .fiberops-input {
+.mobile-shell-viewport:not([data-mobile-theme='dark']):not([data-outdoor='true']) input,
+.mobile-shell-viewport:not([data-mobile-theme='dark']):not([data-outdoor='true']) select,
+.mobile-shell-viewport:not([data-mobile-theme='dark']):not([data-outdoor='true']) textarea,
+.mobile-shell-viewport:not([data-mobile-theme='dark']):not([data-outdoor='true']) .fiberops-input {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
 }
 
-.mobile-shell-viewport:not([data-mobile-theme='dark']) input:focus,
-.mobile-shell-viewport:not([data-mobile-theme='dark']) textarea:focus,
-.mobile-shell-viewport:not([data-mobile-theme='dark']) .fiberops-input:focus {
+.mobile-shell-viewport:not([data-mobile-theme='dark']):not([data-outdoor='true']) input:focus,
+.mobile-shell-viewport:not([data-mobile-theme='dark']):not([data-outdoor='true']) textarea:focus,
+.mobile-shell-viewport:not([data-mobile-theme='dark']):not([data-outdoor='true']) .fiberops-input:focus {
   border-color: #1b5ca2 !important;
   box-shadow: 0 0 0 2px rgba(27, 92, 162, 0.2) !important;
+}
+
+.mobile-shell-viewport[data-outdoor='true'] {
+  color-scheme: light;
+}
+
+.mobile-shell-viewport[data-outdoor='true'] input,
+.mobile-shell-viewport[data-outdoor='true'] select,
+.mobile-shell-viewport[data-outdoor='true'] textarea,
+.mobile-shell-viewport[data-outdoor='true'] .fiberops-input {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+
+.mobile-shell-viewport[data-outdoor='true'] input:focus,
+.mobile-shell-viewport[data-outdoor='true'] select:focus,
+.mobile-shell-viewport[data-outdoor='true'] textarea:focus,
+.mobile-shell-viewport[data-outdoor='true'] .fiberops-input:focus {
+  border-color: #0047ab !important;
+  box-shadow: 0 0 0 2px rgba(0, 71, 171, 0.28) !important;
 }
 
 .mobile-shell-viewport:not([data-mobile-theme='dark']) input:-webkit-autofill,

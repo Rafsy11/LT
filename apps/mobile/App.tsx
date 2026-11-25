@@ -44,6 +44,7 @@ export type ThemePreference = 'light' | 'dark' | 'system';
 export const MOBILE_THEME_STORAGE_KEY = '@fiberops_mobile_theme_v1';
 const INSTALLATION_DEVICE_ID_KEY = '@fiberops_installation_device_id_v1';
 const STORAGE_KEY_CACHED_TICKETS = '@fiberops_cached_tickets_v1';
+const STORAGE_KEY_CACHED_HISTORY_TICKETS = '@fiberops_cached_history_tickets_v1';
 const STORAGE_KEY_CACHED_ODPS = '@fiberops_cached_odps_v1';
 const STORAGE_KEY_OFFLINE_QUEUE = '@fiberops_offline_ticket_queue_v1';
 
@@ -321,6 +322,7 @@ export default function App({
         void removeEncryptedItem('auth_tokens');
         void removeEncryptedItem('user_profile');
         void removeEncryptedItem(STORAGE_KEY_CACHED_TICKETS);
+        void removeEncryptedItem(STORAGE_KEY_CACHED_HISTORY_TICKETS);
         void removeEncryptedItem(STORAGE_KEY_CACHED_ODPS);
         void removeEncryptedItem(STORAGE_KEY_OFFLINE_QUEUE);
         void persistentStorage.removeItem(SERVER_URL_STORAGE_KEY);
@@ -384,10 +386,22 @@ export default function App({
         const savedUser = await getEncryptedItem<UserProfile>('user_profile');
 
         if (savedTokens?.accessToken && isMounted) {
-          apiClient.setTokens(savedTokens);
-          if (savedUser) {
+          if (savedUser && savedUser.userType === 'TECHNICIAN') {
+            apiClient.setTokens(savedTokens);
             setCurrentUser(savedUser);
             setCurrentScreen('TICKET_LIST');
+          } else {
+            apiClient.setTokens(null);
+            void removeSecureToken('auth_tokens');
+            void removeEncryptedItem('auth_tokens');
+            void removeEncryptedItem('user_profile');
+            void removeEncryptedItem(STORAGE_KEY_CACHED_TICKETS);
+            void removeEncryptedItem(STORAGE_KEY_CACHED_HISTORY_TICKETS);
+            if (savedUser) {
+              setSessionRevokedReason(
+                'Akses ditolak: Aplikasi /mobile hanya diperuntukkan bagi akun Teknisi Lapangan.',
+              );
+            }
           }
         }
       } catch (err) {
@@ -426,6 +440,7 @@ export default function App({
     void removeEncryptedItem('auth_tokens');
     void removeEncryptedItem('user_profile');
     void removeEncryptedItem(STORAGE_KEY_CACHED_TICKETS);
+    void removeEncryptedItem(STORAGE_KEY_CACHED_HISTORY_TICKETS);
     void removeEncryptedItem(STORAGE_KEY_CACHED_ODPS);
     void removeEncryptedItem(STORAGE_KEY_OFFLINE_QUEUE);
     void persistentStorage.removeItem(SERVER_URL_STORAGE_KEY);
@@ -851,6 +866,17 @@ export default function App({
           sessionRevokedReason={sessionRevokedReason}
           themeMode={themeMode}
           onLoginSuccess={(user, tokens) => {
+            if (user.userType !== 'TECHNICIAN') {
+              apiClient.setTokens(null);
+              void removeSecureToken('auth_tokens');
+              void removeEncryptedItem('auth_tokens');
+              void removeEncryptedItem('user_profile');
+              setSessionRevokedReason(
+                'Akses ditolak: Hanya akun Teknisi Lapangan yang dapat mengakses /mobile.',
+              );
+              setCurrentScreen('LOGIN');
+              return;
+            }
             setCurrentUser(user);
             setSessionRevokedReason(null);
             setSecurityState('READY');
@@ -868,6 +894,8 @@ export default function App({
         <TicketListView
           apiClient={apiClient}
           technicianName={currentUser?.fullName}
+          userType={currentUser?.userType}
+          networkMode={simulatedNetwork}
           themeMode={themeMode}
           themePreference={activeThemePreference}
           onChangeThemePreference={handleThemePreferenceChange}
