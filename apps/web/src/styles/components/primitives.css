@@ -2113,6 +2113,86 @@ input[type='checkbox'] {
   color: #0f172a;
 }
 
+.ai-msg-rich {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  color: inherit;
+  font-weight: 450;
+  overflow-wrap: anywhere;
+}
+
+.ai-msg-para {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.ai-msg-heading {
+  margin: 4px 0 0;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: inherit;
+}
+
+.ai-msg-strong {
+  font-weight: 700;
+}
+
+.ai-msg-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-msg-list--ul {
+  list-style-type: disc;
+  list-style-position: outside;
+}
+
+.ai-msg-list--ol {
+  list-style-type: decimal;
+  list-style-position: outside;
+}
+
+.ai-msg-list li {
+  line-height: 1.55;
+}
+
+.ai-msg-inline-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #0e5b92;
+  border: 1px solid #e2e8f0;
+  overflow-wrap: anywhere;
+}
+
+.ai-msg-code-block {
+  margin: 2px 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-msg-hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 4px 0;
+}
+
 .ai-msg-loading-bubble {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
@@ -4859,8 +4939,34 @@ html.dark .ai-msg-bubble.assistant .ai-msg-timestamp,
 }
 
 html.dark .ai-msg-bubble.assistant .ai-msg-text,
-[data-theme='dark'] .ai-msg-bubble.assistant .ai-msg-text {
+[data-theme='dark'] .ai-msg-bubble.assistant .ai-msg-text,
+html.dark .ai-msg-rich,
+[data-theme='dark'] .ai-msg-rich {
   color: #f1f5f9 !important;
+}
+
+html.dark .ai-msg-heading,
+[data-theme='dark'] .ai-msg-heading {
+  color: #f8fafc !important;
+}
+
+html.dark .ai-msg-inline-code,
+[data-theme='dark'] .ai-msg-inline-code {
+  background: #1e293b !important;
+  color: #38bdf8 !important;
+  border-color: #334155 !important;
+}
+
+html.dark .ai-msg-code-block,
+[data-theme='dark'] .ai-msg-code-block {
+  background: #020617 !important;
+  color: #e2e8f0 !important;
+  border-color: #334155 !important;
+}
+
+html.dark .ai-msg-hr,
+[data-theme='dark'] .ai-msg-hr {
+  border-top-color: #334155 !important;
 }
 
 html.dark .ai-msg-loading-bubble,

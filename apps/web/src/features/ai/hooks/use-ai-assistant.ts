@@ -13,6 +13,9 @@ import { useToast } from '@/providers';
 
 const MAX_AI_PROMPT_LENGTH = 4000;
 const MAX_ATTACHMENT_EXCERPT_CHARS = 2800;
+const MAX_CHAT_HISTORY_MESSAGES = 12;
+const MAX_HISTORY_ITEM_CHARS = 3800;
+const AI_CHAT_TIMEOUT_MS = 60_000;
 const DEFAULT_ATTACHMENT_PROMPT =
   'Analisis isi berkas terlampir dan berikan ringkasan temuan operasional NOC.';
 const TRUNCATION_NOTICE = '\n[... sebagian isi berkas dipotong agar sesuai batas 4000 karakter]';
@@ -29,13 +32,19 @@ export interface AiPromptAttachment {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
+  requestContent?: string;
+  isError?: boolean;
   attachment?: Pick<AiPromptAttachment, 'name' | 'size' | 'truncated'>;
   draft?: DraftActionCardData;
   timestamp?: string;
 }
 
 function sanitizeAttachmentText(raw: string): string {
-  return raw.replace(CONTROL_AND_BIDI_RE, '').replace(/\r\n/g, '\n').trim();
+  return raw
+    .replace(CONTROL_AND_BIDI_RE, '')
+    .replace(/<\/?untrusted_data\b[^>]*>/gi, '')
+    .replace(/\r\n/g, '\n')
+    .trim();
 }
 
 function composePromptWithAttachment(
@@ -107,15 +116,18 @@ export const formatPayloadEntry = (key: string, val: unknown) => {
   return { label, value: formattedVal };
 };
 
-export function useAiAssistant() {
+export function useAiAssistant(initialModel?: string) {
   const [prompt, setPrompt] = useState('');
   const [attachment, setAttachment] = useState<AiPromptAttachment | null>(null);
   const [loading, setLoading] = useState(false);
+  const [activeModel, setActiveModel] = useState<string>(initialModel?.trim() || '');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<ChatMessage[]>([]);
   const { showError } = useToast();
   const rateLimit = useRateLimitCountdown();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  messagesRef.current = messages;
 
   const formatTime = () => {
     const now = new Date();
@@ -186,9 +198,18 @@ export function useAiAssistant() {
     const visibleText = textToSend.trim() || DEFAULT_ATTACHMENT_PROMPT;
     const composedPrompt = composePromptWithAttachment(visibleText, activeAttachment);
 
+    const historyPayload = messagesRef.current
+      .filter((m) => !m.isError && (m.requestContent || m.text).trim().length > 0)
+      .slice(-MAX_CHAT_HISTORY_MESSAGES)
+      .map((m) => ({
+        role: m.role,
+        content: (m.requestContent || m.text).trim().slice(0, MAX_HISTORY_ITEM_CHARS),
+      }));
+
     const userMsg: ChatMessage = {
       role: 'user',
       text: visibleText,
+      requestContent: composedPrompt,
       attachment: activeAttachment
         ? {
             name: activeAttachment.name,
@@ -207,18 +228,32 @@ export function useAiAssistant() {
     setTimeout(scrollToBottom, 50);
 
     try {
-      const json = await webApiClient.post<{ content: string; draftCard?: DraftActionCardData }>(
+      const json = await webApiClient.post<{
+        content: string;
+        model?: string;
+        draftCard?: DraftActionCardData;
+      }>(
         '/api/v1/admin/ai/chat',
-        { message: composedPrompt },
-        { timeoutMs: 45_000 },
+        {
+          message: composedPrompt,
+          ...(historyPayload.length > 0 ? { history: historyPayload } : {}),
+        },
+        { timeoutMs: AI_CHAT_TIMEOUT_MS },
       );
 
       if (json.success && json.data) {
+        if (json.data.model) {
+          setActiveModel(json.data.model);
+        }
+        const draftContextNote = json.data.draftCard
+          ? `\n[Draf aksi siap dikonfirmasi: ${json.data.draftCard.title} (${json.data.draftCard.summary})]`
+          : '';
         setMessages((prev) => [
           ...prev,
           {
             role: 'assistant',
             text: json.data!.content,
+            requestContent: `${json.data!.content}${draftContextNote}`,
             draft: json.data!.draftCard,
             timestamp: formatTime(),
           },
@@ -244,6 +279,7 @@ export function useAiAssistant() {
         {
           role: 'assistant',
           text: `${normalized.title}: ${normalized.message}${refSuffix}`,
+          isError: true,
           timestamp: formatTime(),
         },
       ]);
@@ -271,6 +307,7 @@ export function useAiAssistant() {
     handleAttachFile,
     handleRemoveAttachment,
     loading,
+    activeModel,
     rateLimitSeconds: rateLimit.remainingSeconds,
     messages,
     messagesEndRef,

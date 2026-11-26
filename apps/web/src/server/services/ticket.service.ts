@@ -764,24 +764,21 @@ export class TicketService {
   public static async createTicket(input: CreateTicketInput, adminId = 'superadmin') {
     const techProfile = await this.resolveTechProfile(input.assignedTechUsername);
     const resolvedVendorName = input.vendorName?.trim() || techProfile.vendorCompany;
-    const resolvedClusterName = input.clusterCode.startsWith('Bandung') ||
-      input.clusterCode.startsWith('Cimahi') ||
-      input.clusterCode.startsWith('Rancaekek')
-      ? input.clusterCode
-      : `Bandung ${input.clusterCode}`;
-
     // Lookup existing customer metadata when CS/AI omits address or coordinates
     const fallbackCustomers = await CustomerService.listCustomers(input.siaNumber);
     const matchedCust = fallbackCustomers.find(
       (c) => c.siaNumber.toLowerCase() === input.siaNumber.toLowerCase(),
     );
+    const resolvedClusterName = matchedCust?.cluster || input.clusterCode;
     const resolvedAddress =
       input.serviceAddress?.trim() || matchedCust?.address || `Area Cluster ${resolvedClusterName}`;
     const resolvedLat = input.targetLat ?? matchedCust?.lat;
     const resolvedLng = input.targetLng ?? matchedCust?.lng;
     const dispatchedIso = new Date().toISOString();
 
-    const nextNumber = `WO-2025-0${843 + FALLBACK_TICKETS.length}`;
+    const yearNow = new Date().getFullYear();
+    const fallbackSeq = 843 + FALLBACK_TICKETS.length;
+    const nextNumber = `WO-${yearNow}-0${fallbackSeq}`;
     const newTicket: DbTicket = {
       id: `t-${Date.now()}`,
       ticketNumber: nextNumber,
@@ -830,6 +827,7 @@ export class TicketService {
         const created = await prisma.$transaction(async (tx) => {
           let dbCustomer = await tx.customer.findFirst({
             where: { siaNumber: input.siaNumber },
+            include: { cluster: true },
           });
 
           if (!dbCustomer) {
@@ -858,6 +856,7 @@ export class TicketService {
                 clusterId: cluster.id,
                 status: 'PENDING_INSTALL',
               },
+              include: { cluster: true },
             });
           }
 
@@ -887,9 +886,28 @@ export class TicketService {
             techTelegramChatId = dbTech.telegramChatId;
           }
 
+          // Generate a guaranteed-unique work order number in PostgreSQL (prevents P2002 collisions in live mode)
+          const woPrefix = `WO-${yearNow}-`;
+          const latestWo = await tx.ticket
+            .findFirst({
+              where: { ticketNumber: { startsWith: woPrefix } },
+              orderBy: { ticketNumber: 'desc' },
+              select: { ticketNumber: true },
+            })
+            .catch(() => null);
+          const lastSeqMatch = latestWo?.ticketNumber.match(/(\d+)$/);
+          const nextSeq = lastSeqMatch ? Number.parseInt(lastSeqMatch[1], 10) + 1 : 1;
+          let uniqueTicketNumber = `${woPrefix}${String(nextSeq).padStart(4, '0')}`;
+          const existingSameNumber = await tx.ticket
+            .findUnique({ where: { ticketNumber: uniqueTicketNumber }, select: { id: true } })
+            .catch(() => null);
+          if (existingSameNumber) {
+            uniqueTicketNumber = `${woPrefix}${String(Date.now()).slice(-6)}`;
+          }
+
           const dbTicket = await tx.ticket.create({
             data: {
-              ticketNumber: newTicket.ticketNumber,
+              ticketNumber: uniqueTicketNumber,
               ticketType: input.ticketType,
               customerId: dbCustomer.id,
               assignedTechId: dbTech?.id ?? null,
@@ -927,11 +945,13 @@ export class TicketService {
             },
           });
 
-          return dbTicket;
+          return { dbTicket, clusterName: dbCustomer.cluster?.name || resolvedClusterName };
         });
 
         if (created) {
-          newTicket.id = created.id;
+          newTicket.id = created.dbTicket.id;
+          newTicket.ticketNumber = created.dbTicket.ticketNumber;
+          newTicket.cluster = created.clusterName;
         }
       } catch (err) {
         rethrowIfStrictDatabaseError(err, 'Gagal menyimpan tiket baru ke PostgreSQL.');

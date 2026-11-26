@@ -5,12 +5,15 @@ import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
 import { DefaultAvatar } from '@/components/ui/DefaultAvatar';
 import { formatFileSizeLabel } from '@/lib/error-normalizer';
+import { useAuth } from '@/providers';
 import { DraftActionCard } from './draft-action-card';
 import { ChatMessage } from '../hooks/use-ai-assistant';
+import { AiMessageContent, formatOllamaModelLabel } from '../lib/ai-format';
 
 export interface AiMessageListProps {
   messages: ChatMessage[];
   loading: boolean;
+  activeModel?: string;
   onClearChat: () => void;
   formatPayloadEntry: (key: string, val: unknown) => { label: string; value: string };
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
@@ -19,10 +22,18 @@ export interface AiMessageListProps {
 export function AiMessageList({
   messages,
   loading,
+  activeModel,
   onClearChat,
   formatPayloadEntry,
   messagesEndRef,
 }: AiMessageListProps) {
+  const { user, isAuthenticated } = useAuth();
+  const senderDisplayName =
+    isAuthenticated && user.fullName && user.fullName !== 'Memuat Sesi...'
+      ? user.fullName
+      : 'Admin NOC';
+  const modelLabel = formatOllamaModelLabel(activeModel);
+
   return (
     <section aria-label="Riwayat Percakapan AI" className="ai-message-list-section">
       {/* Subtle conversation toolbar */}
@@ -30,7 +41,7 @@ export function AiMessageList({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span className="status-dot status-dot--ok" aria-hidden="true" />
           <span className="ai-chat-model-text">
-            AI Assistant · Qwen 2.5 7B On-Premise
+            AI Assistant · {modelLabel} On-Premise
           </span>
         </div>
 
@@ -76,7 +87,7 @@ export function AiMessageList({
             <article className={`ai-msg-bubble ${m.role === 'user' ? 'user' : 'assistant'}`}>
               <header className="ai-msg-bubble-header">
                 <span className="ai-msg-sender-name">
-                  {m.role === 'user' ? 'Aditya Saputra' : 'AI Assistant'}
+                  {m.role === 'user' ? senderDisplayName : 'AI Assistant'}
                 </span>
                 {m.timestamp && (
                   <time className="ai-msg-timestamp">
@@ -95,15 +106,17 @@ export function AiMessageList({
                 </div>
               )}
 
-              <p className="ai-msg-text">
-                {m.text}
-              </p>
+              {m.role === 'assistant' ? (
+                <AiMessageContent text={m.text} />
+              ) : (
+                <p className="ai-msg-text">{m.text}</p>
+              )}
 
               {/* Draft Action Card (Human-in-the-Loop with 6-State Local Machine) */}
               {m.draft && <DraftActionCard draft={m.draft} formatPayloadEntry={formatPayloadEntry} />}
             </article>
 
-            {m.role === 'user' && <DefaultAvatar name="Aditya Saputra" size={32} />}
+            {m.role === 'user' && <DefaultAvatar name={senderDisplayName} size={32} />}
           </li>
         ))}
       </ol>
@@ -129,7 +142,7 @@ export function AiMessageList({
           </figure>
           <div className="ai-msg-loading-bubble">
             <Icon name="refresh" size={14} className="animate-spin" />
-            <span>Menjalankan inferensi model Qwen 2.5 di server internal...</span>
+            <span>Menjalankan inferensi model {modelLabel} di server internal...</span>
           </div>
         </aside>
       )}

@@ -7,7 +7,11 @@ import { AiMessageList } from './ai-message-list';
 import { AiPromptInput } from './ai-prompt-input';
 import '@/styles/features/ai-page.css';
 
-export function AiAssistantView() {
+export interface AiAssistantViewProps {
+  initialModel?: string;
+}
+
+export function AiAssistantView({ initialModel }: AiAssistantViewProps) {
   const {
     prompt,
     setPrompt,
@@ -15,13 +19,14 @@ export function AiAssistantView() {
     handleAttachFile,
     handleRemoveAttachment,
     loading,
+    activeModel,
     messages,
     messagesEndRef,
     suggestions,
     sendMessage,
     handleClearChat,
     formatPayloadEntry,
-  } = useAiAssistant();
+  } = useAiAssistant(initialModel);
 
   return (
     <main
@@ -36,6 +41,7 @@ export function AiAssistantView() {
         <AiMessageList
           messages={messages}
           loading={loading}
+          activeModel={activeModel}
           onClearChat={handleClearChat}
           formatPayloadEntry={formatPayloadEntry}
           messagesEndRef={messagesEndRef}

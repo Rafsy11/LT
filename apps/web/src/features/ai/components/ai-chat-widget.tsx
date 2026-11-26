@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
 import { DraftActionCardData } from '@repo/shared';
@@ -8,23 +8,38 @@ import { webApiClient } from '@/lib/api-client';
 import { normalizeAppError } from '@/lib/error-normalizer';
 import { useToast } from '@/providers';
 import { DraftActionCard } from './draft-action-card';
+import { AiMessageContent, formatOllamaModelLabel } from '../lib/ai-format';
 import '@/styles/components/ai-widget.css';
+
+const MAX_WIDGET_HISTORY_MESSAGES = 12;
+const MAX_WIDGET_HISTORY_ITEM_CHARS = 3800;
+const AI_WIDGET_TIMEOUT_MS = 60_000;
+
+interface WidgetChatMessage {
+  role: 'user' | 'assistant';
+  text: string;
+  draft?: DraftActionCardData;
+  isGreeting?: boolean;
+  isError?: boolean;
+}
 
 export function AiChatWidget() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
+  const [activeModel, setActiveModel] = useState<string>('');
   const { showError } = useToast();
 
-  const [messages, setMessages] = useState<
-    Array<{ role: 'user' | 'assistant'; text: string; draft?: DraftActionCardData }>
-  >([
+  const [messages, setMessages] = useState<WidgetChatMessage[]>([
     {
       role: 'assistant',
       text: 'Halo! Saya FiberOps AI Assistant (On-Premise). Ada yang bisa saya bantu terkait master data jaringan, tiket teknisi, atau pemantauan redaman hari ini?',
+      isGreeting: true,
     },
   ]);
+  const messagesRef = useRef<WidgetChatMessage[]>(messages);
+  messagesRef.current = messages;
   const [executedFeedback, setExecutedFeedback] = useState<string | null>(null);
 
   if (pathname === '/' || pathname === '/ai') return null;
@@ -32,20 +47,43 @@ export function AiChatWidget() {
   const sendMessage = async (textToSend: string) => {
     if (!textToSend.trim() || loading) return;
 
-    const userText = textToSend;
+    const userText = textToSend.trim();
+    const historyPayload = messagesRef.current
+      .filter((m) => !m.isGreeting && !m.isError && m.text.trim().length > 0)
+      .slice(-MAX_WIDGET_HISTORY_MESSAGES)
+      .map((m) => {
+        const raw = m.draft
+          ? `${m.text}\n[Draf aksi siap dikonfirmasi: ${m.draft.title}]`
+          : m.text;
+        return {
+          role: m.role,
+          content: raw.trim().slice(0, MAX_WIDGET_HISTORY_ITEM_CHARS),
+        };
+      });
+
     setMessages((prev) => [...prev, { role: 'user', text: userText }]);
     setPrompt('');
     setLoading(true);
     setExecutedFeedback(null);
 
     try {
-      const json = await webApiClient.post<{ content: string; draftCard?: DraftActionCardData }>(
+      const json = await webApiClient.post<{
+        content: string;
+        model?: string;
+        draftCard?: DraftActionCardData;
+      }>(
         '/api/v1/admin/ai/chat',
-        { message: userText },
-        { timeoutMs: 45_000 },
+        {
+          message: userText,
+          ...(historyPayload.length > 0 ? { history: historyPayload } : {}),
+        },
+        { timeoutMs: AI_WIDGET_TIMEOUT_MS },
       );
 
       if (json.success && json.data) {
+        if (json.data.model) {
+          setActiveModel(json.data.model);
+        }
         setMessages((prev) => [
           ...prev,
           {
@@ -69,7 +107,11 @@ export function AiChatWidget() {
           : '';
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', text: `${normalized.title}: ${normalized.message}${refSuffix}` },
+        {
+          role: 'assistant',
+          text: `${normalized.title}: ${normalized.message}${refSuffix}`,
+          isError: true,
+        },
       ]);
       showError(normalized, {
         onRetry:
@@ -88,7 +130,10 @@ export function AiChatWidget() {
         <aside className="chat" role="complementary" aria-label="Widget AI Assistant">
           <header className="panel-heading">
             <h2>
-              Fiberops Assistant <span className="ai-tag">LOCAL AI</span>
+              Fiberops Assistant{' '}
+              <span className="ai-tag">
+                {activeModel ? formatOllamaModelLabel(activeModel) : 'LOCAL AI'}
+              </span>
             </h2>
             <button
               className="dots"
@@ -103,11 +148,20 @@ export function AiChatWidget() {
           <section className="chat-body" aria-label="Riwayat Percakapan AI">
             {messages.map((m, idx) => (
               <div key={idx} className={m.role === 'user' ? 'user-message' : 'assistant-message'}>
-                <p style={{ whiteSpace: 'pre-wrap' }}>{m.text}</p>
+                {m.role === 'assistant' ? (
+                  <AiMessageContent text={m.text} />
+                ) : (
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{m.text}</p>
+                )}
 
                 {m.draft && (
                   <div style={{ marginTop: '12px' }}>
-                    <DraftActionCard draft={m.draft} />
+                    <DraftActionCard
+                      draft={m.draft}
+                      onExecutedSuccess={() =>
+                        setExecutedFeedback(`Aksi "${m.draft?.title || 'Draf'}" berhasil dieksekusi.`)
+                      }
+                    />
                   </div>
                 )}
               </div>

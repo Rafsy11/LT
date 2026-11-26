@@ -6,9 +6,15 @@ import {
   handleAdminRouteError,
 } from '@/server/lib/admin-auth';
 import { checkRateLimit, RATE_LIMIT_PROFILES } from '@/server/lib/rate-limit';
-import { ERROR_CODES, PERMISSIONS } from '@repo/shared';
+import {
+  aiChatHistoryItemSchema,
+  type AiChatHistoryItem,
+  ERROR_CODES,
+  PERMISSIONS,
+} from '@repo/shared';
 
 const MAX_AI_PROMPT_LENGTH = 4000;
+const MAX_REQUEST_HISTORY_ITEMS = 24;
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +22,7 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as {
       message?: string;
       prompt?: string;
+      history?: unknown;
     };
     const prompt = body.message || body.prompt;
 
@@ -42,6 +49,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let validatedHistory: AiChatHistoryItem[] = [];
+    if (body.history !== undefined) {
+      if (!Array.isArray(body.history) || body.history.length > MAX_REQUEST_HISTORY_ITEMS) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: ERROR_CODES.VALIDATION_ERROR,
+              message: `Riwayat percakapan tidak valid atau melebihi ${MAX_REQUEST_HISTORY_ITEMS} pesan.`,
+            },
+          },
+          { status: 400 },
+        );
+      }
+
+      const parsedItems: AiChatHistoryItem[] = [];
+      for (const rawItem of body.history) {
+        const parsed = aiChatHistoryItemSchema.safeParse(rawItem);
+        if (!parsed.success) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: {
+                code: ERROR_CODES.VALIDATION_ERROR,
+                message: 'Format riwayat percakapan tidak valid (hanya peran user/assistant yang diizinkan).',
+              },
+            },
+            { status: 400 },
+          );
+        }
+        parsedItems.push(parsed.data);
+      }
+      validatedHistory = parsedItems;
+    }
+
     // Rate Limiting: 10 req/60s per admin userId
     const rateResult = await checkRateLimit(
       `ai_chat:${adminContext.userId}`,
@@ -65,7 +107,12 @@ export async function POST(request: NextRequest) {
     }
 
     const permissions = await getActorPermissions(adminContext);
-    const response = await AiService.processChat(prompt, adminContext, permissions);
+    const response = await AiService.processChat(
+      prompt,
+      adminContext,
+      permissions,
+      validatedHistory,
+    );
 
     return NextResponse.json({
       success: true,

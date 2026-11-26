@@ -14,20 +14,29 @@ export interface OllamaChatResponse {
   done: boolean;
 }
 
-class OllamaClient {
-  private baseUrl: string;
-  private model: string;
+const OLLAMA_HEALTH_TIMEOUT_MS = 2000;
+const OLLAMA_CHAT_TIMEOUT_MS = 45000;
+const OLLAMA_CONTEXT_WINDOW = 8192;
 
-  constructor() {
-    this.baseUrl = env.OLLAMA_BASE_URL.replace(/\/+$/, '').replace(/\/api$/, '');
-    this.model = env.OLLAMA_MODEL;
+class OllamaClient {
+  public getBaseUrl(): string {
+    const raw = (process.env.OLLAMA_BASE_URL || env.OLLAMA_BASE_URL || 'http://localhost:11434').trim();
+    return raw.replace(/\/+$/, '').replace(/\/api$/, '').replace(/\/v1$/, '');
+  }
+
+  public getOpenAIBaseUrl(): string {
+    return `${this.getBaseUrl()}/v1`;
+  }
+
+  public getActiveModel(): string {
+    return (process.env.OLLAMA_MODEL || env.OLLAMA_MODEL || 'qwen2.5:7b').trim();
   }
 
   public async isHealthy(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/version`, {
+      const res = await fetch(`${this.getBaseUrl()}/api/version`, {
         method: 'GET',
-        signal: AbortSignal.timeout(2000),
+        signal: AbortSignal.timeout(OLLAMA_HEALTH_TIMEOUT_MS),
       });
       return res.ok;
     } catch {
@@ -44,19 +53,19 @@ class OllamaClient {
     formattedMessages.push(...messages);
 
     try {
-      const res = await fetch(`${this.baseUrl}/api/chat`, {
+      const res = await fetch(`${this.getBaseUrl()}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: this.model,
+          model: this.getActiveModel(),
           messages: formattedMessages,
           stream: false,
           options: {
-            temperature: 0.2, // deterministic for ops commands
-            num_ctx: 4096,
+            temperature: 0.2,
+            num_ctx: OLLAMA_CONTEXT_WINDOW,
           },
         }),
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(OLLAMA_CHAT_TIMEOUT_MS),
       });
 
       if (!res.ok) {
@@ -73,7 +82,6 @@ class OllamaClient {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var ollamaClientGlobal: OllamaClient | undefined;
 }
 

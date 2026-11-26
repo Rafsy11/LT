@@ -414,6 +414,30 @@
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
     max-width: 92% !important;
   }
+
+  .message-row.assistant .ai-msg-bubble .ai-msg-sender-name {
+    color: #38bdf8 !important;
+  }
+
+  .message-row.assistant .ai-msg-bubble .ai-msg-timestamp {
+    color: #94a3b8 !important;
+  }
+
+  .message-row.assistant .ai-msg-inline-code {
+    background: #1e293b !important;
+    color: #38bdf8 !important;
+    border-color: #334155 !important;
+  }
+
+  .message-row.assistant .ai-msg-code-block {
+    background: #020617 !important;
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+  }
+
+  .message-row.assistant .ai-msg-hr {
+    border-top-color: rgba(255, 255, 255, 0.12) !important;
+  }
 }
 
 /* Dark Mode Palette Overrides */

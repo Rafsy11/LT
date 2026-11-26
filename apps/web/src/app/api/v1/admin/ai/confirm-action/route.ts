@@ -48,22 +48,24 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Enforce Granular RBAC Permission matching Action Type BEFORE consuming token
-    const requiredPermissionMap: Record<string, string> = {
-      CREATE_TICKET: PERMISSIONS.TICKET_CREATE,
-      TOGGLE_TECH_ACCOUNT: PERMISSIONS.TECH_MANAGE,
-      MUTATE_SPLITTER_PORT: PERMISSIONS.CUSTOMER_UPDATE,
+    const requiredPermissionMap: Record<string, string[]> = {
+      CREATE_TICKET: [PERMISSIONS.TICKET_CREATE],
+      TOGGLE_TECH_ACCOUNT: [PERMISSIONS.TECH_MANAGE],
+      MUTATE_SPLITTER_PORT: [PERMISSIONS.CUSTOMER_UPDATE, PERMISSIONS.NETWORK_UPDATE],
     };
 
-    const requiredPerm = requiredPermissionMap[validated.actionType];
-    if (!isGlobalScopeActor(adminContext) && requiredPerm) {
+    const allowedPerms = requiredPermissionMap[validated.actionType];
+    if (!isGlobalScopeActor(adminContext) && allowedPerms && allowedPerms.length > 0) {
       const perms = await getActorPermissions(adminContext);
-      if (!perms.includes(PERMISSIONS.ALL) && !perms.includes(requiredPerm)) {
+      const hasRequiredPerm =
+        perms.includes(PERMISSIONS.ALL) || allowedPerms.some((p) => perms.includes(p));
+      if (!hasRequiredPerm) {
         return NextResponse.json(
           {
             success: false,
             error: {
               code: ERROR_CODES.FORBIDDEN,
-              message: `Izin [${requiredPerm}] diperlukan untuk mengeksekusi aksi ${validated.actionType}.`,
+              message: `Izin [${allowedPerms.join(' / ')}] diperlukan untuk mengeksekusi aksi ${validated.actionType}.`,
             },
           },
           { status: 403 },
