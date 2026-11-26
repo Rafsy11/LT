@@ -29,6 +29,8 @@ let stripUntrustedDataBlocks: typeof import('@/server/services/ai.service').stri
 let neutralizeUntrustedDataPrompt: typeof import('@/server/services/ai.service').neutralizeUntrustedDataPrompt;
 let cleanAssistantOutput: typeof import('@/server/services/ai.service').cleanAssistantOutput;
 let classifyOverviewIntent: typeof import('@/server/services/ai.service').classifyOverviewIntent;
+let isPureGreetingOrIdentityTurn: typeof import('@/server/services/ai.service').isPureGreetingOrIdentityTurn;
+let guardPersonaGreetingReply: typeof import('@/server/services/ai.service').guardPersonaGreetingReply;
 let repairKnownOperationalIdentifiers: typeof import('@/server/services/ai.service').repairKnownOperationalIdentifiers;
 let aiChatPost: typeof import('@/app/api/v1/admin/ai/chat/route').POST;
 let aiConfirmPost: typeof import('@/app/api/v1/admin/ai/confirm-action/route').POST;
@@ -81,6 +83,8 @@ describe('Tier 1: Feature 27 - AI Assistant Live Context, Multi-Turn Chat & Dyna
     neutralizeUntrustedDataPrompt = aiMod.neutralizeUntrustedDataPrompt;
     cleanAssistantOutput = aiMod.cleanAssistantOutput;
     classifyOverviewIntent = aiMod.classifyOverviewIntent;
+    isPureGreetingOrIdentityTurn = aiMod.isPureGreetingOrIdentityTurn;
+    guardPersonaGreetingReply = aiMod.guardPersonaGreetingReply;
     repairKnownOperationalIdentifiers = aiMod.repairKnownOperationalIdentifiers;
     aiChatPost = aiChatRoute.POST;
     aiConfirmPost = aiConfirmRoute.POST;
@@ -737,10 +741,86 @@ describe('Tier 1: Feature 27 - AI Assistant Live Context, Multi-Turn Chat & Dyna
     assert.match(formatSrc, /ai-msg-code-block/);
     assert.match(primitivesCss, /\.ai-msg-rich\s*\{[\s\S]*?color:\s*inherit;/);
     assert.match(primitivesCss, /\.ai-msg-rich\s*\{[\s\S]*?overflow-wrap:\s*anywhere;/);
+    assert.match(primitivesCss, /\.ai-msg-para\s*\{[\s\S]*?color:\s*inherit;/);
     assert.match(primitivesCss, /\.ai-msg-heading\s*\{[\s\S]*?color:\s*inherit;/);
     assert.match(primitivesCss, /\.ai-msg-list--ul\s*\{[\s\S]*?list-style-type:\s*disc;/);
     assert.match(primitivesCss, /\.ai-msg-list--ol\s*\{[\s\S]*?list-style-type:\s*decimal;/);
+    assert.match(primitivesCss, /html\.dark\s+\.ai-msg-para[\s\S]*?color:\s*#f1f5f9\s*!important;/);
+    assert.match(primitivesCss, /html\.dark\s+\.assistant-message[\s\S]*?background:\s*#1e293b\s*!important;/);
+    assert.match(primitivesCss, /\.user-message\s+p\s*\{[\s\S]*?color:\s*#ffffff;/);
     assert.match(hookSrc, /<\\\/\?untrusted_data/);
+
+    const aiPageCss = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'web', 'src', 'styles', 'features', 'ai-page.css'),
+      'utf8',
+    );
+    const heroSrc = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'web', 'src', 'features', 'ai', 'components', 'ai-hero.tsx'),
+      'utf8',
+    );
+    const promptInputSrc = fs.readFileSync(
+      path.join(
+        repoRoot,
+        'apps',
+        'web',
+        'src',
+        'features',
+        'ai',
+        'components',
+        'ai-prompt-input.tsx',
+      ),
+      'utf8',
+    );
+    const aiServiceSrc = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'web', 'src', 'server', 'services', 'ai.service.ts'),
+      'utf8',
+    );
+
+    // High-contrast mobile dark bubble text overrides + consistent Arta NOC persona wiring
+    assert.match(aiPageCss, /\.message-row\.assistant\s+\.ai-msg-para[\s\S]*?color:\s*#f1f5f9\s*!important;/);
+    assert.match(heroSrc, /AI_PERSONA/);
+    assert.match(msgListSrc, /AI_PERSONA/);
+    assert.match(promptInputSrc, /AI_PERSONA/);
+    assert.match(widgetSrc, /AI_PERSONA/);
+    assert.match(aiServiceSrc, /AI_PERSONA\.identityLine/);
+
+    // Pure greetings / identity questions suppress tool schemas without matching operational queries
+    assert.strictEqual(isPureGreetingOrIdentityTurn('Halo, siapa kamu?'), true);
+    assert.strictEqual(isPureGreetingOrIdentityTurn('Selamat pagi Arta'), true);
+    assert.strictEqual(isPureGreetingOrIdentityTurn('Kamu bisa bantu apa?'), true);
+    assert.strictEqual(isPureGreetingOrIdentityTurn('Halo, cek redaman bank panin'), false);
+    assert.strictEqual(isPureGreetingOrIdentityTurn('Ringkasan gangguan'), false);
+    assert.strictEqual(classifyOverviewIntent('Halo, siapa kamu?'), null);
+    const superAdminTools = AiService.getFilteredTools(
+      {
+        userId: '00000000-0000-4000-8000-000000000001',
+        username: 'superadmin',
+        fullName: 'Super Admin',
+        role: 'Super Admin',
+        userType: 'SUPER_ADMIN',
+        hierarchyLevel: 100,
+        assignedClusters: [],
+      },
+      ['*'],
+    );
+    assert.strictEqual(
+      AiService.selectTurnTools(superAdminTools, 'Halo, siapa kamu?', [], true),
+      undefined,
+    );
+    const swappedGuardOut = guardPersonaGreetingReply(
+      'Halo Arta, saya Aditya Saputra, Super Admin.',
+      {
+        userId: '00000000-0000-4000-8000-000000000001',
+        username: 'superadmin',
+        fullName: 'Aditya Saputra',
+        role: 'Super Admin',
+        userType: 'SUPER_ADMIN',
+        hierarchyLevel: 100,
+        assignedClusters: [],
+      },
+    );
+    assert.match(swappedGuardOut, /saya \*\*Arta\*\*/i);
+    assert.doesNotMatch(swappedGuardOut, /Halo Arta/i);
   });
 
   it('classifies pure overview intents accurately and safely repairs known ticket/cluster identifier slips', () => {

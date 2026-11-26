@@ -1948,10 +1948,17 @@ input[type='checkbox'] {
   box-shadow: 0 1px 2px rgba(14, 91, 146, 0.2);
 }
 
+.user-message p {
+  color: #ffffff;
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+
 .assistant-message {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  color: #1e293b;
+  color: #0f172a;
   border-radius: 10px 10px 10px 2px;
   padding: 16px 18px;
   font-size: 13px;
@@ -2083,7 +2090,7 @@ input[type='checkbox'] {
 }
 
 .ai-msg-bubble.assistant .ai-msg-sender-name {
-  color: #0f172a;
+  color: #0e5b92;
 }
 
 .ai-msg-timestamp {
@@ -2091,11 +2098,11 @@ input[type='checkbox'] {
 }
 
 .ai-msg-bubble.user .ai-msg-timestamp {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .ai-msg-bubble.assistant .ai-msg-timestamp {
-  color: #64748b;
+  color: #475569;
 }
 
 .ai-msg-text {
@@ -2125,6 +2132,8 @@ input[type='checkbox'] {
 
 .ai-msg-para {
   margin: 0;
+  color: inherit;
+  font-size: inherit;
   line-height: 1.6;
 }
 
@@ -2137,6 +2146,7 @@ input[type='checkbox'] {
 
 .ai-msg-strong {
   font-weight: 700;
+  color: inherit;
 }
 
 .ai-msg-list {
@@ -2145,6 +2155,7 @@ input[type='checkbox'] {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  color: inherit;
 }
 
 .ai-msg-list--ul {
@@ -2159,6 +2170,12 @@ input[type='checkbox'] {
 
 .ai-msg-list li {
   line-height: 1.55;
+  color: inherit;
+}
+
+.ai-msg-list li::marker {
+  color: #475569;
+  font-weight: 600;
 }
 
 .ai-msg-inline-code {
@@ -2201,7 +2218,7 @@ input[type='checkbox'] {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #64748b;
+  color: #475569;
   font-size: 13px;
   font-style: italic;
 }
@@ -4856,7 +4873,20 @@ html.dark .ai-suggestion-chip,
 
 html.dark .assistant-message,
 [data-theme='dark'] .assistant-message {
-  border-color: #1e293b !important;
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .user-message,
+[data-theme='dark'] .user-message {
+  background: #1b5ca2 !important;
+  color: #ffffff !important;
+}
+
+html.dark .user-message p,
+[data-theme='dark'] .user-message p {
+  color: #ffffff !important;
 }
 
 html.dark .message-avatar.bot-av,
@@ -4930,7 +4960,7 @@ html.dark .ai-msg-bubble.assistant,
 
 html.dark .ai-msg-bubble.assistant .ai-msg-sender-name,
 [data-theme='dark'] .ai-msg-bubble.assistant .ai-msg-sender-name {
-  color: #2698e8 !important;
+  color: #38bdf8 !important;
 }
 
 html.dark .ai-msg-bubble.assistant .ai-msg-timestamp,
@@ -4941,19 +4971,32 @@ html.dark .ai-msg-bubble.assistant .ai-msg-timestamp,
 html.dark .ai-msg-bubble.assistant .ai-msg-text,
 [data-theme='dark'] .ai-msg-bubble.assistant .ai-msg-text,
 html.dark .ai-msg-rich,
-[data-theme='dark'] .ai-msg-rich {
+[data-theme='dark'] .ai-msg-rich,
+html.dark .ai-msg-para,
+[data-theme='dark'] .ai-msg-para,
+html.dark .ai-msg-list,
+[data-theme='dark'] .ai-msg-list,
+html.dark .ai-msg-list li,
+[data-theme='dark'] .ai-msg-list li {
   color: #f1f5f9 !important;
 }
 
 html.dark .ai-msg-heading,
-[data-theme='dark'] .ai-msg-heading {
+[data-theme='dark'] .ai-msg-heading,
+html.dark .ai-msg-strong,
+[data-theme='dark'] .ai-msg-strong {
   color: #f8fafc !important;
+}
+
+html.dark .ai-msg-list li::marker,
+[data-theme='dark'] .ai-msg-list li::marker {
+  color: #94a3b8 !important;
 }
 
 html.dark .ai-msg-inline-code,
 [data-theme='dark'] .ai-msg-inline-code {
   background: #1e293b !important;
-  color: #38bdf8 !important;
+  color: #7dd3fc !important;
   border-color: #334155 !important;
 }
 
@@ -4973,7 +5016,7 @@ html.dark .ai-msg-loading-bubble,
 [data-theme='dark'] .ai-msg-loading-bubble {
   background: #1e293b !important;
   border: 1px solid #334155 !important;
-  color: #94a3b8 !important;
+  color: #cbd5e1 !important;
 }
 
 html.dark .ai-prompt-pill-bar,

@@ -9,6 +9,7 @@ import { normalizeAppError } from '@/lib/error-normalizer';
 import { useToast } from '@/providers';
 import { DraftActionCard } from './draft-action-card';
 import { AiMessageContent, formatOllamaModelLabel } from '../lib/ai-format';
+import { AI_PERSONA } from '../lib/ai-persona';
 import '@/styles/components/ai-widget.css';
 
 const MAX_WIDGET_HISTORY_MESSAGES = 12;
@@ -34,7 +35,7 @@ export function AiChatWidget() {
   const [messages, setMessages] = useState<WidgetChatMessage[]>([
     {
       role: 'assistant',
-      text: 'Halo! Saya FiberOps AI Assistant (On-Premise). Ada yang bisa saya bantu terkait master data jaringan, tiket teknisi, atau pemantauan redaman hari ini?',
+      text: AI_PERSONA.widgetGreeting,
       isGreeting: true,
     },
   ]);
@@ -130,7 +131,7 @@ export function AiChatWidget() {
         <aside className="chat" role="complementary" aria-label="Widget AI Assistant">
           <header className="panel-heading">
             <h2>
-              Fiberops Assistant{' '}
+              {AI_PERSONA.widgetTitle}{' '}
               <span className="ai-tag">
                 {activeModel ? formatOllamaModelLabel(activeModel) : 'LOCAL AI'}
               </span>
@@ -169,7 +170,7 @@ export function AiChatWidget() {
 
             {loading && (
               <div className="assistant-message">
-                <i>Menghubungi local AI engine...</i>
+                <i>Arta sedang memeriksa data jaringan...</i>
               </div>
             )}
 
@@ -191,7 +192,7 @@ export function AiChatWidget() {
             <input
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Tanyakan analisis atau siapkan tiket..."
+              placeholder={AI_PERSONA.widgetInputPlaceholder}
               disabled={loading}
               required
               aria-label="Pesan untuk AI"

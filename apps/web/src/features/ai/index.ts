@@ -6,3 +6,4 @@ export type { DraftActionCardProps, DraftCardState } from './components/draft-ac
 export { useAiAssistant, AI_SUGGESTIONS, formatPayloadEntry } from './hooks/use-ai-assistant';
 export type { ChatMessage, AiSuggestionItem } from './hooks/use-ai-assistant';
 export { AiMessageContent, formatOllamaModelLabel } from './lib/ai-format';
+export { AI_PERSONA } from './lib/ai-persona';

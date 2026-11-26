@@ -9,6 +9,7 @@ import { useAuth } from '@/providers';
 import { DraftActionCard } from './draft-action-card';
 import { ChatMessage } from '../hooks/use-ai-assistant';
 import { AiMessageContent, formatOllamaModelLabel } from '../lib/ai-format';
+import { AI_PERSONA } from '../lib/ai-persona';
 
 export interface AiMessageListProps {
   messages: ChatMessage[];
@@ -41,7 +42,7 @@ export function AiMessageList({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span className="status-dot status-dot--ok" aria-hidden="true" />
           <span className="ai-chat-model-text">
-            AI Assistant · {modelLabel} On-Premise
+            {AI_PERSONA.formatToolbarLabel(modelLabel)}
           </span>
         </div>
 
@@ -72,7 +73,7 @@ export function AiMessageList({
               <figure className="ai-msg-avatar-figure">
                 <Image
                   src="/assets/Lintasarta-Icon.svg"
-                  alt="AI Assistant"
+                  alt={AI_PERSONA.displayName}
                   width={112}
                   height={112}
                   style={{
@@ -87,7 +88,7 @@ export function AiMessageList({
             <article className={`ai-msg-bubble ${m.role === 'user' ? 'user' : 'assistant'}`}>
               <header className="ai-msg-bubble-header">
                 <span className="ai-msg-sender-name">
-                  {m.role === 'user' ? senderDisplayName : 'AI Assistant'}
+                  {m.role === 'user' ? senderDisplayName : AI_PERSONA.displayName}
                 </span>
                 {m.timestamp && (
                   <time className="ai-msg-timestamp">
@@ -142,7 +143,7 @@ export function AiMessageList({
           </figure>
           <div className="ai-msg-loading-bubble">
             <Icon name="refresh" size={14} className="animate-spin" />
-            <span>Menjalankan inferensi model {modelLabel} di server internal...</span>
+            <span>{AI_PERSONA.formatLoadingLabel(modelLabel)}</span>
           </div>
         </aside>
       )}

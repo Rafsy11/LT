@@ -4,6 +4,7 @@ import React, { useRef } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { formatFileSizeLabel } from '@/lib/error-normalizer';
 import type { AiPromptAttachment } from '../hooks/use-ai-assistant';
+import { AI_PERSONA } from '../lib/ai-persona';
 
 const AI_ATTACHMENT_ACCEPT =
   '.csv,.txt,.log,.json,.md,text/csv,text/plain,application/json,text/markdown';
@@ -90,7 +91,7 @@ export function AiPromptInput({
           placeholder={
             attachment
               ? 'Tambahkan instruksi analisis untuk berkas terlampir...'
-              : 'Tanyakan sesuatu...'
+              : AI_PERSONA.inputPlaceholder
           }
           disabled={loading}
           className="ai-prompt-input-elem"
