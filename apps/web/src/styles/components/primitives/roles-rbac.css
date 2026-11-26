@@ -1,0 +1,337 @@
+/* FiberOps Primitives: roles-rbac.css — Role directory, permission matrix & Telegram binding badges */
+
+.role-sidebar {
+  padding: 22px;
+  align-self: start;
+}
+
+.role-sidebar h2 {
+  margin-bottom: 20px;
+}
+
+.role-option {
+  width: 100%;
+  text-align: left;
+  padding: 17px 12px;
+  border-radius: 7px;
+  margin-bottom: 8px;
+}
+
+.role-option.selected {
+  background: #f1ebf9;
+  color: #855ebf;
+}
+
+.role-option b {
+  font-size: 12px;
+  font-weight: 500;
+  display: block;
+}
+
+.role-option small {
+  font-size: 11px;
+  color: #9b92a7;
+  display: block;
+  margin-top: 6px;
+}
+
+.permission-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid #f0eef5;
+}
+
+.permission-row b {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.permission-row small {
+  display: block;
+  font-size: 11px;
+  color: #9da1ad;
+  margin-top: 6px;
+}
+
+.role-cluster-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: #334155;
+}
+
+.role-self-badge {
+  font-size: 10px;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.role-user-nik-badge {
+  font-weight: 700;
+  color: #0e5b92;
+  background: rgba(14, 91, 146, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+.telegram-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.telegram-status-badge.connected {
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  font-weight: 600;
+}
+
+.telegram-status-badge.pending {
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  font-weight: 500;
+}
+
+.role-action-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .role-action-icon-btn:hover {
+    background: #f0f7ff;
+    border-color: #0e5b92;
+    color: #0e5b92;
+  }
+}
+
+.role-action-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  background: #ffffff;
+  border: 1px solid #dce7f0;
+  color: #0e5b92;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(14, 91, 146, 0.04);
+}
+
+.role-action-btn.secondary {
+  padding: 5px 10px;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+.matrix-role-pill {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid #dce7f0;
+  cursor: pointer;
+}
+
+.matrix-role-pill.active {
+  font-weight: 600;
+  background: #0e5b92;
+  color: #ffffff;
+  border-color: #0e5b92;
+}
+
+.matrix-permission-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fafafa;
+}
+
+.matrix-permission-row.active {
+  background: #ffffff;
+}
+
+.badge-lock {
+  font-size: 11px;
+  background: #f2f3f7;
+  color: #515a62;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  border: 1px solid #e6e8eb;
+}
+
+.role-filter-select {
+  height: 38px;
+  min-height: 38px;
+  padding: 0 10px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.role-name-clean {
+  font-weight: 600;
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.role-locked-badge {
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+/* Dark Mode Overrides */
+html.dark .role-name-clean,
+[data-theme='dark'] .role-name-clean {
+  color: #f1f5f9 !important;
+}
+
+html.dark .role-cluster-text,
+[data-theme='dark'] .role-cluster-text {
+  color: #94a3b8 !important;
+}
+
+html.dark .role-self-badge,
+[data-theme='dark'] .role-self-badge {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+html.dark .role-user-nik-badge,
+[data-theme='dark'] .role-user-nik-badge {
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #38bdf8 !important;
+}
+
+html.dark .telegram-status-badge.connected,
+[data-theme='dark'] .telegram-status-badge.connected {
+  color: #86efac !important;
+  background: rgba(34, 197, 94, 0.15) !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+}
+
+html.dark .telegram-status-badge.pending,
+[data-theme='dark'] .telegram-status-badge.pending {
+  color: #fcd34d !important;
+  background: rgba(245, 158, 11, 0.15) !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+html.dark .role-filter-select,
+[data-theme='dark'] .role-filter-select {
+  background: #020617 !important;
+  border: 1px solid #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .role-user-row,
+[data-theme='dark'] .role-user-row {
+  background: #0f172a !important;
+  border-bottom: 1px solid #1e293b !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html.dark .role-user-row:hover,
+  [data-theme='dark'] .role-user-row:hover {
+    background: #1e293b !important;
+  }
+}
+
+html.dark .role-user-name,
+[data-theme='dark'] .role-user-name {
+  color: #f1f5f9 !important;
+}
+
+html.dark .role-action-icon-btn,
+[data-theme='dark'] .role-action-icon-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html.dark .role-action-icon-btn:hover,
+  [data-theme='dark'] .role-action-icon-btn:hover {
+    background: #334155 !important;
+    border-color: #38bdf8 !important;
+    color: #38bdf8 !important;
+  }
+}
+
+html.dark .role-action-btn,
+[data-theme='dark'] .role-action-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #2698e8 !important;
+}
+
+html.dark .role-action-btn.secondary,
+[data-theme='dark'] .role-action-btn.secondary,
+html.dark .matrix-role-pill,
+[data-theme='dark'] .matrix-role-pill {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+html.dark .matrix-role-pill.active,
+[data-theme='dark'] .matrix-role-pill.active {
+  background: #1e293b !important;
+  border-color: #2585d0 !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .matrix-permission-row,
+[data-theme='dark'] .matrix-permission-row {
+  background: #0f172a !important;
+  border-bottom-color: #1e293b !important;
+}
+
+html.dark .matrix-permission-row.active,
+[data-theme='dark'] .matrix-permission-row.active {
+  background: #1e293b !important;
+}
+
+html.dark .role-locked-badge,
+[data-theme='dark'] .role-locked-badge {
+  background: #020617 !important;
+  border-color: #1e293b !important;
+  color: #94a3b8 !important;
+}

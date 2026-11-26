@@ -42,7 +42,15 @@ describe('Tier 1: Feature 25 - Global Custom Scrollbar System (apps/web)', () =>
   });
 
   it('4. cleans up legacy conflicting local scrollbar overrides in primitives.css, customers.css, and mobile/page.tsx', () => {
-    const primitivesCss = fs.readFileSync(primitivesCssPath, 'utf8');
+    const primitivesDir = path.join(WEB_ROOT, 'styles/components/primitives');
+    assert.ok(fs.existsSync(primitivesDir), 'styles/components/primitives directory must exist');
+    const primitiveModules = fs
+      .readdirSync(primitivesDir)
+      .filter((name) => name.endsWith('.css'))
+      .map((name) => fs.readFileSync(path.join(primitivesDir, name), 'utf8'));
+    assert.ok(primitiveModules.length > 0, 'primitives/ must contain split CSS modules');
+
+    const primitivesCss = [fs.readFileSync(primitivesCssPath, 'utf8'), ...primitiveModules].join('\n');
     const customersCss = fs.readFileSync(customersCssPath, 'utf8');
     const mobilePage = fs.readFileSync(mobilePagePath, 'utf8');
 

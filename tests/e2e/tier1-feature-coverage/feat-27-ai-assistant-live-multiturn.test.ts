@@ -722,8 +722,12 @@ describe('Tier 1: Feature 27 - AI Assistant Live Context, Multi-Turn Chat & Dyna
       path.join(repoRoot, 'apps', 'web', 'src', 'features', 'ai', 'lib', 'ai-format.tsx'),
       'utf8',
     );
-    const primitivesCss = fs.readFileSync(
+    const primitivesManifest = fs.readFileSync(
       path.join(repoRoot, 'apps', 'web', 'src', 'styles', 'components', 'primitives.css'),
+      'utf8',
+    );
+    const aiChatCss = fs.readFileSync(
+      path.join(repoRoot, 'apps', 'web', 'src', 'styles', 'components', 'primitives', 'ai-chat.css'),
       'utf8',
     );
 
@@ -739,15 +743,20 @@ describe('Tier 1: Feature 27 - AI Assistant Live Context, Multi-Turn Chat & Dyna
     assert.match(widgetSrc, /MAX_WIDGET_HISTORY_ITEM_CHARS/);
     assert.match(formatSrc, /start=\{/);
     assert.match(formatSrc, /ai-msg-code-block/);
-    assert.match(primitivesCss, /\.ai-msg-rich\s*\{[\s\S]*?color:\s*inherit;/);
-    assert.match(primitivesCss, /\.ai-msg-rich\s*\{[\s\S]*?overflow-wrap:\s*anywhere;/);
-    assert.match(primitivesCss, /\.ai-msg-para\s*\{[\s\S]*?color:\s*inherit;/);
-    assert.match(primitivesCss, /\.ai-msg-heading\s*\{[\s\S]*?color:\s*inherit;/);
-    assert.match(primitivesCss, /\.ai-msg-list--ul\s*\{[\s\S]*?list-style-type:\s*disc;/);
-    assert.match(primitivesCss, /\.ai-msg-list--ol\s*\{[\s\S]*?list-style-type:\s*decimal;/);
-    assert.match(primitivesCss, /html\.dark\s+\.ai-msg-para[\s\S]*?color:\s*#f1f5f9\s*!important;/);
-    assert.match(primitivesCss, /html\.dark\s+\.assistant-message[\s\S]*?background:\s*#1e293b\s*!important;/);
-    assert.match(primitivesCss, /\.user-message\s+p\s*\{[\s\S]*?color:\s*#ffffff;/);
+    assert.match(primitivesManifest, /@import\s+['"]\.\/primitives\/ai-chat\.css['"];/);
+    assert.match(aiChatCss, /\.ai-msg-rich\s*\{[\s\S]*?color:\s*inherit;/);
+    assert.match(aiChatCss, /\.ai-msg-rich\s*\{[\s\S]*?overflow-wrap:\s*anywhere;/);
+    assert.match(aiChatCss, /\.ai-msg-para\s*\{[\s\S]*?color:\s*inherit;/);
+    assert.match(aiChatCss, /\.ai-msg-heading\s*\{[\s\S]*?color:\s*inherit;/);
+    assert.match(aiChatCss, /\.ai-msg-list--ul\s*\{[\s\S]*?list-style-type:\s*disc;/);
+    assert.match(aiChatCss, /\.ai-msg-list--ol\s*\{[\s\S]*?list-style-type:\s*decimal;/);
+    assert.match(aiChatCss, /html\.dark\s+\.ai-msg-para[\s\S]*?color:\s*#f1f5f9\s*!important;/);
+    assert.match(aiChatCss, /html\.dark\s+\.assistant-message[\s\S]*?background:\s*#1e293b\s*!important;/);
+    assert.doesNotMatch(
+      aiChatCss,
+      /html\.dark\s+\.assistant-message[^{]*\{[^}]*?background:\s*#020617\s*!important;/,
+    );
+    assert.match(aiChatCss, /\.user-message\s+p\s*\{[\s\S]*?color:\s*#ffffff;/);
     assert.match(hookSrc, /<\\\/\?untrusted_data/);
 
     const aiPageCss = fs.readFileSync(
