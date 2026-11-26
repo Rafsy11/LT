@@ -2075,14 +2075,17 @@ input[type='checkbox'] {
 .ai-msg-bubble-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   margin-bottom: 6px;
   gap: 12px;
 }
 
 .ai-msg-sender-name {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ai-msg-bubble.user .ai-msg-sender-name {
@@ -2095,6 +2098,7 @@ input[type='checkbox'] {
 
 .ai-msg-timestamp {
   font-size: 10.5px;
+  flex-shrink: 0;
 }
 
 .ai-msg-bubble.user .ai-msg-timestamp {

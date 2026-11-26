@@ -24,13 +24,6 @@ export function AiHero({ suggestions, onSelectSuggestion }: AiHeroProps) {
           className="ai-hero-logo-img"
         />
       </figure>
-
-      {/* Persona Role Badge */}
-      <span className="ai-hero-persona-badge">
-        <span className="status-dot status-dot--ok" aria-hidden="true" />
-        <span>{AI_PERSONA.heroBadge}</span>
-      </span>
-
       {/* Heading */}
       <h1 className="ai-hero-title">{AI_PERSONA.heroTitle}</h1>
 

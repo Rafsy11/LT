@@ -5,7 +5,7 @@
 export const AI_PERSONA = {
   name: 'Arta',
   roleLabel: 'Co-Pilot NOC FTTH',
-  displayName: 'Arta · Co-Pilot NOC',
+  displayName: 'Arta',
   widgetTitle: 'Arta NOC',
   heroBadge: 'Co-Pilot NOC FTTH · On-Premise',
   heroTitle: 'Halo, saya Arta',
